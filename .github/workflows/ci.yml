@@ -29,6 +29,8 @@ jobs:
           python-version: "3.12"
       - name: Sync dependencies
         run: uv sync
+      - name: Setup local_settings
+        run: cp deploy/sqlite/local_settings.py qatrack/local_settings.py
       - name: Run pre-commit
         run: uvx pre-commit run --all-files
 
