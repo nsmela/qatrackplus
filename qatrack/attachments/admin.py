@@ -103,6 +103,7 @@ class TypeFilter(admin.SimpleListFilter):
         return queryset
 
 
+@admin.register(Attachment)
 class AttachmentAdmin(BaseQATrackAdmin):
 
     list_display = (
@@ -128,9 +129,11 @@ class AttachmentAdmin(BaseQATrackAdmin):
         qs = qs.select_related(*Attachment.OWNER_MODELS)
         return qs
 
+    @admin.display(
+        description=_l("Label")
+    )
     def get_label(self, obj):
         return obj.label or _("Unlabeled")
-    get_label.short_description = _l("Label")
 
 
 class SaveInlineAttachmentUserMixin(object):
@@ -180,4 +183,3 @@ def get_attachment_inline(model):
     return cls
 
 
-admin.site.register([Attachment], AttachmentAdmin)

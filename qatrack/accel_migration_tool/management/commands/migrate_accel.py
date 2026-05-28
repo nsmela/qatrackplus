@@ -4,7 +4,7 @@ import re
 import warnings
 
 from django.conf import settings as qat_settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management.base import BaseCommand
@@ -14,7 +14,6 @@ from django_comments.models import Comment
 
 import pyodbc
 from qatrack.parts import models as p_models
-from qatrack.qa import models as qa_models
 from qatrack.qa.utils import get_internal_user
 from qatrack.service_log import models as sl_models
 from qatrack.units import models as u_models

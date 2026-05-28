@@ -298,9 +298,8 @@ class ProfileMiddleware(object):
             return stats, queries
 
         if request.method != 'GET' and \
-           not (request.META.get('HTTP_CONTENT_TYPE',
-                                 request.META.get('CONTENT_TYPE', '')) in
-                ['multipart/form-data', 'application/x-www-form-urlencoded']):
+           request.headers.get('content-type',
+                                 request.headers.get('content-type', '')) not in ['multipart/form-data', 'application/x-www-form-urlencoded']:
             return
         if (request.REQUEST.get('profile', False) and (settings.DEBUG or request.user.is_staff)):
             request.statsfile = tempfile.NamedTemporaryFile()

@@ -23,15 +23,19 @@ class PartAdmin(BaseQATrackAdmin):
     ]
     search_fields = ['name', 'part_number', 'alt_part_number']
 
+    @admin.display(
+        description="Part Number",
+        ordering="part_number",
+    )
     def get_part_number(self, obj):
         return obj.part_number if obj and obj.part_number else mark_safe("<em>N/A</em>")
-    get_part_number.short_description = "Part Number"
-    get_part_number.admin_order_field = "part_number"
 
+    @admin.display(
+        description="Cost",
+        ordering="cost",
+    )
     def get_cost(self, obj):
         return obj.cost if obj and obj.cost else mark_safe("<em>N/A</em>")
-    get_cost.short_description = "Cost"
-    get_cost.admin_order_field = "cost"
 
 
 class StorageInlineForm(forms.ModelForm):
@@ -150,10 +154,12 @@ class SupplierAdmin(BaseQATrackAdmin):
             'autosize/js/autosize.min.js',
         )
 
+    @admin.display(
+        description=_l("Website"),
+        ordering="website",
+    )
     def get_website(self, obj):
         return obj.get_website_tag()
-    get_website.short_description = _l("Website")
-    get_website.admin_order_field = "website"
 
 
 admin.site.register([p_models.Part], PartAdmin)

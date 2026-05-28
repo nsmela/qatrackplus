@@ -112,15 +112,19 @@ class ServiceEventSchedulingAdmin(BaseQATrackAdmin):
             disp = disp + _(" (next %(num_days)s days)") % {'num_days': obj.future_days}
         return disp
 
+    @admin.display(
+        description=_l("Units Group"),
+        ordering="units__name",
+    )
     def get_units(self, obj):
         return obj.units.name if obj.units else ""
-    get_units.admin_order_field = "units__name"
-    get_units.short_description = _l("Units Group")
 
+    @admin.display(
+        description=_l("Recipient Group"),
+        ordering="recipients__name",
+    )
     def get_recipients(self, obj):
         return obj.recipients.name
-    get_recipients.admin_order_field = "recipients__name"
-    get_recipients.short_description = _l("Recipient Group")
 
 
 admin.site.register([models.ServiceEventSchedulingNotice], ServiceEventSchedulingAdmin)

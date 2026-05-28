@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.conf.urls import include, url
+from django.urls import include, path, re_path
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.templatetags.static import static as static_url
@@ -26,41 +26,41 @@ class QAToQC(RedirectView):
 
 
 urlpatterns = [
-    url(r'^$', views.homepage, name="home"),
-    url(r'^400/$', views.handle_400, name="400"),
-    url(r'^403/$', views.handle_403, name="403"),
-    url(r'^404/$', views.handle_404, name="404"),
-    url(r'^500/$', views.handle_500, name="500"),
-    url(r'^accounts/', include('qatrack.accounts.urls')),
-    url(r'^qa/(?P<terms>.*)$', QAToQC.as_view()),
-    url(r'^qc/', include('qatrack.qa.urls')),
-    url(r'^reports/', include('qatrack.reports.urls')),
-    url(r'^units/', include('qatrack.units.urls')),
-    url(r'^core/', include('qatrack.qatrack_core.urls')),
-    url(r'^servicelog/', include('qatrack.service_log.urls')),
-    url(r'^parts/', include('qatrack.parts.urls')),
-    url(r'^faults/', include('qatrack.faults.urls')),
-    url(r'^issues/', include('qatrack.issue_tracker.urls')),
+    path('', views.homepage, name="home"),
+    path('400/', views.handle_400, name="400"),
+    path('403/', views.handle_403, name="403"),
+    path('404/', views.handle_404, name="404"),
+    path('500/', views.handle_500, name="500"),
+    path('accounts/', include('qatrack.accounts.urls')),
+    re_path(r'^qa/(?P<terms>.*)$', QAToQC.as_view()),
+    path('qc/', include('qatrack.qa.urls')),
+    path('reports/', include('qatrack.reports.urls')),
+    path('units/', include('qatrack.units.urls')),
+    path('core/', include('qatrack.qatrack_core.urls')),
+    path('servicelog/', include('qatrack.service_log.urls')),
+    path('parts/', include('qatrack.parts.urls')),
+    path('faults/', include('qatrack.faults.urls')),
+    path('issues/', include('qatrack.issue_tracker.urls')),
 
     # Uncomment the next line to enable the admin:
     path(r'admin/', admin.site.urls),
-    url(r'^favicon\.ico$', favicon_view),
-    url(r'^apple-touch-icon\.png$', touch_view),
+    re_path(r'^favicon\.ico$', favicon_view),
+    re_path(r'^apple-touch-icon\.png$', touch_view),
 
     # third party
-    url(r'^', include('genericdropdown.urls')),
-    url(r'^comments/', include('django_comments.urls')),
-    url(r'^admin/dynamic_raw_id/', include('dynamic_raw_id.urls')),
-    url(r'^api/', include('qatrack.api.urls')),
+    path('', include('genericdropdown.urls')),
+    path('comments/', include('django_comments.urls')),
+    path('admin/dynamic_raw_id/', include('dynamic_raw_id.urls')),
+    path('api/', include('qatrack.api.urls')),
 ]
 
 js_info_dict = {
     'packages': ('recurrence', ),
 }
-urlpatterns += [url(r'^jsi18n/$', JavaScriptCatalog.as_view(), js_info_dict)]
+urlpatterns += [path('jsi18n/', JavaScriptCatalog.as_view(), js_info_dict)]
 
 if settings.USE_SQL_REPORTS:
-    urlpatterns.append(url(r'^sql-reports/', include('explorer.urls')),)
+    urlpatterns.append(path('sql-reports/', include('explorer.urls')),)
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

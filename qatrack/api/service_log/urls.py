@@ -1,4 +1,4 @@
-from django.conf.urls import include, url
+from django.urls import include, path
 from rest_framework import routers
 
 from qatrack.api.service_log import views
@@ -18,6 +18,6 @@ router.register(r'grouplinker', views.GroupLinkerViewSet)
 router.register(r'grouplinkerinstance', views.GroupLinkerInstanceViewSet)
 
 urlpatterns = [
-    url(r"^searcher/service_event/$", views.service_event_searcher, name='service_event_searcher'),
-    url(r'^', include(router.urls)),
+    path("searcher/service_event/", views.service_event_searcher, name='service_event_searcher'),
+    path('', include(router.urls)),
 ]

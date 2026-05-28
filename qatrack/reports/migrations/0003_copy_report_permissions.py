@@ -12,7 +12,6 @@ def copy_to_reports(apps, schema):
         return
 
     from django.apps import apps
-    from django.contrib.auth.management import create_permissions
 
     for app in ['reports']:
         app_config = apps.get_app_config(app)

@@ -192,7 +192,7 @@ class TestFaultList(TestCase):
     def test_load_result_set(self):
         """Calling via ajax should return a single object in the queryset"""
         utils.create_fault()
-        resp = self.client.get(self.url, {}, content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        resp = self.client.get(self.url, {}, content_type='application/json', headers={"x-requested-with": 'XMLHttpRequest'})
         assert len(resp.json()['aaData']) == 1
 
     def test_get_fields_one_site(self):
@@ -1032,7 +1032,7 @@ class TestFaultsByUnit(TestCase):
         u2 = qa_utils.create_unit()
         utils.create_fault(unit=u2)
         url = reverse("fault_list_by_unit", kwargs={'unit_number': fault1.unit.number})
-        resp = self.client.get(url, {}, content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        resp = self.client.get(url, {}, content_type='application/json', headers={"x-requested-with": 'XMLHttpRequest'})
         assert len(resp.json()['aaData']) == 1
 
     def test_get_fields(self):
@@ -1068,7 +1068,7 @@ class TestFaultsByUnitFaultType(TestCase):
         utils.create_fault(fault_type=ft)
         kwargs = {'unit_number': fault1.unit.number, 'slug': fault1.fault_types.first().slug}
         url = reverse("fault_list_by_unit_type", kwargs=kwargs)
-        resp = self.client.get(url, {}, content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        resp = self.client.get(url, {}, content_type='application/json', headers={"x-requested-with": 'XMLHttpRequest'})
         assert len(resp.json()['aaData']) == 1
 
     def test_get_fields(self):
@@ -1098,7 +1098,7 @@ class TestFaultTypeList(TestCase):
     def test_load_result_set(self):
         """Calling via ajax should return a single object in the queryset"""
         utils.create_fault(fault_type=self.fault_type)
-        resp = self.client.get(self.url, {}, content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        resp = self.client.get(self.url, {}, content_type='application/json', headers={"x-requested-with": 'XMLHttpRequest'})
         assert len(resp.json()['aaData']) == 1
 
 
@@ -1122,7 +1122,7 @@ class TestFaultTypeDetails(TestCase):
         """Calling via ajax should return a single object in the queryset"""
         fault = utils.create_fault(fault_type=self.fault_type)
         url = reverse("fault_type_details", kwargs={'slug': fault.fault_types.first().slug})
-        resp = self.client.get(url, {}, content_type='application/json', HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        resp = self.client.get(url, {}, content_type='application/json', headers={"x-requested-with": 'XMLHttpRequest'})
         assert len(resp.json()['aaData']) == 1
 
 

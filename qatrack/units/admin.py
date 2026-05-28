@@ -142,6 +142,7 @@ class UnitAvailableTimeInline(admin.TabularInline):
     verbose_name_plural = 'Unit Schedule'
 
 
+@admin.register(Unit)
 class UnitAdmin(BaseQATrackAdmin):
 
     form = UnitFormAdmin
@@ -183,6 +184,7 @@ class UnitAdmin(BaseQATrackAdmin):
         return formfield
 
 
+@admin.register(UnitType)
 class UnitTypeAdmin(BaseQATrackAdmin):
 
     list_display = ['model_name', 'vendor', 'unit_class', 'collapse']
@@ -201,11 +203,13 @@ class UnitTypeAdmin(BaseQATrackAdmin):
         return "{}{}{}".format(vendor_name, obj.name, model)
 
 
+@admin.register(Modality)
 class ModalityAdmin(BaseQATrackAdmin):
 
     list_display = ["name"]
 
 
+@admin.register(Site)
 class SiteAdmin(BaseQATrackAdmin):
     """QC categories admin"""
     prepopulated_fields = {'slug': ('name',)}
@@ -215,8 +219,4 @@ class SiteAdmin(BaseQATrackAdmin):
     )
 
 
-admin.site.register(Unit, UnitAdmin)
-admin.site.register(UnitType, UnitTypeAdmin)
-admin.site.register(Modality, ModalityAdmin)
-admin.site.register(Site, SiteAdmin)
 admin.site.register([UnitClass, Vendor], BaseQATrackAdmin)

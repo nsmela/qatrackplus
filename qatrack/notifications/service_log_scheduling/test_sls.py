@@ -3,7 +3,6 @@ from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
 from django_q.models import Schedule
-import recurrence
 
 from qatrack.notifications.models import (
     RecipientGroup,

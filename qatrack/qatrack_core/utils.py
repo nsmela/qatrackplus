@@ -144,7 +144,7 @@ class relative_dates:
             end_dt = rd.end
         """
 
-        if not date_range.lower() in self.ALL_DATE_RANGES:
+        if date_range.lower() not in self.ALL_DATE_RANGES:
             raise ValueError("%s is not a valid date range string")
 
         self.date_range = date_range.strip().lower()

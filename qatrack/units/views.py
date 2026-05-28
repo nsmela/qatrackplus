@@ -1,7 +1,6 @@
 from braces.views import PermissionRequiredMixin
 from django.conf import settings
 from django.contrib.auth.decorators import permission_required
-from django.contrib.auth.models import Permission
 from django.db.models import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.utils import timezone

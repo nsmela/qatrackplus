@@ -64,6 +64,7 @@ class UnitServiceAreaFilter(admin.SimpleListFilter):
         return queryset
 
 
+@admin.register(ServiceEvent)
 class ServiceEventAdmin(DeleteOnlyFromOwnFormAdmin):
 
     list_display = [
@@ -113,6 +114,7 @@ class ServiceEventAdmin(DeleteOnlyFromOwnFormAdmin):
         return qs
 
 
+@admin.register(ServiceEventStatus)
 class ServiceEventStatusAdmin(DeleteOnlyFromOwnFormAdmin):
     list_display = ['name', 'is_review_required', 'is_default', 'rts_qa_must_be_reviewed', 'order']
     list_editable = ['order']
@@ -142,15 +144,18 @@ class ServiceEventStatusAdmin(DeleteOnlyFromOwnFormAdmin):
         return super().delete_view(request, object_id, extra_context)
 
 
+@admin.register(ServiceType)
 class ServiceTypeAdmin(DeleteOnlyFromOwnFormAdmin):
     list_display = ['name', 'is_review_required', 'is_active']
 
 
+@admin.register(ServiceArea)
 class ServiceAreaAdmin(DeleteOnlyFromOwnFormAdmin):
     list_display = ['name']
     filter_horizontal = ("units",)
 
 
+@admin.register(UnitServiceArea)
 class UnitServiceAreaAdmin(DeleteOnlyFromOwnFormAdmin):
     list_display = ['__str__', 'notes']
     list_filter = ['unit', 'service_area']
@@ -183,6 +188,7 @@ class GroupLinkerAdminForm(forms.ModelForm):
         return multiple
 
 
+@admin.register(GroupLinker)
 class GroupLinkerAdmin(DeleteOnlyFromOwnFormAdmin):
     list_display = ['name', 'group', 'required', 'multiple', 'description', 'help_text']
     list_filter = ['group']
@@ -323,6 +329,7 @@ class ServiceEventScheduleAdminForm(forms.ModelForm):
         return data
 
 
+@admin.register(ServiceEventSchedule)
 class ServiceEventScheduleAdmin(BaseQATrackAdmin):
 
     list_filter = [
@@ -380,27 +387,36 @@ class ServiceEventScheduleAdmin(BaseQATrackAdmin):
             'frequency',
         )
 
+    @admin.display(
+        description=_l('Template Name'),
+        ordering='service_event_template__name',
+    )
     def get_name(self, ses):
         return ses.service_event_template.name
-    get_name.short_description = _l('Template Name')
-    get_name.admin_order_field = 'service_event_template__name'
 
+    @admin.display(
+        description=_l('Site'),
+        ordering='unit_service_area__unit__site',
+    )
     def get_site(self, ses):
         return ses.unit_service_area.unit.site.name if ses.unit_service_area.unit.site else _l("Other")
-    get_site.short_description = _l('Site')
-    get_site.admin_order_field = 'unit_service_area__unit__site'
 
+    @admin.display(
+        description=_l('Unit'),
+        ordering='unit_service_area__unit',
+    )
     def get_unit(self, ses):
         return ses.unit_service_area.unit.name
-    get_unit.short_description = _l('Unit')
-    get_unit.admin_order_field = 'unit_service_area__unit'
 
+    @admin.display(
+        description=_l('Service Area'),
+        ordering='unit_service_area__service_area.name',
+    )
     def get_service_area(self, ses):
         return ses.unit_service_area.service_area.name
-    get_service_area.short_description = _l('Service Area')
-    get_service_area.admin_order_field = 'unit_service_area__service_area.name'
 
 
+@admin.register(ServiceEventTemplate)
 class ServiceEventTemplateAdmin(SaveUserQATrackAdmin):
 
     list_filter = ['service_type']
@@ -450,12 +466,4 @@ class ServiceEventTemplateAdmin(SaveUserQATrackAdmin):
     ]
 
 
-admin.site.register(ServiceArea, ServiceAreaAdmin)
-admin.site.register(ServiceEvent, ServiceEventAdmin)
-admin.site.register(ServiceType, ServiceTypeAdmin)
-admin.site.register(ServiceEventStatus, ServiceEventStatusAdmin)
-admin.site.register(UnitServiceArea, UnitServiceAreaAdmin)
-admin.site.register(GroupLinker, GroupLinkerAdmin)
-admin.site.register(ServiceEventSchedule, ServiceEventScheduleAdmin)
-admin.site.register(ServiceEventTemplate, ServiceEventTemplateAdmin)
 admin.site.register([ThirdParty], BaseQATrackAdmin)

@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 
 import re
 
-from django.core.validators import RegexValidator
 from django.db import migrations, models
 from django.conf import settings
 import django.utils.timezone

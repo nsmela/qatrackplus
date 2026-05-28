@@ -3,7 +3,7 @@ DEBUG = False
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'qatrackplus31',
         'USER': 'qatrack',
         'PASSWORD': 'qatrackpass',
@@ -11,7 +11,7 @@ DATABASES = {
         'PORT': '',  # Set to empty string for default. Not used with sqlite3.
     },
     'readonly': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'qatrackplus31',
         'USER': 'qatrack_reports',
         'PASSWORD': 'qatrackpass',

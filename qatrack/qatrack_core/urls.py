@@ -1,7 +1,7 @@
-from django.conf.urls import url
+from django.urls import path
 
 from qatrack.qatrack_core import views
 
 urlpatterns = [
-    url(r"^comment/ajax_comment/$", views.ajax_comment, name='ajax_comment'),
+    path("comment/ajax_comment/", views.ajax_comment, name='ajax_comment'),
 ]

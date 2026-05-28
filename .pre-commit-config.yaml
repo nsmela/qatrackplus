@@ -1,0 +1,15 @@
+repos:
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.5
+    hooks:
+    -   id: ruff
+        name: Ruff Linter
+        # Devs are to fix themselves, prevents confusion with pre-commit 
+        args: [ --no-fix ]
+
+-   repo: https://github.com/adamchainz/django-upgrade
+    rev: "1.25.0"
+    hooks:
+    -   id: django-upgrade
+        args: [--target-version, "4.2"]
+        exclude: qatrack/settings\.py

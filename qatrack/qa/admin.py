@@ -167,16 +167,20 @@ class UnitTestInfoForm(forms.ModelForm):
         return self.cleaned_data
 
 
+@admin.display(
+    ordering="test__name"
+)
 def test_name(obj):
     return obj.test.name
-test_name.admin_order_field = "test__name"  # noqa: E305
 
 
+@admin.display(
+    ordering="test__type"
+)
 def test_type(obj):
     for tt, display in models.TEST_TYPE_CHOICES:
         if obj.test.type == tt:
             return display
-test_type.admin_order_field = "test__type"  # noqa: E305
 
 
 class SetMultipleReferencesAndTolerancesForm(forms.Form):
@@ -346,6 +350,9 @@ class UnitTestInfoAdmin(AdminViews, BaseQATrackAdmin):
             messages.success(request, "%s tolerances and references have been saved successfully." % queryset.count())
             return HttpResponseRedirect(request.get_full_path())
 
+    @admin.action(
+        description=_l("Set multiple references and tolerances")
+    )
     def set_multiple_references_and_tolerances(self, request, queryset):
 
         testtypes = set(queryset.values_list('test__type', flat=True).distinct())
@@ -409,7 +416,6 @@ class UnitTestInfoAdmin(AdminViews, BaseQATrackAdmin):
                 'has_change_permission': False,
             }
             return render(request, 'admin/qa/unittestinfo/set_multiple_refs_and_tols.html', context)
-    set_multiple_references_and_tolerances.short_description = _l("Set multiple references and tolerances")
 
     def save_model(self, request, test_info, form, change):
         """create new reference when user updates value"""
@@ -1070,46 +1076,58 @@ class TestAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
         super(TestAdmin, self).save_model(request, obj, form, change)
 
+    @admin.display(
+        description=_l("Created"),
+        ordering="created",
+    )
     @mark_safe
     def obj_created(self, obj):
         link_title = _("Created by %(username)s") % {'username': obj.created_by}
         dt = date_formatter(timezone.localtime(obj.created), "DATETIME_FORMAT")
         return '<abbr title="%s">%s</abbr>' % (link_title, dt)
-    obj_created.admin_order_field = "created"
-    obj_created.short_description = _l("Created")
 
+    @admin.display(
+        description=_l("Modified"),
+        ordering="modified",
+    )
     @mark_safe
     def obj_modified(self, obj):
         link_title = _("Modified by %(username)s") % {'username': obj.modified_by}
         dt = date_formatter(timezone.localtime(obj.modified), "DATETIME_FORMAT")
         return '<abbr title="%s">%s</abbr>' % (link_title, dt)
 
-    obj_modified.admin_order_field = "modified"
-    obj_modified.short_description = _l("Modified")
 
 
+@admin.display(
+    description=_l("Unit"),
+    ordering="unit__name",
+)
 def unit_name(obj):
     return obj.unit.name
-unit_name.admin_order_field = "unit__name"  # noqa: E305
-unit_name.short_description = _l("Unit")
 
 
+@admin.display(
+    description=_l("Site"),
+    ordering="unit__site__name",
+)
 def site_name(obj):
     return obj.unit.site.name if obj.unit.site else _l("Other")
-site_name.admin_order_field = "unit__site__name"  # noqa: E305
-site_name.short_description = _l("Site")
 
 
+@admin.display(
+    description=_l("Frequency"),
+    ordering="frequency__name",
+)
 def freq_name(obj):
     return obj.frequency.name if obj.frequency else _l("Ad Hoc")
-freq_name.admin_order_field = "frequency__name"  # noqa: E305
-freq_name.short_description = _l("Frequency")
 
 
+@admin.display(
+    description=_l("Assigned To"),
+    ordering="assigned_to__name",
+)
 def assigned_to_name(obj):
     return obj.assigned_to.name
-assigned_to_name.admin_order_field = "assigned_to__name"  # noqa: E305
-assigned_to_name.short_description = _l("Assigned To")
 
 
 class SiteFilter(admin.SimpleListFilter):
@@ -1267,12 +1285,14 @@ class UnitTestCollectionAdmin(BaseQATrackAdmin):
         qs = super(UnitTestCollectionAdmin, self).get_queryset(*args, **kwargs)
         return qs.select_related("unit", "unit__site", "frequency", "assigned_to", "content_type")
 
+    @admin.display(
+        description=_l("Content Type"),
+        ordering="content_type__model",
+    )
     def get_content_type(self, obj):
         if obj:
             return obj.content_type.model_class().__name__
         return _("Unknown")
-    get_content_type.short_description = _l("Content Type")
-    get_content_type.admin_order_field = "content_type__model"
 
 
 class TestListCycleMembershipInline(DynamicRawIDMixin, admin.TabularInline):
@@ -1373,6 +1393,9 @@ class FrequencyAdmin(BaseQATrackAdmin):
             'all': ["cal-heatmap/css/cal-heatmap.css"],
         }
 
+    @admin.display(
+        description=_l("Recurrences")
+    )
     @mark_safe
     def get_recurrences(self, obj):
         rules = str(obj.recurrences).replace("RRULE:", "").split("\n")[1:]
@@ -1387,7 +1410,6 @@ class FrequencyAdmin(BaseQATrackAdmin):
             processed.append(rule)
 
         return "<br/>".join(processed)
-    get_recurrences.short_description = _l("Recurrences")
 
 
 class StatusAdmin(BaseQATrackAdmin):
@@ -1418,16 +1440,20 @@ class StatusAdmin(BaseQATrackAdmin):
             ),
         }
 
+    @admin.display(
+        description=_l("Color")
+    )
     @mark_safe
     def get_colour(self, obj):
         return '<div style="display: inline-block; width: 20px; height:20px; background-color: %s;"></div>' % obj.colour
-    get_colour.short_description = _l("Color")
 
 
+@admin.display(
+    description=_l("Unit"),
+    ordering="unit_test_collection__unit__name",
+)
 def utc_unit_name(obj):
     return obj.unit_test_collection.unit.name
-utc_unit_name.admin_order_field = "unit_test_collection__unit__name"  # noqa: E305
-utc_unit_name.short_description = _l("Unit")
 
 
 class TestListInstanceAdmin(SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
@@ -1481,20 +1507,26 @@ class TestInstanceAdmin(SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
             "created_by"
         )
 
+    @admin.display(
+        description=_l("Test List Name"),
+        ordering="test_list_instance__test_list__name",
+    )
     def test_list_name(self, obj):
         return obj.test_list_instance.test_list.name
-    test_list_name.short_description = _l("Test List Name")
-    test_list_name.admin_order_field = "test_list_instance__test_list__name"
 
+    @admin.display(
+        description=_l("Test Name"),
+        ordering="unit_test_info__test__name",
+    )
     def test_name(self, obj):
         return obj.unit_test_info.test.name
-    test_name.short_description = _l("Test Name")
-    test_name.admin_order_field = "unit_test_info__test__name"
 
+    @admin.display(
+        description=_l("Unit Name"),
+        ordering="unit_test_info__unit__number",
+    )
     def unit_name(self, obj):
         return obj.unit_test_info.unit
-    unit_name.short_description = _l("Unit Name")
-    unit_name.admin_order_field = "unit_test_info__unit__number"
 
     def has_add_permission(self, request):
         """testistinstancess are created via front end only"""
@@ -1566,10 +1598,12 @@ class AutoReviewRuleSetAdmin(BaseQATrackAdmin):
 
     form = AutoReviewRuleSetAdminForm
 
+    @admin.display(
+        description=_l("Rules")
+    )
     @mark_safe
     def get_rules_display(self, obj):
         return "<br>".join(str(rule) for rule in obj.rules.all().order_by('pass_fail'))
-    get_rules_display.short_description = _l("Rules")
 
 
 class AutoSaveAdmin(BaseQATrackAdmin):

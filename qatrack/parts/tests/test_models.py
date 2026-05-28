@@ -1,16 +1,7 @@
-from unittest import mock
 
-from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
-from django.db.utils import IntegrityError
-from django.db.models import ProtectedError, ObjectDoesNotExist
-from django.test import TestCase, TransactionTestCase
-from django.utils import timezone
+from django.test import TestCase
 
-from qatrack.service_log import models as sl_models
 
-from qatrack.qa.tests import utils as qa_utils
 from qatrack.service_log.tests import utils as sl_utils
 
 

@@ -61,9 +61,11 @@ class QATrackUserAdmin(UserAdmin):
 
         return form
 
+    @admin.display(
+        boolean=True
+    )
     def is_admin(self, obj):
         return obj.is_staff
-    is_admin.boolean = True
 
 
 class GroupForm(forms.ModelForm):
@@ -101,9 +103,11 @@ class QATrackGroupAdmin(GroupAdmin):
     def get_queryset(self, *args, **kwargs):
         return super().get_queryset(*args, **kwargs).prefetch_related("defaultgroup_set")
 
+    @admin.display(
+        boolean=True
+    )
     def is_default(self, obj):
         return bool(obj.defaultgroup_set.all())
-    is_default.boolean = True
 
 
 class ActiveDirectoryGroupMapAdmin(BaseQATrackAdmin):
@@ -112,17 +116,21 @@ class ActiveDirectoryGroupMapAdmin(BaseQATrackAdmin):
     list_filter = ("groups", "account_qualifier",)
     search_fields = ("ad_group", "groups__name")
 
+    @admin.display(
+        description=_l("QATrack+ Groups")
+    )
     def get_groups(self, obj):
         return ', '.join(sorted(obj.groups.values_list("name", flat=True)))
 
-    get_groups.short_description = _l("QATrack+ Groups")
 
+    @admin.display(
+        description=_l("Active Directory Group Name")
+    )
     @mark_safe
     def get_ad_group(self, obj):
         if not obj.ad_group:
             return '<em>' + _("Default Groups") + "</em>"
         return escape(obj.ad_group)
-    get_ad_group.short_description = _l("Active Directory Group Name")
 
 
 admin.site.unregister(User)
