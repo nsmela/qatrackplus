@@ -9,6 +9,25 @@ import datetime
 import os
 import sys
 
+# --- django 4.0 compatibility shim for django-admin-views and genericdropdown ---
+import django.conf.urls
+from django.urls import re_path
+def legacy_url(regex, view, kwargs=None, name=None):
+    return re_path(route=regex, view=view, kwargs=kwargs, name=name)
+django.conf.urls.url = legacy_url
+django.conf.urls.__all__.append("url")
+
+import django.shortcuts
+from django.http import HttpResponse
+from django.template import loader
+def legacy_render_to_response(template_name, context=None, content_type=None, status=None, using=None):
+    content = loader.render_to_string(template_name, context, using=using)
+    return HttpResponse(content, content_type=content_type, status=status)
+django.shortcuts.render_to_response = legacy_render_to_response
+if hasattr(django.shortcuts, "__all__") and "render_to_response" not in django.shortcuts.__all__:
+    django.shortcuts.__all__.append("render_to_response")
+# --------------------------------------------------------------------------------
+
 import matplotlib
 
 matplotlib.use("Agg")

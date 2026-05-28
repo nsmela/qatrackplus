@@ -13,3 +13,12 @@ repos:
     -   id: django-upgrade
         args: [--target-version, "4.2"]
         exclude: qatrack/settings\.py
+
+-   repo: local
+    hooks:
+    -   id: django-check
+        name: Django System Check
+        entry: uv run python manage.py check
+        language: system
+        pass_filenames: false
+        always_run: true

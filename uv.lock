@@ -448,6 +448,30 @@ wheels = [
 ]
 
 [[package]]
+name = "coreapi"
+version = "2.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "coreschema" },
+    { name = "itypes" },
+    { name = "requests" },
+    { name = "uritemplate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/f2/5fc0d91a0c40b477b016c0f77d9d419ba25fc47cc11a96c825875ddce5a6/coreapi-2.3.3.tar.gz", hash = "sha256:46145fcc1f7017c076a2ef684969b641d18a2991051fddec9458ad3f78ffc1cb", size = 18788, upload-time = "2017-10-05T14:04:38.221Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/3a/9dedaad22962770edd334222f2b3c3e7ad5e1c8cab1d6a7992c30329e2e5/coreapi-2.3.3-py2.py3-none-any.whl", hash = "sha256:bf39d118d6d3e171f10df9ede5666f63ad80bba9a29a8ec17726a66cf52ee6f3", size = 25636, upload-time = "2017-10-05T14:04:40.687Z" },
+]
+
+[[package]]
+name = "coreschema"
+version = "0.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/93/08/1d105a70104e078718421e6c555b8b293259e7fc92f7e9a04869947f198f/coreschema-0.0.4.tar.gz", hash = "sha256:9503506007d482ab0867ba14724b93c18a33b22b6d19fb419ef2d239dd4a1607", size = 10974, upload-time = "2017-02-08T12:23:49.42Z" }
+
+[[package]]
 name = "coverage"
 version = "7.14.1"
 source = { registry = "https://pypi.org/simple" }
@@ -629,6 +653,15 @@ wheels = [
 ]
 
 [[package]]
+name = "django-admin-views"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/ff/bbc04cc63b891782a7fb3c84f84c96471e2fc7de05eff7b73d424d326fe9/django-admin-views-0.8.0.tar.gz", hash = "sha256:cf3f54c030cb20f1e11f42e80d68022ba020326438c44fcb15edb11487934fb8", size = 11500, upload-time = "2016-08-24T21:12:20.545Z" }
+
+[[package]]
 name = "django-appconf"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -773,6 +806,12 @@ wheels = [
 ]
 
 [[package]]
+name = "django-form-utils"
+version = "1.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/4e/0d860844f52081507e7d16349682c184768abebadb92af5fbb852bb64bfd/django-form-utils-1.0.3.tar.gz", hash = "sha256:670d0c6ce809aa91f17b6cb8905dab7a56d054191251540d5d011649c4fda108", size = 21190, upload-time = "2015-08-25T15:43:09.305Z" }
+
+[[package]]
 name = "django-formtools"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -783,6 +822,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/7a/fe/0b3c56822d4ba217a
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/b8/0f711b0953d8234c6084ab071108a73b755da81de445e1296d83f0261ab1/django_formtools-2.6.1-py3-none-any.whl", hash = "sha256:2848516dc66a7acde1cb595d225b30c1b837528948cad32bf0faafc6d8cc7af8", size = 157971, upload-time = "2026-05-16T13:30:06Z" },
 ]
+
+[[package]]
+name = "django-genericdropdown"
+version = "0.1"
+source = { git = "https://github.com/randlet/django-genericdropdown.git?rev=473ff52610af659f7d2a3616a6e3322e21673b4d#473ff52610af659f7d2a3616a6e3322e21673b4d" }
 
 [[package]]
 name = "django-js-asset"
@@ -905,6 +949,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a3/a5/c59b2123ad588fd52ce69e043e47185a54d1d9966f29ecb50d1cf65861ca/django_upgrade-1.30.0.tar.gz", hash = "sha256:c2c9a02773708c5b4fc24ebf29f2c532082885170d1ab17a2ef33f396893dd8a", size = 39652, upload-time = "2026-02-24T23:19:45.091Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/aa/1f/58c990ab604a5b39b6d1c83f18aa074bfb10eef201c833697d44176d78cd/django_upgrade-1.30.0-py3-none-any.whl", hash = "sha256:3cf6eb4a46918df3f0b863bd96df8a36a8fed90d0e17c6a7c4af5442e489bc46", size = 68910, upload-time = "2026-02-24T23:19:43.65Z" },
+]
+
+[[package]]
+name = "django-utils-six"
+version = "2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/45/ff0d0118afd6b44496ec784a978ed6586a3b744444cb06e7cfd70dd02b3b/django-utils-six-2.0.tar.gz", hash = "sha256:4ef9d20de679a5b2448429476452493661fe08f23d6e788a8e9816ec05e3c5b0", size = 9794, upload-time = "2020-06-17T14:57:27.323Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/0a/3d7bcdf6a572d2367355d762bc90df1c983bd25567026336d4e6f0bc69c8/django_utils_six-2.0-py3-none-any.whl", hash = "sha256:8f0e77289d911069a6a15bab5a25ccf2c0fcb8fc4177461dd17470cfdeb94aa6", size = 10032, upload-time = "2020-06-17T14:57:30.457Z" },
 ]
 
 [[package]]
@@ -1335,6 +1388,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/87/f9/c1eb8635a24e87ade2efce21e3ce8cd6b8630bb685ddc9cdaca1349b2eb5/isort-5.13.2.tar.gz", hash = "sha256:48fdfcb9face5d58a4f6dde2e72a1fb8dcaf8ab26f95ab49fab84c2ddefb0109", size = 175303, upload-time = "2023-12-13T20:37:26.124Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/b3/8def84f539e7d2289a02f0524b944b15d7c75dab7628bedf1c4f0992029c/isort-5.13.2-py3-none-any.whl", hash = "sha256:8ca5e72a8d85860d5a3fa69b8745237f2939afe12dbf656afbcb47fe72d947a6", size = 92310, upload-time = "2023-12-13T20:37:23.244Z" },
+]
+
+[[package]]
+name = "itypes"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/53/764524b3907d0af00523f8794daca181c08ca7cb32ceee25a0754d5e63a5/itypes-1.2.0.tar.gz", hash = "sha256:af886f129dea4a2a1e3d36595a2d139589e4dd287f5cab0b40e799ee81570ff1", size = 4355, upload-time = "2020-04-19T21:50:13.144Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/bb/3bd99c7cd34d4a123b2903e16da364f6d2078b1c3a3530a8ad105c668104/itypes-1.2.0-py2.py3-none-any.whl", hash = "sha256:03da6872ca89d29aef62773672b2d408f490f80db48b23079a4b194c86dd04c6", size = 4756, upload-time = "2020-04-19T21:50:11.704Z" },
 ]
 
 [[package]]
@@ -2530,14 +2592,18 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "concurrent-log-handler" },
+    { name = "coreapi" },
     { name = "django" },
+    { name = "django-admin-views" },
     { name = "django-auth-adfs" },
     { name = "django-braces" },
     { name = "django-contrib-comments" },
     { name = "django-crispy-forms" },
     { name = "django-dynamic-raw-id" },
     { name = "django-filter" },
+    { name = "django-form-utils" },
     { name = "django-formtools" },
+    { name = "django-genericdropdown" },
     { name = "django-listable" },
     { name = "django-mptt" },
     { name = "django-mptt-admin" },
@@ -2546,6 +2612,7 @@ dependencies = [
     { name = "django-recurrence" },
     { name = "django-registration" },
     { name = "django-sql-explorer" },
+    { name = "django-utils-six" },
     { name = "django-widget-tweaks" },
     { name = "djangorestframework" },
     { name = "djangorestframework-filters" },
@@ -2640,7 +2707,9 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = "==4.9.3" },
     { name = "cherrypy", marker = "sys_platform == 'win32' and extra == 'win'", specifier = "==18.0.1" },
     { name = "concurrent-log-handler", specifier = "==0.9.19" },
+    { name = "coreapi", specifier = ">=2.3.3,<2.4" },
     { name = "django", specifier = "==4.2" },
+    { name = "django-admin-views", specifier = ">=0.8.0,<0.9" },
     { name = "django-auth-adfs", specifier = ">=1.7.0" },
     { name = "django-auth-ldap", marker = "extra == 'mssql'", specifier = "<4.9" },
     { name = "django-braces", specifier = ">=1.17,<1.18" },
@@ -2648,7 +2717,9 @@ requires-dist = [
     { name = "django-crispy-forms", specifier = ">=1.14.0,<2.0" },
     { name = "django-dynamic-raw-id", specifier = ">=4.0" },
     { name = "django-filter", specifier = ">=23.0" },
+    { name = "django-form-utils", specifier = ">=1.0.3,<1.1" },
     { name = "django-formtools", specifier = ">=2.5.1,<3.0" },
+    { name = "django-genericdropdown", git = "https://github.com/randlet/django-genericdropdown.git?rev=473ff52610af659f7d2a3616a6e3322e21673b4d" },
     { name = "django-listable", specifier = ">=0.9.0,<1.0" },
     { name = "django-mptt", specifier = ">=0.13.4,<1.0" },
     { name = "django-mptt-admin", specifier = ">=2.0" },
@@ -2657,6 +2728,7 @@ requires-dist = [
     { name = "django-recurrence", specifier = ">=1.11.0" },
     { name = "django-registration", specifier = ">=3.2" },
     { name = "django-sql-explorer", specifier = ">=5.3" },
+    { name = "django-utils-six" },
     { name = "django-widget-tweaks", specifier = ">=1.5.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "djangorestframework-filters", specifier = ">=1.0.0.dev2" },

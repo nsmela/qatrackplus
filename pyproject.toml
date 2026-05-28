@@ -81,6 +81,11 @@ dependencies = [
     "XlsxWriter>=1.3.7,<4.0",
     "django-recurrence>=1.11.0",
     "django-sql-explorer>=5.3",
+    "django-genericdropdown",
+    "coreapi>=2.3.3,<2.4",
+    "django-admin-views>=0.8.0,<0.9",
+    "django-form-utils>=1.0.3,<1.1",
+    "django-utils-six",
 ]
 
 [project.optional-dependencies]
@@ -138,6 +143,7 @@ DJANGO_SETTINGS_MODULE = "qatrack.settings"
 
 [tool.uv.sources]
 python-ldap = { url = "https://github.com/cgohlke/python-ldap-build/releases/download/v3.4.5/python_ldap-3.4.5-cp312-cp312-win_amd64.whl", marker = "sys_platform == 'win32' and python_version== '3.12'" }
+django-genericdropdown = { git = "https://github.com/randlet/django-genericdropdown.git", rev = "473ff52610af659f7d2a3616a6e3322e21673b4d" }
 
 [dependency-groups]
 dev = [
