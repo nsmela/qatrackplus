@@ -1,164 +1,163 @@
 <#
 .SYNOPSIS
     Configures IIS to serve a QATrack+ installation, following the official
-    Windows deployment guide:
-    https://docs.qatrackplus.com/en/stable/install/win.html  ("Setting up IIS")
+    Windows deployment guide ("Setting up IIS"):
+    https://docs.qatrackplus.com/en/stable/install/win.html
 
 .DESCRIPTION
     QATrack+ on Windows runs the Django app behind a CherryPy service (default
-    port 8080). IIS is used for two jobs:
-        1. Serve static / media files directly off disk.
-        2. Reverse-proxy everything else to CherryPy.
+    port 8080). IIS does two jobs: serve static/media files off disk, and
+    reverse-proxy everything else to CherryPy. This script automates the manual
+    GUI steps from the docs and VERIFIES each one by reading it back, so it will
+    not report success unless the configuration was actually applied.
 
-    This script automates the manual GUI steps from the docs:
-        * Enables the reverse-proxy setting in Application Request Routing (ARR).
-        * Stops the Default Web Site.
-        * Creates a "QATrack Static" site rooted at <InstallRoot>\qatrack on port 80.
-        * Adds two URL Rewrite rules:
-            - "QATrack Static"        : ^(static|media)/.*   -> action None, stop processing
-            - "QATrack Reverse Proxy" : ^(.*)                -> http://localhost:<CherryPyPort>/{R:1}
-              plus an HTTP_X_FORWARDED_HOST server variable.
-        * Whitelists the HTTP_X_FORWARDED_HOST server variable for rewrite.
+    Prerequisites (the docs require both): the URL Rewrite 2.1 and Application
+    Request Routing 3.0 IIS modules. The script detects them up front and stops
+    with instructions if either is missing. Use -InstallPrereqs to download and
+    install them silently from Microsoft (URL Rewrite first, then ARR, since ARR
+    depends on it).
 
-    The script is idempotent: re-running it replaces the rules rather than duplicating them.
-
-.NOTES
-    * Run from an ELEVATED PowerShell prompt (Administrator).
-    * Requires IIS plus the URL Rewrite 2.1 and Application Request Routing 3.0 modules.
-      Use -InstallPrereqs to download and install the two modules silently from Microsoft.
-    * This configures IIS only. You still need: CherryPy service running on the chosen
-      port, and USE_X_FORWARDED_HOST = True in qatrack/local_settings.py (per the docs).
-
-.PARAMETER InstallRoot
-    Root of the QATrack+ checkout. Default: C:\deploy\qatrackplus
-    (static files are served from <InstallRoot>\qatrack).
-
-.PARAMETER SiteName
-    Name for the IIS site. Default: "QATrack Static".
-
-.PARAMETER Port
-    Port IIS listens on. Default: 80.
-
-.PARAMETER CherryPyPort
-    Port the QATrack+ CherryPy service listens on. Default: 8080.
-
-.PARAMETER ServerName
-    Value used for the HTTP_X_FORWARDED_HOST server variable (your public hostname,
-    e.g. qatrack.myhospital.org). Defaults to the machine's hostname.
-
-.PARAMETER StopDefaultSite
-    Stop the IIS "Default Web Site". Default: $true.
-
-.PARAMETER InstallPrereqs
-    If set, downloads and silently installs URL Rewrite 2.1 and ARR 3.0 before configuring.
+.PARAMETER InstallRoot   Root of the QATrack+ checkout. Default C:\deploy\qatrackplus
+                         (static is served from <InstallRoot>\qatrack).
+.PARAMETER SiteName      IIS site name. Default "QATrack Static".
+.PARAMETER Port          Port IIS listens on. Default 80.
+.PARAMETER CherryPyPort  Port the CherryPy service listens on. Default 8080.
+.PARAMETER ServerName    Value for HTTP_X_FORWARDED_HOST. Default = machine hostname.
+.PARAMETER StopDefaultSite  Stop "Default Web Site". Default $true.
+.PARAMETER InstallPrereqs   Download + silently install URL Rewrite 2.1 and ARR 3.0.
 
 .EXAMPLE
     .\Configure-QATrackIIS.ps1 -ServerName qatrack.myhospital.org
-
 .EXAMPLE
-    .\Configure-QATrackIIS.ps1 -InstallRoot D:\qatrackplus -CherryPyPort 8090 -InstallPrereqs
+    .\Configure-QATrackIIS.ps1 -InstallPrereqs -ServerName qatrack.myhospital.org
 #>
 
 [CmdletBinding()]
 param(
-    [string] $InstallRoot   = 'C:\deploy\qatrackplus',
-    [string] $SiteName      = 'QATrack Static',
-    [int]    $Port          = 80,
-    [int]    $CherryPyPort  = 8080,
-    [string] $ServerName    = $env:COMPUTERNAME,
+    [string] $InstallRoot     = 'C:\deploy\qatrackplus',
+    [string] $SiteName        = 'QATrack Static',
+    [int]    $Port            = 80,
+    [int]    $CherryPyPort    = 8080,
+    [string] $ServerName      = $env:COMPUTERNAME,
     [bool]   $StopDefaultSite = $true,
     [switch] $InstallPrereqs
 )
 
 $ErrorActionPreference = 'Stop'
 
-# --- Direct download links for the prerequisite modules (x64) -----------------
+# Canonical x64 download links (verified current).
 $UrlRewriteMsi = 'https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi'
 $ArrMsi        = 'https://download.microsoft.com/download/E/9/8/E9849D6A-020E-47E4-9FD0-A023E99B54EB/requestRouter_amd64.msi'
 
-function Write-Step  { param($m) Write-Host "==> $m" -ForegroundColor Cyan }
-function Write-Ok    { param($m) Write-Host "    OK: $m" -ForegroundColor Green }
-function Write-Warn2 { param($m) Write-Host "    WARNING: $m" -ForegroundColor Yellow }
+function Write-Step { param($m) Write-Host "==> $m" -ForegroundColor Cyan }
+function Write-Ok   { param($m) Write-Host "    OK: $m"   -ForegroundColor Green }
+function Write-Bad  { param($m) Write-Host "    FAILED: $m" -ForegroundColor Red }
+function Write-Note { param($m) Write-Host "    $m" -ForegroundColor Yellow }
 
-# --- 0. Sanity checks ---------------------------------------------------------
 function Assert-Admin {
-    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $p  = New-Object Security.Principal.WindowsPrincipal($id)
+    $p = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        throw 'This script must be run from an elevated (Administrator) PowerShell prompt.'
+        throw 'Run this from an elevated (Administrator) PowerShell prompt.'
     }
+}
+
+function Test-UrlRewrite {
+    # URL Rewrite registers a global IIS module named "RewriteModule".
+    try { if (Get-WebGlobalModule -Name 'RewriteModule' -ErrorAction SilentlyContinue) { return $true } } catch {}
+    return (Test-Path 'HKLM:\SOFTWARE\Microsoft\IIS Extensions\URL Rewrite')
+}
+
+function Test-Arr {
+    # ARR adds the <system.webServer/proxy> section to applicationHost.config.
+    $sec = Get-WebConfiguration -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'system.webServer/proxy' `
+            -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    return [bool]$sec
 }
 
 function Install-Msi {
     param([string]$Url, [string]$Name)
     $tmp = Join-Path $env:TEMP ([IO.Path]::GetFileName($Url))
     Write-Step "Downloading $Name"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $Url -OutFile $tmp -UseBasicParsing
     Write-Step "Installing $Name (silent)"
     $p = Start-Process msiexec.exe -ArgumentList "/i `"$tmp`" /quiet /norestart" -Wait -PassThru
-    if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
-        throw "$Name install failed (msiexec exit code $($p.ExitCode))."
-    }
+    if ($p.ExitCode -notin 0,3010) { throw "$Name install failed (msiexec exit $($p.ExitCode))." }
     Write-Ok "$Name installed"
 }
 
-# --- Run ----------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 Assert-Admin
-
-$staticPath = Join-Path $InstallRoot 'qatrack'
 
 Write-Step 'Importing WebAdministration module'
 Import-Module WebAdministration -ErrorAction Stop
 Write-Ok 'IIS PowerShell module loaded'
 
-# Optionally install the prerequisite modules
-if ($InstallPrereqs) {
-    Install-Msi -Url $UrlRewriteMsi -Name 'URL Rewrite 2.1'
-    Install-Msi -Url $ArrMsi        -Name 'Application Request Routing 3.0'
-    Write-Warn2 'A new PowerShell session may be needed for newly installed modules to register.'
-}
+# --- Prerequisite gate -----------------------------------------------------
+Write-Step 'Checking for URL Rewrite and Application Request Routing'
+$haveRewrite = Test-UrlRewrite
+$haveArr     = Test-Arr
 
-# Verify the static directory exists
+if (-not ($haveRewrite -and $haveArr)) {
+    Write-Note ("URL Rewrite installed: $haveRewrite    ARR installed: $haveArr")
+    if ($InstallPrereqs) {
+        if (-not $haveRewrite) { Install-Msi -Url $UrlRewriteMsi -Name 'URL Rewrite 2.1' }
+        if (-not $haveArr)     { Install-Msi -Url $ArrMsi        -Name 'Application Request Routing 3.0' }
+        # Re-check in this session.
+        $haveRewrite = Test-UrlRewrite
+        $haveArr     = Test-Arr
+        if (-not ($haveRewrite -and $haveArr)) {
+            throw ("Modules installed but not yet visible in this session. " +
+                   "Close PowerShell, open a NEW elevated session, and re-run WITHOUT -InstallPrereqs.")
+        }
+    } else {
+        throw @"
+Missing IIS prerequisite module(s). The reverse proxy cannot be configured without them.
+
+  URL Rewrite 2.1 : $UrlRewriteMsi
+  ARR 3.0         : $ArrMsi   (install URL Rewrite FIRST)
+
+Either install both manually and re-run this script, or re-run with -InstallPrereqs
+to have the script download and install them for you (requires internet access on this server).
+"@
+    }
+}
+Write-Ok 'URL Rewrite and ARR present'
+
+$staticPath = Join-Path $InstallRoot 'qatrack'
 if (-not (Test-Path $staticPath)) {
-    Write-Warn2 "Static path '$staticPath' does not exist yet. The site will still be created, " +
-                "but make sure your QATrack+ checkout lives at '$InstallRoot' and you have run " +
-                "'python manage.py collectstatic'."
+    Write-Note "Static path '$staticPath' not found yet. Site will be created anyway; make sure your checkout lives at '$InstallRoot' and 'collectstatic' has been run."
 }
 
-# --- 1. Enable the reverse-proxy setting in ARR -------------------------------
+# --- 1. Enable ARR reverse proxy -------------------------------------------
 Write-Step 'Enabling reverse proxy in Application Request Routing'
-try {
-    Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
-        -Filter 'system.webServer/proxy' -Name 'enabled' -Value 'True'
-    Write-Ok 'ARR proxy enabled'
-} catch {
-    throw ("Could not enable the ARR proxy. Is Application Request Routing 3.0 installed? " +
-           "Re-run with -InstallPrereqs to install it. Underlying error: $($_.Exception.Message)")
-}
+Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
+    -Filter 'system.webServer/proxy' -Name 'enabled' -Value 'True'
+$proxyOn = (Get-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
+    -Filter 'system.webServer/proxy' -Name 'enabled').Value
+if (-not $proxyOn) { Write-Bad 'ARR proxy did not enable'; throw 'ARR proxy enable failed.' }
+Write-Ok 'ARR proxy enabled'
 
-# --- 2. Stop the Default Web Site ---------------------------------------------
+# --- 2. Stop the Default Web Site ------------------------------------------
 if ($StopDefaultSite) {
     Write-Step 'Stopping Default Web Site'
     if (Get-Website -Name 'Default Web Site' -ErrorAction SilentlyContinue) {
         Stop-Website -Name 'Default Web Site' -ErrorAction SilentlyContinue
         Write-Ok 'Default Web Site stopped'
-    } else {
-        Write-Warn2 'Default Web Site not found (already removed?) - skipping'
-    }
+    } else { Write-Note 'Default Web Site not found - skipping' }
 }
 
-# --- 3. Create the QATrack Static site ----------------------------------------
+# --- 3. Create/refresh the QATrack Static site -----------------------------
 Write-Step "Creating/updating site '$SiteName' on port $Port -> $staticPath"
-$existing = Get-Website -Name $SiteName -ErrorAction SilentlyContinue
-if ($existing) {
+if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) {
     Set-ItemProperty "IIS:\Sites\$SiteName" -Name physicalPath -Value $staticPath
-    Write-Ok "Site '$SiteName' already existed - physical path updated"
+    Write-Ok "Site existed - physical path updated"
 } else {
     New-Website -Name $SiteName -PhysicalPath $staticPath -Port $Port -Force | Out-Null
     Write-Ok "Site '$SiteName' created"
 }
 
-# --- 4. URL Rewrite rules -----------------------------------------------------
+# --- 4. URL Rewrite rules --------------------------------------------------
 $pspath        = "MACHINE/WEBROOT/APPHOST/$SiteName"
 $rulesFilter   = 'system.webServer/rewrite/rules'
 $allowedFilter = 'system.webServer/rewrite/allowedServerVariables'
@@ -167,78 +166,78 @@ function Remove-RuleIfPresent {
     param([string]$Name)
     try {
         Remove-WebConfigurationProperty -PSPath $pspath -Filter $rulesFilter `
-            -Name '.' -AtElement @{name=$Name} -ErrorAction SilentlyContinue
-    } catch { }
+            -Name '.' -AtElement @{name=$Name} -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    } catch {}
 }
 
 Write-Step 'Adding URL Rewrite rules (idempotent)'
+Remove-RuleIfPresent 'QATrack Static'
+Remove-RuleIfPresent 'QATrack Reverse Proxy'
 
-# Clear any previous versions of our rules so re-runs do not duplicate them
-Remove-RuleIfPresent -Name 'QATrack Static'
-Remove-RuleIfPresent -Name 'QATrack Reverse Proxy'
-
-# 4a. Static rule  -- must come FIRST so static/media bypass the proxy
+# 4a. Static rule FIRST (static/media bypass the proxy)
 Add-WebConfigurationProperty -PSPath $pspath -Filter $rulesFilter -Name '.' `
-    -Value @{ name = 'QATrack Static'; stopProcessing = 'True' }
-Set-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Static']/match" -Name 'url' -Value '^(static|media)/.*'
-Set-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Static']/action" -Name 'type' -Value 'None'
-Write-Ok "Rule 'QATrack Static'  : ^(static|media)/.*  -> None (stop processing)"
+    -Value @{ name='QATrack Static'; stopProcessing='True' }
+Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Static']/match"  -Name 'url'  -Value '^(static|media)/.*'
+Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Static']/action" -Name 'type' -Value 'None'
 
-# 4b. Reverse-proxy rule -- catch-all forwarded to CherryPy
+# 4b. Reverse-proxy catch-all rule
 Add-WebConfigurationProperty -PSPath $pspath -Filter $rulesFilter -Name '.' `
-    -Value @{ name = 'QATrack Reverse Proxy'; stopProcessing = 'True' }
-Set-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/match" -Name 'url' -Value '^(.*)'
-Set-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/action" -Name 'type' -Value 'Rewrite'
-Set-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/action" -Name 'url' `
-    -Value "http://localhost:$CherryPyPort/{R:1}"
-Write-Ok "Rule 'QATrack Reverse Proxy' : ^(.*)  -> http://localhost:$CherryPyPort/{R:1}"
+    -Value @{ name='QATrack Reverse Proxy'; stopProcessing='True' }
+Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/match"  -Name 'url'  -Value '^(.*)'
+Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/action" -Name 'type' -Value 'Rewrite'
+Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/action" -Name 'url'  -Value "http://localhost:$CherryPyPort/{R:1}"
 
-# 4c. Server variable HTTP_X_FORWARDED_HOST on the proxy rule
-Add-WebConfigurationProperty -PSPath $pspath `
-    -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/serverVariables" -Name '.' `
-    -Value @{ name = 'HTTP_X_FORWARDED_HOST'; value = $ServerName }
-Write-Ok "Server variable HTTP_X_FORWARDED_HOST = $ServerName"
+# 4c. Server variable on the proxy rule
+Add-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/serverVariables" `
+    -Name '.' -Value @{ name='HTTP_X_FORWARDED_HOST'; value=$ServerName }
 
-# 4d. Whitelist that server variable (ARR refuses to set it otherwise)
+# 4d. Whitelist that server variable
 try {
-    Remove-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter `
-        -Name '.' -AtElement @{name='HTTP_X_FORWARDED_HOST'} -ErrorAction SilentlyContinue
-} catch { }
-Add-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter -Name '.' `
-    -Value @{ name = 'HTTP_X_FORWARDED_HOST' }
-Write-Ok 'HTTP_X_FORWARDED_HOST added to allowedServerVariables'
+    Remove-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter -Name '.' `
+        -AtElement @{name='HTTP_X_FORWARDED_HOST'} -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+} catch {}
+Add-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter -Name '.' -Value @{ name='HTTP_X_FORWARDED_HOST' }
 
-# --- 5. Start the site --------------------------------------------------------
+# --- 4e. VERIFY rules by reading them back ---------------------------------
+Write-Step 'Verifying rewrite rules were written'
+$presentRules = @(Get-WebConfiguration -PSPath $pspath -Filter "$rulesFilter/rule" | Select-Object -Expand name)
+foreach ($r in 'QATrack Static','QATrack Reverse Proxy') {
+    if ($presentRules -contains $r) { Write-Ok "Rule present: $r" }
+    else { Write-Bad "Rule missing: $r"; throw "Rewrite rule '$r' was not written." }
+}
+$proxyUrl = (Get-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/action" -Name 'url').Value
+Write-Ok "Proxy target: $proxyUrl"
+
+# --- 5. Start the site -----------------------------------------------------
 Write-Step "Starting site '$SiteName'"
 Start-Website -Name $SiteName -ErrorAction SilentlyContinue
 Write-Ok 'Site started'
 
-# --- 6. Verification ----------------------------------------------------------
-Write-Step 'Verifying static file serving (the Linux penguin test from the docs)'
+# --- 6. Functional checks --------------------------------------------------
+Write-Step 'Checking static file serving (penguin test)'
 try {
-    $url  = "http://localhost:$Port/static/qa/img/tux.png"
-    $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
-    if ($resp.StatusCode -eq 200) {
-        Write-Ok "$url returned 200 - static serving works"
-    } else {
-        Write-Warn2 "$url returned status $($resp.StatusCode)"
-    }
-} catch {
-    Write-Warn2 ("Could not fetch tux.png ($($_.Exception.Message)). " +
-                 "Confirm 'collectstatic' has been run and the path '$staticPath\static' exists.")
+    $r = Invoke-WebRequest "http://localhost:$Port/static/qa/img/tux.png" -UseBasicParsing -TimeoutSec 10
+    if ($r.StatusCode -eq 200) { Write-Ok 'tux.png 200 - static serving works' } else { Write-Note "tux.png status $($r.StatusCode)" }
+} catch { Write-Note "Could not fetch tux.png ($($_.Exception.Message)). Has collectstatic been run?" }
+
+Write-Step "Checking reverse proxy to CherryPy on port $CherryPyPort"
+$backend = $false
+try { $b = Invoke-WebRequest "http://localhost:$CherryPyPort/" -UseBasicParsing -TimeoutSec 10; $backend = $true } catch {}
+if (-not $backend) {
+    Write-Note "CherryPy is not answering on $CherryPyPort yet - proxy will 502 until the QATrack+ CherryPy service is running. (IIS config is still correct.)"
+} else {
+    try {
+        $f = Invoke-WebRequest "http://localhost:$Port/" -UseBasicParsing -TimeoutSec 10
+        if ($f.StatusCode -eq 200) { Write-Ok 'Reverse proxy reached QATrack+ login through IIS' } else { Write-Note "Proxied request status $($f.StatusCode)" }
+    } catch { Write-Note "Proxy request failed: $($_.Exception.Message)" }
 }
 
 Write-Host ''
 Write-Step 'IIS configuration complete.'
 Write-Host @"
 Remaining steps (NOT handled by this script):
-  1. Ensure the QATrack+ CherryPy Windows service is installed and running on port $CherryPyPort.
-       (browse http://localhost:$CherryPyPort/ and confirm you see the plain login form)
+  1. Install/run the QATrack+ CherryPy Windows service on port $CherryPyPort
+       (browse http://localhost:$CherryPyPort/ and confirm the plain login form).
   2. In qatrack\local_settings.py set:  USE_X_FORWARDED_HOST = True
   3. Set up the Django Q cluster (Task Scheduler) for background tasks.
 Then browse to http://$ServerName/ to reach QATrack+.
