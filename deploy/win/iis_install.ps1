@@ -158,6 +158,7 @@ if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) {
 }
 
 # --- 4. URL Rewrite rules --------------------------------------------------
+$apphost       = 'MACHINE/WEBROOT/APPHOST'        # server level (rules go on the site)
 $pspath        = "MACHINE/WEBROOT/APPHOST/$SiteName"
 $rulesFilter   = 'system.webServer/rewrite/rules'
 $allowedFilter = 'system.webServer/rewrite/allowedServerVariables'
@@ -191,12 +192,25 @@ Set-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='Q
 Add-WebConfigurationProperty -PSPath $pspath -Filter "$rulesFilter/rule[@name='QATrack Reverse Proxy']/serverVariables" `
     -Name '.' -Value @{ name='HTTP_X_FORWARDED_HOST'; value=$ServerName }
 
-# 4d. Whitelist that server variable
-try {
-    Remove-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter -Name '.' `
-        -AtElement @{name='HTTP_X_FORWARDED_HOST'} -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-} catch {}
-Add-WebConfigurationProperty -PSPath $pspath -Filter $allowedFilter -Name '.' -Value @{ name='HTTP_X_FORWARDED_HOST' }
+# 4d. Whitelist that server variable.
+#     allowedServerVariables is locked at the server level by default (it is NOT
+#     delegated to sites), so it must be written at MACHINE/WEBROOT/APPHOST, not
+#     per-site. It is a server-wide whitelist, so this covers every site.
+$alreadyAllowed = @(Get-WebConfiguration -PSPath $apphost -Filter "$allowedFilter/add" `
+                      -ErrorAction SilentlyContinue -WarningAction SilentlyContinue |
+                    Select-Object -Expand name)
+if ($alreadyAllowed -notcontains 'HTTP_X_FORWARDED_HOST') {
+    Add-WebConfigurationProperty -PSPath $apphost -Filter $allowedFilter -Name '.' `
+        -Value @{ name='HTTP_X_FORWARDED_HOST' }
+}
+$nowAllowed = @(Get-WebConfiguration -PSPath $apphost -Filter "$allowedFilter/add" `
+                  -ErrorAction SilentlyContinue -WarningAction SilentlyContinue |
+                Select-Object -Expand name)
+if ($nowAllowed -contains 'HTTP_X_FORWARDED_HOST') {
+    Write-Ok 'HTTP_X_FORWARDED_HOST whitelisted (server level)'
+} else {
+    Write-Bad 'Could not whitelist HTTP_X_FORWARDED_HOST'; throw 'allowedServerVariables write failed.'
+}
 
 # --- 4e. VERIFY rules by reading them back ---------------------------------
 Write-Step 'Verifying rewrite rules were written'
