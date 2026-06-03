@@ -1520,7 +1520,6 @@ class StatusAdmin(BaseQATrackAdmin):
         )
         css = {
             'all': (
-                "bootstrap/css/bootstrap.min.css",
                 "colorpicker/css/bootstrap-colorpicker.min.css",
                 "qatrack_core/css/admin.css",
             ),
