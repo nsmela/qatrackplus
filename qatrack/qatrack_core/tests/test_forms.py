@@ -5,6 +5,7 @@ from qatrack.qatrack_core.forms import BetterFormMixin
 
 
 class TestForm(BetterFormMixin, forms.Form):
+    __test__ = False
     """A test form with fieldsets."""
     name = forms.CharField()
     age = forms.IntegerField()

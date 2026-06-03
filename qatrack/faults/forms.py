@@ -138,7 +138,8 @@ class FaultForm(BetterModelForm):
             if fault_type and NEW_FAULT_TYPE_MARKER in fault_type:
                 fault_type = fault_type.replace(NEW_FAULT_TYPE_MARKER, "")
                 models.FaultType.objects.get_or_create(code=fault_type)
-            cleaned_fault_types.append(fault_type)
+            if fault_type not in cleaned_fault_types:
+                cleaned_fault_types.append(fault_type)
 
         return cleaned_fault_types
 

@@ -1,4 +1,6 @@
+from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from qatrack.service_log.tests import utils as sl_utils
@@ -27,6 +29,24 @@ class TestPart(TestCase):
             str(self.p_1),
             '%s (%s) - %s' % (self.p_1.part_number, self.p_1.alt_part_number, self.p_1.name),
         )
+
+
+class TestPartCostValidation(TestCase):
+
+    def test_cost_validation(self):
+        p = sl_utils.create_part()
+
+        # Valid costs
+        p.cost = Decimal("0.00")
+        p.full_clean()  # Should not raise
+
+        p.cost = None
+        p.full_clean()  # Should not raise
+
+        # Invalid costs
+        p.cost = Decimal("-0.01")
+        with self.assertRaises(ValidationError):
+            p.full_clean()
 
 
 class TestPartStorageCollection(TestCase):

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import ProtectedError
 from django.db.utils import IntegrityError
@@ -71,6 +72,25 @@ class TestServiceEventStatus(TestCase):
 
     def test_str(self):
         self.assertTrue(self.ses.name in str(self.ses))
+
+
+class TestServiceEventStatusValidation(TestCase):
+
+    def test_colour_validation(self):
+        ses = sl_utils.create_service_event_status()
+        
+        # Invalid colours should raise ValidationError
+        invalid_colours = ["red", "#fff", "rgb(0,0,0)", "hsl(0, 100%, 50%)"]
+        for colour in invalid_colours:
+            ses.colour = colour
+            with self.assertRaises(ValidationError):
+                ses.full_clean()
+                
+        # Valid colour should pass
+        valid_colours = ["rgba(0,128,255,1)", "rgba(255,255,255,0.5)"]
+        for colour in valid_colours:
+            ses.colour = colour
+            ses.full_clean()  # Should not raise
 
 
 class TestThirdParty(TestCase):

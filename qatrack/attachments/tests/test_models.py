@@ -2,6 +2,7 @@ import os
 from unittest import mock
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from qatrack.attachments.models import Attachment
@@ -82,3 +83,16 @@ class TestAttachment(TestCase):
         assert remove.call_args[0] == (expected_rename_from_to[0],)
         if expected_make_dirs:
             assert makedirs.call_args[0] == expected_make_dirs
+
+
+class TestAttachmentClean(TestCase):
+
+    def test_clean_no_owner(self):
+        a = Attachment()
+        with self.assertRaises(ValidationError):
+            a.clean()
+
+    def test_clean_with_owner(self):
+        tl = qam.TestList(name="test", pk=1)
+        a = Attachment(testlist=tl)
+        a.clean()  # Should not raise exception
