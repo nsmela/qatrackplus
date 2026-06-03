@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.db.models import Count, Max
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
 
@@ -116,7 +117,7 @@ class ServiceEventAdmin(DeleteOnlyFromOwnFormAdmin):
 
 @admin.register(ServiceEventStatus)
 class ServiceEventStatusAdmin(DeleteOnlyFromOwnFormAdmin):
-    list_display = ['name', 'is_review_required', 'is_default', 'rts_qa_must_be_reviewed', 'order']
+    list_display = ['name', 'is_review_required', 'is_default', 'rts_qa_must_be_reviewed', 'order', 'get_colour']
     list_editable = ['order']
     form = ServiceEventStatusFormAdmin
 
@@ -129,7 +130,6 @@ class ServiceEventStatusAdmin(DeleteOnlyFromOwnFormAdmin):
         )
         css = {
             'all': (
-                "bootstrap/css/bootstrap.min.css",
                 "colorpicker/css/bootstrap-colorpicker.min.css",
                 "qatrack_core/css/admin.css",
             ),
@@ -141,6 +141,11 @@ class ServiceEventStatusAdmin(DeleteOnlyFromOwnFormAdmin):
             extra_context = extra_context or {'is_default': True}
 
         return super().delete_view(request, object_id, extra_context)
+
+    @admin.display(description=_l("Color"))
+    @mark_safe
+    def get_colour(self, obj):
+        return '<div style="display: inline-block; width: 20px; height:20px; background-color: %s;"></div>' % obj.colour
 
 
 @admin.register(ServiceType)
