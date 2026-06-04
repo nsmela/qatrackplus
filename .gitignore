@@ -64,3 +64,4 @@ db/
 # Virtual environments and external source
 .poetry-venv/
 src/
+node_modules/
