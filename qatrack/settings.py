@@ -704,19 +704,46 @@ if use_docker:
         with open(SECRET_FILEPATH, 'w') as f:
             f.write(SECRET_KEY)
 
+    # --------------------------------------------------------------------------
+    # Environment Variable Overrides
+    # --------------------------------------------------------------------------
+    if 'USE_ISSUES' in os.environ:
+        USE_ISSUES = os.environ.get('USE_ISSUES').strip().lower() in {'1', 'true', 'yes', 'on'}
+        
+    if 'DEBUG' in os.environ:
+        DEBUG = os.environ.get('DEBUG').strip().lower() in {'1', 'true', 'yes', 'on'}
+        
+    if 'DEBUG_TOOLBAR' in os.environ:
+        DEBUG_TOOLBAR = os.environ.get('DEBUG_TOOLBAR').strip().lower() in {'1', 'true', 'yes', 'on'}
+        
+    if 'TIME_ZONE' in os.environ:
+        TIME_ZONE = os.environ.get('TIME_ZONE')
+
+    if 'EMAIL_HOST' in os.environ:
+        EMAIL_HOST = os.environ.get('EMAIL_HOST')
+        EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+        EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+        EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+        EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').strip().lower() in {'1', 'true', 'yes', 'on'}
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.environ.get('POSTGRES_DB', 'qatrackplus'),
             'USER': os.environ.get('POSTGRES_USER', 'postgres'),
             'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-            'HOST': 'postgres',
-            'PORT': 5432
+            'HOST': os.environ.get('POSTGRES_HOST', 'postgres'),
+            'PORT': int(os.environ.get('POSTGRES_PORT', 5432))
         }
     }
 
     if 'readonly' not in DATABASES and USE_SQL_REPORTS:
         DATABASES['readonly'] = DATABASES['default']
+
+    try:
+        from .local_settings import *  # noqa: F403, F401, E402
+    except ImportError:
+        pass
 else:
     from .local_settings import *  # noqa: F403, F401, E402
 
