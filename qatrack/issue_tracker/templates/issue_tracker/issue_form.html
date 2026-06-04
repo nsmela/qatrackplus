@@ -58,10 +58,14 @@
                                     {% endif %}
                                 {% endfor %}
                             </div>
+                            {# Reusable field rendering macro via include #}
+                            {% with linked_names="test_list_instances service_events fault_logs" %}
+
+                            {# ── Core issue fields ── #}
                             <div class="row">
                                 <div class="col-md-12 form-horizontal">
-
                                     {% for field in form.visible_fields %}
+                                        {% if field.html_name not in linked_names %}
                                         <div class="form-group {% if field.errors %}has-error{% endif %}" title="{{ field.help_text }}">
                                             {% if 'autosize' in field.field.widget.attrs.class %}
                                                 <div class="col-sm-12">
@@ -85,9 +89,7 @@
                                                 </div>
                                             {% else %}
                                                 <label for="{{ field.id_for_label }}" class="col-sm-4">{{ field.label }}</label>
-                                                <div class="col-sm-8">
-                                                    {{ field }}
-                                                </div>
+                                                <div class="col-sm-8">{{ field }}</div>
                                                 {% for e in field.errors %}
                                                     <div class="col-sm-12 help-block text-center">{{ e }}</div>
                                                 {% endfor %}
@@ -96,9 +98,34 @@
                                                 {% endif %}
                                             {% endif %}
                                         </div>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                             </div>
+
+                            {# ── Linked items ── #}
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <h4>Linked Items</h4>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 form-horizontal">
+                                    {% for field in form.visible_fields %}
+                                        {% if field.html_name in linked_names %}
+                                        <div class="form-group {% if field.errors %}has-error{% endif %}">
+                                            <label for="{{ field.id_for_label }}" class="col-sm-4">{{ field.label }}</label>
+                                            <div class="col-sm-8">{{ field }}</div>
+                                            {% for e in field.errors %}
+                                                <div class="col-sm-12 help-block text-center">{{ e }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% endwith %}
 
 {#                            <div class="row">#}
 {#                                <div class="col-md-12">#}

@@ -18,6 +18,7 @@ from listable.views import (
     BaseListableView,
 )
 
+from qatrack.faults.models import FaultType
 from qatrack.issue_tracker import forms as i_forms
 from qatrack.issue_tracker import models as i_models
 
@@ -35,6 +36,9 @@ class IssueCreate(LoginRequiredMixin, CreateView):
         issue.issue_status = i_models.IssueStatus.objects.filter(order=0).first()
         issue.save()
         issue.issue_tags.set(form.cleaned_data['issue_tags'])
+        issue.test_list_instances.set(form.cleaned_data['test_list_instances'])
+        issue.service_events.set(form.cleaned_data['service_events'])
+        issue.fault_logs.set(form.cleaned_data['fault_logs'])
 
         return HttpResponseRedirect(reverse('issue_list'))
 
@@ -66,6 +70,20 @@ class IssueDetails(LoginRequiredMixin, DetailView):
         for c in i_models.IssuePriority.objects.all():
             colours[c.id] = c.colour
         context['colours'] = colours
+
+        issue = self.object
+        context['linked_qa'] = issue.test_list_instances.select_related(
+            'test_list', 'unit_test_collection__unit'
+        ).order_by('-work_completed')
+        context['linked_service_events'] = issue.service_events.select_related(
+            'unit_service_area__unit', 'service_type'
+        ).order_by('-datetime_service')
+        context['linked_fault_logs'] = issue.fault_logs.select_related(
+            'unit'
+        ).prefetch_related('fault_types').order_by('-occurred')
+        context['linked_fault_types'] = FaultType.objects.filter(
+            faults__in=issue.fault_logs.all()
+        ).distinct().order_by('code')
 
         return context
 

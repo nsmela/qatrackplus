@@ -99,6 +99,25 @@ class Issue(models.Model):
         help_text='Any error screen details. (Note the ability to click "Switch to copy-and-paste view" to copy Traceback)',
     )
 
+    test_list_instances = models.ManyToManyField(
+        'qa.TestListInstance',
+        blank=True,
+        related_name='issues',
+        verbose_name=_l('QA Submissions'),
+    )
+    service_events = models.ManyToManyField(
+        'service_log.ServiceEvent',
+        blank=True,
+        related_name='issues',
+        verbose_name=_l('Service Events'),
+    )
+    fault_logs = models.ManyToManyField(
+        'faults.Fault',
+        blank=True,
+        related_name='issues',
+        verbose_name=_l('Fault Logs'),
+    )
+
     class Meta:
         verbose_name = _l("Issue")
         verbose_name_plural = _l("Issues")

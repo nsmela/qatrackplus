@@ -29,89 +29,178 @@
 
 {% block body %}
 
-        <div class="max-width-lg">
-{#            <div class="row">#}
-{#                <div class="col-md-3">#}
-{#                    <h3 class="no-margin-top">Edit Issue {{ issue.id }}</h3>#}
-{#                </div>#}
-{#            </div>#}
-{#            <div class="col-md-12">#}
-{#                <dl class="pull-right">#}
-{#                    <dt>Submitted:</dt>#}
-{#                    <dd>#}
-{#                        <div>{{ issue.datetime_submitted }}</div>#}
-{#                        <div>by {{ issue.user_submitted_by }}</div>#}
-{#                    </dd>#}
-{#                </dl>#}
-{#            </div>#}
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="box">
-                        <div class="box-header">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <h3 class="no-margin-top">Issue {{ issue.id }} Details</h3>
-                                </div>
+    <div class="max-width-lg">
+        <div class="row">
+
+            {# ── Left column: issue details + comments ── #}
+            <div class="col-md-8">
+                <div class="box">
+                    <div class="box-header">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h3 class="no-margin-top">Issue {{ issue.id }} Details</h3>
                             </div>
                         </div>
-                        <div class="box-body">
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <dl class="dl-horizontal">
-                                        <dt class="margin-bottom-10">Status:</dt><dd><div class="label smooth-border" style="border-color: {{ issue.issue_status.colour }}">{{ issue.issue_status.name }}</div></dd>
-                                        <dt class="margin-bottom-10">Priority:</dt><dd><span>{{ issue.issue_priority.name }}</span><span><i class="fa fa-square fa-lg margin-left-10" style="color: {{ issue.issue_priority.colour }}; margin-top: 5px;"></i></span></dd>
-                                        <dt class="margin-bottom-10">Submitted:</dt><dd><div>{{ issue.datetime_submitted }}</div></dd>
-                                        <dt class="margin-bottom-10">Submitted By:</dt><dd><div>{{ issue.user_submitted_by }}</div></dd>
-                                        <dt class="margin-bottom-10">Type:</dt><dd><div>{{ issue.issue_type.name }}</div></dd>
-                                        <dt class="margin-bottom-10">Tags:</dt><dd><div>
-                                            <ul>
-                                                {% for it in issue.issue_tags.all %}
-                                                    <li>{{ it.name }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        </div></dd>
-                                        <dt class="margin-bottom-10">Description:</dt><dd><div class="white-space-pre">{{ issue.description }}</div></dd>
-                                        <dt class="margin-bottom-10">Error Screen:</dt><dd><div class="white-space-pre">{{ issue.error_screen }}</div></dd>
-                                    </dl>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <h4>Comments:</h4>
-                                    {% render_comment_list for issue %}
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12">
-{#                                    {% render_comment_form for issue %}#}
-                                    {% get_comment_form for issue as form %}
+                    </div>
+                    <div class="box-body">
+                        <dl class="dl-horizontal">
+                            <dt class="margin-bottom-10">Status:</dt>
+                            <dd><div class="label smooth-border" style="border-color: {{ issue.issue_status.colour }}">{{ issue.issue_status.name }}</div></dd>
+                            <dt class="margin-bottom-10">Priority:</dt>
+                            <dd>
+                                <span>{{ issue.issue_priority.name }}</span>
+                                <span><i class="fa fa-square fa-lg margin-left-10" style="color: {{ issue.issue_priority.colour }}; margin-top: 5px;"></i></span>
+                            </dd>
+                            <dt class="margin-bottom-10">Submitted:</dt>
+                            <dd><div>{{ issue.datetime_submitted }}</div></dd>
+                            <dt class="margin-bottom-10">Submitted By:</dt>
+                            <dd><div>{{ issue.user_submitted_by }}</div></dd>
+                            <dt class="margin-bottom-10">Type:</dt>
+                            <dd><div>{{ issue.issue_type.name }}</div></dd>
+                            <dt class="margin-bottom-10">Tags:</dt>
+                            <dd>
+                                <ul>
+                                    {% for it in issue.issue_tags.all %}
+                                        <li>{{ it.name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </dd>
+                            <dt class="margin-bottom-10">Description:</dt>
+                            <dd><div class="white-space-pre">{{ issue.description }}</div></dd>
+                            <dt class="margin-bottom-10">Error Screen:</dt>
+                            <dd><div class="white-space-pre">{{ issue.error_screen }}</div></dd>
+                        </dl>
 
-                                    <form action="{% comment_form_target %}" method="post">
-                                        {% csrf_token %}
-                                        <input id="id_name" maxlength="50" name="name" type="hidden" required="" value="{{ user.username }}">
-                                        {{ form.object_pk }}
-                                        {{ form.content_type }}
-{#                                        {{ form.comment }}#}
-                                        {{ form.security_hash }}
-                                        {{ form.timestamp }}
-                                        <textarea cols="40" id="id_comment" maxlength="3000" name="comment" rows="4" required="" class="margin-bottom-20 form-control autosize"></textarea>
-                                        <input type="hidden" name="next" value="{% url 'issue_details' issue.id %}" />
-                                        <div class="row">
-                                            <div class="col-md-12">
-                                                <input class="btn btn-flat btn-primary btn-sm" type="submit" name="submit" value="Post">
-{#                                                <input type="submit" name="preview" value="Preview">#}
-                                            </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h4>Comments:</h4>
+                                {% render_comment_list for issue %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                {% get_comment_form for issue as form %}
+                                <form action="{% comment_form_target %}" method="post">
+                                    {% csrf_token %}
+                                    <input id="id_name" maxlength="50" name="name" type="hidden" required="" value="{{ user.username }}">
+                                    {{ form.object_pk }}
+                                    {{ form.content_type }}
+                                    {{ form.security_hash }}
+                                    {{ form.timestamp }}
+                                    <textarea cols="40" id="id_comment" maxlength="3000" name="comment" rows="4" required="" class="margin-bottom-20 form-control autosize"></textarea>
+                                    <input type="hidden" name="next" value="{% url 'issue_details' issue.id %}" />
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <input class="btn btn-flat btn-primary btn-sm" type="submit" name="submit" value="Post">
                                         </div>
-                                    </form>
-                                </div>
+                                    </div>
+                                </form>
                             </div>
-
                         </div>
                     </div>
                 </div>
             </div>
 
+            {# ── Right column: linked items ── #}
+            <div class="col-md-4">
 
-        </div>
+                {# QA Submissions #}
+                <div class="box">
+                    <div class="box-header">
+                        <h4 class="no-margin-top"><i class="fa fa-check-square-o"></i> QA Submissions</h4>
+                    </div>
+                    <div class="box-body">
+                        {% if linked_qa %}
+                            <ul class="list-unstyled">
+                                {% for tli in linked_qa %}
+                                    <li>
+                                        <a href="{{ tli.get_absolute_url }}">
+                                            {{ tli.test_list.name }} — {{ tli.unit_test_collection.unit.name }}
+                                            <small class="text-muted">({{ tli.work_completed|date:"Y-m-d" }})</small>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">None linked.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Service Events #}
+                <div class="box">
+                    <div class="box-header">
+                        <h4 class="no-margin-top"><i class="fa fa-wrench"></i> Service Events</h4>
+                    </div>
+                    <div class="box-body">
+                        {% if linked_service_events %}
+                            <ul class="list-unstyled">
+                                {% for se in linked_service_events %}
+                                    <li>
+                                        <a href="{{ se.get_absolute_url }}">
+                                            {{ se.unit_service_area.unit.name }} — {{ se.service_type.name }}
+                                            <small class="text-muted">({{ se.datetime_service|date:"Y-m-d" }})</small>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">None linked.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Fault Logs #}
+                <div class="box">
+                    <div class="box-header">
+                        <h4 class="no-margin-top"><i class="fa fa-exclamation-triangle"></i> Fault Logs</h4>
+                    </div>
+                    <div class="box-body">
+                        {% if linked_fault_logs %}
+                            <ul class="list-unstyled">
+                                {% for fault in linked_fault_logs %}
+                                    <li>
+                                        <a href="{{ fault.get_absolute_url }}">
+                                            {{ fault.unit.name }}
+                                            <small class="text-muted">({{ fault.occurred|date:"Y-m-d" }})</small>
+                                            {% if fault.fault_types.all %}
+                                                — {{ fault.fault_types_display }}
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">None linked.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {# Faults (deduplicated FaultTypes from linked fault logs) #}
+                <div class="box">
+                    <div class="box-header">
+                        <h4 class="no-margin-top"><i class="fa fa-bolt"></i> Faults</h4>
+                    </div>
+                    <div class="box-body">
+                        {% if linked_fault_types %}
+                            <ul class="list-unstyled">
+                                {% for ft in linked_fault_types %}
+                                    <li>
+                                        <strong>{{ ft.code }}</strong>
+                                        {% if ft.description %}
+                                            <small class="text-muted">— {{ ft.description }}</small>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">None.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>{# /right column #}
+        </div>{# /row #}
+    </div>
 
 {% endblock body %}
