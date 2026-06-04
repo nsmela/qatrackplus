@@ -1,9 +1,9 @@
 from braces.views import LoginRequiredMixin
 from django.contrib.contenttypes.models import ContentType
-from django.forms.utils import timezone
 from django.http import HttpResponseRedirect
 from django.template.loader import get_template
 from django.urls import resolve, reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.generic import CreateView, DetailView
 from listable.views import (
@@ -25,18 +25,14 @@ from qatrack.issue_tracker import models as i_models
 class IssueCreate(LoginRequiredMixin, CreateView):
 
     model = i_models.Issue
-    # form_class = AuthorForm
     template_name = 'issue_tracker/issue_form.html'
     form_class = i_forms.IssueForm
 
     def form_valid(self, form):
-
-        self.get_context_data()
-
         issue = form.save(commit=False)
         issue.user_submitted_by = self.request.user
         issue.datetime_submitted = timezone.now()
-        issue.issue_status = i_models.IssueStatus.objects.get(order=0)
+        issue.issue_status = i_models.IssueStatus.objects.filter(order=0).first()
         issue.save()
         issue.issue_tags.set(form.cleaned_data['issue_tags'])
 
@@ -58,7 +54,6 @@ class IssueCreate(LoginRequiredMixin, CreateView):
 class IssueDetails(LoginRequiredMixin, DetailView):
 
     model = i_models.Issue
-    # form_class = AuthorForm
     template_name = 'issue_tracker/issue_details.html'
 
     def get_context_data(self, **kwargs):
@@ -75,7 +70,7 @@ class IssueDetails(LoginRequiredMixin, DetailView):
         return context
 
 
-class IssueList(BaseListableView):
+class IssueList(LoginRequiredMixin, BaseListableView):
     model = i_models.Issue
     template_name = 'issue_tracker/issue_list.html'
     paginate_by = 50

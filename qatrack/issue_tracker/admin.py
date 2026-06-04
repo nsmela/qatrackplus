@@ -12,7 +12,7 @@ class IssueAdmin(BaseQATrackAdmin):
 
 class IssueTypeAdmin(BaseQATrackAdmin):
     list_display = ['id', 'name']
-    search_fields = ['description']
+    search_fields = ['name']
 
 
 class IssueTagAdmin(BaseQATrackAdmin):
@@ -32,7 +32,6 @@ class IssuePriorityStatusAdmin(BaseQATrackAdmin):
         )
         css = {
             'all': (
-                'bootstrap/css/bootstrap.min.css',
                 'colorpicker/css/bootstrap-colorpicker.min.css',
                 'qatrack_core/css/admin.css',
             ),
