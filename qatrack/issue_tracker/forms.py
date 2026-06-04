@@ -24,9 +24,7 @@ class IssueForm(BetterModelForm):
 
         self.fields['issue_type'].label = 'Type'
         self.fields['issue_priority'].label = 'Priority'
-        self.fields['issue_priority'].label = 'Priority'
         self.fields['error_screen'].label = 'Error Screen Details'
-        # s = i_models.IssueTag.objects.get(pk=100)
 
         for f in self.fields:
             self.fields[f].widget.attrs['class'] = 'form-control'

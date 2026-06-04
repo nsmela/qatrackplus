@@ -104,4 +104,4 @@ class Issue(models.Model):
         verbose_name_plural = _l("Issues")
 
     def __str__(self):
-        return self.name
+        return f"Issue #{self.id}: {self.description[:50]}"
