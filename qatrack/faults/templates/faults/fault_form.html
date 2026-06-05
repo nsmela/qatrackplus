@@ -22,6 +22,7 @@
 {% endblock extra_css %}
 
 {% block extra_js %}
+  {{ block.super }}
   <script type="text/javascript">
     var status_colours_dict = {{ status_tag_colours|safe }};
     var se_statuses =  {{ se_statuses|safe }};
