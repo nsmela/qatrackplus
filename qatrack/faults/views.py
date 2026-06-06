@@ -817,3 +817,36 @@ class FaultTypeDetails(FaultList):
 class ChooseUnitForViewFaults(ChooseUnit):
     template_name = 'units/unittype_choose_for_faults.html'
     split_sites = True
+
+
+def fault_searcher(request):
+    """
+    Search for faults by fault ID or fault type code,
+    return JSON response formatted for Select2.
+    """
+    q = request.GET.get('q', '')
+    page = int(request.GET.get('page', 1))
+
+    qs = models.Fault.objects.all()
+
+    if q:
+        if q.isdigit():
+            qs = qs.filter(pk=q)
+        else:
+            qs = qs.filter(fault_types__code__icontains=q).distinct()
+
+    qs = qs.select_related("unit").prefetch_related("fault_types").order_by('-occurred')
+
+    total = qs.count()
+    qs = qs[(page - 1) * 30:page * 30]
+
+    results = []
+    for f in qs:
+        types_display = f.fault_types_display()
+        title = types_display
+        if len(title) > 80:
+            title = title[:77] + "..."
+        date = f.occurred.strftime(settings.DATETIME_FORMAT) if getattr(settings, 'DATETIME_FORMAT', None) else f.occurred.isoformat()
+        results.append([f.id, title, date, f.unit.name])
+
+    return JsonResponse({'faults': results, 'total_count': total})

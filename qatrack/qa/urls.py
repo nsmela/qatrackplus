@@ -11,6 +11,7 @@ urlpatterns = [
     url(r"^composite/$", perform.CompositeCalculation.as_view(), name="composite"),
     url(r"^autosave/$", perform.autosave, name="autosave"),
     url(r"^autosave/load/$", perform.autosave_load, name="autosave_load"),
+    url(r"^qa-searcher/$", base.qa_searcher, name="qa_searcher"),
 
     # view for uploads via ajax
     url(r"^upload/$", perform.Upload.as_view(), name="upload"),

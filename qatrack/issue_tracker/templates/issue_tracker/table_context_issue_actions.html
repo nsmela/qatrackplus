@@ -1,4 +1,7 @@
 {% load qa_tags %}
 <div style="min-width: 85px;">
     <a class="btn btn-primary btn-xs btn-flat" href="{% url 'issue_details' i.pk %}{% if next %}?next={{ next }}{% endif %}">View</a>
+    {% if perms.issue_tracker.change_issue %}
+    <a class="btn btn-default btn-xs btn-flat" href="{% url 'issue_update' i.pk %}{% if next %}?next={{ next }}{% endif %}">Edit</a>
+    {% endif %}
 </div>

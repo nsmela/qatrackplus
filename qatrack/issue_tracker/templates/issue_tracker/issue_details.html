@@ -49,14 +49,19 @@
                     <div class="box">
                         <div class="box-header">
                             <div class="row">
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <h3 class="no-margin-top">Issue {{ issue.id }} Details</h3>
+                                </div>
+                                <div class="col-md-6 text-right">
+                                    {% if perms.issue_tracker.change_issue %}
+                                    <a class="btn btn-default btn-sm btn-flat" href="{% url 'issue_update' issue.id %}"><i class="fa fa-edit"></i> Edit</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                         <div class="box-body">
                             <div class="row">
-                                <div class="col-md-12">
+                                <div class="col-md-8">
                                     <dl class="dl-horizontal">
                                         <dt class="margin-bottom-10">Status:</dt><dd><div class="label smooth-border" style="border-color: {{ issue.issue_status.colour }}">{{ issue.issue_status.name }}</div></dd>
                                         <dt class="margin-bottom-10">Priority:</dt><dd><span>{{ issue.issue_priority.name }}</span><span><i class="fa fa-square fa-lg margin-left-10" style="color: {{ issue.issue_priority.colour }}; margin-top: 5px;"></i></span></dd>
@@ -71,8 +76,60 @@
                                             </ul>
                                         </div></dd>
                                         <dt class="margin-bottom-10">Description:</dt><dd><div class="white-space-pre">{{ issue.description }}</div></dd>
-                                        <dt class="margin-bottom-10">Error Screen:</dt><dd><div class="white-space-pre">{{ issue.error_screen }}</div></dd>
                                     </dl>
+                                </div>
+                                <div class="col-md-4">
+                                    <h4>Related QA Logs</h4>
+                                    {% if issue.qa_logs.all %}
+                                        <ul>
+                                            {% for tli in issue.qa_logs.all %}
+                                                <li>
+                                                    <a id="qa_log" href="{% url 'view_test_list_instance' pk=tli.id %}" class="btn btn-xs btn-flat btn-default margin-bottom-1">QA Log {{ tli.id }}: {{ tli.test_list.name }}</a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <em>No related QA logs.</em>
+                                    {% endif %}
+
+                                    <h4 class="margin-top-30">Related Service Events</h4>
+                                    {% if issue.service_events.all %}
+                                        <ul>
+                                            {% for se in issue.service_events.all %}
+                                                <li>
+                                                    <a id="service-event" href="{% url 'sl_details' pk=se.id %}" class="se_tag btn btn-xs btn-flat margin-bottom-1" data-bgcolour="{{ se.service_status.colour }}" style="background-color: {{ se.service_status.colour }}; border-color: {{ se.service_status.colour }};">{{ se }}</a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <em>No related service events.</em>
+                                    {% endif %}
+
+                                    <h4 class="margin-top-30">Related Fault Logs</h4>
+                                    {% if issue.fault_logs.all %}
+                                        <ul>
+                                            {% for fl in issue.fault_logs.all %}
+                                                <li>
+                                                    <a id="fault" href="{% url 'fault_details' pk=fl.id %}" class="btn btn-xs btn-flat btn-default margin-bottom-1">Fault Log {{ fl.id }}: {{ fl.fault_types_display|truncatechars:30 }}</a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <em>No related fault logs.</em>
+                                    {% endif %}
+
+                                    <h4 class="margin-top-30">Fault Codes</h4>
+                                    {% if unique_faults %}
+                                        <ul>
+                                            {% for ft in unique_faults %}
+                                                <li>
+                                                    <a href="{% url 'fault_type_details' slug=ft.slug %}"><strong>{{ ft.code }}</strong></a>: {{ ft.description|truncatechars:50 }}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <em>No fault codes associated.</em>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="row">
@@ -98,7 +155,7 @@
                                         <input type="hidden" name="next" value="{% url 'issue_details' issue.id %}" />
                                         <div class="row">
                                             <div class="col-md-12">
-                                                <input class="btn btn-flat btn-primary btn-sm" type="submit" name="submit" value="Post">
+                                                <input class="btn btn-flat btn-primary btn-sm" type="submit" name="submit" value="Post Comment">
 {#                                                <input type="submit" name="preview" value="Preview">#}
                                             </div>
                                         </div>

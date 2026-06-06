@@ -122,13 +122,15 @@ def se_searcher(request):
 
     try:
         se_search = request.GET['q']
-        unit_id = request.GET['unit_id']
     except KeyError:
         return JsonResponse({'error': True}, status=404)
 
+    unit_id = request.GET.get('unit_id')
     omit_id = request.GET.get('self_id', 'false')
-    service_events = sl_models.ServiceEvent.objects \
-        .filter(id__icontains=se_search, unit_service_area__unit=unit_id)
+    service_events = sl_models.ServiceEvent.objects.filter(id__icontains=se_search)
+
+    if unit_id:
+        service_events = service_events.filter(unit_service_area__unit=unit_id)
 
     if omit_id != 'false':
         service_events = service_events.exclude(id=omit_id)

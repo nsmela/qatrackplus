@@ -64,6 +64,10 @@ class IssueStatus(models.Model):
         max_length=22, validators=[validate_color], blank=True, null=True
     )
     order = models.PositiveIntegerField(default=0, unique=True)
+    resolved = models.BooleanField(
+        default=False,
+        help_text="Is this issue considered resolved/closed?",
+    )
 
     class Meta:
         verbose_name = _l("Issue Status")
@@ -83,6 +87,15 @@ class Issue(models.Model):
     issue_tags = models.ManyToManyField(
         IssueTag, blank=True, help_text="If desired, add multiple tags to this issue"
     )
+    qa_logs = models.ManyToManyField(
+        'qa.TestListInstance', blank=True, related_name='issues', help_text="Related QA Logs"
+    )
+    service_events = models.ManyToManyField(
+        'service_log.ServiceEvent', blank=True, related_name='issues', help_text="Related Service Events"
+    )
+    fault_logs = models.ManyToManyField(
+        'faults.Fault', blank=True, related_name='issues', help_text="Related Fault Logs"
+    )
     issue_status = models.ForeignKey(
         IssueStatus,
         on_delete=models.PROTECT,
@@ -93,11 +106,6 @@ class Issue(models.Model):
 
     datetime_submitted = models.DateTimeField()
     description = models.TextField()
-    error_screen = models.TextField(
-        null=True,
-        blank=True,
-        help_text='Any error screen details. (Note the ability to click "Switch to copy-and-paste view" to copy Traceback)',
-    )
 
     class Meta:
         verbose_name = _l("Issue")

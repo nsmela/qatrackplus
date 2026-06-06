@@ -5,6 +5,7 @@ from braces.views import PrefetchRelatedMixin, SelectRelatedMixin
 from django.conf import settings
 from django.contrib.auth.context_processors import PermWrapper
 from django.db.models import Count, Q
+from django.http import JsonResponse
 from django.template.loader import get_template
 from django.urls import resolve, reverse
 from django.utils.safestring import mark_safe
@@ -557,3 +558,38 @@ class TestListInstances(BaseListableView):
 
     def attachments(self, tli):
         return listable_attachment_tags(tli)
+
+
+def qa_searcher(request):
+    """
+    Search for TestListInstances by ID or test list name
+    """
+    q = request.GET.get('q', '')
+    page = int(request.GET.get('page', 1))
+
+    qs = models.TestListInstance.objects.all()
+
+    if q:
+        if q.isdigit():
+            qs = qs.filter(pk=q)
+        else:
+            qs = qs.filter(test_list__name__icontains=q)
+
+    qs = qs.select_related("unit_test_collection__unit", "test_list").order_by('-work_completed')
+
+    total = qs.count()
+    qs = qs[(page - 1) * 30:page * 30]
+
+    results = []
+    for tli in qs:
+        title = tli.test_list.name
+        if len(title) > 80:
+            title = title[:77] + "..."
+        if tli.work_completed:
+            date = tli.work_completed.strftime(settings.DATETIME_FORMAT) if getattr(settings, 'DATETIME_FORMAT', None) else tli.work_completed.isoformat()
+        else:
+            date = "In Progress"
+        unit = tli.unit_test_collection.unit.name
+        results.append([tli.pk, title, date, unit])
+
+    return JsonResponse({'qa_logs': results, 'total_count': total})

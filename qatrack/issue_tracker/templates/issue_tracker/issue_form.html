@@ -19,8 +19,16 @@
 
 {% block extra_js %}
     <script type="text/javascript">
+         var QAURLs = {
+             QA_SEARCHER: "{% url 'qa_searcher' %}",
+             SE_SEARCHER: "{% url 'se_searcher' %}",
+             FAULT_SEARCHER: "{% url 'fault_searcher' %}"
+         };
          var colours = {{ colours|safe }};
+         var status_colours = {{ status_colours|safe|default:"{}" }};
          var tags = {{ tags|safe }};
+         var status_colours_dict = {{ status_tag_colours|safe|default:"{}" }};
+         var se_statuses = {{ se_statuses|safe|default:"{}" }};
     </script>
 {% endblock extra_js %}
 
@@ -71,16 +79,7 @@
                                                         <div class="col-sm-12 help-block text-center">{{ e }}</div>
                                                     {% endfor %}
                                                     {% if field.help_text %}
-                                                        {% if field.id_for_label == 'id_error_screen' %}
-                                                            <div class="col-sm-12 help-block text-center">
-                                                                <a class="pic_click cursor-pointer">{{ field.help_text }}</a>
-                                                                <div class="pic_display" style="display: none;">
-                                                                  <img class="error-pic" src="{% static "issue_tracker/img/error-example.png" %}?v={{ VERSION }}">
-                                                                </div>
-                                                            </div>
-                                                        {% else %}
-                                                            <div class="col-sm-12 help-block text-center">{{ field.help_text }}</div>
-                                                        {% endif %}
+                                                        <div class="col-sm-12 help-block text-center">{{ field.help_text }}</div>
                                                     {% endif %}
                                                 </div>
                                             {% else %}
@@ -126,7 +125,14 @@
 
             <div class="row">
                 <div class="col-md-12">
-                    <input class="btn btn-flat btn-primary" type="submit" value="Add Issue" />
+                    {% if form.instance.id %}
+                        <button type="submit" name="save" class="btn btn-flat btn-primary">Save</button>
+                        <button type="submit" name="save_and_continue" class="btn btn-flat btn-info">Save and Continue</button>
+                        <a href="{% url 'issue_details' form.instance.id %}" class="btn btn-flat btn-default">Cancel</a>
+                    {% else %}
+                        <button type="submit" name="save" class="btn btn-flat btn-primary">Add Issue</button>
+                        <a href="{% url 'issue_list' %}" class="btn btn-flat btn-default">Cancel</a>
+                    {% endif %}
                 </div>
             </div>
 

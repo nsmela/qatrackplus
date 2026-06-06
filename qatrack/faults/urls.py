@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^create/$', views.CreateFault.as_view(), name='fault_create'),
     url(r'^create/ajax/$', views.fault_create_ajax, name='fault_create_ajax'),
     url(r'^edit/(?P<pk>\d+)?/$', views.EditFault.as_view(), name='fault_edit'),
+    url(r'^fault-searcher/$', views.fault_searcher, name='fault_searcher'),
 ]
