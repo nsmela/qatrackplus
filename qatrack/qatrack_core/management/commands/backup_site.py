@@ -81,7 +81,7 @@ class Command(BaseCommand):
             engine = db_settings['ENGINE']
             
             db_type = 'Unknown'
-            if 'mssql' in engine or 'sqlserver' in engine:
+            if 'mssql' in engine or 'sqlserver' in engine or 'sql_server' in engine:
                 db_type = 'SQL Server'
             elif 'postgresql' in engine:
                 db_type = 'PostgreSQL'
@@ -91,7 +91,7 @@ class Command(BaseCommand):
                 db_type = 'SQLite'
             self.stdout.write(f"  [*] Detected database type: {db_type} ({engine})")
 
-            if 'mssql' in engine or 'sqlserver' in engine:
+            if 'mssql' in engine or 'sqlserver' in engine or 'sql_server' in engine:
                 db_dir_override = self.get_setting('BACKUP_DB_DIR', None)
                 if db_dir_override:
                     test_sql_loc = f"{db_dir_override}/{today_str}-test"
@@ -160,7 +160,7 @@ class Command(BaseCommand):
         if os.path.exists(local_backup_file):
             os.remove(local_backup_file)
             
-        if 'mssql' in engine or 'sqlserver' in engine:
+        if 'mssql' in engine or 'sqlserver' in engine or 'sql_server' in engine:
             query = f"BACKUP DATABASE [{db_name}] TO DISK='{sql_backup_file}'"
             connection.ensure_connection()
             old_autocommit = connection.get_autocommit()
