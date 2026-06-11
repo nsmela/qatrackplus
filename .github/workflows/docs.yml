@@ -27,18 +27,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+          python-version: "3.9"
+          cache: "pip"
 
       - name: Install dependencies
-        run: uv sync --frozen --group dev
+        run: pip install -r requirements/dev.txt
 
       - name: Build Sphinx documentation
-        run: uv run sphinx-build -M html docs docs/_build -W
+        run: sphinx-build -M html docs docs/_build -W
 
       - name: Setup Pages
         if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
