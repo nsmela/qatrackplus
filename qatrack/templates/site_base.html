@@ -134,14 +134,22 @@
             {% endblock require_javascript %}
         });
     </script>
+    <script src="{% static 'htmx/js/htmx.min.js' %}"></script>
+    <script type="text/javascript">
+      document.addEventListener('htmx:afterSettle', function(evt) {
+          // Re-init requireJS modules that may have been lost on DOM swap
+          if (typeof require !== 'undefined' && document.querySelector('.requires-legacy-faults')) {
+              require(['faults']);
+          }
+      });
+    </script>
     {% block extra_js %}{% endblock extra_js %}
 
     {# some packages use extra_head some use head_extra :p #}
     {% block extra_head %}{% endblock extra_head %}
     {% block head_extra %}{% endblock head_extra %}
   </head>
-
-  <body {# data-instant-allow-query-string="true" #} class="skin-black-dark fixed {% block body_class %}layout-top-nav{% endblock body_class %} preload">
+  <body {% block body_attrs %}{% endblock body_attrs %} class="skin-black-dark fixed {% block body_class %}layout-top-nav{% endblock body_class %} preload">
 
     <div class="wrapper">
 
@@ -830,7 +838,7 @@
           </div>
         {% endblock messages %}
 
-        <div class="content">
+        <div class="content" id="main-content">
           {% block body %}
           {% endblock %}
         </div>
