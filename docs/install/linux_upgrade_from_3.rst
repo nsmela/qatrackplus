@@ -104,10 +104,17 @@ following commands:
     git checkout v4.0.0
 
 
-Updating our Python environment
--------------------------------
+Updating our Python and Node Environments
+-----------------------------------------
 
 For version 4.0.0, QATrack+ now uses the `uv` package manager, which will create a new virtual environment inside the `qatrackplus` directory. Your old `~/venvs/qatrack31` directory is no longer needed.
+
+Version 4.0.0 also introduces a modern Vue 3 frontend, which means you now need Node.js installed to build the frontend assets. Install Node 22 (LTS) using the NodeSource repository:
+
+.. code-block:: bash
+
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
 
 First, install `uv`:
 
@@ -154,8 +161,14 @@ We can now migrate the tables in our database:
 
     python manage.py migrate
 
+Next, install the frontend dependencies and build the Vue 3 JavaScript assets:
 
-and then we need to collect all our static media files:
+.. code-block:: bash
+
+    npm install
+    npm run build
+
+and finally we need to collect all our static media files:
 
 .. code-block:: bash
 

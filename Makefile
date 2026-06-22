@@ -3,22 +3,22 @@ DATETIME=$(shell date '+%Y-%m-%d_%H-%M-%S')
 
 
 cover:
-	py.test --reuse-db --cov-report term-missing --cov ./ ${args}
+	uv run pytest --reuse-db --cov-report term-missing --cov ./ ${args}
 
 cover-module:
-	py.test --cov-report term-missing --cov ./${module} ${module}
+	uv run pytest --cov-report term-missing --cov ./${module} ${module}
 
 cover-mo:
-	py.test --reuse-db --cov-report term-missing:skip-covered --cov ./ ${args}
+	uv run pytest --reuse-db --cov-report term-missing:skip-covered --cov ./ ${args}
 
 cover-qatrack:
-	py.test --reuse-db --cov-report term-missing --cov qatrack ${args}
+	uv run pytest --reuse-db --cov-report term-missing --cov qatrack ${args}
 
 test:
-	py.test ${args}
+	uv run pytest ${args}
 
 test_simple:
-	py.test -m "not selenium" ${args}
+	uv run pytest -m "not selenium" ${args}
 
 dumpdata:
 	python manage.py dumpdata \
@@ -31,15 +31,14 @@ clearct:
 flushdb:
 	python manage.py sqlflush | python manage.py dbshell
 
-yapf:
-	yapf --verbose --in-place --recursive --parallel \
-		-e*fixtures* -e*migration* -e*.git* -e*tmp* -e*deploy* \
-		-e*media* -e deploy  -e env -e*templates* -e*backups* -e*ipynb* -e*static* \
-		-e*logs* -e*cache* -e*init.d* -e*emails* -e*postgres* -e*uploads* \
-		.
+ruff-format:
+	uv run ruff format .
 
-flake8:
-	flake8 .
+ruff:
+	uv run ruff check .
+
+build-js:
+	npm run build
 
 docs:
 	cd docs && make html
@@ -73,5 +72,5 @@ run:
 __cleardb__:
 	python manage.py shell -c "from qatrack.qa.models import *; TestListInstance.objects.all().delete(); UnitTestCollection.objects.all().delete(); ContentType.objects.all().delete()"
 
-.PHONY: test test_simple yapf flake8 help docs-autobuild docs \
+.PHONY: test test_simple ruff-format ruff build-js help docs-autobuild docs \
 	qatrack_daemon.conf supervisor.conf schema run __cleardb__ mysql-ro-rights

@@ -13,7 +13,10 @@ cd qatrackplus
 
 ## Setting up your development environment
 
-QATrack+ now uses modern Python packaging with `pyproject.toml`, making setup much simpler. We recommend using uv for the fastest and most reliable dependency management.
+QATrack+ uses modern Python packaging with `pyproject.toml` and a modern Node.js/Vite frontend for its Vue components. 
+You will need Node.js and npm installed on your system.
+
+We recommend using uv for the fastest and most reliable dependency management for the Python backend.
 
 ### Using uv (Recommended - Fastest)
 
@@ -38,6 +41,19 @@ uv sync --frozen
 # --frozen is used to prevent uv sync from attempting to update the lock file, only using it as the source of truth.
 ```
 
+Next, activate the virtual environment:
+
+```bash
+# Linux/macOS
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# Windows (Command Prompt)
+.venv\Scripts\activate.bat
+```
+
 Once you have the requirements installed, copy the debug `local_settings.py` file from the deploy subdirectory and then create your database:
 
 ```bash
@@ -48,6 +64,15 @@ python manage.py createcachetable
 ```
 
 This will put a database called `default.db` in the `db` subdirectory.
+
+Next, you will need to install the frontend dependencies and build the Vue components. You can do this by running:
+
+```bash
+npm install
+npm run build
+```
+
+*(Note: During active frontend development, you can run `npm run dev` instead to start the Vite dev server for hot module replacement).*
 
 ## Running the development server
 
@@ -95,6 +120,7 @@ You should see output showing the tests running, with most tests passing. Some s
 - **Python version conflicts**: If you encounter compatibility issues, ensure you're using Python 3.12 with `uv python pin 3.12`. This creates the .python-version file.
 - **Database issues**: Make sure you've copied the `local_settings.py` file and run migrations before starting the server.
 - **Test failures**: Some selenium browser tests may fail due to browser/environment issues. This is normal and doesn't affect core functionality.
+- **Frontend build errors (`vite: not found`)**: If `npm run build` fails with `vite: not found`, it means you skipped running `npm install` first. Ensure you install the Node packages before attempting to build.
 
 ## Complete setup commands (copy-paste ready)
 
@@ -107,7 +133,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="/home/$USER/.local/bin:$PATH"
 uv python pin 3.12
 uv sync --frozen
+uv run pre-commit install
 source .venv/bin/activate
+npm install
+npm run build
 cp deploy/dev/local_settings.dev.py qatrack/local_settings.py
 mkdir db
 python manage.py migrate

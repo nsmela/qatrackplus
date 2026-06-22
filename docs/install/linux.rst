@@ -55,6 +55,13 @@ this deployment. Install install them as follows:
 
     sudo apt install make build-essential python3-dev python3-tk curl
 
+You will also need to install Node.js (version 22 LTS) to build the modern Vue 3 frontend components:
+
+.. code-block:: bash
+
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+
 You will also need the Chrome browser installed for generating PDF reports:
 
 .. code-block:: bash
@@ -409,6 +416,16 @@ and to create a cachetable in the database:
 .. code-block:: bash
 
     python manage.py createcachetable
+
+Building Frontend Assets
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before we can collect our static media files, we need to install the frontend dependencies and build the Vue 3 JavaScript assets:
+
+.. code-block:: bash
+
+    npm install
+    npm run build
 
 and finally we need to collect all our static media files in one location for
 Nginx to serve:

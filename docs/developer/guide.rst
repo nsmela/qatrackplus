@@ -30,8 +30,8 @@ or have questions about using git or contributing code then please post to the
 Prerequisites
 ~~~~~~~~~~~~
 
-QATrack+ is developed using Python 3.12. We recommend using the latest stable
-version of Python 3.12 for the best development experience and compatibility.
+QATrack+ is developed using Python 3.12 and a Node.js/Vite frontend. 
+We recommend using the latest stable version of Python 3.12 and installing Node.js 22+ and npm on your system.
 
 Git
 ~~~
@@ -115,8 +115,14 @@ Once you have decided on a text editor or IDE, create a virtual environment with
     # Create virtual environment with Python 3.12
     uv venv --python 3.12
 
-    # Activate the virtual environment:
+    # Activate the virtual environment (Linux/macOS):
     source .venv/bin/activate
+
+    # Activate the virtual environment (Windows PowerShell):
+    .venv\Scripts\Activate.ps1
+
+    # Activate the virtual environment (Windows Command Prompt):
+    .venv\Scripts\activate.bat
 
 Install development dependencies:
 
@@ -125,6 +131,27 @@ Install development dependencies:
     # Install all development dependencies
     uv sync --dev
 
+    # Install pre-commit hooks
+    uv run pre-commit install
+
+Node.js and Frontend Setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since QATrack+ uses Vue 3 and Vite for its frontend components, you must install the JavaScript dependencies and build the assets:
+
+.. code-block:: shell
+
+    # Install frontend dependencies
+    npm install
+
+    # Build the frontend assets for development
+    npm run build
+
+Note: If you are actively developing frontend Vue components, you can use ``npm run dev`` to start the Vite development server with hot module replacement.
+
+.. note::
+
+    **Troubleshooting**: If ``npm run build`` fails with an error like ``vite: not found``, it means the local Node packages were not downloaded. Make sure you successfully ran ``npm install`` before trying to build!
 
 
 Creating your development database
@@ -294,25 +321,21 @@ General formatting
 ~~~~~~~~~~~~~~~~~~
 
 In general, any code you write should be `PEP 8 compatible
-<https://www.python.org/dev/peps/pep-0008/>`__ with a few exceptions.  It is
-*highly* recommended that you use flake8 to check your code for pep8
-violations. A QATrack+ flake8 config file is included with QATrack+, to view
-any flake8 violations run:
+<https://www.python.org/dev/peps/pep-0008/>`__ with a few exceptions.  QATrack+
+uses `ruff <https://docs.astral.sh/ruff/>`__ for fast Python linting and code formatting, and `pre-commit <https://pre-commit.com/>`__ to enforce these standards.
 
-.. code-block:: python
+To format your code and check for linting errors, you can run:
 
-    make flake8
-    # or
-    flake8 .
+.. code-block:: shell
 
-You may also want to use `yapf <https://github.com/google/yapf>`__ which can
-automatically format your code to conform with QATrack+'s style guide.  A yapf
-configuration sections is included in the setup.cfg file. To run yapf:
+    uv run ruff format .
+    uv run ruff check .
+    
+    # Or using the Makefile:
+    make ruff-format
+    make ruff
 
-
-.. code-block:: python
-
-    make yapf
+Ensure that you have installed the pre-commit hooks (`uv run pre-commit install`) so that your code is checked automatically before committing.
 
 Using Make Commands
 ~~~~~~~~~~~~~~~~~~
@@ -358,9 +381,7 @@ and each section should be in alphabetical order.  For example:
     from qatrack.qa import utils
     from qatrack.units.models import Unit
 
-`isort <https://isort.readthedocs.io/en/latest/>`__ is a simple tool for
-automatically ordering your imports and an `isort` configuration is included in
-the setup.cfg file.
+`ruff <https://docs.astral.sh/ruff/>`__ automatically handles import sorting (via its `I` rule) when you run `uv run ruff check . --fix`. You do not need a separate tool for import sorting.
 
 Indentation
 ~~~~~~~~~~~
@@ -503,16 +524,16 @@ Running The Test Suite
 
 Once you have QATrack+ and its dependencies installed (and optionally configured
 Selenium browser testing above), you can run the test suite from the root
-QATrack+ directory using the `py.test` command:
+QATrack+ directory using `uv run pytest`:
 
 
 .. code-block:: sh
 
-    ./qatrackplus> py.test
-    Test session starts (platform: linux, Python 3.6.5, pytest 3.5.0, pytest-sugar 0.9.1)
+    ./qatrackplus> uv run pytest
+    Test session starts (platform: linux, Python 3.12.0, pytest 7.4.0, pytest-sugar 0.9.7)
     Django settings: qatrack.settings (from ini file)
-    rootdir: /home/dev/projects/qatrackplus, inifile: pytest.ini
-    plugins: django-4.5.2, cov-3.0.0
+    rootdir: /home/dev/projects/qatrackplus, inifile: pyproject.toml
+    plugins: django-4.5.2, cov-4.1.0
 
     qatrack/accounts/tests.py ✓✓✓
 
@@ -522,22 +543,22 @@ Run all tests (including Selenium):
 
 .. code-block:: shell
 
-    py.test
+    uv run pytest
 
 Run only Selenium tests:
 
 .. code-block:: shell
 
-    pytest -m selenium
+    uv run pytest -m selenium
 
 Run only non-Selenium tests (faster):
 
 .. code-block:: shell
 
-    pytest -m "not selenium"
+    uv run pytest -m "not selenium"
 
-For more information on using py.test, refer to the `py.test documentation
-<https://pytest.org>`__.
+For more information on using pytest, refer to the `pytest documentation
+<https://docs.pytest.org>`__.
 
 .. important::
 

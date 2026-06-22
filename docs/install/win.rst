@@ -55,6 +55,8 @@ Before beginning the installation, ensure the following software is installed on
 
 * **Git for Windows**: `Required to check out the QATrack+ source code. <https://git-scm.com/install/windows>`_ 
 
+* **Node.js (LTS version 22)**: `Required to build the modern Vue 3 frontend components. <https://nodejs.org/en/download/>`_
+
 For convenience, these installers may be kept in a folder on the server (e.g. C:\\deploy\\installers) for future reference and re-use.
 
 * **SQL Server Express**: Required if you do not have access to a full SQL Server instance `SQL Server may be installed locally. <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`_ This option should only be used if local IT resources will not support using a full SQL Server instance. QATrack+ should fit within the licensing limits of SQL Server Express, but it is up to each site to confirm their Microsoft licensing requirements. 
@@ -296,6 +298,13 @@ Now run the following commands to set up your database and load the default conf
     >>  python manage.py migrate
     >>  python manage.py createsuperuser
     >>  python manage.py createcachetable
+
+Next, we must install the frontend dependencies and build the Vue 3 JavaScript assets before collecting the static files:
+
+.. code-block:: console
+
+    >>  npm install
+    >>  npm run build
     >>  python manage.py collectstatic
     >>  Get-ChildItem .\fixtures\defaults\*\*json | foreach {python manage.py loaddata $_.FullName}
 
