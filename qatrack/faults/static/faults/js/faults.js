@@ -40,22 +40,29 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
         function configureFaults(){
 
             var $date_time = $("#id_fault-occurred");
-
-            $date_time.flatpickr({
-                enableTime: true,
-                time_24hr: true,
-                minuteIncrement: 1,
-                dateFormat: siteConfig.FLATPICKR_DATETIME_FMT,
-                allowInput: true,
-                onOpen: [
-                    function(selectedDates, dateStr, instance) {
-                        if (dateStr === '') {
-                            instance.setDate(moment()._d);
+            if ($date_time.length) {
+                var dt_val = $date_time.val();
+                var parsedDate = null;
+                if (dt_val && moment) {
+                    var m = moment(dt_val, "YYYY-MM-DD HH:mm");
+                    if (m.isValid()) parsedDate = m.toDate();
+                }
+                $date_time.flatpickr({
+                    enableTime: true,
+                    time_24hr: true,
+                    minuteIncrement: 1,
+                    dateFormat: siteConfig.FLATPICKR_DATETIME_FMT,
+                    defaultDate: parsedDate,
+                    allowInput: true,
+                    onOpen: [
+                        function(selectedDates, dateStr, instance) {
+                            if (dateStr === '') {
+                                instance.setDate(moment()._d);
+                            }
                         }
-                    }
-                ]
-            });
-
+                    ]
+                });
+            }
             var $modality = $("#id_fault-modality").select2(s2config);
             var $related_se = $('#id_fault-related_service_events');
             var initialLoad = true;
@@ -140,15 +147,26 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
                 if (cur_unit in unitInfo){
                     unit_modalities = unitInfo[cur_unit].modalities;
                 }
-                $modality.val("");
+                var current_mod = parseInt($modality.val(), 10);
+                var is_current_valid = isNaN(current_mod);
+                for (var j=0; j<unit_modalities.length; j++) {
+                    if (unit_modalities[j] == current_mod) { is_current_valid = true; break; }
+                }
+                if (!is_current_valid) {
+                    $modality.val("").trigger("change");
+                }
+
                 $modality.find("option").each(function(i, opt){
                     var $opt = $(opt);
-                    var mod_id = parseInt($(opt).val());
-                    var enable = unit_modalities.indexOf(mod_id) >= 0 || mod_id === "";
+                    var mod_id = parseInt($(opt).val(), 10);
+                    var enable = isNaN(mod_id);
+                    for (var k=0; k<unit_modalities.length; k++) {
+                        if (unit_modalities[k] == mod_id) { enable = true; break; }
+                    }
                     $opt.prop('disabled', !enable);
                 });
-                $modality.select2("destroy");
-                $modality.select2(s2config);
+                // Refresh select2 without destroying to prevent visual clearing
+                $modality.trigger("change.select2");
 
                 if (cur_unit){
                     $related_se.prop('disabled', false);

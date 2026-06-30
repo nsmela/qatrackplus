@@ -1,0 +1,33 @@
+{% load i18n %}
+<div id="fault-section-attachments">
+  <h3>
+    {% trans "Attachments" %}
+    {% if perms.faults.change_fault %}
+      <button type="button" id="btn-edit-attachments" class="btn btn-default btn-xs margin-left-10" title="{% trans 'Edit' %}"
+              hx-get="{% url 'fault_section_edit' pk=fault.pk section='attachments' %}" hx-target="#fault-section-attachments" hx-swap="outerHTML"
+              {% if editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-pencil"></i>
+      </button>
+      <button type="submit" form="form-attachments" id="btn-save-attachments" class="btn btn-primary btn-xs margin-left-10" title="{% trans 'Save' %}"
+              {% if not editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-check"></i> {% trans "Save" %}
+      </button>
+      <button type="button" id="btn-cancel-attachments" class="btn btn-default btn-xs margin-left-5" title="{% trans 'Cancel' %}"
+              hx-get="{% url 'fault_section_detail' pk=fault.pk section='attachments' %}" hx-target="#fault-section-attachments" hx-swap="outerHTML"
+              {% if not editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-times"></i> {% trans "Cancel" %}
+      </button>
+    {% endif %}
+  </h3>
+
+  <div id="attachments-read" {% if editing %}style="display:none;"{% endif %}>
+    {% include "faults/sections/_section_attachments_read.html" %}
+  </div>
+  <div id="attachments-edit" {% if not editing %}style="display:none;"{% endif %}>
+    {% if attachments_form %}
+      {% include "faults/sections/_section_attachments_edit.html" with form=attachments_form %}
+    {% else %}
+      {% include "faults/sections/_section_attachments_edit.html" with form=form %}
+    {% endif %}
+  </div>
+</div>

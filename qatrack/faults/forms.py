@@ -88,7 +88,7 @@ class FaultForm(BetterModelForm):
 
             if include_related_ses:
                 # set initial related service events to whatever is set on the model
-                self.initial['related_service_events'] = self.instance.related_service_events.all()
+                self.initial['related_service_events'] = self.instance.related_service_events.order_by('-id')
                 self.fields['related_service_events'].queryset = self.initial['related_service_events']
         elif include_related_ses:
             # on invalid create form submit, we need to reset the related service events to whatever the user posted
@@ -130,6 +130,10 @@ class FaultForm(BetterModelForm):
             self.fields['comment'].widget.attrs['class'] += 'autosize'
             self.fields['comment'].widget.attrs['cols'] = 8
             self.fields['comment'].widget.attrs['rows'] = 3
+
+        if 'occurred' in self.fields:
+            self.fields['occurred'].localize = False
+            self.fields['occurred'].widget.format = '%Y-%m-%d %H:%M'
 
     def clean_fault_types_field(self):
         fault_types = self.cleaned_data.get('fault_types_field')

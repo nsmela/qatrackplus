@@ -7,16 +7,23 @@
 {% load static %}
 
 {% block head_title %}{% blocktrans with fault_id=fault.id %}Fault ID {{ fault_id }}{% endblocktrans %}{% endblock %}
-{% block body_attrs %}hx-boost="true"{% endblock body_attrs %}
 
 {% block extra_css %}
     {{ block.super }}
-    <link href="{% static "datepicker/css/bootstrap-datepicker.min.css" %}?v={{VERSION}}" rel="stylesheet">
-    <link href="{% static "multiselect/css/bootstrap.multiselect.css" %}?v={{VERSION}}" rel="stylesheet">
-    <link href="{% static "daterangepicker/css/daterangepicker.css" %}?v={{VERSION}}" rel="stylesheet">
-    <link href="{% static "qatrack_core/css/tables.css" %}?v={{VERSION}}" rel="stylesheet">
-    <link href="{% static "qatrack_core/css/custom-daterangepicker.css" %}?v={{VERSION}}" rel="stylesheet">
-    <link href="{% static "faults/css/faults.css" %}?v={{VERSION}}" rel="stylesheet">
+    {# Use single quotes inside double-quoted attrs so HTML formatters don't mangle the {% static %} tags #}
+    <link href="{% static 'datepicker/css/bootstrap-datepicker.min.css' %}?v={{VERSION}}" rel="stylesheet">
+    <link href="{% static 'multiselect/css/bootstrap.multiselect.css' %}?v={{VERSION}}" rel="stylesheet">
+    <link href="{% static 'daterangepicker/css/daterangepicker.css' %}?v={{VERSION}}" rel="stylesheet">
+    <link href="{% static 'qatrack_core/css/tables.css' %}?v={{VERSION}}" rel="stylesheet">
+    <link href="{% static 'qatrack_core/css/custom-daterangepicker.css' %}?v={{VERSION}}" rel="stylesheet">
+    <link href="{% static 'faults/css/faults.css' %}?v={{VERSION}}" rel="stylesheet">
+    {% if perms.faults.change_fault or perms.faults.can_review %}
+      <link href="{% static 'select2/css/select2.min.css' %}?v={{ VERSION }}" rel="stylesheet">
+      <link href="{% static 'qatrack_core/css/custom-select2.css' %}?v={{ VERSION }}" rel="stylesheet">
+      <link href="{% static 'flatpickr/css/flatpickr.css' %}?v={{ VERSION }}" rel="stylesheet">
+      <link href="{% static 'qatrack_core/css/flatpickr-custom.css' %}?v={{ VERSION }}" rel="stylesheet">
+      <link href="{% static 'service_log/css/sl.css' %}?v={{ VERSION }}" rel="stylesheet">
+    {% endif %}
 {% endblock extra_css %}
 
 {% block extra_js %}
@@ -25,13 +32,675 @@
     {% endautoescape %}
 {% endblock %}
 
+{# The Vue bundle must live in the <body> (not the <head>) so it loads on hx-boost #}
+{# navigation, which only swaps the body. In the head it is skipped on boosted nav. #}
+{% block extra_body %}
+    {{ block.super }}
+    {% if perms.faults.change_fault or perms.faults.can_review %}
+      <script type="text/javascript">
+        var se_statuses = {% if se_statuses_json %}{{ se_statuses_json|safe }}{% else %}{}{% endif %};
+        var status_colours_dict = {% if status_tag_colours_json %}{{ status_tag_colours_json|safe }}{% elif status_tag_colours %}{{ status_tag_colours|safe }}{% else %}{}{% endif %};
+        var can_edit_fault_type = {{ perms.faults.change_faulttype|yesno:"true,false" }};
+      </script>
+    {% endif %}
+{% endblock %}
+
 {% block require_javascript %}
-    require(['listable', 'faults']);
+    require(['listable']);
+    require(['jquery', 'moment', 'sl_utils', 'flatpickr', 'select2'], function($, moment, sl_utils) {
+        window.initOccurrenceEdit = function() {
+            var s2config = { width: "100%" };
+            var $date_time = $("#id_fault-occurred");
+            if ($date_time.length) {
+                var dt_val = $date_time.val();
+                var parsedDate = null;
+                if (dt_val && moment) {
+                    var m = moment(dt_val, "YYYY-MM-DD HH:mm");
+                    if (m.isValid()) parsedDate = m.toDate();
+                }
+                $date_time.flatpickr({
+                    enableTime: true,
+                    time_24hr: true,
+                    minuteIncrement: 1,
+                    dateFormat: window.siteConfig ? window.siteConfig.FLATPICKR_DATETIME_FMT : "Y-m-d H:i",
+                    defaultDate: parsedDate,
+                    allowInput: true,
+                    onOpen: [
+                        function(selectedDates, dateStr, instance) {
+                            if (dateStr === '') {
+                                instance.setDate(moment()._d);
+                            }
+                        }
+                    ]
+                });
+            }
+
+            var $modality = $("#id_fault-modality").select2(s2config);
+            var $unit = $("#id_fault-unit").select2(s2config);
+            var initialLoad = true;
+
+            if (window.QAURLs && window.QAURLs.UNIT_INFO) {
+                $.ajax({
+                    type: "GET",
+                    url: window.QAURLs.UNIT_INFO,
+                    success: function(unitInfo) {
+                        $unit.change(function(){
+                            var cur_unit = parseInt($unit.val(), 10);
+                            var unit_modalities = [];
+                            if (cur_unit in unitInfo){
+                                unit_modalities = unitInfo[cur_unit].modalities;
+                            }
+                            
+                            var current_mod = parseInt($modality.val(), 10);
+                            var is_current_valid = isNaN(current_mod);
+                            for (var j=0; j<unit_modalities.length; j++) {
+                                if (unit_modalities[j] == current_mod) { is_current_valid = true; break; }
+                            }
+                            if (!is_current_valid) {
+                                $modality.val("").trigger("change");
+                            }
+
+                            $modality.find("option").each(function(i, opt){
+                                var $opt = $(opt);
+                                var mod_id = parseInt($(opt).val(), 10);
+                                var enable = isNaN(mod_id);
+                                for (var k=0; k<unit_modalities.length; k++) {
+                                    if (unit_modalities[k] == mod_id) { enable = true; break; }
+                                }
+                                $opt.prop('disabled', !enable);
+                            });
+                            // Refresh select2 without destroying to prevent visual clearing
+                            $modality.trigger("change.select2");
+                            
+                            var $related_se = $('#id_fault-related_service_events');
+                            if ($related_se.length) {
+                                if (cur_unit){
+                                    $related_se.prop('disabled', false);
+                                    if (!initialLoad){
+                                        $related_se.find('option').remove();
+                                    }
+                                } else {
+                                    $related_se.prop('disabled', true).find('option').remove();
+                                }
+                            }
+                            initialLoad = false;
+                        });
+                        $unit.change();
+                    }
+                });
+            }
+        };
+        
+        window.initFaultTypesEdit = function() {
+            var $ft = $('#id_fault-fault_types_field');
+            if ($ft.length) {
+                var faultTypeCache = {};
+
+                // Ensure description container exists
+                var $descContainer = $('#inline-fault-type-descriptions');
+                if ($descContainer.length === 0) {
+                    $descContainer = $('<div id="inline-fault-type-descriptions" class="margin-top-10"></div>');
+                    $ft.parent().append($descContainer);
+                } else {
+                    $descContainer.empty();
+                }
+
+                function addFaultDescriptions(selected) {
+                    selected.sort(function(a, b) { return (a.code || a.text).localeCompare(b.code || b.text); });
+                    var newCodes = $.map(selected, function(el) { return el.code || el.text; });
+
+                    $descContainer.find(".fault-type-desc-block").each(function(idx, el) {
+                        var $el = $(el);
+                        var code = $el.data("code");
+                        var loc = newCodes.indexOf(code);
+                        if (loc < 0) {
+                            $el.remove();
+                        } else {
+                            newCodes.splice(loc, 1);
+                            selected.splice(loc, 1);
+                        }
+                    });
+
+                    $.each(selected, function(idx, el) {
+                        var code = el.code || el.text;
+                        var fId = el.id;
+                        
+                        if (faultTypeCache[fId]) {
+                            if (el.description === undefined) el.description = faultTypeCache[fId].description;
+                            if (el.slug === undefined) el.slug = faultTypeCache[fId].slug;
+                        } else if (el.description !== undefined || el.slug !== undefined) {
+                            faultTypeCache[fId] = {
+                                description: el.description,
+                                slug: el.slug
+                            };
+                        }
+
+                        var desc = el.description || "<em>{% trans 'No description available' %}</em>";
+                        var slug = el.slug || "";
+                        var urlTemplate = "{% url 'fault_type_details' slug='__SLUG__' %}";
+                        var linkUrl = urlTemplate.replace('__SLUG__', slug);
+                        
+                        var html = '<div class="fault-card-hover fault-type-desc-block margin-bottom-10" data-code="' + code + '" data-slug="' + slug + '" data-id="' + fId + '" style="display: flex; align-items: flex-start; border-left: 4px solid #3c8dbc; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">';
+                        
+                        html += '  <div style="flex-shrink: 0; margin-right: 15px; display: flex; gap: 10px; align-items: center; margin-top: 2px;">';
+                        html += '    <i class="fa fa-trash fa-lg text-danger remove-fault-type" style="cursor: pointer;" title="{% trans "Remove" %}"></i>';
+                        if (window.can_edit_fault_type && slug) {
+                            html += '    <i class="fa fa-pencil fa-lg text-primary edit-fault-type-desc" style="cursor: pointer;" title="{% trans "Edit Description" %}"></i>';
+                        }
+                        if (slug) {
+                            html += '    <a href="' + linkUrl + '" target="_blank" class="text-info" title="{% trans "Click to view details of this fault type" %}"><i class="fa fa-eye fa-lg"></i></a>';
+                        }
+                        html += '  </div>';
+                        
+                        html += '  <div style="flex-grow: 1; min-width: 0;">';
+                        html += '    <strong style="display: block;">{% trans "Code" %}: ' + code + '</strong>';
+                        
+                        html += '    <div class="margin-top-5 text-muted fault-type-desc-text"><span class="desc-content">' + desc + '</span></div>';
+
+                        if (window.can_edit_fault_type && slug) {
+                            var plainDesc = el.description || "";
+                            html += '    <div class="margin-top-5 fault-type-desc-edit-form" style="display: none;">';
+                            html += '      <textarea class="form-control input-sm desc-textarea" style="resize: vertical; margin-bottom: 5px;">' + plainDesc + '</textarea>';
+                            html += '      <button type="button" class="btn btn-primary btn-xs save-fault-type-desc">{% trans "Save" %}</button>';
+                            html += '      <button type="button" class="btn btn-default btn-xs cancel-fault-type-desc margin-left-5">{% trans "Cancel" %}</button>';
+                            html += '      <i class="fa fa-spinner fa-spin text-muted desc-save-spinner margin-left-5" style="display: none;"></i>';
+                            html += '    </div>';
+                        }
+                        
+                        html += '  </div>';
+                        
+                        html += '</div>';
+                        
+                        $descContainer.append(html);
+                    });
+                }
+
+                $descContainer.on('click', '.remove-fault-type', function() {
+                    var $card = $(this).closest('.fault-type-desc-block');
+                    var idToRemove = $card.data('id');
+                    if (idToRemove) {
+                        var currentVals = $ft.val() || [];
+                        var newVals = $.grep(currentVals, function(val) {
+                            return val != idToRemove;
+                        });
+                        $ft.val(newVals).trigger('change');
+                    }
+                });
+                
+                $descContainer.on('click', '.edit-fault-type-desc', function() {
+                    var $card = $(this).closest('.fault-type-desc-block');
+                    $card.find('.fault-type-desc-text').hide();
+                    $card.find('.fault-type-desc-edit-form').show();
+                    $(this).hide();
+                });
+                
+                $descContainer.on('click', '.cancel-fault-type-desc', function() {
+                    var $card = $(this).closest('.fault-type-desc-block');
+                    $card.find('.fault-type-desc-edit-form').hide();
+                    $card.find('.fault-type-desc-text').show();
+                    $card.find('.edit-fault-type-desc').show();
+                });
+                
+                $descContainer.on('click', '.save-fault-type-desc', function() {
+                    var $card = $(this).closest('.fault-type-desc-block');
+                    var slug = $card.data('slug');
+                    var fId = $card.data('id');
+                    var newDesc = $card.find('.desc-textarea').val();
+                    
+                    var $saveBtn = $(this);
+                    var $cancelBtn = $card.find('.cancel-fault-type-desc');
+                    var $spinner = $card.find('.desc-save-spinner');
+                    
+                    $saveBtn.prop('disabled', true);
+                    $cancelBtn.prop('disabled', true);
+                    $spinner.show();
+                    
+                    var urlTemplate = "{% url 'fault_type_edit_description' slug='__SLUG__' %}";
+                    var ajaxUrl = urlTemplate.replace('__SLUG__', slug);
+                    
+                    $.ajax({
+                        url: ajaxUrl,
+                        type: 'POST',
+                        data: {
+                            description: newDesc,
+                            csrfmiddlewaretoken: $('input[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                var descText = response.description || "<em>{% trans 'No description available' %}</em>";
+                                $card.find('.desc-content').html(descText);
+                                $card.find('.desc-textarea').val(response.description);
+                                
+                                if (faultTypeCache[fId]) {
+                                    faultTypeCache[fId].description = response.description;
+                                }
+                                
+                                var $readBlock = $('#fault-types-read .fault-type-read-desc[data-slug="' + slug + '"] .read-desc-content');
+                                if ($readBlock.length) {
+                                    $readBlock.html(descText);
+                                }
+                                
+                                $card.find('.fault-type-desc-edit-form').hide();
+                                $card.find('.fault-type-desc-text').show();
+                                $card.find('.edit-fault-type-desc').show();
+                            }
+                        },
+                        error: function() {
+                            alert('{% trans "Failed to update description." %}');
+                        },
+                        complete: function() {
+                            $saveBtn.prop('disabled', false);
+                            $cancelBtn.prop('disabled', false);
+                            $spinner.hide();
+                        }
+                    });
+                });
+
+                $ft.select2({
+                    width: '100%',
+                    multiple: true,
+                    ajax: {
+                        url: "{% url 'fault_type_autocomplete' %}",
+                        dataType: 'json',
+                        data: function(params){
+                            return {
+                                q: params.term,
+                                unit: '{{ fault.unit_id|default_if_none:"" }}',
+                                suggestions: 1
+                            };
+                        }
+                    },
+                    placeholder: '-----------',
+                    allowClear: true,
+                    minimumInputLength: 2,
+                    selectOnClose: true,
+                    templateSelection: function(data) {
+                        if (data.code) return data.code;
+                        if (data.text && data.text.indexOf(' - ') > -1) {
+                            return data.text.split(' - ')[0];
+                        }
+                        return data.text;
+                    }
+                }).on("change", function(evt) {
+                    addFaultDescriptions($ft.select2('data'));
+                });
+
+                // Load initial descriptions for already selected items
+                var alreadySelected = $ft.val();
+                if (alreadySelected && alreadySelected.length > 0) {
+                    
+                    // Render skeletons immediately
+                    if ($('#qatrack-pulse-animation').length === 0) {
+                        $('head').append('<style id="qatrack-pulse-animation">@keyframes qatrack-pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }</style>');
+                    }
+
+                    $.each(alreadySelected, function(idx, val) {
+                        var skeletonHtml = '<div class="fault-type-desc-block skeleton-loader margin-bottom-10" data-skeleton="true" style="border-left: 4px solid #ddd; background-color: #f9f9f9; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">';
+                        skeletonHtml += '  <div style="font-size: 13px;">';
+                        skeletonHtml += '    <i class="fa fa-spinner fa-spin text-muted" style="margin-right: 5px;"></i>';
+                        skeletonHtml += '    <span class="text-muted"><strong>{% trans "Loading..." %}</strong></span>';
+                        skeletonHtml += '  </div>';
+                        skeletonHtml += '  <div class="margin-top-10 margin-bottom-5">';
+                        skeletonHtml += '    <div style="height: 10px; width: 60%; background-color: #e0e0e0; border-radius: 2px; margin-bottom: 5px; animation: qatrack-pulse 1.5s infinite;"></div>';
+                        skeletonHtml += '    <div style="height: 10px; width: 40%; background-color: #e0e0e0; border-radius: 2px; animation: qatrack-pulse 1.5s infinite;"></div>';
+                        skeletonHtml += '  </div>';
+                        skeletonHtml += '</div>';
+                        $descContainer.append(skeletonHtml);
+                    });
+
+                    var completed = [];
+                    $.each(alreadySelected, function(idx, val) {
+                        $.ajax({
+                            type: 'GET',
+                            url: "{% url 'fault_type_autocomplete' %}",
+                            dataType: 'json',
+                            data: {
+                                q: val,
+                                unit: '{{ fault.unit_id|default_if_none:"" }}',
+                                suggestions: 1
+                            }
+                        }).then(function(data) {
+                            if (data.results && data.results.length > 0) {
+                                completed.push(data.results[0]);
+                            }
+                            if (completed.length === alreadySelected.length) {
+                                addFaultDescriptions(completed);
+                            }
+                        });
+                    });
+                }
+            }
+        };
+
+        window.initRelatedSesEdit = function() {
+            var $rse = $('#id_fault-related_service_events');
+            if ($rse.length) {
+                function getRgbaArray(colour) {
+                    if (!colour) return [0,0,0,1];
+                    if (colour.indexOf('#') === 0) {
+                        var hex = colour.replace('#', '');
+                        if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+                        if (hex.length === 6) {
+                            return [parseInt(hex.substr(0,2), 16), parseInt(hex.substr(2,2), 16), parseInt(hex.substr(4,2), 16), 1];
+                        }
+                    }
+                    if (window.rgbaStringToArray) {
+                        try { return window.rgbaStringToArray(colour); } catch(e) {}
+                    }
+                    var match = colour.match(/^rgb[a]?\((\d+),\s*(\d+),\s*(\d+)/);
+                    if (match) return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), 1];
+                    return [0,0,0,1];
+                }
+
+                function generate_related_result(res) {
+                    if (res.loading) { return res.text; }
+                    if (res.is_new_link) {
+                        return $('<div style="padding: 5px 0; color: #3c8dbc; font-weight: bold;"><i class="fa fa-plus"></i> ' + res.text + '</div>');
+                    }
+                    var description = res.title ? res.title.slice(0, 100) : "";
+                    if (res.title && res.title.length > 100){
+                        description += "...";
+                    }
+
+                    var colour = window.status_colours_dict ? window.status_colours_dict[window.se_statuses[res.id]] : null;
+                    if (!colour) colour = '#ccc';
+                    
+                    var txtColor = 'white';
+                    if (colour && window.isTooBright && window.isTooBright(getRgbaArray(colour))) {
+                        txtColor = 'black';
+                    }
+
+                    var sel = '<div class="select2-result-repository clearfix" style="padding-bottom: 5px;">';
+                    sel += '<div class="clearfix" style="margin-bottom: 3px;">';
+                    sel += '<strong>ID: ' + res.id + '</strong> <span style="opacity: 0.75;">(' + (res.date || "") + ')</span>';
+                    sel += '<span class="label pull-right" style="background-color: ' + colour + '; color: ' + txtColor + ';">' + (res.status || "") + '</span>';
+                    sel += '</div>';
+                    sel += '<div style="font-size: 12px; opacity: 0.8;">' + description + '</div>';
+                    sel += '</div>';
+                    return $(sel);
+                }
+                function generate_related_selection(res, container) {
+                    if (!res.id) return res.text;
+                    var colour = window.status_colours_dict ? window.status_colours_dict[window.se_statuses[res.id]] : null;
+                    var txtColor = 'white';
+                    if (colour) {
+                        $(container).css('background-color', colour);
+                        $(container).css('border-color', colour);
+                        if (window.isTooBright && window.isTooBright(getRgbaArray(colour))) {
+                            txtColor = 'black';
+                        }
+                    }
+                    var $label = $('<span title="' + (res.title || "") + '" style="color: ' + txtColor + ';">' + res.id + '</span>');
+                    setTimeout(function() {
+                        if (container && $(container).length) {
+                            $(container).find('.select2-selection__choice__remove').css('color', txtColor);
+                        }
+                    }, 0);
+                    return $label;
+                }
+                function process_related_results(data, params) {
+                    params.page = params.page || 1;
+                    var results = [];
+                    if (params.page === 1) {
+                        results.push({
+                            id: 'NEW_SERVICE_EVENT_LINK',
+                            text: '{% trans "New Service Event" %}',
+                            is_new_link: true
+                        });
+                    }
+                    for (var i in data.service_events) {
+                        var se_id = data.service_events[i][0],
+                            se_status_id = data.service_events[i][1],
+                            se_problem_description = data.service_events[i][2],
+                            se_date = (data.service_events[i][3] || "").split('T')[0],
+                            se_status_name = data.service_events[i][4];
+                        results.push({id: se_id, text: se_id, title: se_problem_description, date: se_date, status: se_status_name});
+                        if (window.se_statuses) window.se_statuses[se_id] = se_status_id;
+                    }
+                    params.page = params.page || 1;
+                    return {
+                        results: results,
+                        pagination: {
+                            more: (params.page * 30) < data.total_count
+                        }
+                    };
+                }
+                
+                // Ensure description container exists
+                var $descContainer = $('#inline-related-ses-descriptions');
+                if ($descContainer.length === 0) {
+                    $descContainer = $('<div id="inline-related-ses-descriptions" class="margin-top-10"></div>');
+                    $rse.parent().append($descContainer);
+                } else {
+                    $descContainer.empty();
+                }
+
+                function addRelatedSesDescriptions(selected) {
+                    selected.sort(function(a, b) { return parseInt(b.id || 0, 10) - parseInt(a.id || 0, 10); });
+                    var newIds = $.map(selected, function(el) { return (el.id || "").toString(); });
+
+                    $descContainer.find(".related-se-desc-block").each(function(idx, el) {
+                        var $el = $(el);
+                        var rawId = $el.data("id");
+                        var fId = rawId !== undefined ? rawId.toString() : "";
+                        var loc = newIds.indexOf(fId);
+                        if (loc < 0) {
+                            $el.remove();
+                        } else {
+                            newIds.splice(loc, 1);
+                            selected.splice(loc, 1);
+                        }
+                    });
+
+                    $.each(selected, function(idx, el) {
+                        var fId = el.id || el.text;
+                        var desc = el.title || "<em>{% trans 'No description available' %}</em>";
+                        var colour = window.status_colours_dict ? window.status_colours_dict[window.se_statuses[fId]] : null;
+                        if (!colour) colour = '#ccc';
+                        
+                        var html = '<div class="fault-card-hover related-se-desc-block margin-bottom-10" data-id="' + fId + '" style="display: flex; align-items: flex-start; border-left: 4px solid ' + colour + '; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">';
+                        
+                        html += '  <div style="flex-shrink: 0; margin-right: 15px; display: flex; gap: 10px; align-items: center; margin-top: 2px;">';
+                        html += '    <i class="fa fa-trash fa-lg text-danger remove-related-se" style="cursor: pointer;" title="{% trans "Remove" %}"></i>';
+                        html += '    <a href="/service_log/service_event/' + fId + '/" target="_blank" class="text-info" title="{% trans "View" %}"><i class="fa fa-eye fa-lg"></i></a>';
+                        html += '  </div>';
+                        
+                        html += '  <div style="flex-grow: 1; min-width: 0;">';
+                        html += '    <strong style="display: block;">{% trans "ID" %}: ' + fId + '</strong>';
+                        html += '    <div class="margin-top-5 text-muted">' + desc + '</div>';
+                        html += '  </div>';
+                        
+                        html += '</div>';
+                        
+                        $descContainer.append(html);
+                    });
+
+                    $descContainer.find('.remove-related-se').off('click').on('click', function() {
+                        var $block = $(this).closest('.related-se-desc-block');
+                        var removeId = $block.data('id').toString();
+                        var currentVals = $rse.val() || [];
+                        var newVal = $.grep(currentVals, function(value) {
+                            return value.toString() !== removeId;
+                        });
+                        $rse.val(newVal).trigger('change');
+                    });
+                }
+                
+                $rse.select2({
+                    width: '100%',
+                    multiple: true,
+                    ajax: {
+                        url: "{% url 'se_searcher' %}",
+                        dataType: 'json',
+                        delay: '500',
+                        data: function (params) {
+                            var term = params.term === undefined ? "" : params.term;
+                            return {
+                                q: term,
+                                page: params.page,
+                                unit_id: '{{ fault.unit_id|default_if_none:"" }}',
+                            };
+                        },
+                        processResults: process_related_results,
+                        cache: true
+                    },
+                    escapeMarkup: function (markup) { return markup; },
+                    minimumInputLength: 0,
+                    templateResult: generate_related_result,
+                    templateSelection: generate_related_selection
+                }).on("change", function(evt) {
+                    addRelatedSesDescriptions($rse.select2('data'));
+                }).on('select2:selecting', function(e) {
+                    if (e.params.args.data.id === 'NEW_SERVICE_EVENT_LINK') {
+                        e.preventDefault();
+                        $rse.select2('close');
+                        var newSeUrl = "{% url 'sl_new' %}";
+                        window.open(newSeUrl, '_blank');
+                    }
+                });
+
+                // Load initial descriptions for already selected items
+                var alreadySelected = $rse.val();
+                if (alreadySelected && alreadySelected.length > 0) {
+                    
+                    // Render skeletons immediately
+                    if ($('#qatrack-pulse-animation').length === 0) {
+                        $('head').append('<style id="qatrack-pulse-animation">@keyframes qatrack-pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }</style>');
+                    }
+
+                    $.each(alreadySelected, function(idx, val) {
+                        var skeletonHtml = '<div class="related-se-desc-block skeleton-loader margin-bottom-10" data-skeleton="true" style="border-left: 4px solid #ddd; background-color: #f9f9f9; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">';
+                        skeletonHtml += '  <div style="font-size: 13px;">';
+                        skeletonHtml += '    <i class="fa fa-spinner fa-spin text-muted" style="margin-right: 5px;"></i>';
+                        skeletonHtml += '    <span class="text-muted"><strong>{% trans "Loading..." %}</strong></span>';
+                        skeletonHtml += '  </div>';
+                        skeletonHtml += '  <div class="margin-top-10 margin-bottom-5">';
+                        skeletonHtml += '    <div style="height: 10px; width: 60%; background-color: #e0e0e0; border-radius: 2px; margin-bottom: 5px; animation: qatrack-pulse 1.5s infinite;"></div>';
+                        skeletonHtml += '    <div style="height: 10px; width: 40%; background-color: #e0e0e0; border-radius: 2px; animation: qatrack-pulse 1.5s infinite;"></div>';
+                        skeletonHtml += '  </div>';
+                        skeletonHtml += '</div>';
+                        $descContainer.append(skeletonHtml);
+                    });
+
+                    var completed = [];
+                    $.each(alreadySelected, function(idx, val) {
+                        $.ajax({
+                            type: 'GET',
+                            url: "{% url 'se_searcher' %}",
+                            dataType: 'json',
+                            data: {
+                                q: val,
+                                unit_id: '{{ fault.unit_id|default_if_none:"" }}'
+                            }
+                        }).then(function(data) {
+                            if (data.service_events && data.service_events.length > 0) {
+                                var matched = false;
+                                for (var i = 0; i < data.service_events.length; i++) {
+                                    if (data.service_events[i][0].toString() === val.toString()) {
+                                        var se_id = data.service_events[i][0],
+                                            se_status_id = data.service_events[i][1],
+                                            se_problem_description = data.service_events[i][2],
+                                            se_date = (data.service_events[i][3] || "").split('T')[0],
+                                            se_status_name = data.service_events[i][4];
+                                        completed.push({id: se_id, text: se_id, title: se_problem_description, date: se_date, status: se_status_name});
+                                        if (window.se_statuses) window.se_statuses[se_id] = se_status_id;
+                                        matched = true;
+                                        break;
+                                    }
+                                }
+                                if (!matched) {
+                                    completed.push({id: val, text: val});
+                                }
+                            } else {
+                                completed.push({id: val, text: val});
+                            }
+                            if (completed.length === alreadySelected.length) {
+                                addRelatedSesDescriptions(completed);
+                                $rse.trigger('change.select2');
+                            }
+                        });
+                    });
+                }
+            }
+        };
+
+        window.initAttachmentsEdit = function() {
+            var fileInput = $('#id_fault-attachments');
+            if(fileInput.length && !fileInput.attr('multiple')) {
+                fileInput.attr('multiple', 'multiple');
+            }
+
+            function updateDeleteIds() {
+                var ids = [];
+                $('.attach-delete:checked').each(function() {
+                    ids.push($(this).val());
+                });
+                $('#id_fault-attachments_delete_ids').val(ids.join(','));
+            }
+
+            // Existing Attachments - Delete Logic
+            $('.btn-delete-existing').off('click').on('click', function() {
+                var attachId = $(this).data('id');
+                var $card = $('#existing-attach-' + attachId);
+                $card.hide();
+                $card.find('.attach-delete').prop('checked', true);
+                updateDeleteIds();
+            });
+
+            // Pending Attachments - Display Logic
+            fileInput.off('change').on('change', function() {
+                var list = $('#pending-attachments-list');
+                list.empty();
+                if (this.files) {
+                    if (this.files.length > 0) {
+                        Array.from(this.files).forEach(function(file, index) {
+                            var url = URL.createObjectURL(file);
+                            var sizeKB = (file.size / 1024).toFixed(1);
+                            var html = '<div class="attachment-card fault-card-hover pending">' +
+                                '<div class="attachment-name">' +
+                                    '<i class="fa fa-upload fa-fw text-info"></i> <strong>' + file.name + '</strong> <span class="text-muted">(' + sizeKB + ' KB)</span>' +
+                                '</div>' +
+                                '<div class="attachment-actions">' +
+                                    '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
+                                    '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + index + '" title="Remove"><i class="fa fa-trash"></i></button>' +
+                                '</div>' +
+                            '</div>';
+                            list.append(html);
+                        });
+                    }
+                }
+            });
+
+            // Pending Attachments - Remove Logic
+            $(document).off('click', '.btn-remove-pending').on('click', '.btn-remove-pending', function() {
+                var indexToRemove = $(this).data('index');
+                var input = document.getElementById('id_fault-attachments');
+                if (input.files) {
+                    if (input.files.length > 0) {
+                        var dt = new DataTransfer();
+                        for (var i = 0; i < input.files.length; i++) {
+                            if (i !== indexToRemove) {
+                                dt.items.add(input.files[i]);
+                            }
+                        }
+                        input.files = dt.files;
+                        $(input).trigger('change');
+                    }
+                }
+            });
+        };
+        
+        // Initialize immediately for the first render
+        window.initOccurrenceEdit();
+        window.initFaultTypesEdit();
+        window.initRelatedSesEdit();
+        window.initAttachmentsEdit();
+    });
 {% endblock require_javascript %}
 
 {% block body %}
 
-<div class="max-width-lg requires-legacy-faults">
+<div class="max-width-lg">
   <div class="row">
     <div class="col-md-12">
       <div class="box">
@@ -59,12 +728,6 @@
                     {% else %}
                       <button id="review-fault" type="submit" class="btn btn-primary btn-flat margin-r-5 pull-right">{% trans "Acknowledge This Fault" %}</button>
                     {% endif %}
-                  {% endif %}
-                  {% if perms.faults.change_fault %}
-                    <a class="btn btn-default btn-flat pull-right" style="margin-right: 5px"
-                      href="{% url 'fault_edit' fault.pk %}{% if next %}?next={{ next }}{% endif %}"
-                      title="{% blocktrans %}Edit details of {{ fault }}{% endblocktrans %}"
-                    >{% trans "Edit" %}</a>
                   {% endif %}
                 </form>
             </div>
