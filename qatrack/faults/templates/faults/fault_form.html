@@ -29,7 +29,111 @@
 {% endblock extra_body %}
 
 {% block require_javascript %}
+    require.config({
+        paths: {
+            'faults': '{{ STATIC_URL }}faults/js/faults.js?v=htmx_fix_v11'
+        }
+    });
     require(['faults']);
+    require(['jquery'], function($) {
+        window.initAttachmentsEdit = function() {
+            var fileInput = $('#id_fault-attachments');
+            if(fileInput.length && !fileInput.attr('multiple')) {
+                fileInput.attr('multiple', 'multiple');
+            }
+
+            var accumulatedDt = new DataTransfer();
+
+            function updateDeleteIds() {
+                var ids = [];
+                $('.attach-delete:checked').each(function() {
+                    ids.push($(this).val());
+                });
+                $('#id_fault-attachments_delete_ids').val(ids.join(','));
+            }
+
+            var renderPendingAttachments = function(files) {
+                var list = $('#pending-attachments-list');
+                list.empty();
+                if (files && files.length > 0) {
+                    Array.from(files).forEach(function(file, index) {
+                        var url = URL.createObjectURL(file);
+                        var sizeKB = (file.size / 1024).toFixed(1);
+                        var html = '<div class="attachment-card fault-card-hover pending">' +
+                            '<div class="attachment-name">' +
+                                '<i class="fa fa-upload fa-fw text-info"></i> <strong>' + file.name + '</strong> <span class="text-muted">(' + sizeKB + ' KB)</span>' +
+                            '</div>' +
+                            '<div class="attachment-actions">' +
+                                '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
+                                '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + index + '" title="Remove"><i class="fa fa-trash"></i></button>' +
+                            '</div>' +
+                        '</div>';
+                        list.append(html);
+                    });
+                }
+            };
+
+            // Existing Attachments - Delete Logic
+            $('.btn-delete-existing').off('click').on('click', function() {
+                var attachId = $(this).data('id');
+                var $card = $('#existing-attach-' + attachId);
+                $card.hide();
+                $card.find('.attach-delete').prop('checked', true);
+                updateDeleteIds();
+            });
+
+            // Pending Attachments - Display Logic
+            fileInput.off('change').on('change', function() {
+                if (this.files && this.files.length > 0) {
+                    Array.from(this.files).forEach(function(file) {
+                        accumulatedDt.items.add(file);
+                    });
+                }
+                
+                this.files = accumulatedDt.files;
+                renderPendingAttachments(this.files);
+            });
+
+            // Pending Attachments - Remove Logic
+            $(document).off('click', '.btn-remove-pending').on('click', '.btn-remove-pending', function() {
+                var indexToRemove = $(this).data('index');
+                var input = document.getElementById('id_fault-attachments');
+                if (input.files) {
+                    if (input.files.length > 0) {
+                        var dt = new DataTransfer();
+                        for (var i = 0; i < input.files.length; i++) {
+                            if (i !== indexToRemove) {
+                                dt.items.add(input.files[i]);
+                            }
+                        }
+                        input.files = dt.files;
+                        accumulatedDt = dt;
+                        renderPendingAttachments(input.files);
+                    }
+                }
+            });
+        };
+        
+        $(document).ready(function() {
+            window.initAttachmentsEdit();
+            
+            function validateRequiredFields() {
+                var unit = $('#id_fault-unit').val();
+                var occurred = $('#id_fault-occurred').val();
+                var faultTypes = $('#id_fault-fault_types_field').val();
+                
+                var isValid = true;
+                if (!unit || unit === '') isValid = false;
+                if (!occurred || occurred === '') isValid = false;
+                if (!faultTypes || faultTypes.length === 0) isValid = false;
+                
+                $('#submit-fault-btn').prop('disabled', !isValid);
+            }
+
+            $('#id_fault-unit, #id_fault-occurred, #id_fault-fault_types_field').on('change input', validateRequiredFields);
+            validateRequiredFields();
+        });
+    });
 {% endblock require_javascript %}
 
 {% block body %}
@@ -40,34 +144,145 @@
     {% csrf_token %}
 
     <div class="row">
-      <div class="col-md-12 form-horizontal">
-        <div class="box">
+      <div class="col-md-12">
+        
+        <!-- Fault Details Box -->
+        <div class="box form-horizontal">
+          <div class="box-header">
+            <h3 class="box-title">{% trans "Fault Details" %}</h3>
+          </div>
           <div class="box-body">
-            <fieldset>
-              <legend>{% trans "Fault Details" %}</legend>
-              {% include "_form_horizontal.html" with form=form include_attach_table=True %}
-            </fieldset>
-
-            {% if review_forms %}
-              <fieldset>
-                <legend>{% trans "Reviewers" %}</legend>
-                {% for review_form in review_forms %}
-                  <div class="row">
-                    <div class="col-sm-12">
-                      {% include "_form_horizontal.html" with form=review_form %}
-                    </div>
-                  </div>
-                {% endfor %}
-              </fieldset>
+            {% for hidden_field in form.hidden_fields %}
+              {{ hidden_field }}
+            {% endfor %}
+            {% if form.non_field_errors %}
+              <div class="form-group">
+                <div class="alert alert-danger" role="alert">
+                  {% for error in form.non_field_errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              </div>
             {% endif %}
 
-            <div class="row">
-              <div class="col-md-12">
-                <button class="btn btn-flat btn-primary pull-right" type="submit">
-                  {% if form.instance.id %}{% trans "Update Fault" %}{% else %}{% trans "Log Fault" %}{% endif %}
-                </button>
-              </div>
+            {% for field in form.visible_fields %}
+              {% if field.name != "comment" %}
+                <div class="form-group {% if field.errors %}has-error{% endif %}" {% if field.name == 'modality' or field.name == 'related_service_events' %}style="display: none;"{% endif %}>
+                  <label class="col-sm-4 control-label" for="{{ field.id_for_label }}">
+                    {{ field.label }}{% if field.field.required %}*{% endif %}
+                  </label>
+                  <div class="col-sm-8">
+                    {% if field.name == "attachments" %}
+                      <div id="attachments-editor-container">
+                        <style>
+                          #id_fault-attachments { display: none; }
+                          .attachment-card {
+                            display: flex; justify-content: space-between; align-items: center;
+                            padding: 10px; margin-bottom: 8px;
+                            border: 1px solid #ddd; border-radius: 4px;
+                          }
+                          .attachment-card.existing { border-left: 4px solid #5cb85c; }
+                          .attachment-card.missing { border-left: 4px solid #dd4b39; }
+                          .attachment-card.pending { border-left: 4px solid #5bc0de; }
+                          .attachment-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 15px; }
+                          .attachment-actions { white-space: nowrap; }
+                        </style>
+
+                        <!-- Existing Attachments -->
+                        {% if form.instance.id %}
+                          {% for attach in form.instance.attachment_set.all %}
+                            <div class="attachment-card fault-card-hover {% if attach.file_exists %}existing{% else %}missing{% endif %}" id="existing-attach-{{ attach.id }}">
+                              <div class="attachment-name">
+                                <i class="fa fa-paperclip fa-fw text-success"></i> <strong>{% if attach.label %}{{ attach.label }}{% else %}{{ attach.attachment.name }}{% endif %}</strong>
+                              </div>
+                              <div class="attachment-actions">
+                                {% if attach.file_exists %}
+                                  <a href="{{ attach.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5" title="{% trans 'Preview' %}"><i class="fa fa-eye"></i></a>
+                                {% else %}
+                                  <span class="label label-danger margin-right-5" title="{% trans 'File missing from server' %}"><i class="fa fa-exclamation-triangle"></i> {% trans "Missing" %}</span>
+                                {% endif %}
+                                <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ attach.id }}" title="{% trans 'Remove' %}"><i class="fa fa-trash"></i></button>
+                                <input type="checkbox" style="display:none;" name="attach-{{ attach.id }}-DELETE" class="attach-delete" value="{{ attach.id }}">
+                              </div>
+                            </div>
+                          {% endfor %}
+                        {% endif %}
+
+                        <!-- Pending Attachments Container -->
+                        <div id="pending-attachments-list"></div>
+
+                        <!-- Browse Button -->
+                        <div class="margin-top-10">
+                          <label class="btn btn-default btn-sm btn-flat" title="{% trans 'Click to add attachments' %}">
+                            <i class="fa fa-folder-open text-info"></i> {% trans "Browse..." %}
+                            {{ field }}
+                          </label>
+                        </div>
+                      </div>
+                    {% else %}
+                      {% render_field field class+="form-control input-sm" %}
+                    {% endif %}
+                    {% if field.help_text %}
+                      <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% for error in field.errors %}
+                      <div class="help-block error-message">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+
+        <!-- Comments Box -->
+        <div class="box">
+          <div class="box-header">
+            <h3 class="box-title">{% trans "Comment" %}</h3>
+          </div>
+          <div class="box-body">
+            {% for field in form.visible_fields %}
+              {% if field.name == "comment" %}
+                <div class="form-group {% if field.errors %}has-error{% endif %}">
+                  <label class="control-label" for="{{ field.id_for_label }}">
+                    {{ field.label }}{% if field.field.required %}*{% endif %}
+                  </label>
+                  {% render_field field class+="form-control input-sm" %}
+                  {% if field.help_text %}
+                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="help-block error-message">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        {% if review_forms %}
+          <div class="box form-horizontal">
+            <div class="box-header">
+              <h3 class="box-title">{% trans "Reviewers" %}</h3>
             </div>
+            <div class="box-body">
+              {% for review_form in review_forms %}
+                <div class="row">
+                  <div class="col-sm-12">
+                    {% include "_form_horizontal.html" with form=review_form %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="row margin-bottom-20">
+          <div class="col-md-12">
+            <button id="submit-fault-btn" class="btn btn-flat btn-primary pull-right" type="submit">
+              {% if form.instance.id %}{% trans "Update Fault" %}{% else %}{% trans "Log Fault" %}{% endif %}
+            </button>
           </div>
         </div>
       </div>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flatpickr Test</title>
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.0.6/flatpickr.min.css">
+</head>
+<body>
+    <h3>Flatpickr Test</h3>
+    <p>Click the input below to test:</p>
+    <input type="text" name="fault-occurred" value="2026-07-02 11:29" class="form-control input-sm flatpickr-input" required="" id="id_fault-occurred">
+    <div id="output"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.0.6/flatpickr.min.js"></script>
+
+    <script>
+        var siteConfig = {
+            MOMENT_DATETIME_FMT: "DD MMM YYYY HH:mm",
+            FLATPICKR_DATETIME_FMT: "d M Y H:i"
+        };
+
+        var $date_time = $("#id_fault-occurred");
+        var dt_val = $date_time.val();
+        
+        var init_date = dt_val ? moment(dt_val, [siteConfig.MOMENT_DATETIME_FMT, "YYYY-MM-DD HH:mm"]).format(siteConfig.MOMENT_DATETIME_FMT) : null;
+        if (!init_date) {
+            init_date = moment().format(siteConfig.MOMENT_DATETIME_FMT);
+        }
+
+        console.log("init_date is:", init_date);
+        
+        // This is the v5 code
+        $date_time.val("");
+        
+        var fp = $date_time.flatpickr({
+            enableTime: true,
+            time_24hr: true,
+            minuteIncrement: 1,
+            dateFormat: siteConfig.FLATPICKR_DATETIME_FMT,
+            defaultDate: init_date,
+            allowInput: true,
+            parseDate: function(datestr, format) {
+                console.log("parseDate called with:", datestr);
+                return moment(datestr, [siteConfig.MOMENT_DATETIME_FMT, "YYYY-MM-DD HH:mm"]).toDate();
+            },
+            formatDate: function(date, format) {
+                console.log("formatDate called with:", date);
+                return moment(date).format(siteConfig.MOMENT_DATETIME_FMT);
+            },
+            onOpen: [
+                function(selectedDates, dateStr, instance) {
+                    console.log("onOpen called with dateStr:", dateStr);
+                    if (dateStr === '') {
+                        instance.setDate(new Date());
+                    }
+                }
+            ],
+            onChange: [
+                function(selectedDates, dateStr, instance) {
+                    console.log("onChange called. New dateStr:", dateStr);
+                    $("#output").text("Selected: " + dateStr);
+                }
+            ]
+        });
+
+        // Log the final property value after init
+        console.log("After init, input value is:", $date_time.val());
+    </script>
+</body>
+</html>

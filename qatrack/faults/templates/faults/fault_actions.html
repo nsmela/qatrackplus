@@ -12,12 +12,5 @@
       {% endif %}
     </a>
   {% endif %}
-  {% if perms.faults.change_fault %}
-    <a class="btn btn-default btn-xs btn-flat"
-      href="{% url 'fault_edit' fault.pk %}{% if next %}?next={{ next }}{% endif %}"
-      title="{% blocktrans %}Edit {{ fault }}{% endblocktrans %}"
-    >
-      {% trans "Edit" %}
-    </a>
-  {% endif %}
+
 </div>

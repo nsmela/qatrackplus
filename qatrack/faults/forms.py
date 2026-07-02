@@ -62,9 +62,9 @@ class FaultForm(BetterModelForm):
             'occurred',
             'unit',
             'modality',
-            'comment',
             'fault_types_field',
             'related_service_events',
+            'comment',
         ]
 
     def __init__(self, *args, **kwargs):

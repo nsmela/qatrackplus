@@ -1,7 +1,7 @@
 {% load i18n %}
 <div style="position: relative;">
   {% for rel in fault.related_service_events.all|dictsortreversed:"id" %}
-    <a href="{% url 'sl_details' pk=rel.id %}" target="_blank" class="margin-bottom-15 fault-card-hover" style="display: block; border-left: 4px solid {{ rel.service_status.colour }}; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05); color: inherit; text-decoration: none;" title="{% trans 'Click to view details of this service event' %}">
+    <a href="{% url 'sl_details' pk=rel.id %}" target="_blank" class="margin-bottom-15 fault-card-hover" style="display: block; border-left: 4px solid {{ rel.service_status.colour }}; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05); color: inherit; text-decoration: none;">
       <div>
         <span style="font-weight: bold;">ID: {{ rel.id }}</span>
       </div>

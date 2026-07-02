@@ -64,7 +64,6 @@ require.config({
         slimscroll: siteConfig.STATIC_URL + 'slimscroll/js/jquery.slimscroll.min',
         zxcvbn: siteConfig.STATIC_URL + 'zxcvbn_password/js/zxcvbn',
         password_strength: siteConfig.STATIC_URL + 'zxcvbn_password/js/password_strength',
-        vue: siteConfig.STATIC_URL + 'vue/js/vue.min',
         treeview: siteConfig.STATIC_URL + 'treeview/js/bootstrap-treeview.min',
 
         // Site wide:
@@ -236,7 +235,7 @@ require.config({
 
         // accounts module:
         groups: {
-            deps: ['vue']
+            deps: ['jquery', 'lodash', 'datatables', 'jquery-ui']
         },
 
         homepage: {

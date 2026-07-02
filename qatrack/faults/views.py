@@ -177,7 +177,6 @@ class FaultList(BaseListableView):
         'actions': _l('Actions'),
         'get_id': _l('ID'),
         'get_fault_types': _l("Fault Types"),
-        'get_fault_types_descriptions': _l("Description"),
         'unit__site__name': _l("Site"),
         'unit__name': _l("Unit"),
         'modality__name': _l("Modality"),
@@ -199,7 +198,6 @@ class FaultList(BaseListableView):
         'actions': False,
         'review_status': 'faultreviewinstance__reviewed',
         'get_fault_types': 'fault_types__code',
-        'get_fault_types_descriptions': 'fault_types__description',
         'get_occurred': 'occurred',
         'get_id': 'id',
     }
@@ -208,7 +206,6 @@ class FaultList(BaseListableView):
         'actions': False,
         'review_status': 'faultreviewinstance__reviewed',
         'get_fault_types': 'fault_types__code',
-        'get_fault_types_descriptions': 'fault_types__description',
         'get_occurred': 'occurred',
     }
 
@@ -242,7 +239,6 @@ class FaultList(BaseListableView):
             'occurred': get_template("faults/fault_occurred.html"),
             'review_status': get_template("faults/fault_review_status.html"),
             'fault_types': get_template("faults/fault_types.html"),
-            'fault_types_descriptions': get_template("faults/fault_types_descriptions.html"),
         }
 
     def get_queryset(self):
@@ -265,7 +261,6 @@ class FaultList(BaseListableView):
             "id",
             "get_occurred",
             "get_fault_types",
-            "get_fault_types_descriptions",
         )
 
         multiple_sites = len(set(Unit.objects.values_list("site_id"))) > 1

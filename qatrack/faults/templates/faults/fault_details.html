@@ -46,7 +46,12 @@
 {% endblock %}
 
 {% block require_javascript %}
-    require(['listable']);
+    require.config({
+        paths: {
+            'faults': '{{ STATIC_URL }}faults/js/faults.js?v=htmx_fix_v11'
+        }
+    });
+    require(['faults']);
     require(['jquery', 'moment', 'sl_utils', 'flatpickr', 'select2'], function($, moment, sl_utils) {
         window.initOccurrenceEdit = function() {
             var s2config = { width: "100%" };
@@ -57,6 +62,12 @@
                 if (dt_val && moment) {
                     var m = moment(dt_val, "YYYY-MM-DD HH:mm");
                     if (m.isValid()) parsedDate = m.toDate();
+                }
+                if (!parsedDate) {
+                    parsedDate = new Date();
+                }
+                if (parsedDate && window.siteConfig && window.siteConfig.MOMENT_DATETIME_FMT) {
+                    $date_time.val(moment(parsedDate).format(window.siteConfig.MOMENT_DATETIME_FMT));
                 }
                 $date_time.flatpickr({
                     enableTime: true,
@@ -115,12 +126,22 @@
                             var $related_se = $('#id_fault-related_service_events');
                             if ($related_se.length) {
                                 if (cur_unit){
+                                    $modality.closest('.form-group').show();
+                                    $related_se.closest('.form-group').show();
                                     $related_se.prop('disabled', false);
                                     if (!initialLoad){
                                         $related_se.find('option').remove();
                                     }
                                 } else {
+                                    $modality.closest('.form-group').hide();
+                                    $related_se.closest('.form-group').hide();
                                     $related_se.prop('disabled', true).find('option').remove();
+                                }
+                            } else {
+                                if (cur_unit){
+                                    $modality.closest('.form-group').show();
+                                } else {
+                                    $modality.closest('.form-group').hide();
                                 }
                             }
                             initialLoad = false;
@@ -145,13 +166,15 @@
                     $descContainer.empty();
                 }
 
-                function addFaultDescriptions(selected) {
-                    selected.sort(function(a, b) { return (a.code || a.text).localeCompare(b.code || b.text); });
-                    var newCodes = $.map(selected, function(el) { return el.code || el.text; });
+                function addFaultDescriptions(selectedData) {
+                    var selected = $.extend(true, [], selectedData);
+                    selected.sort(function(a, b) { return ((a.code || a.text) || "").localeCompare((b.code || b.text) || ""); });
+                    var newCodes = $.map(selected, function(el) { return (el.code || el.text || "").toString(); });
 
                     $descContainer.find(".fault-type-desc-block").each(function(idx, el) {
                         var $el = $(el);
-                        var code = $el.data("code");
+                        var rawCode = $el.data("code");
+                        var code = rawCode !== undefined ? rawCode.toString() : "";
                         var loc = newCodes.indexOf(code);
                         if (loc < 0) {
                             $el.remove();
@@ -188,7 +211,7 @@
                             html += '    <i class="fa fa-pencil fa-lg text-primary edit-fault-type-desc" style="cursor: pointer;" title="{% trans "Edit Description" %}"></i>';
                         }
                         if (slug) {
-                            html += '    <a href="' + linkUrl + '" target="_blank" class="text-info" title="{% trans "Click to view details of this fault type" %}"><i class="fa fa-eye fa-lg"></i></a>';
+                            html += '    <a href="' + linkUrl + '" target="_blank" class="text-info"><i class="fa fa-eye fa-lg"></i></a>';
                         }
                         html += '  </div>';
                         
@@ -311,15 +334,12 @@
                         }
                     },
                     placeholder: '-----------',
-                    allowClear: true,
                     minimumInputLength: 2,
                     selectOnClose: true,
-                    templateSelection: function(data) {
-                        if (data.code) return data.code;
-                        if (data.text && data.text.indexOf(' - ') > -1) {
-                            return data.text.split(' - ')[0];
-                        }
-                        return data.text;
+                    templateSelection: function(data, container) {
+                        if (!data.id) return data.text;
+                        $(container).css('display', 'none');
+                        return '';
                     }
                 }).on("change", function(evt) {
                     addFaultDescriptions($ft.select2('data'));
@@ -421,22 +441,8 @@
                 }
                 function generate_related_selection(res, container) {
                     if (!res.id) return res.text;
-                    var colour = window.status_colours_dict ? window.status_colours_dict[window.se_statuses[res.id]] : null;
-                    var txtColor = 'white';
-                    if (colour) {
-                        $(container).css('background-color', colour);
-                        $(container).css('border-color', colour);
-                        if (window.isTooBright && window.isTooBright(getRgbaArray(colour))) {
-                            txtColor = 'black';
-                        }
-                    }
-                    var $label = $('<span title="' + (res.title || "") + '" style="color: ' + txtColor + ';">' + res.id + '</span>');
-                    setTimeout(function() {
-                        if (container && $(container).length) {
-                            $(container).find('.select2-selection__choice__remove').css('color', txtColor);
-                        }
-                    }, 0);
-                    return $label;
+                    $(container).css('display', 'none');
+                    return '';
                 }
                 function process_related_results(data, params) {
                     params.page = params.page || 1;
@@ -475,6 +481,8 @@
                     $descContainer.empty();
                 }
 
+                var relatedSeCache = {};
+
                 function addRelatedSesDescriptions(selected) {
                     selected.sort(function(a, b) { return parseInt(b.id || 0, 10) - parseInt(a.id || 0, 10); });
                     var newIds = $.map(selected, function(el) { return (el.id || "").toString(); });
@@ -494,6 +502,13 @@
 
                     $.each(selected, function(idx, el) {
                         var fId = el.id || el.text;
+                        
+                        if (relatedSeCache[fId] && relatedSeCache[fId].title) {
+                            if (!el.title) el.title = relatedSeCache[fId].title;
+                        } else if (el.title) {
+                            relatedSeCache[fId] = { title: el.title };
+                        }
+                        
                         var desc = el.title || "<em>{% trans 'No description available' %}</em>";
                         var colour = window.status_colours_dict ? window.status_colours_dict[window.se_statuses[fId]] : null;
                         if (!colour) colour = '#ccc';
@@ -502,7 +517,7 @@
                         
                         html += '  <div style="flex-shrink: 0; margin-right: 15px; display: flex; gap: 10px; align-items: center; margin-top: 2px;">';
                         html += '    <i class="fa fa-trash fa-lg text-danger remove-related-se" style="cursor: pointer;" title="{% trans "Remove" %}"></i>';
-                        html += '    <a href="/service_log/service_event/' + fId + '/" target="_blank" class="text-info" title="{% trans "View" %}"><i class="fa fa-eye fa-lg"></i></a>';
+                        html += '    <a href="/servicelog/event/details/' + fId + '/" target="_blank" class="text-info"><i class="fa fa-eye fa-lg"></i></a>';
                         html += '  </div>';
                         
                         html += '  <div style="flex-grow: 1; min-width: 0;">';
@@ -618,6 +633,12 @@
                                 addRelatedSesDescriptions(completed);
                                 $rse.trigger('change.select2');
                             }
+                        }, function() {
+                            completed.push({id: val, text: val});
+                            if (completed.length === alreadySelected.length) {
+                                addRelatedSesDescriptions(completed);
+                                $rse.trigger('change.select2');
+                            }
                         });
                     });
                 }
@@ -630,6 +651,8 @@
                 fileInput.attr('multiple', 'multiple');
             }
 
+            var accumulatedDt = new DataTransfer();
+
             function updateDeleteIds() {
                 var ids = [];
                 $('.attach-delete:checked').each(function() {
@@ -637,6 +660,27 @@
                 });
                 $('#id_fault-attachments_delete_ids').val(ids.join(','));
             }
+
+            var renderPendingAttachments = function(files) {
+                var list = $('#pending-attachments-list');
+                list.empty();
+                if (files && files.length > 0) {
+                    Array.from(files).forEach(function(file, index) {
+                        var url = URL.createObjectURL(file);
+                        var sizeKB = (file.size / 1024).toFixed(1);
+                        var html = '<div class="attachment-card fault-card-hover pending">' +
+                            '<div class="attachment-name">' +
+                                '<i class="fa fa-upload fa-fw text-info"></i> <strong>' + file.name + '</strong> <span class="text-muted">(' + sizeKB + ' KB)</span>' +
+                            '</div>' +
+                            '<div class="attachment-actions">' +
+                                '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
+                                '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + index + '" title="Remove"><i class="fa fa-trash"></i></button>' +
+                            '</div>' +
+                        '</div>';
+                        list.append(html);
+                    });
+                }
+            };
 
             // Existing Attachments - Delete Logic
             $('.btn-delete-existing').off('click').on('click', function() {
@@ -649,26 +693,14 @@
 
             // Pending Attachments - Display Logic
             fileInput.off('change').on('change', function() {
-                var list = $('#pending-attachments-list');
-                list.empty();
-                if (this.files) {
-                    if (this.files.length > 0) {
-                        Array.from(this.files).forEach(function(file, index) {
-                            var url = URL.createObjectURL(file);
-                            var sizeKB = (file.size / 1024).toFixed(1);
-                            var html = '<div class="attachment-card fault-card-hover pending">' +
-                                '<div class="attachment-name">' +
-                                    '<i class="fa fa-upload fa-fw text-info"></i> <strong>' + file.name + '</strong> <span class="text-muted">(' + sizeKB + ' KB)</span>' +
-                                '</div>' +
-                                '<div class="attachment-actions">' +
-                                    '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
-                                    '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + index + '" title="Remove"><i class="fa fa-trash"></i></button>' +
-                                '</div>' +
-                            '</div>';
-                            list.append(html);
-                        });
-                    }
+                if (this.files && this.files.length > 0) {
+                    Array.from(this.files).forEach(function(file) {
+                        accumulatedDt.items.add(file);
+                    });
                 }
+                
+                this.files = accumulatedDt.files;
+                renderPendingAttachments(this.files);
             });
 
             // Pending Attachments - Remove Logic
@@ -684,7 +716,8 @@
                             }
                         }
                         input.files = dt.files;
-                        $(input).trigger('change');
+                        accumulatedDt = dt;
+                        renderPendingAttachments(input.files);
                     }
                 }
             });
@@ -783,9 +816,7 @@
         <div class="box-header">
           <i class="fa fa-exclamation-triangle fa-fw" aria-hidden="true"></i>
           <h3 class="box-title">
-            {% blocktrans with fault_type_code=fault.fault_type.code %}
-              Other Occurrences of fault type {{ fault_type_code }}
-            {% endblocktrans %}
+            {% trans "Other Occurrences of these fault types" %}
           </h3>
         </div>
         <div class="box-body pad">
