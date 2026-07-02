@@ -7,6 +7,7 @@
 
 import datetime
 import os
+import pathlib
 import sys
 
 import matplotlib
@@ -412,6 +413,8 @@ AUTH_ADFS = {
 # See http://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 def skip_requests(record):  # noqa: E302
+    if not record.args or not isinstance(record.args[0], str):
+        return True
     skip = (record.args[0].startswith("GET /static/") or record.args[0].startswith("GET /accounts/ping/"))
     return not skip
 
@@ -711,7 +714,8 @@ if use_docker:
     except OSError:
         import secrets
         SECRET_KEY = secrets.token_urlsafe(64)
-        os.makedirs(os.path.dirname(SECRET_FILEPATH), exist_ok=True)
+        if not os.path.isdir(os.path.dirname(SECRET_FILEPATH)):
+            os.makedirs(os.path.dirname(SECRET_FILEPATH), exist_ok=True)
         with open(SECRET_FILEPATH, 'w') as f:
             f.write(SECRET_KEY)
 
@@ -747,9 +751,21 @@ UPLOAD_ROOT = os.path.join(MEDIA_ROOT, "uploads")
 TMP_UPLOAD_ROOT = os.path.join(UPLOAD_ROOT, "tmp")
 TMP_REPORT_ROOT = os.path.join(MEDIA_ROOT, "reports")
 
-for d in (MEDIA_ROOT, UPLOAD_ROOT, TMP_UPLOAD_ROOT, LOG_ROOT, TMP_REPORT_ROOT):
-    if not os.path.isdir(d):
-        os.mkdir(d)
+# region: pathlib recreation of path checks and creation.  
+# This is to avoid issues with os.path.exists() returning False for symlinks to directories
+# os.path variables are left in place for backwards compatibility with other code that may use them
+MEDIA_ROOT_PATH = pathlib.Path(MEDIA_ROOT)
+UPLOAD_ROOT_PATH = pathlib.Path(UPLOAD_ROOT)
+TMP_UPLOAD_ROOT_PATH = pathlib.Path(TMP_UPLOAD_ROOT)
+TMP_REPORT_ROOT_PATH = pathlib.Path(TMP_REPORT_ROOT)
+LOG_ROOT_PATH = pathlib.Path(LOG_ROOT)
+TMP_REPORT_ROOT_PATH = pathlib.Path(TMP_REPORT_ROOT)
+
+for d in (MEDIA_ROOT_PATH, UPLOAD_ROOT_PATH, TMP_UPLOAD_ROOT_PATH, LOG_ROOT_PATH, TMP_REPORT_ROOT_PATH):
+    if not d.exists() and not d.is_dir():
+        d.mkdir(parents=True, exist_ok=True)
+# endregion
+
 
 CACHE_LOCATION = os.path.join(PROJECT_ROOT, "cache", "cache_data")
 IS_FILE_CACHE = CACHES['default']['BACKEND'] == 'django.core.cache.backends.filebased.FileBasedCache'
