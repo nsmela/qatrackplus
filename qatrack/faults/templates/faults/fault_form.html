@@ -25,6 +25,7 @@
   <script type="text/javascript">
     var status_colours_dict = {{ status_tag_colours|safe }};
     var se_statuses =  {{ se_statuses|safe }};
+    var can_edit_fault_type = {{ perms.faults.change_faulttype|yesno:"true,false" }};
   </script>
 {% endblock extra_body %}
 

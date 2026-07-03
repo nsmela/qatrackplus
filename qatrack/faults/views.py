@@ -554,10 +554,10 @@ class DeleteFault(PermissionRequiredMixin, DeleteView):
         return self.request.GET.get("next", reverse("fault_list"))
 
     @atomic
-    def delete(self, request, *args, **kwargs):
-        Comment.objects.for_model(models.Fault).filter(object_pk=kwargs['pk']).delete()
-        res = super().delete(self, request, *args, **kwargs)
-        messages.success(request, _("Successfully deleted Fault {fault_id}").format(fault_id=kwargs['pk']))
+    def form_valid(self, form):
+        Comment.objects.for_model(models.Fault).filter(object_pk=self.kwargs['pk']).delete()
+        res = super().form_valid(form)
+        messages.success(self.request, _("Successfully deleted Fault {fault_id}").format(fault_id=self.kwargs['pk']))
         return res
 
 
