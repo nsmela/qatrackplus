@@ -1,0 +1,24 @@
+{% load i18n %}
+<div class="margin-bottom-5">
+    <strong>{% trans "Occurred" %}:</strong> {{ fault.occurred }}
+</div>
+<div class="margin-bottom-5">
+    <strong>{% trans "Site" %}:</strong> 
+    {% if fault.unit.site %}
+        {{ fault.unit.site }}
+    {% else %}
+        {% trans "Other" %}
+    {% endif %}
+</div>
+<div class="margin-bottom-5">
+    <strong>{% trans "Unit" %}:</strong> 
+    <a href="{% url 'fault_list_by_unit' unit_number=fault.unit.number %}" title="{% trans 'Click to view all faults on this unit' %}">{{ fault.unit }}</a>
+</div>
+<div class="margin-bottom-5">
+    <strong>{% trans "Modality / Beam" %}:</strong> 
+    {% if fault.modality %}
+        {{ fault.modality }}
+    {% else %}
+        {% trans "Not Specified" %}
+    {% endif %}
+</div>

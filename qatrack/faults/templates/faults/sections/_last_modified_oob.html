@@ -1,0 +1,4 @@
+{% load qatrack_tags i18n %}
+<div class="margin-bottom-5" id="fault-last-modified" hx-swap-oob="true">
+  <strong>{% trans "Last Modified"  %}:</strong> {{ fault.modified_by | get_user_name }} @ {{ fault.modified }}
+</div>

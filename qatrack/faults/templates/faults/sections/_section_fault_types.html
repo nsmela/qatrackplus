@@ -1,0 +1,56 @@
+{% load i18n %}
+<div id="fault-section-fault-types">
+  <style>
+    #fault-section-fault-types.htmx-request .fault-types-content { display: none !important; }
+    #fault-section-fault-types.htmx-request .fault-types-skeleton { display: block !important; }
+    .fault-types-skeleton { display: none; }
+  </style>
+
+  <div class="fault-types-content">
+    <h3>
+      {% trans "Fault Types" %}
+      {% if perms.faults.change_fault %}
+        <button type="button" id="btn-edit-fault-types" class="btn btn-default btn-xs margin-left-10"
+                hx-get="{% url 'fault_section_edit' pk=fault.pk section='fault-types' %}" hx-target="#fault-section-fault-types" hx-swap="outerHTML"
+                title="{% trans 'Edit' %}"
+                {% if editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-pencil"></i>
+        </button>
+        <button type="submit" form="form-fault-types" id="btn-save-fault-types" class="btn btn-primary btn-xs margin-left-10" title="{% trans 'Save' %}"
+                {% if not editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-check"></i> {% trans "Save" %}
+        </button>
+        <button type="button" id="btn-cancel-fault-types" class="btn btn-default btn-xs margin-left-5" title="{% trans 'Cancel' %}"
+                hx-get="{% url 'fault_section_detail' pk=fault.pk section='fault-types' %}" hx-target="#fault-section-fault-types" hx-swap="outerHTML"
+                {% if not editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-times"></i> {% trans "Cancel" %}
+        </button>
+      {% endif %}
+    </h3>
+    
+    <div id="fault-types-read" {% if editing %}style="display:none;"{% endif %}>
+      {% include "faults/sections/_section_fault_types_read.html" %}
+    </div>
+    <div id="fault-types-edit" {% if not editing %}style="display:none;"{% endif %}>
+      {% if fault_types_form %}
+        {% include "faults/sections/_section_fault_types_edit.html" with form=fault_types_form %}
+      {% else %}
+        {% include "faults/sections/_section_fault_types_edit.html" with form=form %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="fault-types-skeleton">
+    <h3>{% trans "Fault Types" %}</h3>
+    <div class="skeleton-loader margin-bottom-10" style="border-left: 4px solid #3c8dbc; background-color: #f9f9f9; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">
+      <div style="font-size: 13px;">
+        <i class="fa fa-spinner fa-spin text-muted" style="margin-right: 5px;"></i>
+        <span class="text-muted"><strong>{% trans "Loading..." %}</strong></span>
+      </div>
+      <div class="margin-top-10 margin-bottom-5">
+        <div style="height: 10px; width: 60%; background-color: #e0e0e0; border-radius: 2px; margin-bottom: 5px; animation: qatrack-pulse 1.5s infinite;"></div>
+        <div style="height: 10px; width: 40%; background-color: #e0e0e0; border-radius: 2px; animation: qatrack-pulse 1.5s infinite;"></div>
+      </div>
+    </div>
+  </div>
+</div>

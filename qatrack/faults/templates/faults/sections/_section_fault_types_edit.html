@@ -1,0 +1,15 @@
+{% load i18n %}
+<form id="form-fault-types" hx-post="{% url 'fault_section_edit' pk=fault.pk section='fault-types' %}" hx-target="#fault-section-fault-types"
+  hx-swap="outerHTML">
+  {% csrf_token %}
+  
+  <div>
+    {% include "_form.html" with form=form %}
+  </div>
+
+</form>
+<script>
+  if (window.initFaultTypesEdit) {
+      window.initFaultTypesEdit();
+  }
+</script>

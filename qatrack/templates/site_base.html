@@ -83,6 +83,9 @@
             FAULT_BULK_REVIEW: "{% url 'fault_bulk_review' %}",
             SE_TEMPLATE: "{% url 'create_se_template' %}",
             SE_TEMPLATE_SEARCHER: "{% url 'se_template_searcher' %}",
+            SL_NEW: "{% url 'sl_new' %}",
+            FAULT_TYPE_DETAILS: "{% url 'fault_type_details' slug='__SLUG__' %}",
+            FAULT_TYPE_DESC_UPDATE: "{% url 'fault_type_edit_description' slug='__SLUG__' %}",
 
             options_from_url_query: function(query){
                 var options = [];
@@ -118,7 +121,16 @@
         var QATranslations = {
             ERROR_INITIALIZATION: "{% trans 'An error occurred during initialization. Please reload the page' %}",
             SERVER_ERROR: "{% trans 'Sorry, there was a server error.' %}",
-            NO_DESCRIPTION_AVAILABLE: "{% trans 'No description available' %}"
+            NO_DESCRIPTION_AVAILABLE: "{% trans 'No description available' %}",
+            NEW_SERVICE_EVENT: "{% trans 'New Service Event' %}",
+            ID: "{% trans 'ID' %}",
+            LOADING: "{% trans 'Loading...' %}",
+            REMOVE: "{% trans 'Remove' %}",
+            CODE: "{% trans 'Code' %}",
+            EDIT_DESCRIPTION: "{% trans 'Edit Description' %}",
+            SAVE: "{% trans 'Save' %}",
+            CANCEL: "{% trans 'Cancel' %}",
+            FAILED_TO_UPDATE_DESC: "{% trans 'Failed to update description.' %}"
         };
 
         var ICON_SETTINGS = {{ICON_SETTINGS_JSON|safe}};
@@ -127,13 +139,6 @@
 
     </script>
 
-    <script src="{% static "requirejs/js/require.min.js" %}?v={{ VERSION }}"></script>
-    <script type="text/javascript">
-        require(['{% static "requirejs/js/requirejs-config.js" %}?v={{ CSS_VERSION }}'], function () {
-            {% block require_javascript %}
-            {% endblock require_javascript %}
-        });
-    </script>
     <script src="{% static 'htmx/js/htmx.min.js' %}"></script>
     <script type="text/javascript">
       document.addEventListener('htmx:afterSettle', function(evt) {
@@ -143,13 +148,20 @@
           }
       });
     </script>
+    <script src="{% static "requirejs/js/require.min.js" %}?v={{ VERSION }}"></script>
+    <script type="text/javascript">
+        require(['{% static "requirejs/js/requirejs-config.js" %}?v={{ CSS_VERSION }}'], function () {
+            {% block require_javascript %}
+            {% endblock require_javascript %}
+        });
+    </script>
     {% block extra_js %}{% endblock extra_js %}
 
     {# some packages use extra_head some use head_extra :p #}
     {% block extra_head %}{% endblock extra_head %}
     {% block head_extra %}{% endblock head_extra %}
   </head>
-  <body {% block body_attrs %}{% endblock body_attrs %} class="skin-black-dark fixed {% block body_class %}layout-top-nav{% endblock body_class %} preload">
+  <body {% block body_attrs %}{% endblock body_attrs %} hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="skin-black-dark fixed {% block body_class %}layout-top-nav{% endblock body_class %} preload">
 
     <div class="wrapper">
 

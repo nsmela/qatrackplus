@@ -1,0 +1,16 @@
+{% load i18n %}
+<form id="form-occurrence" hx-post="{% url 'fault_section_edit' pk=fault.pk section='occurrence' %}"
+      hx-target="#fault-section-occurrence" hx-swap="outerHTML">
+  {% csrf_token %}
+  
+  <div class="form-horizontal">
+    {% include "_form_horizontal.html" with form=form %}
+  </div>
+
+</form>
+
+<script>
+  if (window.initOccurrenceEdit) {
+      window.initOccurrenceEdit();
+  }
+</script>
