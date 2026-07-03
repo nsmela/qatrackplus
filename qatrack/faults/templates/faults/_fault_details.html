@@ -2,152 +2,59 @@
 {% load attach_tags %}
 {% load qatrack_tags %}
 
+<style>
+  .fault-card-hover {
+    background-color: #f9f9f9;
+    transition: background-color 0.15s ease-in-out;
+  }
+  .fault-card-hover:hover {
+    background-color: #efefef !important;
+  }
+</style>
 <div class="row">
-
   <div class="col-sm-6">
-    <h3>{% trans "Fault Details" %}</h3>
+    
 
-    <dl class="dl-horizontal">
+    {% include "faults/sections/_section_occurrence.html" %}
 
-      <dt>{% trans "Fault" %}:</dt>
-      <dd>{{ fault }}</dt>
+    <div class="margin-bottom-15 margin-top-10" style="border-left: 4px solid #d2d6de; background-color: #f9f9f9; padding: 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">
+      <div class="margin-bottom-5">
+        <strong>{% trans "Created" %}:</strong> {{ fault.created_by | get_user_name }} @ {{ fault.created }}
+      </div>
 
-      <dt>{% trans "Occurred" %}:</dt>
-      <dd>{{ fault.occurred }}</dt>
+      <div class="margin-bottom-5" id="fault-last-modified">
+        <strong>{% trans "Last Modified"  %}:</strong> {{ fault.modified_by | get_user_name }} @ {{ fault.modified }}
+      </div>
 
-      <dt>{% trans "Site" %}:</dt>
-      <dd>
-        {% if fault.unit.site %}
-          {{ fault.unit.site }}
-        {% else %}
-          {% trans "Other" %}
-        {% endif %}
-      </dd>
-
-      <dt>{% trans "Unit" %}:</dt>
-      <dd>
-        <a
-          href="{% url "fault_list_by_unit" unit_number=fault.unit.number %}"
-          title="{% trans "Click to view all faults on this unit" %}"
-        >
-          {{ fault.unit }}
-        </a>
-      </dd>
-
-      <dt>{% trans "Modality / Beam" %}:</dt>
-      <dd>
-        {% if fault.modality %}
-          {{ fault.modality }}
-        {% else %}
-          {% trans "Not Specified" %}
-        {% endif %}
-      </dd>
-
-      <dt>{% trans "Created" %}:</dt>
-      <dd>
-        {{ fault.created_by | get_user_name }} @ {{ fault.created }}
-      </dd>
-
-      <dt>{% trans "Last Modified"  %}:</dt>
-      <dd>
-        {{ fault.modified_by | get_user_name }} @ {{ fault.modified }}
-      </dd>
-
-      <dt>{% trans "Reviewed" %}:</dt>
-      <dd>
-        {% for group, reviewed_by, reviewed, required in fault.review_details %}
-          {% if forloop.first %}<ul class="list-unstyled">{% endif %}
-            <li>
-              {% if group %}{{ group }}{% if required %}*{% endif %}: {% endif %}
-              {% if reviewed_by %}
-                {{ reviewed_by | get_user_name}} @ {{ reviewed }}
-              {% else %}
-                <em>{% trans "Unreviewed " %}</em>
-              {% endif %}
-            </li>
-          {% if forloop.last %}</ul>{% endif %}
-        {% empty %}
-          <em>{% trans "Unreviewed " %}</em>
-        {% endfor %}
-      </dd>
-
-    </dl>
-  </div>
-  <div class="col-sm-6">
-
-    <h3>{% trans "Fault Types" %}</h3>
-
-    {% for fault_type in fault.fault_types.all %}
-      <dl class="dl-horizontal margin-bottom-10">
-        <dt>{% trans "Code" %}:</dt>
-        <dd>
-          <a
-            href="{% url "fault_type_details" slug=fault_type.slug %}"
-            title="{% trans "Click to view details of this fault type" %}">
-            {{ fault_type.code }}
-          </a>
-        </dd>
-
-        <dt>{% trans "Description" %}:</dt>
-        <dd class="fault_type_description">
-          {% if fault_type.description %}
-            {{ fault_type.description }}
-          {% else %}
-            <em>{% trans "No description available" %}</em>
-          {% endif %}
-        </dd>
-      </dl>
-    {% endfor %}
-
-    <h3>{% trans "Related Service Events" %}</h3>
-
-    <dl class="dl-horizontal">
-      <dt>{% trans "Service events" %}:</dt>
-      <dd>
-        <div>
-          {% for rel in fault.related_service_events.all %}
-
-            {% if forloop.first %}<ul class="list-unstyled">{% endif %}
-            <li>
-              <a href="{% url 'sl_details' pk=rel.id %}" class="se_tag btn btn-xs btn-flat margin-bottom-1" data-bgcolour="{{ rel.service_status.colour }}">{{ rel }}</a>
-            </li>
+      <div class="margin-bottom-5">
+        <strong>{% trans "Reviewed" %}:</strong> 
+          {% for group, reviewed_by, reviewed, required in fault.review_details %}
+            {% if forloop.first %}<ul class="list-inline margin-bottom-0" style="display: inline; padding-left: 5px;">{% endif %}
+              <li style="padding-left: 0; padding-right: 10px;">
+                {% if group %}{{ group }}{% if required %}*{% endif %}: {% endif %}
+                {% if reviewed_by %}
+                  {{ reviewed_by | get_user_name}} @ {{ reviewed }}
+                {% else %}
+                  <em>{% trans "Unreviewed " %}</em>
+                {% endif %}
+              </li>
             {% if forloop.last %}</ul>{% endif %}
           {% empty %}
-            <em>{% trans "No related service events" %}</em>
+            <em>{% trans "Unreviewed " %}</em>
           {% endfor %}
-        </div>
-      </dd>
-    </dl>
-
+      </div>
+    </div>
+    
+    <hr/>
+    {% include "faults/sections/_section_attachments.html" %}
+    
+  </div>
+  <div class="col-sm-6">
+    {% include "faults/sections/_section_fault_types.html" %}
+    <hr/>
+    {% include "faults/sections/_section_related_ses.html" %}
   </div>
 
 </div>
-{% if fault.attachment_set.exists %}
-  <div class="row">
-    <div class="col-sm-12">
-      <h3>{% trans "Attachments" %}</h3>
-
-      <dl class="dl-horizontal">
-
-        <dt>{% trans "Files" %}:</dt>
-        <dd>
-          <ul class="list-unstyled">
-            {% for attach in fault.attachment_set.all %}
-              <li>{{ attach | attachment_link }}</li>
-            {% endfor %}
-          </ul>
-        </dd>
-      </dl>
-
-      {% for attach in fault.attachment_set.all %}
-        {% if attach.is_image %}
-          <div class="col-sm-4">
-            <div class="attach-inline-image-box">
-              {{ attach | attachment_img:"attach-inline-image" }}
-            </div>
-          </div>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
+<div class="row margin-top-20">
+</div>

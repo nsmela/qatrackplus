@@ -8,7 +8,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.db.models import Count, Max, Q
 from django.db.transaction import atomic
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.template.defaultfilters import truncatechars
 from django.template.loader import get_template
 from django.urls import resolve, reverse
@@ -17,7 +17,7 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DeleteView, UpdateView
+from django.views.generic import CreateView, DeleteView, UpdateView, View
 from django_comments.models import Comment
 from listable.views import (
     DATE_RANGE,
@@ -40,6 +40,130 @@ from qatrack.qatrack_core.serializers import QATrackJSONEncoder
 from qatrack.service_log import models as sl_models
 from qatrack.units.models import Unit
 
+SECTION_FIELDS = {
+    "occurrence":  ["occurred", "unit", "modality"],
+    "fault-types": ["fault_types_field"],
+    "related-ses": ["related_service_events"],
+    "attachments": ["attachments", "attachments_delete_ids"],
+}
+
+SECTION_PERMS = {
+    "review": "faults.can_review",
+}
+
+def section_form_class(section):
+    keep = set(SECTION_FIELDS[section])
+    class _SectionForm(forms.FaultForm):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            for name in list(self.fields):
+                if name not in keep:
+                    self.fields.pop(name, None)
+    return _SectionForm
+
+def save_section(section, form, request):
+    fault = form.save(commit=False)
+    fault.modified_by = request.user
+    fault.save()
+    
+    if section == "fault-types":
+        _save_fault_types(fault, form)
+    elif section == "related-ses":
+        _save_related_ses(fault, form)
+    elif section == "attachments":
+        _save_attachments(fault, request)
+    
+    return fault
+
+def is_htmx(request):
+    return request.headers.get("HX-Request") == "true"
+
+class FaultSectionMixin(PermissionRequiredMixin):
+    raise_exception = True
+
+    def get_permission_required(self, request=None):
+        section = self.kwargs["section"]
+        return [SECTION_PERMS.get(section, "faults.change_fault")]
+
+    def get_fault(self):
+        qs = models.Fault.objects.select_related(
+            "created_by", "modified_by"
+        ).prefetch_related("faultreviewinstance_set", "fault_types")
+        return get_object_or_404(qs, pk=self.kwargs['pk'])
+
+class FaultSectionDetail(FaultSectionMixin, View):
+    def get(self, request, pk, section):
+        fault = self.get_fault()
+        return render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", {
+            "fault": fault,
+            "editing": False,
+        })
+
+class FaultSectionEdit(FaultSectionMixin, View):
+    def get_context_data(self, fault, form):
+        context_data = {"fault": fault, "form": form, "editing": True}
+        
+        if self.kwargs["section"] == "occurrence":
+            units_choices = []
+            for k, v in form.fields['unit'].choices:
+                if isinstance(v, list | tuple):
+                    for k2, v2 in v:
+                        units_choices.append({'id': str(k2), 'text': str(v2)})
+                else:
+                    units_choices.append({'id': str(k), 'text': str(v)})
+            context_data['units_json'] = json.dumps(units_choices)
+            modality_choices = [{'id': str(k), 'text': str(v)} for k, v in form.fields['modality'].choices]
+            context_data['modalities_json'] = json.dumps(modality_choices)
+        
+        if self.kwargs["section"] == "related-ses":
+            context_data['se_statuses'] = {
+                se.id: se.service_status.id for se in fault.related_service_events.order_by('-id')
+            }
+            context_data['se_statuses_json'] = json.dumps(context_data['se_statuses'])
+            context_data['status_tag_colours_json'] = json.dumps(sl_models.ServiceEventStatus.get_colour_dict())
+        
+        fault_json = {
+            'id': fault.id,
+            'unit': fault.unit_id if fault.unit else None,
+            'modality': fault.modality_id if fault.modality else None,
+            'occurred': fault.occurred.isoformat() if fault.occurred else None,
+            'fault_types': [ft.code for ft in fault.fault_types.all()],
+            'related_service_events': [se.id for se in fault.related_service_events.order_by('-id')],
+            'attachments': [{'id': a.id, 'name': a.label, 'url': a.attachment.url} for a in fault.attachment_set.all()]
+        }
+        context_data['fault_json'] = json.dumps(fault_json)
+        context_data['form_errors_json'] = form.errors.as_json() if form.errors else '{}'
+        
+        return context_data
+
+    def get(self, request, pk, section):
+        fault = self.get_fault()
+        form_class = section_form_class(section)
+        form = form_class(instance=fault, user=request.user)
+        context = self.get_context_data(fault, form)
+        return render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
+
+    def post(self, request, pk, section):
+        fault = self.get_fault()
+        form_class = section_form_class(section)
+        form = form_class(request.POST, request.FILES, instance=fault, user=request.user)
+        
+        if form.is_valid():
+            save_section(section, form, request)
+            fault = self.get_fault()
+            new_form = form_class(instance=fault, user=request.user)
+            context = self.get_context_data(fault, new_form)
+            context["editing"] = False
+            response = render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
+            from django.template.loader import render_to_string
+            oob_html = render_to_string("faults/sections/_last_modified_oob.html", {"fault": fault})
+            response.content += oob_html.encode('utf-8')
+            return response
+        else:
+            context = self.get_context_data(fault, form)
+            response = render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
+            return response
+
 
 class FaultList(BaseListableView):
 
@@ -53,7 +177,6 @@ class FaultList(BaseListableView):
         'actions': _l('Actions'),
         'get_id': _l('ID'),
         'get_fault_types': _l("Fault Types"),
-        'get_fault_types_descriptions': _l("Description"),
         'unit__site__name': _l("Site"),
         'unit__name': _l("Unit"),
         'modality__name': _l("Modality"),
@@ -75,7 +198,6 @@ class FaultList(BaseListableView):
         'actions': False,
         'review_status': 'faultreviewinstance__reviewed',
         'get_fault_types': 'fault_types__code',
-        'get_fault_types_descriptions': 'fault_types__description',
         'get_occurred': 'occurred',
         'get_id': 'id',
     }
@@ -84,7 +206,6 @@ class FaultList(BaseListableView):
         'actions': False,
         'review_status': 'faultreviewinstance__reviewed',
         'get_fault_types': 'fault_types__code',
-        'get_fault_types_descriptions': 'fault_types__description',
         'get_occurred': 'occurred',
     }
 
@@ -118,7 +239,6 @@ class FaultList(BaseListableView):
             'occurred': get_template("faults/fault_occurred.html"),
             'review_status': get_template("faults/fault_review_status.html"),
             'fault_types': get_template("faults/fault_types.html"),
-            'fault_types_descriptions': get_template("faults/fault_types_descriptions.html"),
         }
 
     def get_queryset(self):
@@ -141,7 +261,6 @@ class FaultList(BaseListableView):
             "id",
             "get_occurred",
             "get_fault_types",
-            "get_fault_types_descriptions",
         )
 
         multiple_sites = len(set(Unit.objects.values_list("site_id"))) > 1
@@ -366,7 +485,7 @@ class EditFault(PermissionRequiredMixin, UpdateView):
             context_data['se_statuses'] = {se.id: se.service_status.id for se in qs}
         elif self.object:
             context_data['se_statuses'] = {
-                se.id: se.service_status.id for se in self.object.related_service_events.all()
+                se.id: se.service_status.id for se in self.object.related_service_events.order_by('-id')
             }
 
         context_data['se_statuses_json'] = json.dumps(context_data['se_statuses'])
@@ -382,7 +501,7 @@ class EditFault(PermissionRequiredMixin, UpdateView):
             'modality': self.object.modality_id if self.object.modality else None,
             'occurred': self.object.occurred.isoformat() if self.object.occurred else None,
             'fault_types': [ft.code for ft in self.object.fault_types.all()],
-            'related_service_events': [se.id for se in self.object.related_service_events.all()],
+            'related_service_events': [se.id for se in self.object.related_service_events.order_by('-id')],
             'attachments': [{'id': a.id, 'name': a.label, 'url': a.attachment.url} for a in self.object.attachment_set.all()]
         }
         context_data['fault_json'] = json.dumps(fault_json)
@@ -474,6 +593,43 @@ def fault_create_ajax(request):
     return JsonResponse(results, encoder=QATrackJSONEncoder)
 
 
+def _save_fault_types(fault, form):
+    if "fault_types_field" not in form.cleaned_data:
+        return
+    new_faults = set(models.FaultType.objects.filter(code__in=form.cleaned_data['fault_types_field']))
+    cur_faults = set(fault.fault_types.all())
+    to_remove = cur_faults - new_faults
+    to_add = new_faults - cur_faults
+    fault.fault_types.remove(*to_remove)
+    fault.fault_types.add(*to_add)
+
+def _save_related_ses(fault, form):
+    if "related_service_events" not in form.cleaned_data:
+        return
+    related_service_events = form.cleaned_data.get('related_service_events', [])
+    sers = sl_models.ServiceEvent.objects.filter(pk__in=related_service_events)
+    fault.related_service_events.set(sers)
+
+def _save_attachments(fault, request):
+    for f in request.FILES.getlist('fault-attachments'):
+        try:
+            Attachment.objects.create(
+                attachment=f,
+                comment="Uploaded %s by %s" % (timezone.now(), request.user.username),
+                label=f.name,
+                fault=fault,
+                created_by=request.user
+            )
+        except Exception as e:
+            raise e
+
+    a_ids = []
+    for val in request.POST.getlist('fault-attachments_delete_ids', ''):
+        if val:
+            a_ids.extend([v.strip() for v in val.split(',') if v.strip()])
+    if a_ids:
+        Attachment.objects.filter(id__in=a_ids).delete()
+
 def save_valid_fault_form(form, request):
     """helper for EditFault, CreateFault, and create_ajax for processing FaultForm"""
 
@@ -496,28 +652,9 @@ def save_valid_fault_form(form, request):
         )
         comment.save()
 
-    new_faults = set(models.FaultType.objects.filter(code__in=form.cleaned_data['fault_types_field']))
-    cur_faults = set(fault.fault_types.all())
-    to_remove = cur_faults - new_faults
-    to_add = new_faults - cur_faults
-    fault.fault_types.remove(*to_remove)
-    fault.fault_types.add(*to_add)
-    related_service_events = form.cleaned_data.get('related_service_events', [])
-    sers = sl_models.ServiceEvent.objects.filter(pk__in=related_service_events)
-    fault.related_service_events.set(sers)
-
-    for f in request.FILES.getlist('fault-attachments'):
-        Attachment.objects.create(
-            attachment=f,
-            comment="Uploaded %s by %s" % (timezone.now(), request.user.username),
-            label=f.name,
-            fault=fault,
-            created_by=request.user
-        )
-
-    a_ids = [a for a in request.POST.getlist('fault-attachments_delete_ids', '') if a]
-    if a_ids:
-        Attachment.objects.filter(id__in=a_ids).delete()
+    _save_fault_types(fault, form)
+    _save_related_ses(fault, form)
+    _save_attachments(fault, request)
 
     return fault
 
@@ -550,19 +687,19 @@ def fault_type_autocomplete(request):
         Q(code__icontains=q) | Q(code__icontains=q.strip()),
     ).order_by("code")
 
-    qs = qs.values_list("id", "code", "description")
+    qs = qs.values_list("id", "code", "description", "slug")
 
     results = []
 
     exact_match = None
-    for ft_id, code, description in qs:
+    for ft_id, code, description, slug in qs:
         code = code
         description = description or ''
         text = "%s: %s" % (code, truncatechars(description, 80)) if description else code
         if code.lower() == q.strip():
-            exact_match = {'id': code, 'code': code, 'text': text, 'description': description}
+            exact_match = {'id': code, 'code': code, 'text': text, 'description': description, 'slug': slug}
         else:
-            results.append({'id': code, 'text': text, 'description': description, 'code': code})
+            results.append({'id': code, 'text': text, 'description': description, 'code': code, 'slug': slug})
 
     new_option = q and exact_match is None
     if new_option and request.user.has_perm("faults.add_faulttype"):
@@ -570,7 +707,7 @@ def fault_type_autocomplete(request):
         new_result = {'id': "%s%s" % (forms.NEW_FAULT_TYPE_MARKER, q), 'text': "*%s*" % q, 'code': q, 'description': ''}
         results = [new_result] + results
     elif q and exact_match:
-        ft_id, code, text, description = exact_match
+        # put the exact match first in the list
         # put the exact match first in the list
         results = [exact_match] + results
 
@@ -599,6 +736,18 @@ class FaultDetails(FaultList):
 
         if models.can_review_faults(self.request.user):
             context['review_form'] = forms.ReviewFaultForm(instance=context['fault'])
+
+        context['occurrence_form'] = section_form_class('occurrence')(instance=context['fault'])
+        context['fault_types_form'] = section_form_class('fault-types')(instance=context['fault'])
+        context['related_ses_form'] = section_form_class('related-ses')(instance=context['fault'])
+        context['attachments_form'] = section_form_class('attachments')(instance=context['fault'])
+        
+        context['status_tag_colours'] = sl_models.ServiceEventStatus.get_colour_dict()
+        context['status_tag_colours_json'] = json.dumps(context['status_tag_colours'])
+        context['se_statuses'] = {
+            se.id: se.service_status.id for se in context['fault'].related_service_events.order_by('-id')
+        }
+        context['se_statuses_json'] = json.dumps(context['se_statuses'])
 
         return context
 
@@ -817,3 +966,19 @@ class FaultTypeDetails(FaultList):
 class ChooseUnitForViewFaults(ChooseUnit):
     template_name = 'units/unittype_choose_for_faults.html'
     split_sites = True
+
+
+@require_POST
+def edit_fault_type_description(request, slug):
+    if not request.user.has_perm('faults.change_faulttype'):
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    fault_type = get_object_or_404(models.FaultType, slug=slug)
+    new_description = request.POST.get("description", "")
+    fault_type.description = new_description
+    fault_type.save()
+
+    return JsonResponse({
+        "status": "success",
+        "description": fault_type.description
+    })

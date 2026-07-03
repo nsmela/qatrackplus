@@ -99,10 +99,10 @@ selenium-screenshots/
 # running environment, so it is per-machine output, not source.
 settings-report.md
 
-# Virtual environments and external source. The negation re-includes the
-# Vue sources for the faults app, which the `src/` rule above would otherwise
-# hide. The built bundle in qatrack_core/static/dist/ stays ignored: the release
-# workflow builds it, and developers generate it locally with npm.
+# Virtual environments and external source. The negations keep the faults
+# app's frontend sources and the built bundle trackable if a Vite build returns;
+# without them the `src/` and `dist` rules above would hide both.
 .poetry-venv/
 !qatrack/faults/static/faults/src/
+!qatrack/qatrack_core/static/dist/
 node_modules/

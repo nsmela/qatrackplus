@@ -1,0 +1,32 @@
+{% load i18n %}
+<form id="form-related-ses" hx-post="{% url 'fault_section_edit' pk=fault.pk section='related-ses' %}" hx-target="#fault-section-related-ses"
+  hx-swap="outerHTML">
+  {% csrf_token %}
+  
+  <div>
+    {% for hidden in form.hidden_fields %}
+      {{ hidden }}
+    {% endfor %}
+    <div class="form-group {% if form.related_service_events.errors %}has-error{% endif %}">
+      <label for="{{ form.related_service_events.id_for_label }}" style="display: block; font-weight: bold; margin-bottom: 5px; text-align: left;">
+        {{ form.related_service_events.label }}
+      </label>
+      {{ form.related_service_events }}
+      {% if form.related_service_events.help_text %}
+        <p class="help-block">{{ form.related_service_events.help_text }}</p>
+      {% endif %}
+      {% for error in form.related_service_events.errors %}
+        <span class="help-block">{{ error }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+
+</form>
+<script>
+  window.se_statuses = {% if se_statuses_json %}{{ se_statuses_json|safe }}{% else %}{}{% endif %};
+  window.status_colours_dict = {% if status_tag_colours_json %}{{ status_tag_colours_json|safe }}{% else %}{}{% endif %};
+  if (window.initRelatedSesEdit) {
+      window.initRelatedSesEdit();
+  }
+</script>

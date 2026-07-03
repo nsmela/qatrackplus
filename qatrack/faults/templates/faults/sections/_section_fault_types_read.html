@@ -1,0 +1,19 @@
+{% load i18n %}
+<div style="position: relative;">
+  {% for fault_type in fault.fault_types.all %}
+    <a href="{% url 'fault_type_details' slug=fault_type.slug %}" class="fault-type-desc-block margin-bottom-10 fault-card-hover" style="display: block; border-left: 4px solid #3c8dbc; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05); color: inherit; text-decoration: none;">
+      <div>
+        <span style="font-weight: bold;">{% trans "Code" %}: {{ fault_type.code }}</span>
+      </div>
+      <div class="margin-top-5 text-muted fault-type-read-desc" data-slug="{{ fault_type.slug }}">
+        <span class="read-desc-content">
+        {% if fault_type.description %}
+          {{ fault_type.description }}
+        {% else %}
+          <em>{% trans "No description available" %}</em>
+        {% endif %}
+        </span>
+      </div>
+    </a>
+  {% endfor %}
+</div>

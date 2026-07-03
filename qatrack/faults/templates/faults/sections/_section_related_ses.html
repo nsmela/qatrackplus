@@ -1,0 +1,55 @@
+{% load i18n %}
+<div id="fault-section-related-ses">
+  <style>
+    #fault-section-related-ses.htmx-request .related-ses-content { display: none !important; }
+    #fault-section-related-ses.htmx-request .related-ses-skeleton { display: block !important; }
+    .related-ses-skeleton { display: none; }
+  </style>
+
+  <div class="related-ses-content">
+    <h3>
+      {% trans "Related Service Events" %}
+      {% if perms.faults.change_fault %}
+        <button type="button" id="btn-edit-related-ses" class="btn btn-default btn-xs margin-left-10" title="{% trans 'Edit' %}"
+                hx-get="{% url 'fault_section_edit' pk=fault.pk section='related-ses' %}" hx-target="#fault-section-related-ses" hx-swap="outerHTML"
+                {% if editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-pencil"></i>
+        </button>
+        <button type="submit" form="form-related-ses" id="btn-save-related-ses" class="btn btn-primary btn-xs margin-left-10" title="{% trans 'Save' %}"
+                {% if not editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-check"></i> {% trans "Save" %}
+        </button>
+        <button type="button" id="btn-cancel-related-ses" class="btn btn-default btn-xs margin-left-5" title="{% trans 'Cancel' %}"
+                hx-get="{% url 'fault_section_detail' pk=fault.pk section='related-ses' %}" hx-target="#fault-section-related-ses" hx-swap="outerHTML"
+                {% if not editing %}style="display:none;"{% endif %}>
+          <i class="fa fa-times"></i> {% trans "Cancel" %}
+        </button>
+      {% endif %}
+    </h3>
+
+    <div id="related-ses-read" {% if editing %}style="display:none;"{% endif %}>
+      {% include "faults/sections/_section_related_ses_read.html" %}
+    </div>
+    <div id="related-ses-edit" {% if not editing %}style="display:none;"{% endif %}>
+      {% if related_ses_form %}
+        {% include "faults/sections/_section_related_ses_edit.html" with form=related_ses_form %}
+      {% else %}
+        {% include "faults/sections/_section_related_ses_edit.html" with form=form %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="related-ses-skeleton">
+    <h3>{% trans "Related Service Events" %}</h3>
+    <div class="skeleton-loader margin-bottom-10" style="border-left: 4px solid #ddd; background-color: #f9f9f9; padding: 8px 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">
+      <div style="font-size: 13px;">
+        <i class="fa fa-spinner fa-spin text-muted" style="margin-right: 5px;"></i>
+        <span class="text-muted"><strong>{% trans "Loading..." %}</strong></span>
+      </div>
+      <div class="margin-top-10 margin-bottom-5">
+        <div style="height: 10px; width: 60%; background-color: #e0e0e0; border-radius: 2px; margin-bottom: 5px; animation: qatrack-pulse 1.5s infinite;"></div>
+        <div style="height: 10px; width: 40%; background-color: #e0e0e0; border-radius: 2px; animation: qatrack-pulse 1.5s infinite;"></div>
+      </div>
+    </div>
+  </div>
+</div>

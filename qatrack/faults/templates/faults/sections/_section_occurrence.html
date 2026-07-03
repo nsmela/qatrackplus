@@ -1,0 +1,36 @@
+{% load i18n %}
+<div id="fault-section-occurrence">
+  <h3>
+    {% trans "Fault Details" %} #{{ fault.id }}
+    {% if perms.faults.change_fault %}
+      <button type="button" id="btn-edit-occurrence" class="btn btn-default btn-xs margin-left-10" title="{% trans 'Edit' %}"
+              hx-get="{% url 'fault_section_edit' pk=fault.pk section='occurrence' %}" hx-target="#fault-section-occurrence" hx-swap="outerHTML"
+              {% if editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-pencil"></i>
+      </button>
+      <button type="submit" form="form-occurrence" id="btn-save-occurrence" class="btn btn-primary btn-xs margin-left-10" title="{% trans 'Save' %}"
+              {% if not editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-check"></i> {% trans "Save" %}
+      </button>
+      <button type="button" id="btn-cancel-occurrence" class="btn btn-default btn-xs margin-left-5" title="{% trans 'Cancel' %}"
+              hx-get="{% url 'fault_section_detail' pk=fault.pk section='occurrence' %}" hx-target="#fault-section-occurrence" hx-swap="outerHTML"
+              {% if not editing %}style="display:none;"{% endif %}>
+        <i class="fa fa-times"></i> {% trans "Cancel" %}
+      </button>
+    {% endif %}
+  </h3>
+
+  <div class="margin-bottom-15 margin-top-10 fault-card-hover" style="border-left: 4px solid #3c8dbc; padding: 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">
+    <div id="occurrence-read" {% if editing %}style="display:none;"{% endif %}>
+      {% include "faults/sections/_section_occurrence_read.html" %}
+    </div>
+    
+    <div id="occurrence-edit" class="margin-top-10" {% if not editing %}style="display:none;"{% endif %}>
+      {% if occurrence_form %}
+        {% include "faults/sections/_section_occurrence_edit.html" with form=occurrence_form %}
+      {% else %}
+        {% include "faults/sections/_section_occurrence_edit.html" with form=form %}
+      {% endif %}
+    </div>
+  </div>
+</div>
