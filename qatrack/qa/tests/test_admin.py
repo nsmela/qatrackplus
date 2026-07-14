@@ -1116,8 +1116,15 @@ class TestTestListBuilderUI(TestCase):
         qs = cl.result_list
         self.assertTrue(len(qs) > 0)
         self.assertTrue(hasattr(qs[0], "test_count"))
+        # The Test List Builder restyle must actually render, not just 200.
+        self.assertContains(response, "results-card")
 
     def test_change_form_view(self):
         url = reverse("admin:qa_testlist_change", args=(self.tl.pk,))
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        # Guard against the change_form override being shadowed by another
+        # template on the loader search path: the Details-card mount point and
+        # its inlined assets must be present in the rendered change form.
+        self.assertContains(response, "testlist-builder-details-root")
+        self.assertContains(response, "details-card")
