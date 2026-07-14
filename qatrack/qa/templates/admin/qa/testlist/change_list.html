@@ -12,30 +12,29 @@
     <script src="{% static 'qa/js/testlist.js' %}"></script>
 {% endblock %}
 
-{% block content_title %}
+{% block content_title %}{% endblock %}
+
+{% block object-tools %}
+<div class="testlist-top-header">
     <h1>
         Test Lists
         <span class="small-counter">{{ cl.result_count }} of {{ cl.full_result_count }}</span>
     </h1>
+    <div class="testlist-top-buttons">
+        <a href="{% url 'admin:qa_import_testpack' %}" class="btn-default">
+            <i class="fa fa-download"></i> {% trans "Import" %}
+        </a>
+        <a href="{% url 'admin:qa_export_testpack' %}" class="btn-default">
+            <i class="fa fa-upload"></i> {% trans "Export" %}
+        </a>
+        <a href="{% url 'admin:qa_testlist_add' %}" class="btn-primary">
+            <i class="fa fa-plus"></i> {% trans "New Test List" %}
+        </a>
+    </div>
+</div>
 {% endblock %}
 
-{% block object-tools-items %}
-    <li>
-        <a href="{% url 'admin:qa_testlist_add' %}" class="btn-primary">
-            + {% trans "New Test List" %}
-        </a>
-    </li>
-    <li>
-        <a href="{% url 'admin:qa_export_testpack' %}" class="btn-default">
-            {% trans "Export Test Pack" %}
-        </a>
-    </li>
-    <li>
-        <a href="{% url 'admin:qa_import_testpack' %}" class="btn-default">
-            {% trans "Import Test Pack" %}
-        </a>
-    </li>
-{% endblock %}
+{% block search %}{% endblock %}
 
 {% block result_list %}
     <div class="results-card">
@@ -44,7 +43,7 @@
                 <i class="fa fa-list-alt"></i> Configured Test Lists
             </div>
             <div id="custom-search-container">
-                {# JS will move the search box here #}
+                {% search_form cl %}
             </div>
         </div>
         <div class="results-card-body">
