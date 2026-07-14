@@ -1,5 +1,9 @@
 <style>
-:root {
+/* Scope our design tokens to the admin content area only. Defining these on
+   :root would override Django admin's own --primary/--body-bg variables and
+   restyle the surrounding chrome (left nav sidebar, header). #content-main
+   contains every element we style; the nav sidebar and header are outside it. */
+#content-main {
   --primary: #424f57;
   --primary-2: #323e46;
   --al-blue: #3c8dbc;
@@ -166,6 +170,10 @@ a.clear-filter {
   width: 200px;
   background: transparent;
   box-shadow: none;
+  color: var(--text);
+}
+#custom-search-container #toolbar #searchbar::placeholder {
+  color: #9aa2ae;
 }
 
 /* Table Overrides */
@@ -203,6 +211,22 @@ a.clear-filter {
 #changelist table thead th.column-modified_info { width: 140px; }
 #changelist table thead th.column-edit_link { width: 40px; text-align: center; }
 #changelist table tbody td.field-edit_link { text-align: center; }
+
+/* Paginator renders as a sibling below the results-card; base admin fills it
+   with --body-bg (grey), which reads as a mismatched "footer" beneath the
+   white table. Make it the card's white footer instead. */
+#changelist .paginator {
+  background: #fff;
+  color: var(--text);
+  border-top: 1px solid var(--line);
+  padding: 8px 12px;
+  margin: 0;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
+}
+#changelist .paginator a:link,
+#changelist .paginator a:visited {
+  color: var(--al-blue);
+}
 
 /* Buttons */
 .btn-primary, .btn-default {
@@ -247,12 +271,12 @@ a.clear-filter {
 }
 
 /* Header Title */
-h1 {
+.testlist-top-header h1 {
   font-size: 22px;
   font-weight: 400;
   color: #444;
 }
-h1 .small-counter {
+.testlist-top-header h1 .small-counter {
   font-size: 14px;
   color: #999;
   margin-left: 8px;
