@@ -141,10 +141,12 @@ a.clear-filter {
   font-weight: 600;
   color: #444;
   text-align: left;
+  text-transform: none;
 }
 #changelist table tbody tr {
   border-top: 1px solid var(--line-soft);
   cursor: pointer;
+  background: #fff;
 }
 #changelist table tbody tr:hover {
   background: #f5f7fa;
@@ -153,6 +155,14 @@ a.clear-filter {
   padding: 6px 10px;
   vertical-align: top;
 }
+#changelist table thead th.column-id_mono { width: 60px; }
+#changelist table thead th.column-name_slug { width: auto; }
+#changelist table thead th.column-tests_count { width: 82px; }
+#changelist table thead th.column-frequency_chips { width: 108px; }
+#changelist table thead th.column-units_count { width: 72px; }
+#changelist table thead th.column-modified_info { width: 140px; }
+#changelist table thead th.column-edit_link { width: 40px; text-align: center; }
+#changelist table tbody td.field-edit_link { text-align: center; }
 
 /* Buttons */
 .btn-primary, .btn-default {
