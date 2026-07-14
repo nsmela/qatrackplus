@@ -143,11 +143,29 @@ a.clear-filter {
   color: #9aa2ae;
   margin-right: 6px;
 }
-#custom-search-container input {
+/* This admin renders the search as #toolbar > (#searchbar + submit).
+   Flatten it and hide the stock label/submit so only the input shows. */
+#custom-search-container #toolbar,
+#custom-search-container #toolbar > div {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+#custom-search-container label {
+  display: none;
+}
+#custom-search-container input[type="submit"] {
+  display: none;
+}
+/* Selector must out-specify the base admin's "#toolbar #searchbar" border. */
+#custom-search-container #toolbar #searchbar {
   border: none;
   font-size: 13px;
   outline: none;
   width: 200px;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Table Overrides */
@@ -157,6 +175,7 @@ a.clear-filter {
 }
 #changelist table thead th {
   padding: 8px 10px;
+  background: transparent;
   border-bottom: 2px solid var(--line);
   font-size: 13px;
   font-weight: 600;
@@ -507,27 +526,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 2. Changelist (Index) ---
     const changelist = document.getElementById('changelist');
     if (changelist) {
-        // Search Box Move
-        const searchForm = document.getElementById('changelist-search');
+        // Search box. This admin's search is rendered (by the changelist
+        // template) as #toolbar > (#searchbar + submit) already inside
+        // #custom-search-container, so we only need to style it: add the
+        // search icon, set the placeholder, and drop the fixed size. The
+        // stock label/submit are hidden via CSS. (Don't hide #toolbar here —
+        // it *is* the search box in this template.)
         const searchTarget = document.getElementById('custom-search-container');
-        if (searchForm && searchTarget) {
-            const input = searchForm.querySelector('input[type="text"]');
-            if (input) {
-                input.placeholder = "Search name, slug or tags…";
+        const searchInput = document.getElementById('searchbar');
+        if (searchTarget && searchInput) {
+            searchInput.placeholder = "Search name, slug or tags…";
+            searchInput.removeAttribute('size');
+            if (!searchTarget.querySelector('i.fa-search')) {
+                const icon = document.createElement('i');
+                icon.className = 'fa fa-search';
+                searchTarget.insertBefore(icon, searchTarget.firstChild);
             }
-            const icon = document.createElement('i');
-            icon.className = 'fa fa-search';
-            searchTarget.appendChild(icon);
-            
-            const submitBtn = searchForm.querySelector('input[type="submit"]');
-            if (submitBtn) submitBtn.style.display = 'none';
-            const searchLabel = searchForm.querySelector('label');
-            if (searchLabel) searchLabel.style.display = 'none';
-
-            searchTarget.appendChild(searchForm);
-            
-            const toolbar = document.getElementById('toolbar');
-            if (toolbar) toolbar.style.display = 'none';
         }
 
         // Row Clicks
