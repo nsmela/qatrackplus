@@ -119,7 +119,7 @@ a.clear-filter {
 }
 .results-card-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding: 6px 12px;
   border-bottom: 1px solid var(--line-soft);
@@ -518,6 +518,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const icon = document.createElement('i');
             icon.className = 'fa fa-search';
             searchTarget.appendChild(icon);
+            
+            const submitBtn = searchForm.querySelector('input[type="submit"]');
+            if (submitBtn) submitBtn.style.display = 'none';
+            const searchLabel = searchForm.querySelector('label');
+            if (searchLabel) searchLabel.style.display = 'none';
+
             searchTarget.appendChild(searchForm);
             
             const toolbar = document.getElementById('toolbar');
@@ -541,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Filter Sidebar Tweaks
         const filterTitle = document.querySelector('#changelist-filter h2');
         if (filterTitle) {
+            filterTitle.innerHTML = '<i class="fa fa-filter"></i> Filters';
             // Check if any filter is active (url has query params other than sort/p)
             // Simplified: if there's any querystring, just show clear.
             if (window.location.search.length > 1) {
