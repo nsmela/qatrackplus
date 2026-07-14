@@ -20,15 +20,31 @@
   color: var(--text);
 }
 
+.testlist-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.testlist-top-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 /* --- Change List (Index) --- */
 #changelist {
   display: grid;
   grid-template-columns: 1fr 248px;
+  grid-template-areas: "results filter";
   gap: 16px;
   align-items: start;
 }
+#changelist form#changelist-form {
+  grid-area: results;
+}
 
 #changelist-filter {
+  grid-area: filter;
   position: sticky;
   top: 16px;
   margin: 0;
@@ -37,21 +53,24 @@
   box-shadow: 0 1px 1px rgba(0,0,0,.1);
 }
 #changelist-filter h2 {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line-soft);
-  font-size: 17px;
-  font-weight: 600;
-  color: #444;
-  margin: 0;
-  background: transparent;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid var(--line-soft) !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  color: #444 !important;
+  margin: 0 !important;
+  background: transparent !important;
 }
 #changelist-filter h3 {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  color: #8a929e;
-  margin: 12px 12px 8px;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .03em !important;
+  color: #8a929e !important;
+  margin: 12px 12px 8px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
 }
 #changelist-filter ul {
   padding: 0 12px;
