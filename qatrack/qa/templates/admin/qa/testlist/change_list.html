@@ -4,15 +4,11 @@
 {% block extrastyle %}
     {{ block.super }}
     <link rel="stylesheet" type="text/css" href="{% static 'fontawsome/css/font-awesome.min.css' %}">
-    <link rel="stylesheet" type="text/css" href="{% static 'qa/css/testlist.css' %}">
 {% endblock %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <script src="{% static 'qa/js/testlist.js' %}"></script>
+{% block content_title %}
+    {% include "admin/qa/testlist/testlist_assets.html" %}
 {% endblock %}
-
-{% block content_title %}{% endblock %}
 
 {% block object-tools %}
 <div class="testlist-top-header">
