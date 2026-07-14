@@ -83,7 +83,7 @@ class FaultSectionMixin(PermissionRequiredMixin):
 
     def get_permission_required(self, request=None):
         section = self.kwargs["section"]
-        return [SECTION_PERMS.get(section, "faults.change_fault")]
+        return SECTION_PERMS.get(section, "faults.change_fault")
 
     def get_fault(self):
         qs = models.Fault.objects.select_related(

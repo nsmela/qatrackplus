@@ -1165,3 +1165,136 @@ class TestChooseUnitForViewFaults(TestCase):
         """Initial page load should work ok"""
         resp = self.client.get(reverse("fault_choose_unit"))
         assert resp.status_code == 200
+
+
+class TestEditFaultTypeDescription(TestCase):
+
+    def setUp(self):
+        self.user = qa_utils.create_user(is_superuser=False)
+        self.fault_type = FaultType.objects.create(code="ABC", slug="abc", description="old")
+        self.url = reverse("fault_type_edit_description", kwargs={'slug': self.fault_type.slug})
+        self.client.force_login(self.user)
+
+    def test_post_no_permission(self):
+        resp = self.client.post(self.url, {"description": "new"})
+        assert resp.status_code == 403
+        self.fault_type.refresh_from_db()
+        assert self.fault_type.description == "old"
+
+    def test_get_not_allowed(self):
+        p = Permission.objects.get(codename="change_faulttype")
+        self.user.user_permissions.add(p)
+        resp = self.client.get(self.url)
+        assert resp.status_code == 405
+
+    def test_post_valid(self):
+        p = Permission.objects.get(codename="change_faulttype")
+        self.user.user_permissions.add(p)
+        resp = self.client.post(self.url, {"description": "new"})
+        assert resp.status_code == 200
+        assert resp.json()['status'] == 'success'
+        self.fault_type.refresh_from_db()
+        assert self.fault_type.description == "new"
+
+
+class TestFaultSectionDetail(TestCase):
+
+    def setUp(self):
+        self.user = qa_utils.create_user(is_superuser=False)
+        self.client.force_login(self.user)
+        self.fault = utils.create_fault()
+        self.url = reverse("fault_section_detail", kwargs={'pk': self.fault.pk, 'section': 'occurrence'})
+
+    def test_permission_denied(self):
+        resp = self.client.get(self.url)
+        assert resp.status_code == 403
+
+    def test_get_valid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        resp = self.client.get(self.url)
+        assert resp.status_code == 200
+        assert "faults/sections/_section_occurrence.html" in [t.name for t in resp.templates]
+        assert not resp.context['editing']
+
+
+class TestFaultSectionEdit(TestCase):
+
+    def setUp(self):
+        self.user = qa_utils.create_user(is_superuser=False)
+        self.client.force_login(self.user)
+        self.fault = utils.create_fault()
+        self.url = reverse("fault_section_edit", kwargs={'pk': self.fault.pk, 'section': 'occurrence'})
+
+    def test_permission_denied(self):
+        resp = self.client.get(self.url)
+        assert resp.status_code == 403
+
+    def test_get_valid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        resp = self.client.get(self.url)
+        assert resp.status_code == 200
+        assert "faults/sections/_section_occurrence.html" in [t.name for t in resp.templates]
+        assert resp.context['editing']
+
+    def test_post_invalid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        # Empty POST should fail required fields like unit, occurred
+        resp = self.client.post(self.url, {})
+        assert resp.status_code == 200
+        assert resp.context['form'].errors
+
+    def test_post_valid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        data = {
+            'unit': self.fault.unit.pk,
+            'occurred': '2020-01-01 12:00:00',
+        }
+        resp = self.client.post(self.url, data)
+        assert resp.status_code == 200
+        assert not resp.context['editing']
+        self.fault.refresh_from_db()
+        assert self.fault.occurred.year == 2020
+
+
+class TestEditFault(TestCase):
+
+    def setUp(self):
+        self.user = qa_utils.create_user(is_superuser=False)
+        self.client.force_login(self.user)
+        self.fault = utils.create_fault()
+        self.url = reverse("fault_edit", kwargs={'pk': self.fault.pk})
+
+    def test_permission_denied(self):
+        resp = self.client.get(self.url)
+        assert resp.status_code in (403, 302)
+
+    def test_get_valid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        resp = self.client.get(self.url)
+        assert resp.status_code == 200
+
+    def test_post_valid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        data = {
+            'fault-unit': self.fault.unit.pk,
+            'fault-occurred': '2020-01-01 12:00:00',
+            'fault-fault_types_field': [ft.code for ft in self.fault.fault_types.all()]
+        }
+        resp = self.client.post(self.url, data)
+        assert resp.status_code == 302
+        assert resp.url == reverse("fault_list")
+        self.fault.refresh_from_db()
+        assert self.fault.occurred.year == 2020
+
+    def test_post_invalid(self):
+        p = Permission.objects.get(codename="change_fault")
+        self.user.user_permissions.add(p)
+        resp = self.client.post(self.url, {})
+        assert resp.status_code == 200
+        assert resp.context['form'].errors

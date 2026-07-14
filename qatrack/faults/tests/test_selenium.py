@@ -96,6 +96,8 @@ class TestFaultCreate(BaseFaultsTests):
         self.open(self.url)
         
         self.select_by_value("id_fault-unit", str(self.unit.id))
+        self.driver.execute_script("$('#id_fault-unit').change();")
+        time.sleep(0.5)
         self.select_select2_multiple("id_fault-fault_types_field", self.fault_type.code)
         
         self.wait.until(e_c.presence_of_element_located((By.CSS_SELECTOR, "#inline-fault-type-descriptions .fault-type-desc-block")))
@@ -160,6 +162,8 @@ class TestFaultCreate(BaseFaultsTests):
         assert disabled_attr == "true" or disabled_attr == "disabled"
         
         self.select_by_value("id_fault-unit", str(self.unit.id))
+        self.driver.execute_script("$('#id_fault-unit').change();")
+        time.sleep(0.5)
         self.select_select2_multiple("id_fault-fault_types_field", self.fault_type.code)
         
         disabled_attr = submit_btn.get_attribute("disabled")
