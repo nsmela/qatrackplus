@@ -924,9 +924,14 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         css = {
             'all': (
                 "fontawsome/css/font-awesome.min.css",
-                "qa/css/testlist.css",
             )
         }
+        # NOTE: The Test List Builder CSS/JS is inlined via the
+        # "admin/qa/testlist/testlist_assets.html" template include (referenced
+        # from change_form.html and change_list.html), which is the single
+        # source of truth. Do NOT also load standalone testlist.css/testlist.js
+        # here — that double-loads the DOM-move script and wipes the moved
+        # change-form fields on the second run.
         js = (
             "admin/js/jquery.init.js",
             'jquery/js/jquery.min.js',
@@ -935,7 +940,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             "js/m2m_drag_admin_testlist.js",
             "js/admin_description_editor.js",
             "ace/ace.js",
-            "qa/js/testlist.js",
         )
 
     def get_urls(self):
