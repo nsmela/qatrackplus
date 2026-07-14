@@ -1,8 +1,30 @@
 {% extends "admin/change_list.html" %}
-{% load i18n admin_list %}
+{% load i18n admin_list static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'fontawsome/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'qa/css/testlist.css' %}">
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="{% static 'qa/js/testlist.js' %}"></script>
+{% endblock %}
+
+{% block content_title %}
+    <h1>
+        Test Lists
+        <span class="small-counter">{{ cl.result_count }} of {{ cl.full_result_count }}</span>
+    </h1>
+{% endblock %}
 
 {% block object-tools-items %}
-    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:qa_testlist_add' %}" class="btn-primary">
+            + {% trans "New Test List" %}
+        </a>
+    </li>
     <li>
         <a href="{% url 'admin:qa_export_testpack' %}" class="btn-default">
             {% trans "Export Test Pack" %}
