@@ -1098,3 +1098,26 @@ class TestUnitTestInfoAdmin(TestCase):
         # Second change should have the values from after the first change as old values
         self.assertEqual(changes[1].reference.value, self.r_2.value)
         self.assertEqual(changes[1].tolerance, self.tol_2)
+
+
+class TestTestListBuilderUI(TestCase):
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list()
+
+    def test_changelist_view(self):
+        url = reverse("admin:qa_testlist_changelist")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        cl = response.context_data.get("cl") if hasattr(response, "context_data") else response.context.get("cl")
+        self.assertIsNotNone(cl)
+        qs = cl.result_list
+        self.assertTrue(len(qs) > 0)
+        self.assertTrue(hasattr(qs[0], "test_count"))
+
+    def test_change_form_view(self):
+        url = reverse("admin:qa_testlist_change", args=(self.tl.pk,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)

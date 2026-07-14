@@ -879,6 +879,8 @@ class FrequencyTestListFilter(admin.SimpleListFilter):
 
 class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
+    change_form_template = "admin/qa/testlist/change_form.html"
+
     prepopulated_fields = {
         'slug': ('name',)
     }
@@ -889,13 +891,13 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     actions = ['export_test_lists']
     list_display = (
-        "name",
-        "id",
-        "slug",
-        "parent_of",
-        "child_of",
-        "modified",
-        "modified_by",
+        "id_mono",
+        "name_slug",
+        "tests_count",
+        "frequency_chips",
+        "units_count",
+        "modified_info",
+        "edit_link",
     )
     list_filter = [ActiveTestListFilter, SiteTestListFilter, UnitTestListFilter, FrequencyTestListFilter]
 
@@ -919,6 +921,12 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
     ]
 
     class Media:
+        css = {
+            'all': (
+                "fontawsome/css/font-awesome.min.css",
+                "qa/css/testlist.css",
+            )
+        }
         js = (
             "admin/js/jquery.init.js",
             'jquery/js/jquery.min.js',
@@ -927,6 +935,7 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             "js/m2m_drag_admin_testlist.js",
             "js/admin_description_editor.js",
             "ace/ace.js",
+            "qa/js/testlist.js",
         )
 
     def get_urls(self):
@@ -949,16 +958,115 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         extra_context = extra_context or {}
         extra_context['export_testpack_url'] = reverse('admin:qa_export_testpack')
         extra_context['import_testpack_url'] = reverse('admin:qa_import_testpack')
-        return super().changelist_view(request, extra_context=extra_context)
+        response = super().changelist_view(request, extra_context=extra_context)
+        
+        try:
+            cl = response.context_data['cl']
+            testlists = cl.result_list
+            if testlists:
+                from django.contrib.contenttypes.models import ContentType
+                ct = ContentType.objects.get_for_model(testlists[0])
+                utcs = models.UnitTestCollection.objects.filter(
+                    content_type=ct,
+                    object_id__in=[tl.id for tl in testlists]
+                ).select_related('frequency', 'unit')
+                
+                utc_map = {}
+                for utc in utcs:
+                    utc_map.setdefault(utc.object_id, []).append(utc)
+                
+                for tl in testlists:
+                    tl._prefetched_utcs = utc_map.get(tl.id, [])
+        except (AttributeError, KeyError, IndexError, TypeError):
+            pass
+            
+        return response
 
     def get_queryset(self, *args, **kwargs):
+        from django.db.models import Count
         qs = super().get_queryset(*args, **kwargs)
+        qs = qs.annotate(test_count=Count('testlistmembership', distinct=True))
         return qs.prefetch_related(
             "sublist_set",
             "sublist_set__parent",
             "children",
             "children__child",
         )
+
+    @admin.display(
+        description="ID"
+    )
+    @mark_safe
+    def id_mono(self, obj):
+        return f'<span style="font-family: ui-monospace, Menlo, Consolas, monospace; color: #777;">#{obj.id}</span>'
+
+    @admin.display(
+        description="Name"
+    )
+    @mark_safe
+    def name_slug(self, obj):
+        sub_info = ""
+        parents = [sl.parent.name for sl in obj.sublist_set.all()]
+        if parents:
+            sub_info = f'<br><span style="font-size: 11px; color: #777;">sublist of {", ".join(parents)}</span>'
+        
+        return f'<div style="font-weight: 600; color: #333;">{escape(obj.name)}</div><div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #777;">{escape(obj.slug)}</div>{sub_info}'
+
+    @admin.display(
+        description="Tests"
+    )
+    @mark_safe
+    def tests_count(self, obj):
+        count = getattr(obj, "test_count", 0)
+        return f'<span style="background: #d2d6de; color: #444; font-size: 75%; font-weight: 600; border-radius: 2px; padding: .22em .6em;">{count}</span>'
+
+    @admin.display(
+        description="Frequency"
+    )
+    @mark_safe
+    def frequency_chips(self, obj):
+        utcs = getattr(obj, "_prefetched_utcs", [])
+        freqs = set()
+        for utc in utcs:
+            if utc.frequency:
+                freqs.add(utc.frequency.name)
+            else:
+                freqs.add("Ad Hoc")
+        
+        chips = []
+        for f in sorted(freqs):
+            chips.append(f'<span style="font-size: 11px; font-weight: 600; color: #5a6472; background: #eef1f5; border: 1px solid #e0e5ec; border-radius: 3px; padding: 2px 8px; display: inline-block; margin: 2px;">{escape(f)}</span>')
+        return format_html_join(" ", "{0}", ((mark_safe(c),) for c in chips))
+
+    @admin.display(
+        description="Units"
+    )
+    @mark_safe
+    def units_count(self, obj):
+        utcs = getattr(obj, "_prefetched_utcs", [])
+        units = [utc.unit.name for utc in utcs]
+        if not units:
+            return ""
+        count = len(units)
+        title = escape(", ".join(units))
+        return f'<span title="{title}" style="color: #777;"><i class="fa fa-cube"></i> {count}</span>'
+
+    @admin.display(
+        description="Modified"
+    )
+    @mark_safe
+    def modified_info(self, obj):
+        date_str = date_formatter(obj.modified, "d M Y")
+        user = obj.modified_by.username if obj.modified_by else ""
+        return f'<div style="font-size: 13px;">{escape(date_str)}<br><span style="color:#777;">{escape(user)}</span></div>'
+
+    @admin.display(
+        description="✎"
+    )
+    @mark_safe
+    def edit_link(self, obj):
+        url = reverse("admin:qa_testlist_change", args=(obj.pk,))
+        return f'<a href="{url}" style="color: #9aa2ae;" onmouseover="this.style.color=\'#3c8dbc\'" onmouseout="this.style.color=\'#9aa2ae\'"><i class="fa fa-pencil"></i></a>'
 
     @mark_safe
     def child_of(self, obj):

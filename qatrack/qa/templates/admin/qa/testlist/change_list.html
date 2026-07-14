@@ -1,16 +1,32 @@
 {% extends "admin/change_list.html" %}
-{% load i18n %}
+{% load i18n admin_list %}
 
 {% block object-tools-items %}
+    {{ block.super }}
     <li>
-        <a href="{% url 'admin:qa_export_testpack' %}" class="addlink">
+        <a href="{% url 'admin:qa_export_testpack' %}" class="btn-default">
             {% trans "Export Test Pack" %}
         </a>
     </li>
     <li>
-        <a href="{% url 'admin:qa_import_testpack' %}" class="addlink">
+        <a href="{% url 'admin:qa_import_testpack' %}" class="btn-default">
             {% trans "Import Test Pack" %}
         </a>
     </li>
-    {{ block.super }}
-{% endblock %} 
+{% endblock %}
+
+{% block result_list %}
+    <div class="results-card">
+        <div class="results-card-header">
+            <div class="title-with-icon">
+                <i class="fa fa-list-alt"></i> Configured Test Lists
+            </div>
+            <div id="custom-search-container">
+                {# JS will move the search box here #}
+            </div>
+        </div>
+        <div class="results-card-body">
+            {% result_list cl %}
+        </div>
+    </div>
+{% endblock %}
