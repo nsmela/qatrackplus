@@ -188,10 +188,20 @@ a.clear-filter {
 #changelist table {
   width: 100%;
   border-collapse: collapse;
+  background: transparent;
+}
+/* The whole table is transparent so it shows the single white surface of the
+   results-card. The base admin stripes rows with tr:nth-child(), which also
+   tints the header row (its <tr> is child #1); override every row to
+   transparent so header and body share one uniform background. */
+#changelist table thead tr,
+#changelist table thead th,
+#changelist table tbody tr,
+#changelist table tbody td {
+  background: transparent;
 }
 #changelist table thead th {
   padding: 8px 10px;
-  background: transparent;
   border-bottom: 2px solid var(--line);
   font-size: 13px;
   font-weight: 600;
@@ -202,7 +212,6 @@ a.clear-filter {
 #changelist table tbody tr {
   border-top: 1px solid var(--line-soft);
   cursor: pointer;
-  background: #fff;
 }
 #changelist table tbody tr:hover {
   background: #f5f7fa;
