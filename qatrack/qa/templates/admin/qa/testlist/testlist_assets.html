@@ -19,6 +19,13 @@
   --warn-hint: #b6893b;
 }
 
+/* Give the content area the AdminLTE grey so the white cards sit on grey.
+   #content-start is outside #content-main, so it can't use the scoped
+   token; use the literal value. Only loads on Test List admin pages. */
+#content-start {
+  background: #ecf0f5;
+}
+
 .details-card, .results-card, #changelist-filter {
   font-family: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14px;
@@ -29,7 +36,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 .testlist-top-buttons {
   display: flex;
@@ -126,6 +133,7 @@ a.clear-filter {
   justify-content: space-between;
   align-items: center;
   padding: 6px 12px;
+  background: #fff;
   border-bottom: 1px solid var(--line-soft);
 }
 .results-card-header .title-with-icon {
