@@ -152,6 +152,31 @@ script only toggles the preview pane and makes changelist rows clickable.
       else { ta.removeEventListener("input", fire); }
     });
   }
+  // Change form: Django's related-widget "change/view/delete selected" links for
+  // raw-id fields (the dynamic_raw_id test/child pickers on the inlines) only get
+  // their href filled on a change event, so for values already selected on page
+  // load the icons render but do nothing. Populate their href from the
+  // data-href-template + current value, on load and whenever the value changes
+  // (delegation also covers dynamically-added inline rows).
+  function initRawIdLinks() {
+    function syncWrap(w) {
+      var input = w.querySelector("input.vForeignKeyRawIdAdminField, input.vManyToManyRawIdAdminField");
+      if (!input) { return; }
+      var val = (input.value || "").split(",")[0].trim();
+      w.querySelectorAll("a.change-related, a.view-related, a.delete-related").forEach(function (a) {
+        var tmpl = a.getAttribute("data-href-template");
+        if (tmpl && val) { a.setAttribute("href", tmpl.replace("__fk__", encodeURIComponent(val))); }
+        else { a.removeAttribute("href"); }
+      });
+    }
+    var wraps = document.querySelectorAll(".related-widget-wrapper");
+    if (!wraps.length) { return; }
+    wraps.forEach(syncWrap);
+    document.addEventListener("change", function (e) {
+      var w = e.target.closest && e.target.closest(".related-widget-wrapper");
+      if (w) { syncWrap(w); }
+    });
+  }
   // Changelist: whole-row click navigates; keep inner links/inputs working.
   function initRowClick() {
     var table = document.getElementById("result_list");
@@ -171,6 +196,7 @@ script only toggles the preview pane and makes changelist rows clickable.
   }
   document.addEventListener("DOMContentLoaded", function () {
     initPreviewToggle();
+    initRawIdLinks();
     initRowClick();
   });
 })();
