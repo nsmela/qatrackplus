@@ -1,10 +1,62 @@
 {% extends "admin/change_form.html" %}
-{% load i18n %}
+{% load i18n static %}
+
+{#
+  Test List Builder — pass 1 (Details panel).
+
+  Route A: enhance the stock admin change form. The real Django-rendered form
+  controls live inside #tl-source-fields (hidden via CSS); testlist_builder.js
+  moves the *live* nodes (#id_name, #id_slug, #id_description, #id_warning_message,
+  #id_javascript) into the Details card below on DOMContentLoaded so Django's POST
+  handling, slug prepopulation and validation keep working unchanged.
+#}
 
 {% block field_sets %}
-    {% include "admin/qa/testlist/testlist_assets.html" %}
-    <div id="testlist-builder-details-root"></div>
-    {{ block.super }}
+<div class="tl-details-card" id="tl-details-card">
+  <div class="tl-card-header">
+    <i class="fa fa-info-circle" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Details" %}</h2>
+    <span class="tl-card-id" id="tl-details-id" hidden></span>
+  </div>
+  <div class="tl-card-body">
+    <div class="tl-form">
+      <div class="tl-field tl-col-1" data-slot="name">
+        <label for="id_name">{% trans "Name" %} <em class="tl-req">*</em></label>
+      </div>
+      <div class="tl-field tl-col-2" data-slot="slug">
+        <label for="id_slug">{% trans "Slug" %}</label>
+      </div>
+      <div class="tl-field tl-col-full" data-slot="description">
+        <span class="tl-label-row">
+          <label for="id_description">{% trans "Description" %}</label>
+          <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "HTML markup allowed" %}</span>
+          <button type="button" class="tl-preview-toggle" data-desc-toggle>
+            <i class="fa fa-eye" aria-hidden="true"></i> {% trans "Preview" %}
+          </button>
+        </span>
+        <div class="tl-html-preview" data-desc-preview hidden></div>
+      </div>
+      <div class="tl-field tl-col-full" data-slot="warning">
+        <span class="tl-label-row">
+          <label for="id_warning_message">{% trans "Warning message" %}</label>
+          <span class="tl-hint tl-hint-warn"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {% trans "shown on failure" %}</span>
+        </span>
+      </div>
+      <div class="tl-field tl-col-full" data-slot="javascript">
+        <span class="tl-label-row">
+          <label for="id_javascript">{% trans "JavaScript" %}</label>
+          <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "runs on the perform page" %}</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tl-source-fields" class="tl-source-fields">
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+</div>
 {% endblock %}
 
 {% block after_field_sets %}{{ block.super }}
