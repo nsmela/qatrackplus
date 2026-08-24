@@ -1,49 +1,49 @@
 {% extends "admin/change_list.html" %}
-{% load i18n admin_list static %}
+{% load i18n static admin_urls admin_list %}
 
-{% block extrastyle %}
-    {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static 'fontawsome/css/font-awesome.min.css' %}">
-{% endblock %}
-
-{% block content_title %}
-    {% include "admin/qa/testlist/testlist_assets.html" %}
-{% endblock %}
+{#
+  Test List Builder — pass 1 (changelist).
+  Restyled header + object tools; the results table, search, filter sidebar and
+  paginator keep Django's ChangeList machinery and are styled by
+  qa/css/testlist_builder.css (loaded via TestListAdmin.Media).
+#}
 
 {% block object-tools %}
-<div class="testlist-top-header">
-    <h1>
-        Test Lists
-        <span class="small-counter">{{ cl.result_count }} of {{ cl.full_result_count }}</span>
-    </h1>
-    <div class="testlist-top-buttons">
-        <a href="{% url 'admin:qa_import_testpack' %}" class="btn-default">
-            <i class="fa fa-download"></i> {% trans "Import" %}
+<div class="tl-index-header">
+  <h1 class="tl-index-title">
+    {% trans "Test Lists" %}
+    <small>{{ cl.result_count }} {% trans "of" %} {{ cl.full_result_count|default:cl.result_count }}</small>
+  </h1>
+  <ul class="tl-object-tools">
+    {% block object-tools-items %}
+      <li>
+        <a href="{% url 'admin:qa_export_testpack' %}" class="tl-btn tl-btn-default">
+          <i class="fa fa-upload" aria-hidden="true"></i> {% trans "Export Test Pack" %}
         </a>
-        <a href="{% url 'admin:qa_export_testpack' %}" class="btn-default">
-            <i class="fa fa-upload"></i> {% trans "Export" %}
+      </li>
+      <li>
+        <a href="{% url 'admin:qa_import_testpack' %}" class="tl-btn tl-btn-default">
+          <i class="fa fa-download" aria-hidden="true"></i> {% trans "Import Test Pack" %}
         </a>
-        <a href="{% url 'admin:qa_testlist_add' %}" class="btn-primary">
-            <i class="fa fa-plus"></i> {% trans "New Test List" %}
+      </li>
+      {% if has_add_permission %}
+      <li>
+        <a href="{% url cl.opts|admin_urlname:'add' %}" class="tl-btn tl-btn-primary">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "New Test List" %}
         </a>
-    </div>
+      </li>
+      {% endif %}
+    {% endblock %}
+  </ul>
 </div>
 {% endblock %}
 
-{% block search %}{% endblock %}
-
-{% block result_list %}
-    <div class="results-card">
-        <div class="results-card-header">
-            <div class="title-with-icon">
-                <i class="fa fa-list-alt"></i> Configured Test Lists
-            </div>
-            <div id="custom-search-container">
-                {% search_form cl %}
-            </div>
-        </div>
-        <div class="results-card-body">
-            {% result_list cl %}
-        </div>
-    </div>
+{% block search %}
+<div class="tl-results-head">
+  <i class="fa fa-list-alt" aria-hidden="true"></i>
+  <h2 class="tl-results-title">{% trans "Configured Test Lists" %}</h2>
+  <div class="tl-results-search">
+    {% search_form cl %}
+  </div>
+</div>
 {% endblock %}

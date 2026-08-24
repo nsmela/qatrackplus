@@ -1100,31 +1100,89 @@ class TestUnitTestInfoAdmin(TestCase):
         self.assertEqual(changes[1].tolerance, self.tol_2)
 
 
-class TestTestListBuilderUI(TestCase):
+class TestTestListAdminBuilderUI(TestCase):
+    """Smoke tests for the Test List Builder pass-1 admin UI (Details card +
+    restyled changelist columns)."""
 
     def setUp(self):
-        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
         self.client.login(username='user', password='pwd')
-        self.tl = qa_utils.create_test_list()
+        self.site = AdminSite()
+        self.factory = RequestFactory()
+        self.changelist_url = reverse('admin:qa_testlist_changelist')
 
-    def test_changelist_view(self):
-        url = reverse("admin:qa_testlist_changelist")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        cl = response.context_data.get("cl") if hasattr(response, "context_data") else response.context.get("cl")
-        self.assertIsNotNone(cl)
-        qs = cl.result_list
-        self.assertTrue(len(qs) > 0)
-        self.assertTrue(hasattr(qs[0], "test_count"))
-        # The Test List Builder restyle must actually render, not just 200.
-        self.assertContains(response, "results-card")
+    def _admin(self):
+        return qa_admin.TestListAdmin(qa_models.TestList, self.site)
 
-    def test_change_form_view(self):
-        url = reverse("admin:qa_testlist_change", args=(self.tl.pk,))
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        # Guard against the change_form override being shadowed by another
-        # template on the loader search path: the Details-card mount point and
-        # its inlined assets must be present in the rendered change form.
-        self.assertContains(response, "testlist-builder-details-root")
-        self.assertContains(response, "details-card")
+    def _request(self, url=None):
+        request = self.factory.get(url or self.changelist_url)
+        request.user = self.user
+        return request
+
+    def test_changelist_renders(self):
+        qa_utils.create_test_list()
+        resp = self.client.get(self.changelist_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Configured Test Lists')
+
+    def test_change_form_renders_details_card(self):
+        tl = qa_utils.create_test_list()
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'tl-details-card')
+        # the live form controls are still rendered (moved by JS at runtime)
+        self.assertContains(resp, 'id="id_name"')
+        self.assertContains(resp, 'id="id_javascript"')
+
+    def test_add_form_renders_details_card(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'tl-details-card')
+
+    def test_test_count_annotation(self):
+        tl = qa_utils.create_test_list()
+        t1 = qa_utils.create_test(name='count_t1')
+        t2 = qa_utils.create_test(name='count_t2')
+        qa_utils.create_test_list_membership(test_list=tl, test=t1, order=0)
+        qa_utils.create_test_list_membership(test_list=tl, test=t2, order=1)
+
+        obj = self._admin().get_queryset(self._request()).get(pk=tl.pk)
+        self.assertEqual(obj.test_count, 2)
+        self.assertIn('2', self._admin().col_tests(obj))
+
+    def test_frequency_and_units_columns(self):
+        tl = qa_utils.create_test_list()
+        unit = qa_utils.create_unit()
+        freq = qa_utils.create_frequency(name='Monthly', slug='monthly')
+        qa_utils.create_unit_test_collection(unit=unit, frequency=freq, test_collection=tl)
+
+        ma = self._admin()
+        obj = ma.get_queryset(self._request()).get(pk=tl.pk)
+        self.assertIn('Monthly', ma.col_frequency(obj))
+        self.assertIn('fa-cube', ma.col_units(obj))
+
+    def test_adhoc_frequency_label(self):
+        tl = qa_utils.create_test_list()
+        unit = qa_utils.create_unit()
+        qa_utils.create_unit_test_collection(unit=unit, test_collection=tl, null_frequency=True)
+
+        ma = self._admin()
+        obj = ma.get_queryset(self._request()).get(pk=tl.pk)
+        self.assertIn('Ad Hoc', ma.col_frequency(obj))
+
+    def test_changelist_no_per_row_queries_for_utcs(self):
+        """Frequency/Units columns must not issue per-row queries."""
+        for i in range(3):
+            tl = qa_utils.create_test_list(name='n_query_tl_%d' % i)
+            unit = qa_utils.create_unit()
+            freq = qa_utils.create_frequency(name='Freq %d' % i, slug='freq_%d' % i)
+            qa_utils.create_unit_test_collection(unit=unit, frequency=freq, test_collection=tl)
+
+        ma = self._admin()
+        qs = ma.get_queryset(self._request())
+        with self.assertNumQueries(2):
+            # 1 query for the test lists, 1 prefetch for their UnitTestCollections
+            objs = list(qs)
+            for obj in objs:
+                ma.col_frequency(obj)
+                ma.col_units(obj)

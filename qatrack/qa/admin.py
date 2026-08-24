@@ -6,13 +6,13 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.template import loader
 from django.template.defaultfilters import date as date_formatter
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
-from django.utils.html import escape, format_html_join
+from django.utils.html import escape, format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.text import Truncator
 from django.utils.translation import gettext as _
@@ -676,7 +676,8 @@ class TestListMembershipInline(DynamicRawIDMixin, admin.TabularInline):
     model = models.TestListMembership
     formset = TestListMembershipInlineFormSet
     form = TestListMembershipForm
-    extra = 5
+    # one spare blank row; admin's "Add another" adds more when it's used
+    extra = 1
     template = "admin/qa/testlistmembership/edit_inline/tabular.html"
     readonly_fields = (macro_name,)
     dynamic_raw_id_fields = ("test",)
@@ -877,6 +878,30 @@ class FrequencyTestListFilter(admin.SimpleListFilter):
         return qs
 
 
+class CategoryTestListFilter(admin.SimpleListFilter):
+    """Filter test lists by the categories of the tests they contain."""
+
+    title = _l('Category')
+    parameter_name = 'category'
+
+    def lookups(self, request, model_admin):
+        cats = models.Category.objects.filter(
+            test__testlistmembership__isnull=False
+        ).distinct().order_by("name").values_list("pk", "name")
+        return list(cats)
+
+    def queryset(self, request, qs):
+        v = self.value()
+        if v:
+            return qs.filter(testlistmembership__test__category__pk=v).distinct()
+        return qs
+
+
+class TestListAttachmentInline(get_attachment_inline("testlist")):
+    # one spare blank row; admin's "Add another" adds more when it's used
+    extra = 1
+
+
 class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     change_form_template = "admin/qa/testlist/change_form.html"
@@ -891,18 +916,25 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     actions = ['export_test_lists']
     list_display = (
-        "id_mono",
-        "name_slug",
-        "tests_count",
-        "frequency_chips",
-        "units_count",
-        "modified_info",
-        "edit_link",
+        "col_id",
+        "col_name",
+        "col_tests",
+        "col_frequency",
+        "col_units",
+        "col_modified",
+        "col_edit",
     )
-    list_filter = [ActiveTestListFilter, SiteTestListFilter, UnitTestListFilter, FrequencyTestListFilter]
+    list_display_links = None
+    list_filter = [
+        ActiveTestListFilter,
+        SiteTestListFilter,
+        UnitTestListFilter,
+        FrequencyTestListFilter,
+        CategoryTestListFilter,
+    ]
 
     form = TestListAdminForm
-    inlines = [TestListMembershipInline, SublistInline, get_attachment_inline("testlist")]
+    inlines = [TestListMembershipInline, SublistInline, TestListAttachmentInline]
     save_as = True
 
     fieldsets = [
@@ -922,24 +954,18 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     class Media:
         css = {
-            'all': (
+            "all": (
                 "fontawsome/css/font-awesome.min.css",
-            )
+                "qa/css/testlist_builder.css",
+            ),
         }
-        # NOTE: The Test List Builder CSS/JS is inlined via the
-        # "admin/qa/testlist/testlist_assets.html" template include (referenced
-        # from change_form.html and change_list.html), which is the single
-        # source of truth. Do NOT also load standalone testlist.css/testlist.js
-        # here — that double-loads the DOM-move script and wipes the moved
-        # change-form fields on the second run.
         js = (
             "admin/js/jquery.init.js",
             'jquery/js/jquery.min.js',
             "js/jquery-ui.init.js",
             "js/jquery-ui.min.js",
             "js/m2m_drag_admin_testlist.js",
-            "js/admin_description_editor.js",
-            "ace/ace.js",
+            "qa/js/testlist_builder.js",
         )
 
     def get_urls(self):
@@ -962,134 +988,85 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         extra_context = extra_context or {}
         extra_context['export_testpack_url'] = reverse('admin:qa_export_testpack')
         extra_context['import_testpack_url'] = reverse('admin:qa_import_testpack')
-        response = super().changelist_view(request, extra_context=extra_context)
-        
-        try:
-            cl = response.context_data['cl']
-            testlists = cl.result_list
-            if testlists:
-                from django.contrib.contenttypes.models import ContentType
-                ct = ContentType.objects.get_for_model(testlists[0])
-                utcs = models.UnitTestCollection.objects.filter(
-                    content_type=ct,
-                    object_id__in=[tl.id for tl in testlists]
-                ).select_related('frequency', 'unit')
-                
-                utc_map = {}
-                for utc in utcs:
-                    utc_map.setdefault(utc.object_id, []).append(utc)
-                
-                for tl in testlists:
-                    tl._prefetched_utcs = utc_map.get(tl.id, [])
-        except (AttributeError, KeyError, IndexError, TypeError):
-            pass
-            
-        return response
+        return super().changelist_view(request, extra_context=extra_context)
 
     def get_queryset(self, *args, **kwargs):
-        from django.db.models import Count
         qs = super().get_queryset(*args, **kwargs)
-        qs = qs.annotate(test_count=Count('testlistmembership', distinct=True))
-        return qs.prefetch_related(
-            "sublist_set",
-            "sublist_set__parent",
-            "children",
-            "children__child",
+        qs = qs.annotate(test_count=Count("testlistmembership", distinct=True))
+        # Prefetch the unit assignments (generic relation) in a single query so
+        # the Frequency and Units columns don't issue per-row queries.
+        qs = qs.prefetch_related(
+            Prefetch(
+                "utcs",
+                queryset=models.UnitTestCollection.objects.select_related("frequency", "unit"),
+            ),
         )
+        return qs
 
-    @admin.display(
-        description="ID"
-    )
-    @mark_safe
-    def id_mono(self, obj):
-        return f'<span style="font-family: ui-monospace, Menlo, Consolas, monospace; color: #777;">#{obj.id}</span>'
+    @admin.display(description=_l("ID"), ordering="id")
+    def col_id(self, obj):
+        return format_html('<span class="tl-mono tl-cell-id">#{}</span>', obj.pk)
 
-    @admin.display(
-        description="Name"
-    )
-    @mark_safe
-    def name_slug(self, obj):
-        sub_info = ""
-        parents = [sl.parent.name for sl in obj.sublist_set.all()]
-        if parents:
-            sub_info = f'<br><span style="font-size: 11px; color: #777;">sublist of {", ".join(parents)}</span>'
-        
-        return f'<div style="font-weight: 600; color: #333;">{escape(obj.name)}</div><div style="font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #777;">{escape(obj.slug)}</div>{sub_info}'
-
-    @admin.display(
-        description="Tests"
-    )
-    @mark_safe
-    def tests_count(self, obj):
-        count = getattr(obj, "test_count", 0)
-        return f'<span style="background: #d2d6de; color: #444; font-size: 75%; font-weight: 600; border-radius: 2px; padding: .22em .6em;">{count}</span>'
-
-    @admin.display(
-        description="Frequency"
-    )
-    @mark_safe
-    def frequency_chips(self, obj):
-        utcs = getattr(obj, "_prefetched_utcs", [])
-        freqs = set()
-        for utc in utcs:
-            if utc.frequency:
-                freqs.add(utc.frequency.name)
-            else:
-                freqs.add("Ad Hoc")
-        
-        chips = []
-        for f in sorted(freqs):
-            chips.append(f'<span style="font-size: 11px; font-weight: 600; color: #5a6472; background: #eef1f5; border: 1px solid #e0e5ec; border-radius: 3px; padding: 2px 8px; display: inline-block; margin: 2px;">{escape(f)}</span>')
-        return format_html_join(" ", "{0}", ((mark_safe(c),) for c in chips))
-
-    @admin.display(
-        description="Units"
-    )
-    @mark_safe
-    def units_count(self, obj):
-        utcs = getattr(obj, "_prefetched_utcs", [])
-        units = [utc.unit.name for utc in utcs]
-        if not units:
-            return ""
-        count = len(units)
-        title = escape(", ".join(units))
-        return f'<span title="{title}" style="color: #777;"><i class="fa fa-cube"></i> {count}</span>'
-
-    @admin.display(
-        description="Modified"
-    )
-    @mark_safe
-    def modified_info(self, obj):
-        date_str = date_formatter(obj.modified, "d M Y")
-        user = obj.modified_by.username if obj.modified_by else ""
-        return f'<div style="font-size: 13px;">{escape(date_str)}<br><span style="color:#777;">{escape(user)}</span></div>'
-
-    @admin.display(
-        description="✎"
-    )
-    @mark_safe
-    def edit_link(self, obj):
+    @admin.display(description=_l("Name"), ordering="name")
+    def col_name(self, obj):
         url = reverse("admin:qa_testlist_change", args=(obj.pk,))
-        return f'<a href="{url}" style="color: #9aa2ae;" onmouseover="this.style.color=\'#3c8dbc\'" onmouseout="this.style.color=\'#9aa2ae\'"><i class="fa fa-pencil"></i></a>'
-
-    @mark_safe
-    def child_of(self, obj):
-        title = _("Click to view parent test list")
-        links = [(sl.parent.name, reverse("admin:qa_testlist_change", args=(sl.parent.pk,)))
-                 for sl in obj.sublist_set.all()]
-        html_links = format_html_join(
-            ", ", '<a href="{}" title="{}" target="_blank">{}</a>', ((url, title, name) for (name, url) in links)
+        return format_html(
+            '<a class="tl-cell-name" href="{}">'
+            '<span class="tl-name">{}</span>'
+            '<span class="tl-slug tl-mono">{}</span>'
+            '</a>',
+            url, obj.name, obj.slug,
         )
-        return html_links
 
-    @mark_safe
-    def parent_of(self, obj):
-        title = _("Click to view child test list")
-        links = [(sl.child.name, reverse("admin:qa_testlist_change", args=(sl.child.pk,))) for sl in obj.children.all()]
-        html_links = format_html_join(
-            ", ", '<a href="{}" title="{}" target="_blank">{}</a>', ((url, title, name) for (name, url) in links)
+    @admin.display(description=_l("Tests"), ordering="test_count")
+    def col_tests(self, obj):
+        return format_html('<span class="tl-count-badge">{}</span>', obj.test_count)
+
+    @admin.display(description=_l("Frequency"))
+    def col_frequency(self, obj):
+        names = []
+        seen = set()
+        for utc in obj.utcs.all():
+            label = utc.frequency.name if utc.frequency else _("Ad Hoc")
+            if label not in seen:
+                seen.add(label)
+                names.append(label)
+        if not names:
+            return ""
+        return format_html_join("", '<span class="tl-freq-tag">{}</span>', ((n,) for n in names))
+
+    @admin.display(description=_l("Units"))
+    def col_units(self, obj):
+        unit_names = []
+        seen = set()
+        for utc in obj.utcs.all():
+            if utc.unit_id not in seen:
+                seen.add(utc.unit_id)
+                unit_names.append(utc.unit.name)
+        return format_html(
+            '<span class="tl-cell-units" title="{}"><i class="fa fa-cube"></i> {}</span>',
+            ", ".join(unit_names), len(unit_names),
         )
-        return html_links
+
+    @admin.display(description=_l("Modified"), ordering="modified")
+    def col_modified(self, obj):
+        when = date_formatter(obj.modified, "d M Y")
+        who = obj.modified_by.username if obj.modified_by_id else ""
+        return format_html(
+            '<span class="tl-cell-modified">'
+            '<span class="tl-mod-date">{}</span>'
+            '<span class="tl-mod-by">{}</span>'
+            '</span>',
+            when, who,
+        )
+
+    @admin.display(description="")
+    def col_edit(self, obj):
+        url = reverse("admin:qa_testlist_change", args=(obj.pk,))
+        return format_html(
+            '<a class="tl-editlink" href="{}" title="{}"><i class="fa fa-pencil"></i></a>',
+            url, _("Edit"),
+        )
 
 
 class TestForm(forms.ModelForm):
