@@ -2,60 +2,71 @@
 {% load i18n static %}
 
 {#
-  Test List Builder — pass 1 (Details panel).
+  Test List Builder — Details panel (change form).
 
-  Route A: enhance the stock admin change form. The real Django-rendered form
-  controls live inside #tl-source-fields (hidden via CSS); testlist_builder.js
-  moves the *live* nodes (#id_name, #id_slug, #id_description, #id_warning_message,
-  #id_javascript) into the Details card below on DOMContentLoaded so Django's POST
-  handling, slug prepopulation and validation keep working unchanged.
+  The name/slug/description/warning/javascript fields are rendered directly in the
+  card layout (server-side) so nothing depends on JS having run — the form is never
+  blank. The description gets a LIVE HTML preview driven by htmx: the textarea
+  hx-posts to admin:qa_testlist_desc_preview and the returned HTML is swapped into
+  the preview pane. Styling + the preview toggle come from testlist_assets.html
+  (inlined, so it works under DEBUG=False without collectstatic).
 #}
 
 {% block field_sets %}
+{% include "admin/qa/testlist/testlist_assets.html" %}
 <div class="tl-details-card" id="tl-details-card">
   <div class="tl-card-header">
     <i class="fa fa-info-circle" aria-hidden="true"></i>
     <h2 class="tl-card-title">{% trans "Details" %}</h2>
-    <span class="tl-card-id" id="tl-details-id" hidden></span>
+    {% if original.pk %}<span class="tl-card-id">ID: {{ original.pk }}</span>{% endif %}
   </div>
   <div class="tl-card-body">
     <div class="tl-form">
-      <div class="tl-field tl-col-1" data-slot="name">
+      <div class="tl-field tl-col-1">
         <label for="id_name">{% trans "Name" %} <em class="tl-req">*</em></label>
+        {{ adminform.form.name.errors }}
+        {{ adminform.form.name }}
       </div>
-      <div class="tl-field tl-col-2" data-slot="slug">
+      <div class="tl-field tl-col-2">
         <label for="id_slug">{% trans "Slug" %}</label>
+        {{ adminform.form.slug.errors }}
+        {{ adminform.form.slug }}
       </div>
-      <div class="tl-field tl-col-full" data-slot="description">
+      <div class="tl-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_description">{% trans "Description" %}</label>
           <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "HTML markup allowed" %}</span>
-          <button type="button" class="tl-preview-toggle" data-desc-toggle>
+          <button type="button" class="tl-preview-toggle" data-desc-toggle aria-pressed="false">
             <i class="fa fa-eye" aria-hidden="true"></i> {% trans "Preview" %}
           </button>
         </span>
-        <div class="tl-html-preview" data-desc-preview hidden></div>
+        {{ adminform.form.description.errors }}
+        <textarea id="id_description" name="description" rows="2" class="tl-desc-input"
+                  hx-post="{% url 'admin:qa_testlist_desc_preview' %}"
+                  hx-trigger="previewrequested delay:300ms"
+                  hx-target="#tl-desc-preview"
+                  hx-swap="innerHTML"
+                  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>{{ adminform.form.description.value|default:'' }}</textarea>
+        <div class="tl-html-preview" id="tl-desc-preview" hidden></div>
       </div>
-      <div class="tl-field tl-col-full" data-slot="warning">
+      <div class="tl-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_warning_message">{% trans "Warning message" %}</label>
           <span class="tl-hint tl-hint-warn"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {% trans "shown on failure" %}</span>
         </span>
+        {{ adminform.form.warning_message.errors }}
+        {{ adminform.form.warning_message }}
       </div>
-      <div class="tl-field tl-col-full" data-slot="javascript">
+      <div class="tl-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_javascript">{% trans "JavaScript" %}</label>
           <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "runs on the perform page" %}</span>
         </span>
+        {{ adminform.form.javascript.errors }}
+        {{ adminform.form.javascript }}
       </div>
     </div>
   </div>
-</div>
-
-<div id="tl-source-fields" class="tl-source-fields">
-{% for fieldset in adminform %}
-  {% include "admin/includes/fieldset.html" %}
-{% endfor %}
 </div>
 {% endblock %}
 

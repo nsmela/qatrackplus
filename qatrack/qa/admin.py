@@ -7,6 +7,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
 from django.db.models import Count, Prefetch, Q
+from django.http import HttpResponse
 from django.template import loader
 from django.template.defaultfilters import date as date_formatter
 from django.template.response import TemplateResponse
@@ -897,6 +898,24 @@ class CategoryTestListFilter(admin.SimpleListFilter):
         return qs
 
 
+def testlist_description_preview(request):
+    """Render a Test List description as HTML for the change-form live preview.
+
+    Wired up via htmx (hx-post from the description textarea). Staff-only (the URL
+    is wrapped in admin_view). The description is trusted staff content that is
+    already rendered as HTML on the perform page, so it is echoed back as-is.
+    """
+    text = (request.POST.get("description") or request.GET.get("description") or "").strip()
+    if not text:
+        html = (
+            '<span class="tl-htmlpreview-empty">Nothing to preview — '
+            'write a description to see how the markup renders.</span>'
+        )
+    else:
+        html = text
+    return HttpResponse(html)
+
+
 class TestListAttachmentInline(get_attachment_inline("testlist")):
     # one spare blank row; admin's "Add another" adds more when it's used
     extra = 1
@@ -956,16 +975,19 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         css = {
             "all": (
                 "fontawsome/css/font-awesome.min.css",
-                "qa/css/testlist_builder.css",
             ),
         }
+        # The Test List Builder styling is inlined via the testlist_assets.html
+        # template include (NOT a static file) so it loads under DEBUG=False
+        # without a collectstatic step. htmx (pre-collected, already used site
+        # wide) drives the live description preview.
         js = (
             "admin/js/jquery.init.js",
             'jquery/js/jquery.min.js',
             "js/jquery-ui.init.js",
             "js/jquery-ui.min.js",
             "js/m2m_drag_admin_testlist.js",
-            "qa/js/testlist_builder.js",
+            "htmx/js/htmx.min.js",
         )
 
     def get_urls(self):
@@ -980,6 +1002,11 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 'import-testpack/',
                 self.admin_site.admin_view(admin_views.ImportTestPack.as_view()),
                 name='qa_import_testpack'
+            ),
+            path(
+                'description-preview/',
+                self.admin_site.admin_view(testlist_description_preview),
+                name='qa_testlist_desc_preview',
             ),
         ]
         return custom_urls + urls

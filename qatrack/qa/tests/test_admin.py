@@ -1130,9 +1130,12 @@ class TestTestListAdminBuilderUI(TestCase):
         resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'tl-details-card')
-        # the live form controls are still rendered (moved by JS at runtime)
+        # fields are rendered server-side in the card (no JS relocation)
         self.assertContains(resp, 'id="id_name"')
         self.assertContains(resp, 'id="id_javascript"')
+        # description preview is wired to the htmx endpoint
+        self.assertContains(resp, reverse('admin:qa_testlist_desc_preview'))
+        self.assertContains(resp, 'hx-post')
 
     def test_add_form_renders_details_card(self):
         resp = self.client.get(reverse('admin:qa_testlist_add'))
@@ -1186,3 +1189,22 @@ class TestTestListAdminBuilderUI(TestCase):
             for obj in objs:
                 ma.col_frequency(obj)
                 ma.col_units(obj)
+
+    def test_description_preview_endpoint(self):
+        url = reverse('admin:qa_testlist_desc_preview')
+        resp = self.client.post(url, {'description': '<b>Do not treat</b>'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content.decode().strip(), '<b>Do not treat</b>')
+
+    def test_description_preview_empty(self):
+        url = reverse('admin:qa_testlist_desc_preview')
+        resp = self.client.post(url, {'description': '   '})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Nothing to preview', resp.content.decode())
+
+    def test_description_preview_requires_staff(self):
+        self.client.logout()
+        url = reverse('admin:qa_testlist_desc_preview')
+        resp = self.client.post(url, {'description': 'x'})
+        # admin_view redirects anonymous users to the admin login
+        self.assertIn(resp.status_code, (302, 403))
