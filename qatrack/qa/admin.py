@@ -786,6 +786,20 @@ class TestListMembershipForm(forms.ModelForm):
         per test list membership when saving test lists in the admin.
         """
 
+    @property
+    def test_meta(self):
+        if not hasattr(self, "_test_meta_cache"):
+            test = None
+            if getattr(self.instance, "test_id", None):
+                test = self.instance.test
+            elif self.is_bound and self.data.get(self.add_prefix("test")):
+                try:
+                    test = models.Test.objects.select_related("category").get(pk=self.data.get(self.add_prefix("test")))
+                except models.Test.DoesNotExist:
+                    pass
+            self._test_meta_cache = get_test_metadata(test) if test else None
+        return self._test_meta_cache
+
 
 class SublistForm(forms.ModelForm):
 
@@ -800,6 +814,25 @@ class SublistForm(forms.ModelForm):
         By making validate_unique here a null function, we eliminate a DB call
         per test list membership when saving test lists in the admin.
         """
+
+    @property
+    def sublist_meta(self):
+        if not hasattr(self, "_sublist_meta_cache"):
+            child = None
+            if getattr(self.instance, "child_id", None):
+                child = self.instance.child
+            elif self.is_bound and self.data.get(self.add_prefix("child")):
+                try:
+                    child = models.TestList.objects.get(pk=self.data.get(self.add_prefix("child")))
+                except models.TestList.DoesNotExist:
+                    pass
+            self._sublist_meta_cache = get_sublist_metadata(
+                child,
+                sublist_pk=self.instance.pk if self.instance else None,
+                order=self.instance.order if self.instance else 0,
+                outline=self.instance.outline if self.instance else False,
+            ) if child else None
+        return self._sublist_meta_cache
 
 
 class TestListMembershipInline(DynamicRawIDMixin, admin.TabularInline):

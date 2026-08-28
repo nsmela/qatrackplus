@@ -1,80 +1,68 @@
 /**
- * Test List Builder — Modernized drag-and-drop reordering, HTMX interactions,
+ * Test List Builder — Drag-and-drop reordering, HTMX interactions,
  * and Django formset synchronization for Tests & Sublists.
  */
-(function ($) {
+(function () {
   "use strict";
 
   var activeSwapCard = null;
 
   function updateCounts() {
-    var visibleTests = $("#tl-tests-tbody tr.tl-test-row").filter(function () {
-      return !$(this).find("input[name$='-DELETE']").is(":checked") && $(this).is(":visible");
+    var rows = document.querySelectorAll("#tl-tests-tbody tr.tl-test-row");
+    var visibleCount = 0;
+    rows.forEach(function (r) {
+      var del = r.querySelector("input[name$='-DELETE']");
+      var isDel = del && (del.checked || del.value === "true");
+      var isHidden = r.style.display === "none";
+      if (!isDel && !isHidden) {
+        visibleCount++;
+      }
     });
-    var count = visibleTests.length;
-    $("#tl-tests-count").text(count);
-    if (count === 0) {
-      $("#tl-empty-tests-msg").show();
-    } else {
-      $("#tl-empty-tests-msg").hide();
+    var badge = document.getElementById("tl-tests-count");
+    if (badge) { badge.textContent = visibleCount; }
+    var emptyMsg = document.getElementById("tl-empty-tests-msg");
+    if (emptyMsg) {
+      emptyMsg.style.display = visibleCount === 0 ? "block" : "none";
     }
   }
 
   function syncOrder() {
     var order = 0;
     // Direct tests
-    $("#tl-tests-tbody tr.tl-test-row").each(function () {
-      var isDeleted = $(this).find("input[name$='-DELETE']").is(":checked");
-      if (!isDeleted && $(this).is(":visible")) {
-        $(this).find(".tl-order-input").val(order);
-        order++;
-      } else {
-        $(this).find(".tl-order-input").val("");
+    var rows = document.querySelectorAll("#tl-tests-tbody tr.tl-test-row");
+    rows.forEach(function (r) {
+      var del = r.querySelector("input[name$='-DELETE']");
+      var isDel = del && (del.checked || del.value === "true");
+      var isHidden = r.style.display === "none";
+      var orderInput = r.querySelector(".tl-order-input");
+      if (orderInput) {
+        if (!isDel && !isHidden) {
+          orderInput.value = order;
+          order++;
+        } else {
+          orderInput.value = "";
+        }
       }
     });
 
     // Sublists
-    $("#tl-sublists-container .tl-sublist-card").each(function () {
-      var isDeleted = $(this).find("input[name$='-DELETE']").is(":checked");
-      if (!isDeleted && $(this).is(":visible")) {
-        $(this).find(".tl-sublist-order-input").val(order);
-        order++;
-      } else {
-        $(this).find(".tl-sublist-order-input").val("");
+    var cards = document.querySelectorAll("#tl-sublists-container .tl-sublist-card");
+    cards.forEach(function (c) {
+      var del = c.querySelector("input[name$='-DELETE']");
+      var isDel = del && (del.checked || del.value === "true");
+      var isHidden = c.style.display === "none";
+      var orderInput = c.querySelector(".tl-sublist-order-input");
+      if (orderInput) {
+        if (!isDel && !isHidden) {
+          orderInput.value = order;
+          order++;
+        } else {
+          orderInput.value = "";
+        }
       }
     });
 
     updateCounts();
-  }
-
-  function initSortables() {
-    if ($.fn.sortable) {
-      $("#tl-tests-tbody").sortable({
-        handle: ".tl-drag-handle",
-        items: "tr.tl-test-row",
-        axis: "y",
-        helper: function (e, tr) {
-          var $originals = tr.children();
-          var $helper = tr.clone();
-          $helper.children().each(function (index) {
-            $(this).width($originals.eq(index).width());
-          });
-          return $helper;
-        },
-        update: function () {
-          syncOrder();
-        }
-      });
-
-      $("#tl-sublists-container").sortable({
-        handle: ".tl-sublist-header",
-        items: ".tl-sublist-card",
-        axis: "y",
-        update: function () {
-          syncOrder();
-        }
-      });
-    }
   }
 
   function openSearchModal(mode, swapCard) {
@@ -86,177 +74,341 @@
     var input = document.getElementById("tl-search-input");
     var resultsBox = document.getElementById("tl-search-results-box");
 
-    var originalId = $("#tl-tests-card").data("original-id") || "";
+    var testsCard = document.getElementById("tl-tests-card");
+    var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
 
+    var url = "";
     if (mode === "test") {
-      title.textContent = "Select Test to Add";
-      input.placeholder = "Search by test name, macro slug or category…";
-      input.setAttribute("hx-get", "/admin/qa/testlist/search-tests/");
-      input.value = "";
+      if (title) { title.textContent = "Select Test to Add"; }
+      if (input) {
+        input.placeholder = "Search by test name, macro slug or category…";
+        url = "/admin/qa/testlist/search-tests/";
+        input.setAttribute("hx-get", url);
+        input.value = "";
+      }
     } else {
-      title.textContent = activeSwapCard ? "Change Sublist" : "Select Sublist to Add";
-      input.placeholder = "Search available test lists…";
-      var url = "/admin/qa/testlist/search-sublists/" + (originalId ? "?current_id=" + encodeURIComponent(originalId) : "");
-      input.setAttribute("hx-get", url);
-      input.value = "";
+      if (title) { title.textContent = activeSwapCard ? "Change Sublist" : "Select Sublist to Add"; }
+      if (input) {
+        input.placeholder = "Search available test lists…";
+        url = "/admin/qa/testlist/search-sublists/" + (originalId ? "?current_id=" + encodeURIComponent(originalId) : "");
+        input.setAttribute("hx-get", url);
+        input.value = "";
+      }
     }
 
     modal.hidden = false;
-    if (window.htmx) {
-      htmx.process(input);
-      // Trigger initial search to show default results
-      htmx.ajax("GET", input.getAttribute("hx-get"), { target: resultsBox, swap: "innerHTML" });
+    if (resultsBox) {
+      resultsBox.innerHTML = '<div class="tl-search-initial-hint"><i class="fa fa-spinner fa-spin"></i> Loading…</div>';
+      fetch(url)
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+          resultsBox.innerHTML = html;
+          if (window.htmx) { htmx.process(resultsBox); }
+        })
+        .catch(function () {
+          resultsBox.innerHTML = '<div class="tl-search-no-results">Error loading items.</div>';
+        });
     }
-    setTimeout(function () { input.focus(); }, 50);
+
+    if (input) {
+      if (window.htmx) { htmx.process(input); }
+      setTimeout(function () { input.focus(); }, 60);
+    }
   }
 
   function addTestRow(testId) {
-    var totalFormsInput = $("#id_testlistmembership_set-TOTAL_FORMS");
-    var currentIndex = parseInt(totalFormsInput.val(), 10) || 0;
-    var originalId = $("#tl-tests-card").data("original-id") || "";
+    var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
+    var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+    var testsCard = document.getElementById("tl-tests-card");
+    var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
 
     var url = "/admin/qa/testlist/add-test-row/?test_id=" + encodeURIComponent(testId) +
               "&index=" + currentIndex +
               "&test_list_id=" + encodeURIComponent(originalId);
 
-    $.get(url, function (html) {
-      var $newRow = $(html);
-      $("#tl-tests-tbody").append($newRow);
-      totalFormsInput.val(currentIndex + 1);
-      if (window.htmx) { htmx.process($newRow[0]); }
-      syncOrder();
-      initSortables();
-    });
+    fetch(url)
+      .then(function (res) { return res.text(); })
+      .then(function (html) {
+        var tbody = document.getElementById("tl-tests-tbody");
+        if (!tbody) { return; }
+        var temp = document.createElement("tbody");
+        temp.innerHTML = html.trim();
+        var newRow = temp.firstElementChild;
+        if (newRow) {
+          tbody.appendChild(newRow);
+          if (totalFormsInput) { totalFormsInput.value = currentIndex + 1; }
+          if (window.htmx) { htmx.process(newRow); }
+          syncOrder();
+          initSortables();
+        }
+      });
   }
 
   function addSublistCard(childId) {
     if (activeSwapCard) {
-      // Swap existing sublist
-      var card = $(activeSwapCard);
-      var index = card.data("index");
-      var originalId = $("#tl-tests-card").data("original-id") || "";
+      var card = activeSwapCard;
+      var index = card.getAttribute("data-index") || "0";
+      var testsCard = document.getElementById("tl-tests-card");
+      var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
       var url = "/admin/qa/testlist/add-sublist-card/?child_id=" + encodeURIComponent(childId) +
                 "&index=" + index +
                 "&parent_id=" + encodeURIComponent(originalId);
-      $.get(url, function (html) {
-        var $newCard = $(html);
-        card.replaceWith($newCard);
-        if (window.htmx) { htmx.process($newCard[0]); }
-        activeSwapCard = null;
-        syncOrder();
-        initSortables();
-      });
+      fetch(url)
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+          var temp = document.createElement("div");
+          temp.innerHTML = html.trim();
+          var newCard = temp.firstElementChild;
+          if (newCard && card.parentNode) {
+            card.parentNode.replaceChild(newCard, card);
+            if (window.htmx) { htmx.process(newCard); }
+            activeSwapCard = null;
+            syncOrder();
+            initSortables();
+          }
+        });
       return;
     }
 
-    var totalFormsInput = $("#id_children-TOTAL_FORMS");
-    var currentIndex = parseInt(totalFormsInput.val(), 10) || 0;
-    var originalId = $("#tl-tests-card").data("original-id") || "";
+    var totalFormsInput = document.getElementById("id_children-TOTAL_FORMS");
+    var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+    var testsCard = document.getElementById("tl-tests-card");
+    var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
 
     var url = "/admin/qa/testlist/add-sublist-card/?child_id=" + encodeURIComponent(childId) +
               "&index=" + currentIndex +
               "&parent_id=" + encodeURIComponent(originalId);
 
-    $.get(url, function (html) {
-      var $newCard = $(html);
-      $("#tl-sublists-container").append($newCard);
-      totalFormsInput.val(currentIndex + 1);
-      if (window.htmx) { htmx.process($newCard[0]); }
-      syncOrder();
-      initSortables();
-    });
+    fetch(url)
+      .then(function (res) { return res.text(); })
+      .then(function (html) {
+        var container = document.getElementById("tl-sublists-container");
+        if (!container) { return; }
+        var temp = document.createElement("div");
+        temp.innerHTML = html.trim();
+        var newCard = temp.firstElementChild;
+        if (newCard) {
+          container.appendChild(newCard);
+          if (totalFormsInput) { totalFormsInput.value = currentIndex + 1; }
+          if (window.htmx) { htmx.process(newCard); }
+          syncOrder();
+          initSortables();
+        }
+      });
   }
 
-  $(document).ready(function () {
+  function initSortables() {
+    var $ = window.django && window.django.jQuery ? window.django.jQuery : (window.jQuery || window.$);
+    if ($ && $.fn && $.fn.sortable) {
+      try {
+        $("#tl-tests-tbody").sortable({
+          handle: ".tl-drag-handle",
+          items: "tr.tl-test-row",
+          axis: "y",
+          helper: function (e, tr) {
+            var $originals = tr.children();
+            var $helper = tr.clone();
+            $helper.children().each(function (index) {
+              $(this).width($originals.eq(index).width());
+            });
+            return $helper;
+          },
+          update: function () {
+            syncOrder();
+          }
+        });
+
+        $("#tl-sublists-container").sortable({
+          handle: ".tl-sublist-header",
+          items: ".tl-sublist-card",
+          axis: "y",
+          update: function () {
+            syncOrder();
+          }
+        });
+      } catch (err) {}
+    }
+
+    var tbody = document.getElementById("tl-tests-tbody");
+    if (tbody) {
+      tbody.querySelectorAll("tr.tl-test-row").forEach(function (row) {
+        var handle = row.querySelector(".tl-drag-handle");
+        if (handle && !row.hasAttribute("data-dnd-init")) {
+          row.setAttribute("data-dnd-init", "true");
+          handle.setAttribute("draggable", "true");
+          handle.addEventListener("dragstart", function (e) {
+            e.dataTransfer.setData("text/plain", "");
+            row.classList.add("tl-dragging");
+            window._tlDraggedRow = row;
+          });
+          handle.addEventListener("dragend", function () {
+            row.classList.remove("tl-dragging");
+            window._tlDraggedRow = null;
+            syncOrder();
+          });
+          row.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            var dragged = window._tlDraggedRow;
+            if (dragged && dragged !== row && row.parentNode === tbody) {
+              var rect = row.getBoundingClientRect();
+              var mid = rect.top + rect.height / 2;
+              if (e.clientY < mid) {
+                tbody.insertBefore(dragged, row);
+              } else {
+                tbody.insertBefore(dragged, row.nextSibling);
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("#tl-header-add-test-btn, #tl-add-test-btn")) {
+      e.preventDefault();
+      openSearchModal("test");
+      return;
+    }
+
+    if (e.target.closest("#tl-add-sublist-btn")) {
+      e.preventDefault();
+      openSearchModal("sublist");
+      return;
+    }
+
+    var changeBtn = e.target.closest(".tl-btn-change-sublist");
+    if (changeBtn) {
+      e.preventDefault();
+      var card = changeBtn.closest(".tl-sublist-card");
+      openSearchModal("sublist", card);
+      return;
+    }
+
+    var testItem = e.target.closest(".tl-search-test-item, .tl-btn-select-test");
+    if (testItem) {
+      e.preventDefault();
+      var row = testItem.closest(".tl-search-test-item");
+      var testId = testItem.getAttribute("data-test-id") || (row && row.getAttribute("data-test-id"));
+      if (testId) {
+        addTestRow(testId);
+        var modal = document.getElementById("tl-search-modal");
+        if (modal) { modal.hidden = true; }
+      }
+      return;
+    }
+
+    var sublistItem = e.target.closest(".tl-search-sublist-item, .tl-btn-select-sublist");
+    if (sublistItem) {
+      e.preventDefault();
+      var sRow = sublistItem.closest(".tl-search-sublist-item");
+      var childId = sublistItem.getAttribute("data-child-id") || (sRow && sRow.getAttribute("data-child-id"));
+      if (childId) {
+        addSublistCard(childId);
+        var sModal = document.getElementById("tl-search-modal");
+        if (sModal) { sModal.hidden = true; }
+      }
+      return;
+    }
+
+    var delTestBtn = e.target.closest(".tl-delete-test-btn");
+    if (delTestBtn) {
+      e.preventDefault();
+      var tRow = delTestBtn.closest("tr.tl-test-row");
+      if (tRow) {
+        var delInput = tRow.querySelector("input[name$='-DELETE']");
+        if (delInput) { delInput.checked = true; }
+        tRow.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+        tRow.style.opacity = "0";
+        setTimeout(function () {
+          tRow.style.display = "none";
+          syncOrder();
+        }, 180);
+      }
+      return;
+    }
+
+    var delSubBtn = e.target.closest(".tl-btn-remove-sublist");
+    if (delSubBtn) {
+      e.preventDefault();
+      var sCard = delSubBtn.closest(".tl-sublist-card");
+      if (sCard) {
+        var sDelInput = sCard.querySelector("input[name$='-DELETE']");
+        if (sDelInput) { sDelInput.checked = true; }
+        sCard.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+        sCard.style.opacity = "0";
+        setTimeout(function () {
+          sCard.style.display = "none";
+          syncOrder();
+        }, 180);
+      }
+      return;
+    }
+
+    var cloneBtn = e.target.closest(".tl-clone-test-btn");
+    if (cloneBtn) {
+      e.preventDefault();
+      var cRow = cloneBtn.closest("tr.tl-test-row");
+      var cTestId = cloneBtn.getAttribute("data-test-id") || (cRow && cRow.getAttribute("data-test-id"));
+      if (!cTestId && cRow) {
+        var tInput = cRow.querySelector("input[name$='-test']");
+        if (tInput) { cTestId = tInput.value; }
+      }
+      if (cTestId) {
+        addTestRow(cTestId);
+      }
+      return;
+    }
+
+    if (e.target.matches("[data-search-close]") || e.target.closest("[data-search-close]")) {
+      var sModalClose = document.getElementById("tl-search-modal");
+      if (sModalClose) { sModalClose.hidden = true; }
+    }
+    if (e.target.matches("[data-modal-close]") || e.target.closest("[data-modal-close]")) {
+      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
+      if (dModalClose) { dModalClose.remove(); }
+    }
+    if (e.target.classList && e.target.classList.contains("tl-modal-backdrop")) {
+      e.target.hidden = true;
+      if (e.target.id === "tl-desc-modal-backdrop") { e.target.remove(); }
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    if (e.target.matches("form")) {
+      syncOrder();
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      var sModalEsc = document.getElementById("tl-search-modal");
+      if (sModalEsc && !sModalEsc.hidden) { sModalEsc.hidden = true; }
+      var dModalEsc = document.getElementById("tl-desc-modal-backdrop");
+      if (dModalEsc) { dModalEsc.remove(); }
+    }
+  });
+
+  document.addEventListener("htmx:afterSwap", function () {
+    initSortables();
+    updateCounts();
+  });
+  document.addEventListener("htmx:load", function () {
+    initSortables();
+    updateCounts();
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
     initSortables();
     updateCounts();
     syncOrder();
+  });
 
-    // Add Test buttons
-    $(document).on("click", "#tl-header-add-test-btn, #tl-add-test-btn", function (e) {
-      e.preventDefault();
-      openSearchModal("test");
-    });
-
-    // Add Sublist button
-    $(document).on("click", "#tl-add-sublist-btn", function (e) {
-      e.preventDefault();
-      openSearchModal("sublist");
-    });
-
-    // Change Sublist button
-    $(document).on("click", ".tl-btn-change-sublist", function (e) {
-      e.preventDefault();
-      var card = $(this).closest(".tl-sublist-card");
-      openSearchModal("sublist", card);
-    });
-
-    // Select Test from modal
-    $(document).on("click", ".tl-btn-select-test, .tl-search-test-item", function (e) {
-      e.preventDefault();
-      var testId = $(this).data("test-id") || $(this).closest(".tl-search-test-item").data("test-id");
-      if (testId) {
-        addTestRow(testId);
-        var modal = document.getElementById("tl-search-modal");
-        if (modal) { modal.hidden = true; }
-      }
-    });
-
-    // Select Sublist from modal
-    $(document).on("click", ".tl-btn-select-sublist, .tl-search-sublist-item", function (e) {
-      e.preventDefault();
-      var childId = $(this).data("child-id") || $(this).closest(".tl-search-sublist-item").data("child-id");
-      if (childId) {
-        addSublistCard(childId);
-        var modal = document.getElementById("tl-search-modal");
-        if (modal) { modal.hidden = true; }
-      }
-    });
-
-    // Remove Test
-    $(document).on("click", ".tl-delete-test-btn", function (e) {
-      e.preventDefault();
-      var $row = $(this).closest("tr.tl-test-row");
-      var deleteCheckbox = $row.find("input[name$='-DELETE']");
-      if (deleteCheckbox.length) {
-        deleteCheckbox.prop("checked", true);
-      }
-      $row.fadeOut(150, function () {
-        syncOrder();
-      });
-    });
-
-    // Remove Sublist
-    $(document).on("click", ".tl-btn-remove-sublist", function (e) {
-      e.preventDefault();
-      var $card = $(this).closest(".tl-sublist-card");
-      var deleteCheckbox = $card.find("input[name$='-DELETE']");
-      if (deleteCheckbox.length) {
-        deleteCheckbox.prop("checked", true);
-      }
-      $card.fadeOut(150, function () {
-        syncOrder();
-      });
-    });
-
-    // Duplicate / Clone Test
-    $(document).on("click", ".tl-clone-test-btn", function (e) {
-      e.preventDefault();
-      var testId = $(this).data("test-id");
-      if (testId) {
-        addTestRow(testId);
-      }
-    });
-
-    // Form submit: ensure orders are consecutively indexed
-    $("form").on("submit", function () {
-      syncOrder();
-    });
-
-    // HTMX afterSwap re-init
-    document.body.addEventListener("htmx:afterSwap", function (evt) {
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(function () {
       initSortables();
       updateCounts();
-    });
-  });
-})(django.jQuery || window.jQuery || $);
+      syncOrder();
+    }, 20);
+  }
+})();
