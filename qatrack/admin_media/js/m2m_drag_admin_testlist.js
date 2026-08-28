@@ -389,6 +389,133 @@
     }
   });
 
+  function escapeHtml(text) {
+    if (!text) { return ""; }
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function initAttachmentsSection() {
+    var fileInput = document.getElementById("id_tl-new-attachments");
+    var container = document.getElementById("attachments-editor-container");
+    if (!container || !fileInput) { return; }
+
+    var prefix = container.getAttribute("data-prefix") || "attachments_attachment_set";
+    var parentId = container.getAttribute("data-parent-id") || "";
+    var totalFormsInput = document.getElementById("id_" + prefix + "-TOTAL_FORMS");
+    var pendingList = document.getElementById("pending-attachments-list");
+    var formsetInputsContainer = document.getElementById("new-attachments-formset-inputs");
+
+    function updateAttachmentCounts() {
+      var existingVisible = document.querySelectorAll("#existing-attachments-list .attachment-card:not([style*='display: none'])").length;
+      var pendingCount = document.querySelectorAll("#pending-attachments-list .attachment-card").length;
+      var total = existingVisible + pendingCount;
+      var badge = document.getElementById("tl-attachments-count");
+      if (badge) { badge.textContent = total; }
+      var emptyMsg = document.getElementById("tl-empty-attachments-msg");
+      if (emptyMsg) {
+        emptyMsg.style.display = total === 0 ? "block" : "none";
+      }
+    }
+
+    // Existing attachments deletion
+    document.addEventListener("click", function(e) {
+      var delBtn = e.target.closest(".btn-delete-existing");
+      if (delBtn) {
+        e.preventDefault();
+        var attachId = delBtn.getAttribute("data-id");
+        var card = document.getElementById("existing-attach-" + attachId);
+        if (card) {
+          card.style.display = "none";
+          var delCheckbox = card.querySelector(".attach-delete");
+          if (delCheckbox) { delCheckbox.checked = true; }
+          updateAttachmentCounts();
+        }
+      }
+    });
+
+    // File input change: add pending attachment cards and Django formset file inputs
+    fileInput.addEventListener("change", function () {
+      if (!this.files || !this.files.length) { return; }
+
+      var currentTotal = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+
+      Array.from(this.files).forEach(function (file) {
+        var newIndex = currentTotal;
+        var url = URL.createObjectURL(file);
+        var sizeKB = (file.size / 1024).toFixed(1);
+
+        // 1. Create pending visual card matching Fault Logs
+        var card = document.createElement("div");
+        card.className = "attachment-card pending";
+        card.id = "pending-attach-" + newIndex;
+        card.innerHTML =
+          '<div class="attachment-name">' +
+            '<i class="fa fa-upload fa-fw text-info"></i> ' +
+            '<strong>' + escapeHtml(file.name) + '</strong> ' +
+            '<span class="text-muted">(' + sizeKB + ' KB)</span>' +
+            '<input type="text" name="' + prefix + '-' + newIndex + '-comment" placeholder="Add optional comment..." class="tl-pending-comment-input">' +
+          '</div>' +
+          '<div class="attachment-actions">' +
+            '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
+            '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + newIndex + '" title="Remove"><i class="fa fa-trash"></i></button>' +
+          '</div>';
+        pendingList.appendChild(card);
+
+        // 2. Create actual Django formset input with DataTransfer
+        var dt = new DataTransfer();
+        dt.items.add(file);
+
+        var rowDiv = document.createElement("div");
+        rowDiv.id = "formset-row-" + newIndex;
+
+        var input = document.createElement("input");
+        input.type = "file";
+        input.name = prefix + "-" + newIndex + "-attachment";
+        input.files = dt.files;
+        rowDiv.appendChild(input);
+
+        if (parentId) {
+          var fkInput = document.createElement("input");
+          fkInput.type = "hidden";
+          fkInput.name = prefix + "-" + newIndex + "-testlist";
+          fkInput.value = parentId;
+          rowDiv.appendChild(fkInput);
+        }
+
+        formsetInputsContainer.appendChild(rowDiv);
+
+        currentTotal++;
+      });
+
+      if (totalFormsInput) {
+        totalFormsInput.value = currentTotal;
+      }
+      this.value = "";
+      updateAttachmentCounts();
+    });
+
+    // Remove pending attachment
+    document.addEventListener("click", function(e) {
+      var removeBtn = e.target.closest(".btn-remove-pending");
+      if (removeBtn) {
+        e.preventDefault();
+        var index = removeBtn.getAttribute("data-index");
+        var card = document.getElementById("pending-attach-" + index);
+        if (card) { card.remove(); }
+        var row = document.getElementById("formset-row-" + index);
+        if (row) { row.remove(); }
+        updateAttachmentCounts();
+      }
+    });
+
+    updateAttachmentCounts();
+  }
+
   document.addEventListener("htmx:afterSwap", function () {
     initSortables();
     updateCounts();
@@ -402,6 +529,7 @@
     initSortables();
     updateCounts();
     syncOrder();
+    initAttachmentsSection();
   });
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -409,6 +537,7 @@
       initSortables();
       updateCounts();
       syncOrder();
+      initAttachmentsSection();
     }, 20);
   }
 })();
