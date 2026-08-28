@@ -737,7 +737,7 @@ tr.tl-dragging {
   background: #2b78a9;
 }
 
-/* ---- Attachments Card ---- */
+/* ---- Attachments Card (Matching Fault Logs Edit Mode) ---- */
 .tl-attachments-card {
   background: #fff;
   border-top: 3px solid var(--tl-primary);
@@ -748,49 +748,138 @@ tr.tl-dragging {
   font-family: var(--tl-font);
   color: var(--tl-text);
 }
-.tl-attachments-table {
-  width: 100%;
-  border-collapse: collapse;
+.attachment-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  transition: all 0.15s ease;
 }
-.tl-th-attach-file { width: 35%; }
-.tl-th-attach-comment { width: 55%; }
-.tl-th-attach-del { width: 10%; text-align: center !important; }
-.tl-cell-attach-file { vertical-align: top; }
-.tl-cell-attach-comment { vertical-align: top; }
-.tl-cell-attach-del { vertical-align: middle; text-align: center; }
-.tl-cell-attach-comment textarea {
-  width: 100%;
-  box-sizing: border-box;
-  font-size: 13px;
-  border: 1px solid var(--tl-line);
-  padding: 6px 8px;
-  border-radius: 2px;
-  min-height: 48px;
-  resize: vertical;
+.attachment-card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
-.tl-file-widget {
-  font-size: 13px;
-  color: var(--tl-text);
+.attachment-card.existing {
+  border-left: 4px solid #5cb85c;
 }
-.tl-file-widget a {
-  color: var(--tl-blue);
-  font-weight: 600;
-  text-decoration: none;
+.attachment-card.missing {
+  border-left: 4px solid #dd4b39;
 }
-.tl-file-widget a:hover {
-  text-decoration: underline;
+.attachment-card.pending {
+  border-left: 4px solid #5bc0de;
+  background: #f8fcfe;
 }
-.tl-file-widget input[type="file"] {
-  margin-top: 4px;
+.attachment-name {
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 15px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.attachment-name strong {
+  color: #1e293b;
+}
+.attachment-actions {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.tl-attach-comment-tag {
   font-size: 12px;
-}
-.tl-del-checkbox-label {
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: normal;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+.tl-pending-comment-input {
   font-size: 12px;
-  color: var(--tl-red);
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 4px 8px;
+  min-width: 200px;
+  margin-left: 6px;
+  outline: none;
+}
+.tl-pending-comment-input:focus {
+  border-color: var(--tl-blue);
+}
+.tl-browse-wrap {
+  margin-top: 12px;
+}
+.tl-browse-btn {
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #f8fafc;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: all 0.15s ease;
+}
+.tl-browse-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+.tl-empty-attachments-msg {
+  padding: 14px 4px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-style: italic;
+}
+.text-success { color: #5cb85c !important; }
+.text-info { color: #5bc0de !important; }
+.text-muted { color: #8a929e !important; }
+.btn-xs {
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 3px;
+}
+.btn-danger {
+  background-color: #dd4b39;
+  border-color: #d73925;
+  color: #fff;
+  cursor: pointer;
+}
+.btn-danger:hover {
+  background-color: #c23321;
+  border-color: #ac2d1d;
+  color: #fff;
+}
+.btn-default {
+  background-color: #f4f4f4;
+  color: #444;
+  border-color: #ddd;
+  cursor: pointer;
+}
+.btn-default:hover {
+  background-color: #e7e7e7;
+  color: #333;
+}
+.margin-right-5 {
+  margin-right: 5px;
 }
 
 /* ---- Parent Memberships Card ---- */
@@ -1500,6 +1589,133 @@ ul.messagelist li.error {
     }
   });
 
+  function escapeHtml(text) {
+    if (!text) { return ""; }
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function initAttachmentsSection() {
+    var fileInput = document.getElementById("id_tl-new-attachments");
+    var container = document.getElementById("attachments-editor-container");
+    if (!container || !fileInput) { return; }
+
+    var prefix = container.getAttribute("data-prefix") || "attachments_attachment_set";
+    var parentId = container.getAttribute("data-parent-id") || "";
+    var totalFormsInput = document.getElementById("id_" + prefix + "-TOTAL_FORMS");
+    var pendingList = document.getElementById("pending-attachments-list");
+    var formsetInputsContainer = document.getElementById("new-attachments-formset-inputs");
+
+    function updateAttachmentCounts() {
+      var existingVisible = document.querySelectorAll("#existing-attachments-list .attachment-card:not([style*='display: none'])").length;
+      var pendingCount = document.querySelectorAll("#pending-attachments-list .attachment-card").length;
+      var total = existingVisible + pendingCount;
+      var badge = document.getElementById("tl-attachments-count");
+      if (badge) { badge.textContent = total; }
+      var emptyMsg = document.getElementById("tl-empty-attachments-msg");
+      if (emptyMsg) {
+        emptyMsg.style.display = total === 0 ? "block" : "none";
+      }
+    }
+
+    // Existing attachments deletion
+    document.addEventListener("click", function(e) {
+      var delBtn = e.target.closest(".btn-delete-existing");
+      if (delBtn) {
+        e.preventDefault();
+        var attachId = delBtn.getAttribute("data-id");
+        var card = document.getElementById("existing-attach-" + attachId);
+        if (card) {
+          card.style.display = "none";
+          var delCheckbox = card.querySelector(".attach-delete");
+          if (delCheckbox) { delCheckbox.checked = true; }
+          updateAttachmentCounts();
+        }
+      }
+    });
+
+    // File input change: add pending attachment cards and Django formset file inputs
+    fileInput.addEventListener("change", function () {
+      if (!this.files || !this.files.length) { return; }
+
+      var currentTotal = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+
+      Array.from(this.files).forEach(function (file) {
+        var newIndex = currentTotal;
+        var url = URL.createObjectURL(file);
+        var sizeKB = (file.size / 1024).toFixed(1);
+
+        // 1. Create pending visual card matching Fault Logs
+        var card = document.createElement("div");
+        card.className = "attachment-card pending";
+        card.id = "pending-attach-" + newIndex;
+        card.innerHTML =
+          '<div class="attachment-name">' +
+            '<i class="fa fa-upload fa-fw text-info"></i> ' +
+            '<strong>' + escapeHtml(file.name) + '</strong> ' +
+            '<span class="text-muted">(' + sizeKB + ' KB)</span>' +
+            '<input type="text" name="' + prefix + '-' + newIndex + '-comment" placeholder="Add optional comment..." class="tl-pending-comment-input">' +
+          '</div>' +
+          '<div class="attachment-actions">' +
+            '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5" title="Preview"><i class="fa fa-eye"></i></a>' +
+            '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + newIndex + '" title="Remove"><i class="fa fa-trash"></i></button>' +
+          '</div>';
+        pendingList.appendChild(card);
+
+        // 2. Create actual Django formset input with DataTransfer
+        var dt = new DataTransfer();
+        dt.items.add(file);
+
+        var rowDiv = document.createElement("div");
+        rowDiv.id = "formset-row-" + newIndex;
+
+        var input = document.createElement("input");
+        input.type = "file";
+        input.name = prefix + "-" + newIndex + "-attachment";
+        input.files = dt.files;
+        rowDiv.appendChild(input);
+
+        if (parentId) {
+          var fkInput = document.createElement("input");
+          fkInput.type = "hidden";
+          fkInput.name = prefix + "-" + newIndex + "-testlist";
+          fkInput.value = parentId;
+          rowDiv.appendChild(fkInput);
+        }
+
+        formsetInputsContainer.appendChild(rowDiv);
+
+        currentTotal++;
+      });
+
+      if (totalFormsInput) {
+        totalFormsInput.value = currentTotal;
+      }
+      this.value = "";
+      updateAttachmentCounts();
+    });
+
+    // Remove pending attachment
+    document.addEventListener("click", function(e) {
+      var removeBtn = e.target.closest(".btn-remove-pending");
+      if (removeBtn) {
+        e.preventDefault();
+        var index = removeBtn.getAttribute("data-index");
+        var card = document.getElementById("pending-attach-" + index);
+        if (card) { card.remove(); }
+        var row = document.getElementById("formset-row-" + index);
+        if (row) { row.remove(); }
+        updateAttachmentCounts();
+      }
+    });
+
+    updateAttachmentCounts();
+  }
+
   // HTMX afterSwap re-init
   document.addEventListener("htmx:afterSwap", function () {
     initSortables();
@@ -1516,6 +1732,7 @@ ul.messagelist li.error {
     initSortables();
     updateCounts();
     syncOrder();
+    initAttachmentsSection();
   });
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -1525,6 +1742,7 @@ ul.messagelist li.error {
       initSortables();
       updateCounts();
       syncOrder();
+      initAttachmentsSection();
     }, 20);
   }
 })();

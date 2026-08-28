@@ -2,7 +2,7 @@
 {% load i18n static %}
 
 {#
-  Test List Builder — Change Form View (Details, Tests, Sublists, Attachments, Parents & Actions).
+  Test List Builder — Change Form View (Details, Tests, Sublists, Attachments matching Fault Logs, Parents & Actions).
 #}
 
 {% block field_sets %}
@@ -140,30 +140,25 @@
       </div>
 
     {% elif "attachment" in inline_admin_formset.formset.prefix %}
-      {# --- Attachments Card --- #}
+      {# --- Attachments Section (Matching Fault Logs Edit Mode) --- #}
       <div class="tl-attachments-card" id="tl-attachments-card">
         <div class="tl-card-header">
           <i class="fa fa-paperclip" aria-hidden="true"></i>
           <h2 class="tl-card-title">{% trans "Attachments" %}</h2>
-          <span class="tl-count-badge">{{ inline_admin_formset.formset.initial_form_count }}</span>
+          <span class="tl-count-badge" id="tl-attachments-count">{{ inline_admin_formset.formset.initial_form_count }}</span>
         </div>
 
-        {{ inline_admin_formset.formset.management_form }}
-        {{ inline_admin_formset.formset.non_form_errors }}
+        <div class="tl-card-body">
+          {{ inline_admin_formset.formset.management_form }}
+          {{ inline_admin_formset.formset.non_form_errors }}
 
-        <div class="tl-table-wrap">
-          <table class="tl-table tl-attachments-table">
-            <thead>
-              <tr>
-                <th class="tl-th-attach-file">{% trans "FILE" %}</th>
-                <th class="tl-th-attach-comment">{% trans "COMMENT" %}</th>
-                <th class="tl-th-attach-del">{% trans "DELETE" %}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div id="attachments-editor-container" data-prefix="{{ inline_admin_formset.formset.prefix }}" data-parent-id="{{ original.pk|default:'' }}">
+            <!-- Existing Attachments -->
+            <div id="existing-attachments-list">
               {% for inline_admin_form in inline_admin_formset %}
-                <tr class="tl-attachment-row {% if forloop.last and not inline_admin_form.original %}empty-form{% endif %}">
-                  <td class="tl-cell-attach-file">
+                {% if inline_admin_form.original %}
+                  <div class="attachment-card existing" id="existing-attach-{{ inline_admin_form.original.pk }}">
+                    {# Hidden Django formset inputs for this existing row #}
                     {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
                     {{ inline_admin_form.fk_field.field }}
                     {% spaceless %}
@@ -175,40 +170,50 @@
                       {% endfor %}
                     {% endfor %}
                     {% endspaceless %}
-                    {% for fieldset in inline_admin_form %}
-                      {% for line in fieldset %}
-                        {% for field in line %}
-                          {% if field.field.name == "attachment" %}
-                            {{ field.field.errors }}
-                            <div class="tl-file-widget">{{ field.field }}</div>
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                    {% endfor %}
-                  </td>
-                  <td class="tl-cell-attach-comment">
-                    {% for fieldset in inline_admin_form %}
-                      {% for line in fieldset %}
-                        {% for field in line %}
-                          {% if field.field.name == "comment" %}
-                            {{ field.field.errors }}
-                            {{ field.field }}
-                          {% endif %}
-                        {% endfor %}
-                      {% endfor %}
-                    {% endfor %}
-                  </td>
-                  <td class="tl-cell-attach-del">
-                    {% if inline_admin_formset.formset.can_delete and inline_admin_form.original %}
-                      <label class="tl-del-checkbox-label">
-                        {{ inline_admin_form.deletion_field.field }}
-                      </label>
-                    {% endif %}
-                  </td>
-                </tr>
+                    <input type="checkbox" name="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" id="id_{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" class="attach-delete" style="display:none;">
+
+                    <div class="attachment-name">
+                      <i class="fa fa-paperclip fa-fw text-success"></i>
+                      <strong>{% if inline_admin_form.original.label %}{{ inline_admin_form.original.label }}{% else %}{{ inline_admin_form.original.attachment.name }}{% endif %}</strong>
+                      {% if inline_admin_form.original.comment %}
+                        <span class="tl-attach-comment-tag"><i class="fa fa-comment-o"></i> {{ inline_admin_form.original.comment }}</span>
+                      {% endif %}
+                    </div>
+
+                    <div class="attachment-actions">
+                      {% if inline_admin_form.original.attachment.url %}
+                        <a href="{{ inline_admin_form.original.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5" title="{% trans 'Preview' %}">
+                          <i class="fa fa-eye"></i>
+                        </a>
+                      {% endif %}
+                      <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}" title="{% trans 'Remove' %}">
+                        <i class="fa fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                {% endif %}
               {% endfor %}
-            </tbody>
-          </table>
+            </div>
+
+            <!-- Pending Attachments Container -->
+            <div id="pending-attachments-list"></div>
+
+            <!-- Hidden container for newly added formset rows -->
+            <div id="new-attachments-formset-inputs" style="display:none;"></div>
+
+            <!-- Empty Placeholder -->
+            <div class="tl-empty-attachments-msg" id="tl-empty-attachments-msg" {% if inline_admin_formset.formset.initial_form_count > 0 %}style="display:none;"{% endif %}>
+              <i class="fa fa-paperclip text-muted"></i> {% trans "No attachments added yet. Click 'Browse...' to attach files." %}
+            </div>
+
+            <!-- Browse Button (Matching Fault Logs) -->
+            <div class="tl-browse-wrap margin-top-10">
+              <label class="btn btn-default btn-sm btn-flat tl-browse-btn" title="{% trans 'Click to add attachments' %}">
+                <i class="fa fa-folder-open text-info"></i> {% trans "Browse..." %}
+                <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple style="display:none;">
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
