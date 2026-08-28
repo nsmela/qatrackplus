@@ -1,0 +1,25 @@
+{% load i18n static %}
+<div class="tl-modal-backdrop" id="tl-desc-modal-backdrop">
+  <div class="tl-modal-dialog">
+    <div class="tl-modal-header">
+      <h3 class="tl-modal-title"><i class="fa fa-align-left" aria-hidden="true"></i> {% blocktrans with name=test.name %}Description for {{ name }}{% endblocktrans %}</h3>
+      <button type="button" class="tl-modal-close-btn" data-modal-close aria-label="Close">&times;</button>
+    </div>
+    <form hx-post="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test.id }}&index={{ index }}"
+          hx-target="#tl-desc-wrap-{{ test.id }}-{{ index }}"
+          hx-swap="innerHTML"
+          data-modal-form>
+      {% csrf_token %}
+      <div class="tl-modal-body">
+        <label for="tl-modal-desc-input">{% trans "Test Description (HTML allowed)" %}:</label>
+        <textarea name="description" id="tl-modal-desc-input" rows="5" class="tl-modal-textarea">{{ test.description|default:'' }}</textarea>
+      </div>
+      <div class="tl-modal-footer">
+        <button type="button" class="tl-btn-modal-cancel" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="tl-btn-modal-save">
+          <i class="fa fa-check" aria-hidden="true"></i> {% trans "Save Description" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
