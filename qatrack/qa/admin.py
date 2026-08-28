@@ -800,6 +800,10 @@ class TestListMembershipForm(forms.ModelForm):
             self._test_meta_cache = get_test_metadata(test) if test else None
         return self._test_meta_cache
 
+    @test_meta.setter
+    def test_meta(self, value):
+        self._test_meta_cache = value
+
 
 class SublistForm(forms.ModelForm):
 
@@ -833,6 +837,10 @@ class SublistForm(forms.ModelForm):
                 outline=self.instance.outline if self.instance else False,
             ) if child else None
         return self._sublist_meta_cache
+
+    @sublist_meta.setter
+    def sublist_meta(self, value):
+        self._sublist_meta_cache = value
 
 
 class TestListMembershipInline(DynamicRawIDMixin, admin.TabularInline):
