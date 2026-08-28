@@ -1,0 +1,66 @@
+{% load i18n static %}
+<div class="tl-search-results-list">
+  {% if mode == "test" %}
+    {% for t in results %}
+      <div class="tl-search-item tl-search-test-item"
+           data-test-id="{{ t.id }}"
+           data-test-name="{{ t.name }}"
+           data-test-slug="{{ t.slug }}"
+           data-test-cat="{{ t.category_name }}"
+           data-test-type="{{ t.type_label }}">
+        <div class="tl-search-item-left">
+          <div class="tl-search-item-title">
+            <strong>{{ t.name }}</strong>
+            <span class="tl-search-item-slug">({{ t.slug }})</span>
+          </div>
+          {% if t.description %}
+            <div class="tl-search-item-desc">{{ t.description|striptags|truncatewords:12 }}</div>
+          {% endif %}
+        </div>
+        <div class="tl-search-item-right">
+          <span class="tl-cat-pill {{ t.category_class }}">{{ t.category_name }}</span>
+          <span class="tl-type-badge {{ t.type_class }}">{{ t.type_badge }}</span>
+          <button type="button" class="tl-btn-select-test" data-test-id="{{ t.id }}">
+            <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add" %}
+          </button>
+        </div>
+      </div>
+    {% empty %}
+      <div class="tl-search-no-results">
+        {% if query %}
+          {% blocktrans with q=query %}No tests found matching "{{ q }}".{% endblocktrans %}
+        {% else %}
+          {% trans "No tests available." %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    {% for s in results %}
+      <div class="tl-search-item tl-search-sublist-item"
+           data-child-id="{{ s.id }}"
+           data-child-name="{{ s.name }}">
+        <div class="tl-search-item-left">
+          <div class="tl-search-item-title">
+            <i class="fa fa-folder-o tl-sublist-folder-icon" aria-hidden="true"></i>
+            <strong>{{ s.name }}</strong>
+            <span class="tl-search-item-slug">({{ s.slug }})</span>
+          </div>
+        </div>
+        <div class="tl-search-item-right">
+          <span class="tl-count-badge">{{ s.test_count }} {% trans "tests" %}</span>
+          <button type="button" class="tl-btn-select-sublist" data-child-id="{{ s.id }}">
+            <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Select" %}
+          </button>
+        </div>
+      </div>
+    {% empty %}
+      <div class="tl-search-no-results">
+        {% if query %}
+          {% blocktrans with q=query %}No sublists found matching "{{ q }}".{% endblocktrans %}
+        {% else %}
+          {% trans "No other test lists available." %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>

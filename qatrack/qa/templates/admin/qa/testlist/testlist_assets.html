@@ -2,8 +2,7 @@
 Test List Builder — inlined CSS + glue JS for the admin change form & changelist.
 
 Inlined (not a static file) so it loads under DEBUG=False without a collectstatic
-step. The live description preview is driven by htmx (see the change form); this
-script only toggles the preview pane and makes changelist rows clickable.
+step. The live description preview and test list builder are driven by htmx.
 {% endcomment %}
 <style>
 :root {
@@ -19,7 +18,7 @@ script only toggles the preview pane and makes changelist rows clickable.
 /* Keep this deliberately-light UI legible under Django 4.2's dark admin theme:
    re-assert light theme variables on our always-white components so inherited /
    variable-driven text stays dark-on-white. */
-.tl-details-card, #changelist {
+.tl-details-card, .tl-members-card, #changelist {
   --body-fg: #333; --body-bg: #fff; --body-quiet-color: #777; --body-loud-color: #111;
   --link-fg: #3c8dbc; --link-hover-color: #3c8dbc; --hairline-color: #f4f4f4;
   --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
@@ -27,11 +26,11 @@ script only toggles the preview pane and makes changelist rows clickable.
 
 /* ---- Details card (change form) ---- */
 .tl-details-card { background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); border-radius:0; margin-bottom:20px; font-family:var(--tl-font); color:var(--tl-text); }
-.tl-card-header { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--tl-line-soft); }
+.tl-card-header { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--tl-line-soft); background:#fff; }
 .tl-card-header > .fa { font-size:16px; color:#555; }
 .tl-card-title { font-size:17px; font-weight:600; color:#444 !important; background:transparent !important; margin:0; line-height:1; padding:0; }
 .tl-card-id { margin-left:auto; font-size:12px; font-weight:600; color:var(--tl-group-label); }
-.tl-card-body { padding:12px; }
+.tl-card-body { padding:14px; }
 .tl-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
 .tl-field { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .tl-col-1 { grid-column:1; } .tl-col-2 { grid-column:2; } .tl-col-full { grid-column:1 / -1; }
@@ -60,6 +59,682 @@ script only toggles the preview pane and makes changelist rows clickable.
 .tl-htmlpreview-empty { color:#9aa2ae; font-style:italic; }
 .tl-field .errorlist { list-style:none; margin:0 0 4px; padding:0; color:var(--tl-red); font-size:12px; font-weight:600; }
 .tl-field .errorlist li { margin:0; }
+
+/* ---- Tests Card & Table ---- */
+.tl-members-card {
+  background: #fff;
+  border-top: 3px solid var(--tl-primary);
+  box-shadow: var(--tl-card-shadow);
+  border-radius: 0;
+  margin-bottom: 20px;
+  font-family: var(--tl-font);
+  color: var(--tl-text);
+}
+
+.tl-header-add-btn {
+  margin-left: auto;
+  border: 1px solid #cfd5df;
+  background: #fff;
+  color: #4b5563;
+  border-radius: 3px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+.tl-header-add-btn:hover {
+  border-color: var(--tl-blue);
+  color: var(--tl-blue);
+  background: #f2f8fc;
+}
+
+.tl-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.tl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--tl-font);
+}
+
+.tl-table thead th {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--tl-line-soft);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a929e;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.tl-th-drag, .tl-th-lock { width: 36px; padding-right: 0 !important; }
+.tl-th-test { min-width: 260px; }
+.tl-th-category { width: 140px; text-align: center !important; }
+.tl-th-type { width: 150px; }
+.tl-th-ref { width: 120px; }
+.tl-th-tol { width: 120px; }
+.tl-th-actions { width: 90px; text-align: right !important; }
+
+.tl-table tbody tr {
+  background: #fff;
+  border-bottom: 1px solid var(--tl-line-soft);
+  transition: background-color 0.1s ease;
+}
+
+.tl-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.tl-table tbody td {
+  padding: 11px 14px;
+  vertical-align: middle;
+  font-size: 13.5px;
+  color: var(--tl-text);
+  border: 0;
+}
+
+.tl-cell-drag {
+  width: 36px;
+  text-align: center;
+  padding-right: 0 !important;
+}
+
+.tl-drag-handle {
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: grab;
+  padding: 4px;
+}
+.tl-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tl-cell-test {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  min-width: 240px;
+}
+
+.tl-test-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.tl-test-desc-wrap {
+  min-height: 18px;
+}
+
+.tl-test-desc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.tl-test-desc > i {
+  color: #94a3b8;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.tl-test-desc:hover {
+  color: var(--tl-blue);
+}
+
+.tl-add-desc-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+.tl-add-desc-btn:hover {
+  color: var(--tl-blue);
+}
+
+.tl-cell-category {
+  text-align: center;
+}
+
+.tl-cat-pill {
+  display: inline-block;
+  padding: 2px 14px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid #94a3b8;
+  color: #475569;
+}
+.tl-cat-general {
+  border-color: #94a3b8;
+  color: #475569;
+}
+.tl-cat-safety {
+  border-color: #ef4444;
+  color: #dc2626;
+}
+.tl-cat-dosimetry {
+  border-color: #3b82f6;
+  color: #2563eb;
+}
+.tl-cat-mechanical {
+  border-color: #8b5cf6;
+  color: #7c3aed;
+}
+.tl-cat-imaging {
+  border-color: #0d9488;
+  color: #0f766e;
+}
+
+.tl-type-pill-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.tl-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  border-radius: 3px;
+  padding: 2px 6px;
+  min-width: 26px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.tl-type-num { background: #2b78a9; }
+.tl-type-yn { background: #008744; }
+.tl-type-mc { background: #7c3aed; }
+.tl-type-comp { background: #d97706; }
+.tl-type-const { background: #0d9488; }
+.tl-type-str { background: #64748b; }
+.tl-type-scomp { background: #4f46e5; }
+.tl-type-upload { background: #6366f1; }
+.tl-type-date { background: #0891b2; }
+.tl-type-default { background: #64748b; }
+
+.tl-type-label {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.tl-val-text {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.tl-empty-dash {
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tl-cell-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.tl-cell-actions .tl-action-icon {
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  color: #94a3b8;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+.tl-cell-actions .tl-action-icon:hover {
+  color: var(--tl-blue);
+}
+.tl-cell-actions .tl-delete-test-btn:hover {
+  color: var(--tl-red);
+}
+
+.tl-empty-tests-placeholder {
+  padding: 32px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13.5px;
+}
+
+/* ---- Sublist Card ---- */
+.tl-sublists-section {
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+.tl-sublist-card {
+  border: 2px solid #d99b26;
+  border-radius: 4px;
+  background: #fff;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-family: var(--tl-font);
+  overflow: hidden;
+}
+
+.tl-sublist-header {
+  background: #fff;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tl-sublist-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tl-sublist-folder-icon {
+  color: #d99b26;
+  font-size: 16px;
+}
+
+.tl-sublist-badge {
+  background: #d99b26;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.tl-sublist-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tl-sublist-count {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
+.tl-sublist-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-btn-sublist {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+  transition: all 0.15s ease;
+}
+.tl-btn-sublist:hover {
+  border-color: var(--tl-blue);
+  color: var(--tl-blue);
+}
+.tl-btn-sublist.tl-btn-remove-sublist:hover {
+  border-color: var(--tl-red);
+  color: var(--tl-red);
+}
+
+.tl-sublist-info-banner {
+  background: #fffdf5;
+  border-top: 1px solid #fef08a;
+  border-bottom: 1px solid #fef08a;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #78350f;
+}
+.tl-sublist-info-banner > .fa {
+  color: #d99b26;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tl-sublist-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tl-sublist-table tbody tr {
+  background: #fff;
+  border-bottom: 1px solid #f8fafc;
+}
+.tl-sublist-table tbody tr:hover {
+  background: #fffefb;
+}
+
+.tl-cell-lock {
+  width: 36px;
+  text-align: center;
+  padding-right: 0 !important;
+  color: #94a3b8;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tl-lock-icon {
+  color: #c4b5fd;
+  margin-right: 4px;
+}
+.tl-caret-icon {
+  color: #94a3b8;
+}
+
+.tl-empty-sublist-msg {
+  padding: 16px 14px;
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* ---- Bottom Actions ---- */
+.tl-bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.tl-add-btn {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: all 0.15s ease;
+}
+.tl-add-btn:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+  color: #111827;
+}
+
+.tl-bottom-caption {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ---- Modals & Search Dialog ---- */
+.tl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.tl-modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.tl-modal-dialog {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  width: 100%;
+  max-width: 580px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--tl-font);
+}
+.tl-search-dialog {
+  max-width: 650px;
+}
+
+.tl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--tl-line-soft);
+  background: #f8fafc;
+}
+.tl-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tl-modal-close-btn {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.tl-modal-close-btn:hover {
+  color: #1e293b;
+}
+
+.tl-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tl-modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13.5px;
+  border: 1px solid var(--tl-line);
+  padding: 8px 10px;
+  border-radius: 3px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
+.tl-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--tl-line-soft);
+  background: #f8fafc;
+}
+
+.tl-btn-modal-cancel {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+}
+.tl-btn-modal-save {
+  background: var(--tl-primary);
+  border: 1px solid var(--tl-primary-2);
+  border-radius: 3px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+.tl-btn-modal-save:hover {
+  background: var(--tl-primary-2);
+}
+
+.tl-search-input-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+.tl-search-input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 14px;
+}
+.tl-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px 9px 36px;
+  border: 1px solid var(--tl-line);
+  border-radius: 3px;
+  font-size: 14px;
+  outline: none;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+.tl-search-input:focus {
+  border-color: var(--tl-blue);
+  box-shadow: 0 0 0 2px rgba(60,141,188,0.15);
+}
+
+.tl-search-results-container {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+}
+.tl-search-initial-hint, .tl-search-no-results {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13.5px;
+}
+
+.tl-search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.1s ease;
+}
+.tl-search-item:last-child {
+  border-bottom: 0;
+}
+.tl-search-item:hover {
+  background-color: #f8fafc;
+}
+.tl-search-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tl-search-item-title {
+  font-size: 13.5px;
+  color: #1e293b;
+}
+.tl-search-item-slug {
+  font-size: 12px;
+  color: #64748b;
+  font-family: var(--tl-mono);
+  margin-left: 4px;
+}
+.tl-search-item-desc {
+  font-size: 12px;
+  color: #64748b;
+}
+.tl-search-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.tl-btn-select-test, .tl-btn-select-sublist {
+  background: var(--tl-blue);
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tl-btn-select-test:hover, .tl-btn-select-sublist:hover {
+  background: #2b78a9;
+}
+
+.tl-sublist-parents-box {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+}
+.tl-no-parents-hint {
+  color: #64748b;
+  font-size: 13px;
+}
 
 /* ---- Changelist ---- */
 .tl-index-header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; margin:0 0 12px; }
@@ -131,8 +806,7 @@ script only toggles the preview pane and makes changelist rows clickable.
 <script>
 (function () {
   "use strict";
-  // Change form: toggle the live (htmx-driven) description preview pane. htmx does
-  // the render on the "previewrequested" event; enabling wires it to input events.
+  // Change form: toggle the live (htmx-driven) description preview pane.
   function initPreviewToggle() {
     var btn = document.querySelector("[data-desc-toggle]");
     var pane = document.getElementById("tl-desc-preview");
@@ -152,31 +826,7 @@ script only toggles the preview pane and makes changelist rows clickable.
       else { ta.removeEventListener("input", fire); }
     });
   }
-  // Change form: Django's related-widget "change/view/delete selected" links for
-  // raw-id fields (the dynamic_raw_id test/child pickers on the inlines) only get
-  // their href filled on a change event, so for values already selected on page
-  // load the icons render but do nothing. Populate their href from the
-  // data-href-template + current value, on load and whenever the value changes
-  // (delegation also covers dynamically-added inline rows).
-  function initRawIdLinks() {
-    function syncWrap(w) {
-      var input = w.querySelector("input.vForeignKeyRawIdAdminField, input.vManyToManyRawIdAdminField");
-      if (!input) { return; }
-      var val = (input.value || "").split(",")[0].trim();
-      w.querySelectorAll("a.change-related, a.view-related, a.delete-related").forEach(function (a) {
-        var tmpl = a.getAttribute("data-href-template");
-        if (tmpl && val) { a.setAttribute("href", tmpl.replace("__fk__", encodeURIComponent(val))); }
-        else { a.removeAttribute("href"); }
-      });
-    }
-    var wraps = document.querySelectorAll(".related-widget-wrapper");
-    if (!wraps.length) { return; }
-    wraps.forEach(syncWrap);
-    document.addEventListener("change", function (e) {
-      var w = e.target.closest && e.target.closest(".related-widget-wrapper");
-      if (w) { syncWrap(w); }
-    });
-  }
+
   // Changelist: whole-row click navigates; keep inner links/inputs working.
   function initRowClick() {
     var table = document.getElementById("result_list");
@@ -194,9 +844,34 @@ script only toggles the preview pane and makes changelist rows clickable.
       });
     });
   }
+
+  // Close modals on Esc or backdrop click
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      var modal = document.getElementById("tl-search-modal");
+      if (modal && !modal.hidden) { modal.hidden = true; }
+      var descModal = document.getElementById("tl-desc-modal-backdrop");
+      if (descModal) { descModal.remove(); }
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (e.target.matches("[data-search-close]") || e.target.closest("[data-search-close]")) {
+      var modal = document.getElementById("tl-search-modal");
+      if (modal) { modal.hidden = true; }
+    }
+    if (e.target.matches("[data-modal-close]") || e.target.closest("[data-modal-close]")) {
+      var descModal = document.getElementById("tl-desc-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
+      if (descModal) { descModal.remove(); }
+    }
+    if (e.target.classList.contains("tl-modal-backdrop")) {
+      e.target.hidden = true;
+      if (e.target.id === "tl-desc-modal-backdrop") { e.target.remove(); }
+    }
+  });
+
   document.addEventListener("DOMContentLoaded", function () {
     initPreviewToggle();
-    initRawIdLinks();
     initRowClick();
   });
 })();

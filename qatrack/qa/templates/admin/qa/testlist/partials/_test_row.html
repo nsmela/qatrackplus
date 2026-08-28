@@ -1,0 +1,90 @@
+{% load i18n static %}
+<tr class="tl-test-row {% if is_empty %}empty-form{% endif %}"
+    id="{{ prefix }}-{% if not is_empty %}{{ index }}{% else %}empty{% endif %}"
+    data-test-id="{{ test_meta.id }}"
+    data-prefix="{{ prefix }}"
+    data-index="{{ index }}">
+  <td class="tl-cell-drag">
+    <i class="fa fa-bars tl-drag-handle" title="{% trans "Drag to reorder" %}" aria-hidden="true"></i>
+    {# Django formset hidden inputs #}
+    {% if inline_admin_form %}
+      {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+      {{ inline_admin_form.fk_field.field }}
+      {% spaceless %}
+      {% for fieldset in inline_admin_form %}
+        {% for line in fieldset %}
+          {% for field in line %}
+            {% if field.is_hidden %}{{ field.field }}{% endif %}
+          {% endfor %}
+        {% endfor %}
+      {% endfor %}
+      {% endspaceless %}
+      <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
+      <input type="hidden" name="{{ prefix }}-{{ index }}-test" id="id_{{ prefix }}-{{ index }}-test" value="{{ test_meta.id }}">
+      <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-order-input">
+      <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
+    {% else %}
+      <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
+      <input type="hidden" name="{{ prefix }}-{{ index }}-test_list" id="id_{{ prefix }}-{{ index }}-test_list" value="{{ test_list_id|default:'' }}">
+      <input type="hidden" name="{{ prefix }}-{{ index }}-test" id="id_{{ prefix }}-{{ index }}-test" value="{{ test_meta.id }}">
+      <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ index }}" class="tl-order-input">
+      <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
+    {% endif %}
+  </td>
+  <td class="tl-cell-test">
+    <div class="tl-test-name" title="{{ test_meta.slug }}">{{ test_meta.display_name|default:test_meta.name }}</div>
+    <div class="tl-test-desc-wrap" id="tl-desc-wrap-{{ test_meta.id }}-{{ index }}">
+      {% if test_meta.description %}
+        <div class="tl-test-desc"
+             hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
+             hx-target="#tl-modal-container"
+             hx-trigger="click"
+             title="{% trans "Click to edit description" %}">
+          <i class="fa fa-align-left" aria-hidden="true"></i>
+          <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
+        </div>
+      {% else %}
+        <button type="button" class="tl-add-desc-btn"
+                hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
+                hx-target="#tl-modal-container"
+                hx-trigger="click">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add description" %}
+        </button>
+      {% endif %}
+    </div>
+  </td>
+  <td class="tl-cell-category">
+    <span class="tl-cat-pill {{ test_meta.category_class }}">{{ test_meta.category_name }}</span>
+  </td>
+  <td class="tl-cell-type">
+    <div class="tl-type-pill-wrap">
+      <span class="tl-type-badge {{ test_meta.type_class }}">{{ test_meta.type_badge }}</span>
+      <span class="tl-type-label">{{ test_meta.type_label }}</span>
+    </div>
+  </td>
+  <td class="tl-cell-ref">
+    {% if test_meta.reference_display and test_meta.reference_display != "—" %}
+      <span class="tl-val-text">{{ test_meta.reference_display }}</span>
+    {% else %}
+      <span class="tl-empty-dash">—</span>
+    {% endif %}
+  </td>
+  <td class="tl-cell-tol">
+    {% if test_meta.tolerance_display and test_meta.tolerance_display != "—" %}
+      <span class="tl-val-text">{{ test_meta.tolerance_display }}</span>
+    {% else %}
+      <span class="tl-empty-dash">—</span>
+    {% endif %}
+  </td>
+  <td class="tl-cell-actions">
+    <a href="{{ test_meta.edit_url }}" target="_blank" class="tl-action-icon" title="{% trans "Edit Test in new tab" %}">
+      <i class="fa fa-pencil" aria-hidden="true"></i>
+    </a>
+    <button type="button" class="tl-action-icon tl-clone-test-btn" data-test-id="{{ test_meta.id }}" title="{% trans "Duplicate Test" %}">
+      <i class="fa fa-clone" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="tl-action-icon tl-delete-test-btn" title="{% trans "Remove Test from list" %}">
+      <i class="fa fa-trash-o" aria-hidden="true"></i>
+    </button>
+  </td>
+</tr>

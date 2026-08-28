@@ -2,14 +2,7 @@
 {% load i18n static %}
 
 {#
-  Test List Builder — Details panel (change form).
-
-  The name/slug/description/warning/javascript fields are rendered directly in the
-  card layout (server-side) so nothing depends on JS having run — the form is never
-  blank. The description gets a LIVE HTML preview driven by htmx: the textarea
-  hx-posts to admin:qa_testlist_desc_preview and the returned HTML is swapped into
-  the preview pane. Styling + the preview toggle come from testlist_assets.html
-  (inlined, so it works under DEBUG=False without collectstatic).
+  Test List Builder — Details panel + Modernized Test List Members (Tests & Sublists).
 #}
 
 {% block field_sets %}
@@ -70,16 +63,132 @@
 </div>
 {% endblock %}
 
+{% block inline_field_sets %}
+  {% for inline_admin_formset in inline_admin_formsets %}
+    {% if inline_admin_formset.formset.prefix == "testlistmembership_set" %}
+      {# --- Tests Card --- #}
+      <div class="tl-members-card" id="tl-tests-card" data-original-id="{{ original.pk|default:'' }}">
+        <div class="tl-card-header">
+          <i class="fa fa-list" aria-hidden="true"></i>
+          <h2 class="tl-card-title">{% trans "Tests" %}</h2>
+          <span class="tl-count-badge" id="tl-tests-count">0</span>
+          <button type="button" class="tl-header-add-btn" id="tl-header-add-test-btn">
+            <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add test" %}
+          </button>
+        </div>
+
+        {{ inline_admin_formset.formset.management_form }}
+        {{ inline_admin_formset.formset.non_form_errors }}
+
+        <div class="tl-table-wrap">
+          <table class="tl-table tl-tests-table" id="tl-tests-table">
+            <thead>
+              <tr>
+                <th class="tl-th-drag"></th>
+                <th class="tl-th-test">{% trans "TEST" %}</th>
+                <th class="tl-th-category">{% trans "CATEGORY" %}</th>
+                <th class="tl-th-type">{% trans "TYPE" %}</th>
+                <th class="tl-th-ref">{% trans "REFERENCE" %}</th>
+                <th class="tl-th-tol">{% trans "TOLERANCE" %}</th>
+                <th class="tl-th-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="tl-tests-tbody" class="tl-sortable-tbody">
+              {% for inline_admin_form in inline_admin_formset %}
+                {% if not inline_admin_form.form.test_meta and forloop.last %}
+                  {# empty form template stored separately #}
+                {% elif inline_admin_form.form.test_meta %}
+                  {% include "admin/qa/testlist/partials/_test_row.html" with test_meta=inline_admin_form.form.test_meta prefix="testlistmembership_set" index=forloop.counter0 inline_admin_form=inline_admin_form %}
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="tl-empty-tests-placeholder" id="tl-empty-tests-msg" style="display:none;">
+            <p>{% trans "No tests added yet. Click 'Add test' below to select tests." %}</p>
+          </div>
+        </div>
+      </div>
+
+    {% elif inline_admin_formset.formset.prefix == "children" %}
+      {# --- Sublists Container --- #}
+      <div class="tl-sublists-section" id="tl-sublists-section">
+        {{ inline_admin_formset.formset.management_form }}
+        {{ inline_admin_formset.formset.non_form_errors }}
+
+        <div id="tl-sublists-container" class="tl-sublists-container">
+          {% for inline_admin_form in inline_admin_formset %}
+            {% if not inline_admin_form.form.sublist_meta and forloop.last %}
+              {# empty form template #}
+            {% elif inline_admin_form.form.sublist_meta %}
+              {% include "admin/qa/testlist/partials/_sublist_card.html" with sublist_meta=inline_admin_form.form.sublist_meta prefix="children" index=forloop.counter0 inline_admin_form=inline_admin_form %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      {# --- Bottom Action Bar --- #}
+      <div class="tl-bottom-actions">
+        <button type="button" class="tl-add-btn" id="tl-add-sublist-btn">
+          <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add sublist" %}
+        </button>
+        <button type="button" class="tl-add-btn" id="tl-add-test-btn">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add test" %}
+        </button>
+        <span class="tl-bottom-caption">
+          {% trans "Group related tests into a named sublist. Drag tests between sections to reorganise." %}
+        </span>
+      </div>
+
+    {% else %}
+      {# Other inlines (like Attachments) #}
+      {% include inline_admin_formset.opts.template %}
+    {% endif %}
+  {% endfor %}
+
+  {# Modal container for dynamic HTMX modals #}
+  <div id="tl-modal-container"></div>
+
+  {# Search / Selection Modal for Tests and Sublists #}
+  <div class="tl-modal-backdrop" id="tl-search-modal" hidden>
+    <div class="tl-modal-dialog tl-search-dialog">
+      <div class="tl-modal-header">
+        <h3 class="tl-modal-title" id="tl-search-modal-title">
+          <i class="fa fa-search" aria-hidden="true"></i> <span id="tl-search-title-text">{% trans "Select Test" %}</span>
+        </h3>
+        <button type="button" class="tl-modal-close-btn" data-search-close aria-label="Close">&times;</button>
+      </div>
+      <div class="tl-modal-body">
+        <div class="tl-search-input-wrap">
+          <i class="fa fa-search tl-search-input-icon" aria-hidden="true"></i>
+          <input type="text" id="tl-search-input" class="tl-search-input"
+                 placeholder="{% trans "Type to filter..." %}"
+                 autocomplete="off"
+                 hx-get="{% url 'admin:qa_testlist_search_tests' %}"
+                 hx-trigger="keyup changed delay:150ms"
+                 hx-target="#tl-search-results-box"
+                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        </div>
+        <div id="tl-search-results-box" class="tl-search-results-container">
+          <div class="tl-search-initial-hint">{% trans "Start typing to search, or pick from recent items." %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
 {% block after_field_sets %}{{ block.super }}
 
 {% if original.sublist_set.all %}
-<h3>{% trans "This Test List is a Sublist of the following Test Lists" %}:</h3>
-<ul>
+<div class="tl-sublist-parents-box">
+  <h3>{% trans "This Test List is a Sublist of the following Test Lists" %}:</h3>
+  <ul>
     {% for sublist in original.sublist_set.all %}
-        <li><a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}">{{ sublist.parent.name }}</a></li>
+      <li><a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}">{{ sublist.parent.name }}</a></li>
     {% endfor %}
-</ul>
+  </ul>
+</div>
 {% else %}
-  <p>{% trans "This Test List is not a sublist of any other Test Lists" %}.</p>
+  <p class="tl-no-parents-hint">{% trans "This Test List is not a sublist of any other Test Lists" %}.</p>
 {% endif %}
 {% endblock %}

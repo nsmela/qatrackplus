@@ -8,6 +8,7 @@ from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
 from django.template import loader
 from django.template.defaultfilters import date as date_formatter
 from django.template.response import TemplateResponse
@@ -577,6 +578,118 @@ class TestListAdminForm(forms.ModelForm):
         return self.cleaned_data
 
 
+def get_test_metadata(test):
+    """Return dictionary of serialized test metadata for builder UI rendering."""
+    cat_slug = test.category.slug if test.category else "general"
+    cat_name = test.category.name if test.category else "General"
+
+    cat_lower = (cat_name or "").lower()
+    if "safety" in cat_lower:
+        cat_class = "tl-cat-safety"
+    elif "dosimetry" in cat_lower:
+        cat_class = "tl-cat-dosimetry"
+    elif "mechanical" in cat_lower:
+        cat_class = "tl-cat-mechanical"
+    elif "imaging" in cat_lower:
+        cat_class = "tl-cat-imaging"
+    else:
+        cat_class = "tl-cat-general"
+
+    t = test.type
+    if t == models.BOOLEAN:
+        type_badge = "Y/N"
+        type_label = "Boolean"
+        type_class = "tl-type-yn"
+        ref_disp = "Pass = Yes" if test.flag_when is not False else "Pass = No"
+    elif t in (models.SIMPLE, models.NUMERICAL):
+        type_badge = "Num"
+        type_label = "Numerical"
+        type_class = "tl-type-num"
+        ref_disp = "—"
+    elif t == models.WRAPAROUND:
+        type_badge = "Num"
+        type_label = "Wraparound"
+        type_class = "tl-type-num"
+        ref_disp = "—"
+    elif t == models.MULTIPLE_CHOICE:
+        type_badge = "M/C"
+        type_label = "Multiple Choice"
+        type_class = "tl-type-mc"
+        ref_disp = "—"
+    elif t == models.COMPOSITE:
+        type_badge = "Comp"
+        type_label = "Composite"
+        type_class = "tl-type-comp"
+        ref_disp = "—"
+    elif t == models.CONSTANT:
+        type_badge = "Const"
+        type_label = "Constant"
+        type_class = "tl-type-const"
+        ref_disp = str(test.constant_value) if test.constant_value is not None else "—"
+    elif t == models.STRING:
+        type_badge = "Text"
+        type_label = "String"
+        type_class = "tl-type-str"
+        ref_disp = "—"
+    elif t == models.STRING_COMPOSITE:
+        type_badge = "JSON"
+        type_label = "String Composite"
+        type_class = "tl-type-scomp"
+        ref_disp = "—"
+    elif t == models.UPLOAD:
+        type_badge = "File"
+        type_label = "File Upload"
+        type_class = "tl-type-upload"
+        ref_disp = "—"
+    elif t in (models.DATE, models.DATETIME):
+        type_badge = "Date"
+        type_label = "Date" if t == models.DATE else "Date & Time"
+        type_class = "tl-type-date"
+        ref_disp = "—"
+    else:
+        type_badge = "Test"
+        type_label = test.get_type_display()
+        type_class = "tl-type-default"
+        ref_disp = "—"
+
+    tol_disp = "—"
+
+    return {
+        "id": test.id,
+        "name": test.name,
+        "display_name": test.display_name or test.name,
+        "slug": test.slug,
+        "description": test.description or "",
+        "category_name": cat_name,
+        "category_slug": cat_slug,
+        "category_class": cat_class,
+        "type": test.type,
+        "type_badge": type_badge,
+        "type_label": type_label,
+        "type_class": type_class,
+        "reference_display": ref_disp,
+        "tolerance_display": tol_disp,
+        "edit_url": reverse("admin:qa_test_change", args=[test.id]),
+    }
+
+
+def get_sublist_metadata(child, sublist_pk=None, order=0, outline=False):
+    """Return dictionary of serialized sublist metadata including child tests for builder UI rendering."""
+    tests = child.ordered_tests()
+    tests_meta = [get_test_metadata(t) for t in tests]
+    return {
+        "sublist_pk": sublist_pk,
+        "child_id": child.id,
+        "child_name": child.name,
+        "child_slug": child.slug,
+        "test_count": len(tests),
+        "tests": tests_meta,
+        "order": order,
+        "outline": outline,
+        "edit_url": reverse("admin:qa_testlist_change", args=[child.id]),
+    }
+
+
 class TestListMembershipInlineFormSet(forms.models.BaseInlineFormSet):
 
     def __init__(self, *args, **kwargs):
@@ -585,9 +698,15 @@ class TestListMembershipInlineFormSet(forms.models.BaseInlineFormSet):
             # When creating a new TestList, there are no existing memberships
             qs = kwargs["queryset"].none()
         else:
-            qs = kwargs["queryset"].filter(test_list=instance).select_related("test")
+            qs = kwargs["queryset"].filter(test_list=instance).select_related("test", "test__category")
         kwargs["queryset"] = qs
         super().__init__(*args, **kwargs)
+
+        for form in self.forms:
+            if getattr(form.instance, "test_id", None):
+                form.test_meta = get_test_metadata(form.instance.test)
+            else:
+                form.test_meta = None
 
 
 class SublistInlineFormSet(forms.models.BaseInlineFormSet):
@@ -598,9 +717,20 @@ class SublistInlineFormSet(forms.models.BaseInlineFormSet):
             # When creating a new TestList, there are no existing sublists
             qs = kwargs["queryset"].none()
         else:
-            qs = kwargs["queryset"].filter(parent=instance)
+            qs = kwargs["queryset"].filter(parent=instance).select_related("child")
         kwargs["queryset"] = qs
         super().__init__(*args, **kwargs)
+
+        for form in self.forms:
+            if getattr(form.instance, "child_id", None):
+                form.sublist_meta = get_sublist_metadata(
+                    form.instance.child,
+                    sublist_pk=form.instance.pk,
+                    order=form.instance.order,
+                    outline=form.instance.outline,
+                )
+            else:
+                form.sublist_meta = None
 
     def clean(self):
         """Make sure there are no duplicated slugs in a TestList"""
@@ -916,6 +1046,104 @@ def testlist_description_preview(request):
     return HttpResponse(html)
 
 
+def testlist_search_tests(request):
+    """HTMX endpoint to search tests for the test list builder."""
+    q = (request.GET.get("q") or "").strip()
+    qs = models.Test.objects.select_related("category").all()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(slug__icontains=q) | Q(category__name__icontains=q))[:25]
+    else:
+        qs = qs.order_by("name")[:25]
+    results = [get_test_metadata(t) for t in qs]
+    return render(request, "admin/qa/testlist/partials/_search_results.html", {
+        "results": results,
+        "query": q,
+        "mode": "test",
+    })
+
+
+def testlist_search_sublists(request):
+    """HTMX endpoint to search sublists for the test list builder."""
+    q = (request.GET.get("q") or "").strip()
+    current_id = request.GET.get("current_id")
+    qs = models.TestList.objects.all()
+    if current_id:
+        try:
+            qs = qs.exclude(pk=int(current_id))
+        except (ValueError, TypeError):
+            pass
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(slug__icontains=q))[:25]
+    else:
+        qs = qs.order_by("name")[:25]
+    results = []
+    for tl in qs:
+        results.append({
+            "id": tl.id,
+            "name": tl.name,
+            "slug": tl.slug,
+            "test_count": tl.tests.count(),
+        })
+    return render(request, "admin/qa/testlist/partials/_search_results.html", {
+        "results": results,
+        "query": q,
+        "mode": "sublist",
+    })
+
+
+def testlist_add_test_row(request):
+    """HTMX endpoint to render a new test row."""
+    test_id = request.GET.get("test_id")
+    index = request.GET.get("index", "0")
+    test_list_id = request.GET.get("test_list_id", "")
+    test = get_object_or_404(models.Test.objects.select_related("category"), pk=test_id)
+    test_meta = get_test_metadata(test)
+    return render(request, "admin/qa/testlist/partials/_test_row.html", {
+        "test_meta": test_meta,
+        "prefix": "testlistmembership_set",
+        "index": index,
+        "test_list_id": test_list_id,
+        "inline_admin_form": None,
+    })
+
+
+def testlist_add_sublist_card(request):
+    """HTMX endpoint to render a new sublist card."""
+    child_id = request.GET.get("child_id")
+    index = request.GET.get("index", "0")
+    parent_id = request.GET.get("parent_id", "")
+    child = get_object_or_404(models.TestList, pk=child_id)
+    sublist_meta = get_sublist_metadata(child, order=index)
+    return render(request, "admin/qa/testlist/partials/_sublist_card.html", {
+        "sublist_meta": sublist_meta,
+        "prefix": "children",
+        "index": index,
+        "parent_id": parent_id,
+        "inline_admin_form": None,
+    })
+
+
+def testlist_test_desc_modal(request):
+    """HTMX endpoint to view or update a test's description."""
+    test_id = request.GET.get("test_id") or request.POST.get("test_id")
+    index = request.GET.get("index", "0")
+    test = get_object_or_404(models.Test.objects.select_related("category"), pk=test_id)
+    if request.method == "POST":
+        desc = request.POST.get("description", "")
+        test.description = desc
+        test.save(update_fields=["description"])
+        test_meta = get_test_metadata(test)
+        return render(request, "admin/qa/testlist/partials/_test_desc_cell.html", {
+            "test_meta": test_meta,
+            "index": index,
+        })
+    return render(request, "admin/qa/testlist/partials/_test_desc_modal.html", {
+        "test": test,
+        "test_meta": get_test_metadata(test),
+        "index": index,
+    })
+
+
 class TestListAttachmentInline(get_attachment_inline("testlist")):
     # one spare blank row; admin's "Add another" adds more when it's used
     extra = 1
@@ -1007,6 +1235,31 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 'description-preview/',
                 self.admin_site.admin_view(testlist_description_preview),
                 name='qa_testlist_desc_preview',
+            ),
+            path(
+                'search-tests/',
+                self.admin_site.admin_view(testlist_search_tests),
+                name='qa_testlist_search_tests',
+            ),
+            path(
+                'search-sublists/',
+                self.admin_site.admin_view(testlist_search_sublists),
+                name='qa_testlist_search_sublists',
+            ),
+            path(
+                'add-test-row/',
+                self.admin_site.admin_view(testlist_add_test_row),
+                name='qa_testlist_add_test_row',
+            ),
+            path(
+                'add-sublist-card/',
+                self.admin_site.admin_view(testlist_add_sublist_card),
+                name='qa_testlist_add_sublist_card',
+            ),
+            path(
+                'test-desc-modal/',
+                self.admin_site.admin_view(testlist_test_desc_modal),
+                name='qa_testlist_test_desc_modal',
             ),
         ]
         return custom_urls + urls
