@@ -2,7 +2,7 @@
 {% load i18n static %}
 
 {#
-  Test List Builder — Details panel + Modernized Test List Members (Tests & Sublists).
+  Test List Builder — Change Form View (Details, Tests, Sublists, Attachments, Parents & Actions).
 #}
 
 {% block field_sets %}
@@ -139,8 +139,81 @@
         </span>
       </div>
 
+    {% elif "attachment" in inline_admin_formset.formset.prefix %}
+      {# --- Attachments Card --- #}
+      <div class="tl-attachments-card" id="tl-attachments-card">
+        <div class="tl-card-header">
+          <i class="fa fa-paperclip" aria-hidden="true"></i>
+          <h2 class="tl-card-title">{% trans "Attachments" %}</h2>
+          <span class="tl-count-badge">{{ inline_admin_formset.formset.initial_form_count }}</span>
+        </div>
+
+        {{ inline_admin_formset.formset.management_form }}
+        {{ inline_admin_formset.formset.non_form_errors }}
+
+        <div class="tl-table-wrap">
+          <table class="tl-table tl-attachments-table">
+            <thead>
+              <tr>
+                <th class="tl-th-attach-file">{% trans "FILE" %}</th>
+                <th class="tl-th-attach-comment">{% trans "COMMENT" %}</th>
+                <th class="tl-th-attach-del">{% trans "DELETE" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for inline_admin_form in inline_admin_formset %}
+                <tr class="tl-attachment-row {% if forloop.last and not inline_admin_form.original %}empty-form{% endif %}">
+                  <td class="tl-cell-attach-file">
+                    {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+                    {{ inline_admin_form.fk_field.field }}
+                    {% spaceless %}
+                    {% for fieldset in inline_admin_form %}
+                      {% for line in fieldset %}
+                        {% for field in line %}
+                          {% if field.is_hidden %}{{ field.field }}{% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    {% endfor %}
+                    {% endspaceless %}
+                    {% for fieldset in inline_admin_form %}
+                      {% for line in fieldset %}
+                        {% for field in line %}
+                          {% if field.field.name == "attachment" %}
+                            {{ field.field.errors }}
+                            <div class="tl-file-widget">{{ field.field }}</div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    {% endfor %}
+                  </td>
+                  <td class="tl-cell-attach-comment">
+                    {% for fieldset in inline_admin_form %}
+                      {% for line in fieldset %}
+                        {% for field in line %}
+                          {% if field.field.name == "comment" %}
+                            {{ field.field.errors }}
+                            {{ field.field }}
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    {% endfor %}
+                  </td>
+                  <td class="tl-cell-attach-del">
+                    {% if inline_admin_formset.formset.can_delete and inline_admin_form.original %}
+                      <label class="tl-del-checkbox-label">
+                        {{ inline_admin_form.deletion_field.field }}
+                      </label>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     {% else %}
-      {# Other inlines (like Attachments) #}
+      {# Other inlines #}
       {% include inline_admin_formset.opts.template %}
     {% endif %}
   {% endfor %}
@@ -179,16 +252,45 @@
 
 {% block after_field_sets %}{{ block.super }}
 
-{% if original.sublist_set.all %}
-<div class="tl-sublist-parents-box">
-  <h3>{% trans "This Test List is a Sublist of the following Test Lists" %}:</h3>
-  <ul>
-    {% for sublist in original.sublist_set.all %}
-      <li><a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}">{{ sublist.parent.name }}</a></li>
-    {% endfor %}
-  </ul>
-</div>
-{% else %}
-  <p class="tl-no-parents-hint">{% trans "This Test List is not a sublist of any other Test Lists" %}.</p>
+{% if original.pk %}
+  {% if original.sublist_set.all %}
+    <div class="tl-parents-card" id="tl-parents-card">
+      <div class="tl-card-header">
+        <i class="fa fa-sitemap" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
+        <span class="tl-count-badge">{{ original.sublist_set.all|length }}</span>
+      </div>
+      <div class="tl-sublist-info-banner">
+        <i class="fa fa-info-circle" aria-hidden="true"></i>
+        <span>{% trans "This Test List is included as a sublist inside the following parent Test Lists. Changes here immediately take effect across all parents." %}</span>
+      </div>
+      <div class="tl-parents-grid">
+        {% for sublist in original.sublist_set.all %}
+          <a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}" class="tl-parent-card-item">
+            <i class="fa fa-folder-o tl-parent-icon" aria-hidden="true"></i>
+            <div class="tl-parent-info">
+              <span class="tl-parent-name">{{ sublist.parent.name }}</span>
+              <span class="tl-parent-slug">({{ sublist.parent.slug }})</span>
+            </div>
+            <i class="fa fa-external-link tl-parent-ext" aria-hidden="true"></i>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="tl-parents-card tl-parents-empty-card" id="tl-parents-card">
+      <div class="tl-card-header">
+        <i class="fa fa-sitemap" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
+      </div>
+      <div class="tl-card-body">
+        <p class="tl-no-parents-hint">
+          <i class="fa fa-info-circle" aria-hidden="true"></i>
+          {% trans "This Test List is standalone and is not currently used as a sublist in any other Test Lists." %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
 {% endif %}
+
 {% endblock %}
