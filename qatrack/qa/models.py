@@ -1639,9 +1639,11 @@ class TestList(TestCollectionInterface, TestPackMixin):
         self.utcs.update(name=self.name)
 
     def get_absolute_url(self):  # noqa: DJ012
-        return reverse(
-            "admin:qa_testlist_change", args=(self.pk,)
-        )
+        if self.pk:
+            utc = self.utcs.first()
+            if utc:
+                return utc.get_absolute_url()
+        return reverse("all_lists")
 
     def test_list_members(self):
         """return all days from this collection"""

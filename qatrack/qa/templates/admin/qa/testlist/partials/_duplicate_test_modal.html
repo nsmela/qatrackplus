@@ -1,0 +1,49 @@
+{% load i18n %}
+<div class="tl-modal-backdrop" id="tl-duplicate-modal-backdrop">
+  <div class="tl-modal-dialog tl-duplicate-modal">
+    <div class="tl-modal-header">
+      <h3 class="tl-modal-title">
+        <i class="fa fa-clone" aria-hidden="true"></i> {% trans "Duplicate Test" %}
+      </h3>
+      <button type="button" class="tl-modal-close-btn" data-modal-close aria-label="Close">&times;</button>
+    </div>
+    <form id="tl-duplicate-test-form" method="post" action="{% url 'admin:qa_testlist_duplicate_test' %}">
+      {% csrf_token %}
+      <input type="hidden" name="source_test_id" value="{{ source.id }}">
+      <input type="hidden" name="index" value="{{ index }}">
+      <div class="tl-modal-body">
+        <div class="tl-dup-info-banner">
+          <i class="fa fa-info-circle"></i>
+          <div>
+            <strong>{% trans "Duplicating:" %}</strong> {{ source.name }}
+            <div class="tl-dup-details">
+              <span class="tl-cat-pill {{ source_meta.category_class }}">{{ source_meta.category_name }}</span>
+              <span class="tl-type-badge {{ source_meta.type_class }}">{{ source_meta.type_badge }}</span>
+              {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator"></i> {% trans "Calculation copied" %}</span>{% endif %}
+            </div>
+            <p class="tl-dup-note">{% trans "A new test will be created copying the type, category, calculation, and all unit reference/tolerance values." %}</p>
+          </div>
+        </div>
+
+        <div id="tl-dup-error-msg" class="tl-dup-error-banner" style="display:none;"></div>
+
+        <div class="tl-modal-field">
+          <label for="id_dup_name">{% trans "New Test Name" %} <em class="tl-req">*</em></label>
+          <input type="text" id="id_dup_name" name="new_name" value="{{ suggested_name }}" required class="tl-modal-input" autofocus autocomplete="off">
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="id_dup_slug">{% trans "Macro Name (Slug)" %}</label>
+          <input type="text" id="id_dup_slug" name="new_slug" value="{{ suggested_slug }}" class="tl-modal-input" autocomplete="off">
+          <span class="tl-modal-hint">{% trans "Used in composite calculations. Leave blank to auto-generate from name." %}</span>
+        </div>
+      </div>
+      <div class="tl-modal-footer">
+        <button type="button" class="tl-btn-modal-cancel" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="tl-btn-modal-save" id="tl-btn-submit-duplicate">
+          <i class="fa fa-clone" aria-hidden="true"></i> {% trans "Create & Add Test" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

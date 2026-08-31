@@ -345,36 +345,123 @@
       return;
     }
 
-    var cloneBtn = e.target.closest(".tl-clone-test-btn");
-    if (cloneBtn) {
+    // Duplicate Test button
+    var dupBtn = e.target.closest(".tl-duplicate-test-btn");
+    if (dupBtn) {
       e.preventDefault();
-      var cRow = cloneBtn.closest("tr.tl-test-row");
-      var cTestId = cloneBtn.getAttribute("data-test-id") || (cRow && cRow.getAttribute("data-test-id"));
-      if (!cTestId && cRow) {
-        var tInput = cRow.querySelector("input[name$='-test']");
-        if (tInput) { cTestId = tInput.value; }
+      var dRow = dupBtn.closest("tr.tl-test-row");
+      var dTestId = dupBtn.getAttribute("data-test-id") || (dRow && dRow.getAttribute("data-test-id"));
+      if (!dTestId && dRow) {
+        var tInput = dRow.querySelector("input[name$='-test']");
+        if (tInput) { dTestId = tInput.value; }
       }
-      if (cTestId) {
-        addTestRow(cTestId);
+      if (dTestId) {
+        var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
+        var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+        var modalContainer = document.getElementById("tl-modal-container");
+        if (modalContainer) {
+          fetch("/admin/qa/testlist/duplicate-test/?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
+            .then(function(res) { return res.text(); })
+            .then(function(html) {
+              modalContainer.innerHTML = html;
+              var dInput = document.getElementById("id_dup_name");
+              if (dInput) { dInput.focus(); dInput.select(); }
+            })
+            .catch(function(err) {
+              console.error("Failed to load duplicate modal", err);
+            });
+        }
       }
       return;
     }
 
+    // Modal close buttons
     if (e.target.matches("[data-search-close]") || e.target.closest("[data-search-close]")) {
       var sModalClose = document.getElementById("tl-search-modal");
       if (sModalClose) { sModalClose.hidden = true; }
     }
     if (e.target.matches("[data-modal-close]") || e.target.closest("[data-modal-close]")) {
-      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
+      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
       if (dModalClose) { dModalClose.remove(); }
     }
     if (e.target.classList && e.target.classList.contains("tl-modal-backdrop")) {
       e.target.hidden = true;
-      if (e.target.id === "tl-desc-modal-backdrop") { e.target.remove(); }
+      if (e.target.id === "tl-desc-modal-backdrop" || e.target.id === "tl-duplicate-modal-backdrop") { e.target.remove(); }
     }
   });
 
+  // Duplicate test form submission & normal re-sync on form submission
   document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "tl-duplicate-test-form") {
+      e.preventDefault();
+      var form = e.target;
+      var submitBtn = document.getElementById("tl-btn-submit-duplicate");
+      var errorBox = document.getElementById("tl-dup-error-msg");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating…';
+      }
+      if (errorBox) { errorBox.style.display = "none"; }
+
+      var formData = new FormData(form);
+      var testsCard = document.getElementById("tl-tests-card");
+      var origId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
+      if (origId) { formData.append("test_list_id", origId); }
+
+      fetch(form.action, {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+      .then(function(res) {
+        if (!res.ok) {
+          return res.text().then(function(text) { throw new Error(text || "Failed to create duplicate test."); });
+        }
+        return res.text();
+      })
+      .then(function(rowHtml) {
+        var tbody = document.getElementById("tl-tests-tbody");
+        if (tbody) {
+          var temp = document.createElement("tbody");
+          temp.innerHTML = rowHtml.trim();
+          var newRow = temp.firstElementChild;
+          if (newRow) {
+            var sourceId = formData.get("source_test_id");
+            var sourceRow = sourceId ? tbody.querySelector("tr.tl-test-row[data-test-id='" + sourceId + "']") : null;
+            if (sourceRow && sourceRow.parentNode === tbody) {
+              sourceRow.after(newRow);
+            } else {
+              tbody.appendChild(newRow);
+            }
+            newRow.style.animation = "tl-pulse-highlight 1.5s ease";
+          }
+        }
+        var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
+        if (totalFormsInput) {
+          var cur = parseInt(totalFormsInput.value, 10) || 0;
+          totalFormsInput.value = cur + 1;
+        }
+        initSortables();
+        syncOrder();
+        updateCounts();
+        var modalBackdrop = document.getElementById("tl-duplicate-modal-backdrop");
+        if (modalBackdrop) { modalBackdrop.remove(); }
+      })
+      .catch(function(err) {
+        if (errorBox) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        } else {
+          alert(err.message);
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa fa-clone"></i> Create & Add Test';
+        }
+      });
+      return;
+    }
+
     if (e.target.matches("form")) {
       syncOrder();
     }
@@ -384,7 +471,7 @@
     if (e.key === "Escape") {
       var sModalEsc = document.getElementById("tl-search-modal");
       if (sModalEsc && !sModalEsc.hidden) { sModalEsc.hidden = true; }
-      var dModalEsc = document.getElementById("tl-desc-modal-backdrop");
+      var dModalEsc = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop");
       if (dModalEsc) { dModalEsc.remove(); }
     }
   });

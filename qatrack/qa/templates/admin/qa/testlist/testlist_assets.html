@@ -638,6 +638,67 @@ tr.tl-dragging {
   background: var(--tl-primary-2);
 }
 
+.tl-duplicate-modal {
+  width: 540px;
+  max-width: 95vw;
+}
+.tl-dup-info-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: #166534;
+}
+.tl-dup-info-banner > .fa {
+  font-size: 18px;
+  color: #16a34a;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.tl-dup-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.tl-dup-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid #bae6fd;
+}
+.tl-dup-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.4;
+}
+.tl-dup-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 3px;
+  margin-bottom: 14px;
+}
+@keyframes tl-pulse-highlight {
+  0% { background-color: #ecfdf5; box-shadow: inset 0 0 0 2px #10b981; }
+  70% { background-color: #f0fdf4; box-shadow: inset 0 0 0 1px #a7f3d0; }
+  100% { background-color: transparent; box-shadow: none; }
+}
+
 .tl-search-input-wrap {
   position: relative;
   margin-bottom: 12px;
@@ -1541,18 +1602,32 @@ ul.messagelist li.error {
       return;
     }
 
-    // Duplicate / Clone Test button
-    var cloneBtn = e.target.closest(".tl-clone-test-btn");
-    if (cloneBtn) {
+    // Duplicate Test button
+    var dupBtn = e.target.closest(".tl-duplicate-test-btn");
+    if (dupBtn) {
       e.preventDefault();
-      var cRow = cloneBtn.closest("tr.tl-test-row");
-      var cTestId = cloneBtn.getAttribute("data-test-id") || (cRow && cRow.getAttribute("data-test-id"));
-      if (!cTestId && cRow) {
-        var tInput = cRow.querySelector("input[name$='-test']");
-        if (tInput) { cTestId = tInput.value; }
+      var dRow = dupBtn.closest("tr.tl-test-row");
+      var dTestId = dupBtn.getAttribute("data-test-id") || (dRow && dRow.getAttribute("data-test-id"));
+      if (!dTestId && dRow) {
+        var tInput = dRow.querySelector("input[name$='-test']");
+        if (tInput) { dTestId = tInput.value; }
       }
-      if (cTestId) {
-        addTestRow(cTestId);
+      if (dTestId) {
+        var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
+        var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
+        var modalContainer = document.getElementById("tl-modal-container");
+        if (modalContainer) {
+          fetch("/admin/qa/testlist/duplicate-test/?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
+            .then(function(res) { return res.text(); })
+            .then(function(html) {
+              modalContainer.innerHTML = html;
+              var dInput = document.getElementById("id_dup_name");
+              if (dInput) { dInput.focus(); dInput.select(); }
+            })
+            .catch(function(err) {
+              console.error("Failed to load duplicate modal", err);
+            });
+        }
       }
       return;
     }
@@ -1563,17 +1638,87 @@ ul.messagelist li.error {
       if (sModalClose) { sModalClose.hidden = true; }
     }
     if (e.target.matches("[data-modal-close]") || e.target.closest("[data-modal-close]")) {
-      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
+      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
       if (dModalClose) { dModalClose.remove(); }
     }
     if (e.target.classList && e.target.classList.contains("tl-modal-backdrop")) {
       e.target.hidden = true;
-      if (e.target.id === "tl-desc-modal-backdrop") { e.target.remove(); }
+      if (e.target.id === "tl-desc-modal-backdrop" || e.target.id === "tl-duplicate-modal-backdrop") { e.target.remove(); }
     }
   });
 
-  // Re-sync on form submission
+  // Duplicate test form submission & normal re-sync on form submission
   document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "tl-duplicate-test-form") {
+      e.preventDefault();
+      var form = e.target;
+      var submitBtn = document.getElementById("tl-btn-submit-duplicate");
+      var errorBox = document.getElementById("tl-dup-error-msg");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating…';
+      }
+      if (errorBox) { errorBox.style.display = "none"; }
+
+      var formData = new FormData(form);
+      var testsCard = document.getElementById("tl-tests-card");
+      var origId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
+      if (origId) { formData.append("test_list_id", origId); }
+
+      fetch(form.action, {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+      .then(function(res) {
+        if (!res.ok) {
+          return res.text().then(function(text) { throw new Error(text || "Failed to create duplicate test."); });
+        }
+        return res.text();
+      })
+      .then(function(rowHtml) {
+        var tbody = document.getElementById("tl-tests-tbody");
+        if (tbody) {
+          var temp = document.createElement("tbody");
+          temp.innerHTML = rowHtml.trim();
+          var newRow = temp.firstElementChild;
+          if (newRow) {
+            var sourceId = formData.get("source_test_id");
+            var sourceRow = sourceId ? tbody.querySelector("tr.tl-test-row[data-test-id='" + sourceId + "']") : null;
+            if (sourceRow && sourceRow.parentNode === tbody) {
+              sourceRow.after(newRow);
+            } else {
+              tbody.appendChild(newRow);
+            }
+            newRow.style.animation = "tl-pulse-highlight 1.5s ease";
+          }
+        }
+        var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
+        if (totalFormsInput) {
+          var cur = parseInt(totalFormsInput.value, 10) || 0;
+          totalFormsInput.value = cur + 1;
+        }
+        initSortables();
+        syncOrder();
+        updateCounts();
+        var modalBackdrop = document.getElementById("tl-duplicate-modal-backdrop");
+        if (modalBackdrop) { modalBackdrop.remove(); }
+      })
+      .catch(function(err) {
+        if (errorBox) {
+          errorBox.textContent = err.message;
+          errorBox.style.display = "block";
+        } else {
+          alert(err.message);
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa fa-clone"></i> Create & Add Test';
+        }
+      });
+      return;
+    }
+
     if (e.target.matches("form")) {
       syncOrder();
     }
@@ -1584,7 +1729,7 @@ ul.messagelist li.error {
     if (e.key === "Escape") {
       var sModalEsc = document.getElementById("tl-search-modal");
       if (sModalEsc && !sModalEsc.hidden) { sModalEsc.hidden = true; }
-      var dModalEsc = document.getElementById("tl-desc-modal-backdrop");
+      var dModalEsc = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop");
       if (dModalEsc) { dModalEsc.remove(); }
     }
   });

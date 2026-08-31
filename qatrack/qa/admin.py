@@ -7,7 +7,7 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
 from django.db.models import Count, Prefetch, Q
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 from django.template import loader
 from django.template.defaultfilters import date as date_formatter
@@ -16,7 +16,7 @@ from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import escape, format_html, format_html_join
 from django.utils.safestring import mark_safe
-from django.utils.text import Truncator
+from django.utils.text import Truncator, slugify
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
 from django_mptt_admin.admin import DjangoMpttAdmin
@@ -1185,6 +1185,90 @@ def testlist_test_desc_modal(request):
     })
 
 
+def testlist_duplicate_test(request):
+    """HTMX / AJAX endpoint to duplicate a Test object, prompting user for new name and copying type, category, calculation, and unit references/tolerances."""
+    source_test_id = request.GET.get("test_id") or request.POST.get("source_test_id")
+    source = get_object_or_404(models.Test.objects.select_related("category"), pk=source_test_id)
+
+    if request.method == "GET":
+        index = request.GET.get("index", "0")
+        suggested_name = f"{source.name} (Copy)"
+        suggested_slug = slugify(suggested_name)[:128]
+        return render(request, "admin/qa/testlist/partials/_duplicate_test_modal.html", {
+            "source": source,
+            "source_meta": get_test_metadata(source),
+            "suggested_name": suggested_name,
+            "suggested_slug": suggested_slug,
+            "index": index,
+        })
+
+    # POST: create new Test
+    new_name = request.POST.get("new_name", "").strip()
+    if not new_name:
+        return HttpResponseBadRequest("A name is required for the new test.")
+
+    new_slug = request.POST.get("new_slug", "").strip()
+    if not new_slug:
+        new_slug = slugify(new_name)[:128]
+
+    # Ensure unique slug
+    base_slug = new_slug
+    counter = 1
+    while models.Test.objects.filter(slug=new_slug).exists():
+        new_slug = f"{base_slug[:120]}_{counter}"
+        counter += 1
+
+    # Ensure unique name
+    if models.Test.objects.filter(name=new_name).exists():
+        return HttpResponseBadRequest(f"A test with name '{new_name}' already exists.")
+
+    new_test = models.Test.objects.create(
+        name=new_name,
+        display_name=source.display_name,
+        slug=new_slug,
+        description=source.description,
+        procedure=source.procedure,
+        category=source.category,
+        type=source.type,
+        chart_visibility=source.chart_visibility,
+        autoreviewruleset=source.autoreviewruleset,
+        flag_when=source.flag_when,
+        hidden=source.hidden,
+        skip_without_comment=source.skip_without_comment,
+        require_comment=source.require_comment,
+        display_image=source.display_image,
+        choices=source.choices,
+        constant_value=source.constant_value,
+        wrap_low=source.wrap_low,
+        wrap_high=source.wrap_high,
+        calculation_procedure=source.calculation_procedure,
+        formatting=source.formatting,
+    )
+
+    # Copy UnitTestInfo (references and tolerances across all units)
+    for uti in models.UnitTestInfo.objects.filter(test=source):
+        models.UnitTestInfo.objects.create(
+            unit=uti.unit,
+            test=new_test,
+            reference=uti.reference,
+            tolerance=uti.tolerance,
+            active=uti.active,
+            assigned_to=uti.assigned_to,
+        )
+
+    index = request.POST.get("index", "0")
+    test_list_id = request.POST.get("test_list_id", "")
+    test_meta = get_test_metadata(new_test)
+
+    return render(request, "admin/qa/testlist/partials/_test_row.html", {
+        "test_meta": test_meta,
+        "prefix": "testlistmembership_set",
+        "index": index,
+        "test_list_id": test_list_id,
+        "inline_admin_form": None,
+    })
+
+
 class TestListAttachmentInline(get_attachment_inline("testlist")):
     # one spare blank row; admin's "Add another" adds more when it's used
     extra = 1
@@ -1193,6 +1277,14 @@ class TestListAttachmentInline(get_attachment_inline("testlist")):
 class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     change_form_template = "admin/qa/testlist/change_form.html"
+
+    def view_on_site(self, obj):
+        if obj and obj.pk:
+            utc = obj.utcs.first()
+            if utc:
+                return utc.get_absolute_url()
+            return reverse("all_lists")
+        return None
 
     prepopulated_fields = {
         'slug': ('name',)
@@ -1301,6 +1393,11 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 'test-desc-modal/',
                 self.admin_site.admin_view(testlist_test_desc_modal),
                 name='qa_testlist_test_desc_modal',
+            ),
+            path(
+                'duplicate-test/',
+                self.admin_site.admin_view(testlist_duplicate_test),
+                name='qa_testlist_duplicate_test',
             ),
         ]
         return custom_urls + urls
