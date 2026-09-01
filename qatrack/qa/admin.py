@@ -1338,16 +1338,13 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 "fontawsome/css/font-awesome.min.css",
             ),
         }
-        # The Test List Builder styling is inlined via the testlist_assets.html
-        # template include (NOT a static file) so it loads under DEBUG=False
-        # without a collectstatic step. htmx (pre-collected, already used site
-        # wide) drives the live description preview.
+        # The Test List Builder styling and JS is inlined via testlist_assets.html
+        # so it loads under DEBUG=False without a collectstatic step.
         js = (
             "admin/js/jquery.init.js",
             'jquery/js/jquery.min.js',
             "js/jquery-ui.init.js",
             "js/jquery-ui.min.js",
-            "js/m2m_drag_admin_testlist.js",
             "htmx/js/htmx.min.js",
         )
 

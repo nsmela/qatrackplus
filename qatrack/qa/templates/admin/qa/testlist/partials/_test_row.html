@@ -1,9 +1,10 @@
 {% load i18n static %}
-<tr class="tl-test-row {% if is_empty %}empty-form{% endif %}"
+<tr class="tl-member-item tl-test-row {% if is_empty %}empty-form{% endif %}"
     id="{{ prefix }}-{% if not is_empty %}{{ index }}{% else %}empty{% endif %}"
     data-test-id="{{ test_meta.id }}"
     data-prefix="{{ prefix }}"
-    data-index="{{ index }}">
+    data-index="{{ index }}"
+    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
   <td class="tl-cell-drag">
     <i class="fa fa-bars tl-drag-handle" title="{% trans "Drag to reorder" %}" aria-hidden="true"></i>
     {# Django formset hidden inputs #}
