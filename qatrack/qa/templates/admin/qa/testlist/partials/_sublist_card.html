@@ -1,116 +1,129 @@
 {% load i18n static %}
-<div class="tl-sublist-card {% if is_empty %}empty-form{% endif %}"
-     id="{{ prefix }}-{% if not is_empty %}{{ index }}{% else %}empty{% endif %}"
-     data-child-id="{{ sublist_meta.child_id }}"
-     data-prefix="{{ prefix }}"
-     data-index="{{ index }}">
-
-  {# Hidden Django formset inputs for Sublist #}
-  {% if inline_admin_form %}
-    {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
-    {{ inline_admin_form.fk_field.field }}
-    {% spaceless %}
-    {% for fieldset in inline_admin_form %}
-      {% for line in fieldset %}
-        {% for field in line %}
-          {% if field.is_hidden %}{{ field.field }}{% endif %}
+<tr class="tl-member-item tl-sublist-row collapsed {% if is_empty %}empty-form{% endif %}"
+    id="{{ prefix }}-{% if not is_empty %}{{ index }}{% else %}empty{% endif %}"
+    data-child-id="{{ sublist_meta.child_id }}"
+    data-prefix="{{ prefix }}"
+    data-index="{{ index }}"
+    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
+  <td colspan="7" class="tl-sublist-cell">
+    <div class="tl-sublist-card">
+      {# Hidden Django formset inputs for Sublist #}
+      {% if inline_admin_form %}
+        {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+        {{ inline_admin_form.fk_field.field }}
+        {% spaceless %}
+        {% for fieldset in inline_admin_form %}
+          {% for line in fieldset %}
+            {% for field in line %}
+              {% if field.is_hidden %}{{ field.field }}{% endif %}
+            {% endfor %}
+          {% endfor %}
         {% endfor %}
-      {% endfor %}
-    {% endfor %}
-    {% endspaceless %}
-    <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
-    <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
-    <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-sublist-order-input">
-    <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
-    <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
-  {% else %}
-    <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
-    <input type="hidden" name="{{ prefix }}-{{ index }}-parent" id="id_{{ prefix }}-{{ index }}-parent" value="{{ parent_id|default:'' }}">
-    <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
-    <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ index }}" class="tl-sublist-order-input">
-    <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
-    <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
-  {% endif %}
+        {% endspaceless %}
+        <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-sublist-order-input">
+        <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
+        <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
+      {% else %}
+        <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-parent" id="id_{{ prefix }}-{{ index }}-parent" value="{{ parent_id|default:'' }}">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ index }}" class="tl-sublist-order-input">
+        <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
+        <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
+      {% endif %}
 
-  <div class="tl-sublist-header">
-    <div class="tl-sublist-title-wrap">
-      <i class="fa fa-folder-o tl-sublist-folder-icon" aria-hidden="true"></i>
-      <span class="tl-sublist-badge">{% trans "SUBLIST" %}</span>
-      <span class="tl-sublist-name">{{ sublist_meta.child_name }}</span>
-      <span class="tl-sublist-count">{{ sublist_meta.test_count }}</span>
+      <div class="tl-sublist-header">
+        <div class="tl-sublist-drag-handle tl-drag-handle" title="{% trans "Drag to reorder" %}">
+          <i class="fa fa-bars" aria-hidden="true"></i>
+        </div>
+        <button type="button" class="tl-sublist-toggle-btn" title="{% trans "Click to expand / collapse tests" %}" aria-expanded="false">
+          <i class="fa fa-chevron-right tl-toggle-icon" aria-hidden="true"></i>
+        </button>
+        <div class="tl-sublist-title-wrap">
+          <i class="fa fa-folder-o tl-sublist-folder-icon" aria-hidden="true"></i>
+          <span class="tl-sublist-badge">{% trans "SUBLIST" %}</span>
+          <span class="tl-sublist-name">{{ sublist_meta.child_name }}</span>
+          <span class="tl-sublist-count">{{ sublist_meta.test_count }} {% if sublist_meta.test_count == 1 %}{% trans "test" %}{% else %}{% trans "tests" %}{% endif %}</span>
+        </div>
+        <div class="tl-sublist-actions">
+          <a href="{{ sublist_meta.edit_url }}" target="_blank" class="tl-btn-sublist" title="{% trans "Edit sublist test list on its own page" %}">
+            <i class="fa fa-pencil-square-o" aria-hidden="true"></i> {% trans "Edit" %}
+          </a>
+          <button type="button" class="tl-btn-sublist tl-btn-change-sublist"
+                  data-index="{{ index }}"
+                  title="{% trans "Change to a different sublist" %}">
+            <i class="fa fa-exchange" aria-hidden="true"></i> {% trans "Change" %}
+          </button>
+          <button type="button" class="tl-btn-sublist tl-btn-remove-sublist" title="{% trans "Remove sublist from this test list" %}">
+            <i class="fa fa-times" aria-hidden="true"></i> {% trans "Remove" %}
+          </button>
+        </div>
+      </div>
+
+      {# Collapsible Body #}
+      <div class="tl-sublist-body" style="display:none;">
+        <div class="tl-sublist-info-banner">
+          <i class="fa fa-info-circle" aria-hidden="true"></i>
+          <span>{% trans "Managed as its own test list — tests are read-only here." %} <strong>{% trans "Edit" %}</strong> {% trans "opens the list on its own page; changes apply everywhere this sublist is used." %}</span>
+        </div>
+
+        <div class="tl-sublist-table-wrap">
+          <table class="tl-table tl-sublist-table">
+            <thead>
+              <tr>
+                <th class="tl-th-lock"></th>
+                <th class="tl-th-test">{% trans "TEST" %}</th>
+                <th class="tl-th-category">{% trans "CATEGORY" %}</th>
+                <th class="tl-th-type">{% trans "TYPE" %}</th>
+                <th class="tl-th-ref">{% trans "REFERENCE" %}</th>
+                <th class="tl-th-tol">{% trans "TOLERANCE" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for test_meta in sublist_meta.tests %}
+                <tr class="tl-sublist-test-row">
+                  <td class="tl-cell-lock">
+                    <i class="fa fa-lock tl-lock-icon" title="{% trans "Read-only test in sublist" %}" aria-hidden="true"></i>
+                    <i class="fa fa-caret-right tl-caret-icon" aria-hidden="true"></i>
+                  </td>
+                  <td class="tl-cell-test">
+                    <div class="tl-test-name">{{ test_meta.display_name|default:test_meta.name }}</div>
+                  </td>
+                  <td class="tl-cell-category">
+                    <span class="tl-cat-pill {{ test_meta.category_class }}">{{ test_meta.category_name }}</span>
+                  </td>
+                  <td class="tl-cell-type">
+                    <div class="tl-type-pill-wrap">
+                      <span class="tl-type-badge {{ test_meta.type_class }}">{{ test_meta.type_badge }}</span>
+                      <span class="tl-type-label">{{ test_meta.type_label }}</span>
+                    </div>
+                  </td>
+                  <td class="tl-cell-ref">
+                    {% if test_meta.reference_display and test_meta.reference_display != "—" %}
+                      <span class="tl-val-text">{{ test_meta.reference_display }}</span>
+                    {% else %}
+                      <span class="tl-empty-dash">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="tl-cell-tol">
+                    {% if test_meta.tolerance_display and test_meta.tolerance_display != "—" %}
+                      <span class="tl-val-text">{{ test_meta.tolerance_display }}</span>
+                    {% else %}
+                      <span class="tl-empty-dash">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr class="tl-sublist-empty-row">
+                  <td colspan="6" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="tl-sublist-actions">
-      <a href="{{ sublist_meta.edit_url }}" target="_blank" class="tl-btn-sublist" title="{% trans "Edit sublist test list on its own page" %}">
-        <i class="fa fa-pencil-square-o" aria-hidden="true"></i> {% trans "Edit" %}
-      </a>
-      <button type="button" class="tl-btn-sublist tl-btn-change-sublist"
-              data-index="{{ index }}"
-              title="{% trans "Change to a different sublist" %}">
-        <i class="fa fa-exchange" aria-hidden="true"></i> {% trans "Change" %}
-      </button>
-      <button type="button" class="tl-btn-sublist tl-btn-remove-sublist" title="{% trans "Remove sublist from this test list" %}">
-        <i class="fa fa-times" aria-hidden="true"></i> {% trans "Remove" %}
-      </button>
-    </div>
-  </div>
-
-  <div class="tl-sublist-info-banner">
-    <i class="fa fa-info-circle" aria-hidden="true"></i>
-    <span>{% trans "Managed as its own test list — tests are read-only here." %} <strong>{% trans "Edit" %}</strong> {% trans "opens the list on its own page; changes apply everywhere this sublist is used." %}</span>
-  </div>
-
-  <div class="tl-sublist-table-wrap">
-    <table class="tl-table tl-sublist-table">
-      <thead>
-        <tr>
-          <th class="tl-th-lock"></th>
-          <th class="tl-th-test">{% trans "TEST" %}</th>
-          <th class="tl-th-category">{% trans "CATEGORY" %}</th>
-          <th class="tl-th-type">{% trans "TYPE" %}</th>
-          <th class="tl-th-ref">{% trans "REFERENCE" %}</th>
-          <th class="tl-th-tol">{% trans "TOLERANCE" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for test_meta in sublist_meta.tests %}
-          <tr class="tl-sublist-test-row">
-            <td class="tl-cell-lock">
-              <i class="fa fa-lock tl-lock-icon" title="{% trans "Read-only test in sublist" %}" aria-hidden="true"></i>
-              <i class="fa fa-caret-right tl-caret-icon" aria-hidden="true"></i>
-            </td>
-            <td class="tl-cell-test">
-              <div class="tl-test-name">{{ test_meta.display_name|default:test_meta.name }}</div>
-            </td>
-            <td class="tl-cell-category">
-              <span class="tl-cat-pill {{ test_meta.category_class }}">{{ test_meta.category_name }}</span>
-            </td>
-            <td class="tl-cell-type">
-              <div class="tl-type-pill-wrap">
-                <span class="tl-type-badge {{ test_meta.type_class }}">{{ test_meta.type_badge }}</span>
-                <span class="tl-type-label">{{ test_meta.type_label }}</span>
-              </div>
-            </td>
-            <td class="tl-cell-ref">
-              {% if test_meta.reference_display and test_meta.reference_display != "—" %}
-                <span class="tl-val-text">{{ test_meta.reference_display }}</span>
-              {% else %}
-                <span class="tl-empty-dash">—</span>
-              {% endif %}
-            </td>
-            <td class="tl-cell-tol">
-              {% if test_meta.tolerance_display and test_meta.tolerance_display != "—" %}
-                <span class="tl-val-text">{{ test_meta.tolerance_display }}</span>
-              {% else %}
-                <span class="tl-empty-dash">—</span>
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr class="tl-sublist-empty-row">
-            <td colspan="6" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+  </td>
+</tr>
