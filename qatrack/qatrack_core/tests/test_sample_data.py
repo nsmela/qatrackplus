@@ -7,7 +7,12 @@ from qatrack.faults.models import Fault
 from qatrack.parts.models import Part, PartUsed
 from qatrack.qa.models import TestList, TestListInstance, UnitTestCollection
 from qatrack.reports.models import ReportSchedule, SavedReport
-from qatrack.service_log.models import ReturnToServiceQA, ServiceEvent
+from qatrack.service_log.models import (
+    ReturnToServiceQA,
+    ServiceEvent,
+    ServiceEventSchedule,
+    ServiceEventTemplate,
+)
 from qatrack.units.models import Unit
 
 
@@ -35,6 +40,8 @@ class TestSampleDataGenerator(TestCase):
         self.assertGreaterEqual(ServiceEvent.objects.count(), 3)
         self.assertGreaterEqual(ReturnToServiceQA.objects.count(), 1)
         self.assertGreaterEqual(Fault.objects.count(), 2)
+        self.assertGreaterEqual(ServiceEventTemplate.objects.count(), 4)
+        self.assertGreaterEqual(ServiceEventSchedule.objects.count(), 2)
 
         # Parts
         self.assertGreaterEqual(Part.objects.count(), 5)
