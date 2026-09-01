@@ -43,7 +43,9 @@ from qatrack.service_log.models import (
     ReturnToServiceQA,
     ServiceArea,
     ServiceEvent,
+    ServiceEventSchedule,
     ServiceEventStatus,
+    ServiceEventTemplate,
     ServiceType,
     UnitServiceArea,
 )
@@ -635,6 +637,90 @@ class SmallCenterGenerator(BaseSampleDataGenerator):
         self.part_triax_cable = create_part("Triaxial BNC Chamber Cable 15m", "CBL-TRX-15", cat_dosimetry, self.sup_standard, 280.00, 1, 2, self.storage_physics) # Low stock alert
         self.part_laser_diode = create_part("LAP Red Laser Replacement Diode", "LAP-RED-D6", cat_lasers, self.sup_siemens, 175.00, 5, 2, self.storage_physics)
         self.part_target_oring = create_part("Target Cooling O-Ring Kit", "ORING-TGT-KIT", cat_linac, self.sup_varian, 45.00, 8, 3, self.storage_tb1)
+
+        # Service Event Templates
+        self.tpl_beam_steering, _ = ServiceEventTemplate.objects.get_or_create(
+            name="Linac Beam Steering & Output Recalibration",
+            defaults={
+                "service_area": sa_accel,
+                "service_type": self.st_minor,
+                "problem_description": "Beam symmetry or output constancy drift observed during routine QA.",
+                "work_description": "Adjusted magnetron frequency / beam steering parameters and verified RF tuning.",
+                "is_review_required": True,
+                "created_by": self.user_admin,
+                "modified_by": self.user_admin,
+            }
+        )
+        self.tpl_beam_steering.return_to_service_test_lists.set([self.tl_linac_rts])
+
+        self.tpl_ct_tube, _ = ServiceEventTemplate.objects.get_or_create(
+            name="CT Tube Seasoning & Detector Calibration",
+            defaults={
+                "service_area": sa_ctsim,
+                "service_type": self.st_preventive,
+                "problem_description": "Routine monthly tube conditioning and air calibration.",
+                "work_description": "Performed filament seasoning, gain calibration, and air reference scan.",
+                "is_review_required": True,
+                "created_by": self.user_admin,
+                "modified_by": self.user_admin,
+            }
+        )
+        self.tpl_ct_tube.return_to_service_test_lists.set([self.tl_ct_daily])
+
+        # Cross-modality / Polymorphic Templates (Demonstrating Issue #829):
+        # 1. Facility-wide Laser Alignment (Cross-modality RTS for Linac & CT)
+        self.tpl_laser_align, _ = ServiceEventTemplate.objects.get_or_create(
+            name="Laser Alignment & Optical Field Calibration",
+            defaults={
+                "service_area": sa_lasers,
+                "service_type": self.st_preventive,
+                "problem_description": "Positioning laser deviation noted during daily QA.",
+                "work_description": "Realigned sagittal/coronal/transverse lasers and verified mechanical isocenter crosshair alignment.",
+                "is_review_required": True,
+                "created_by": self.user_admin,
+                "modified_by": self.user_admin,
+            }
+        )
+        self.tpl_laser_align.return_to_service_test_lists.set([self.tl_linac_rts, self.tl_ct_daily])
+
+        # 2. Quarterly Preventative Maintenance (Cross-modality RTS for Linac & CT)
+        self.tpl_quarterly_pm, _ = ServiceEventTemplate.objects.get_or_create(
+            name="Quarterly Comprehensive PM",
+            defaults={
+                "service_type": self.st_preventive,
+                "problem_description": "Scheduled quarterly engineering preventative maintenance.",
+                "work_description": "Completed electrical safety, mechanical checks, interlocks inspection, and dosimetry/imaging verification.",
+                "is_review_required": True,
+                "created_by": self.user_admin,
+                "modified_by": self.user_admin,
+            }
+        )
+        self.tpl_quarterly_pm.return_to_service_test_lists.set([self.tl_linac_monthly, self.tl_ct_monthly])
+
+        # Service Event Schedules
+        sch_tb1_pm, _ = ServiceEventSchedule.objects.get_or_create(
+            unit_service_area=self.usa_tb1,
+            service_event_template=self.tpl_quarterly_pm,
+            defaults={
+                "frequency": self.freq_monthly,
+                "assigned_to": self.grp_engineers,
+                "auto_schedule": True,
+                "active": True,
+            }
+        )
+        sch_tb1_pm.visible_to.set([self.grp_engineers, self.grp_physics, self.grp_admins])
+
+        sch_versa_pm, _ = ServiceEventSchedule.objects.get_or_create(
+            unit_service_area=self.usa_versa,
+            service_event_template=self.tpl_quarterly_pm,
+            defaults={
+                "frequency": self.freq_monthly,
+                "assigned_to": self.grp_engineers,
+                "auto_schedule": True,
+                "active": True,
+            }
+        )
+        sch_versa_pm.visible_to.set([self.grp_engineers, self.grp_physics, self.grp_admins])
 
     def generate_qa_history(self):
         self.log(f"Generating {self.days} days of rolling QA execution history...", lambda s: s)
