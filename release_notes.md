@@ -4,5 +4,5 @@ Release notes are located at http://docs.qatrackplus.com/en/latest/release_notes
 
 ## v4.0.0 Recent Fixes
 
-* **Service Log**: Match Service Event Template Return to Service (RTS) QC by unit intersection instead of requiring a strict subset, allowing polymorphic templates across multiple machines and modalities ([#829](https://github.com/qatrackplus/qatrackplus/issues/829)).
-* **QA**: Parse autosaved date/time strings with Moment before setting Flatpickr values to prevent date corruption across locales and custom formats.
+* **Service Log**: Service Event Templates can now be shared across different machines and modalities. When selecting a template, only the Return to Service tests that apply to the chosen unit will be added to the form ([#829](https://github.com/qatrackplus/qatrackplus/issues/829)).
+* **QA**: Fixed an issue where resuming an autosaved QC session could display the wrong start date and time.
