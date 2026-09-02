@@ -1020,3 +1020,24 @@ class TestServiceEventTemplateSearcher(TestCase):
         data2 = resp2.json()
         template_res2 = next(t for t in data2 if t['id'] == template.id)
         assert template_res2['return_to_service_utcs'] == [utc2.id]
+
+    def test_rts_with_test_list_cycle(self):
+        """Ensure active TestListCycle values attached to a template as RTS QC
+        are included in return_to_service_utcs."""
+
+        tl1 = qa_utils.create_test_list(name="Daily Check")
+        tlc1 = qa_utils.create_cycle([tl1], name="Daily Cycle")
+        tl2 = qa_utils.create_test_list(name="RTS Standalone")
+
+        u1 = qa_utils.create_unit(name="Unit with Cycle")
+        utc_tlc = qa_utils.create_unit_test_collection(unit=u1, test_collection=tlc1)
+        utc_tl = qa_utils.create_unit_test_collection(unit=u1, test_collection=tl2)
+
+        template = self.create_template("Template With Cycle RTS")
+        template.return_to_service_cycles.add(tlc1)
+        template.return_to_service_test_lists.add(tl2)
+
+        resp = self.client.get(self.url, data={'unit': u1.pk})
+        data = resp.json()
+        template_res = next(t for t in data if t['id'] == template.id)
+        assert set(template_res['return_to_service_utcs']) == {utc_tlc.id, utc_tl.id}

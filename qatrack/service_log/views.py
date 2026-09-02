@@ -1664,8 +1664,13 @@ def service_event_template_searcher(request):
     for template_id, rts_qc_ids in groupby(sts, lambda x: x[0]):
 
         # get return to service test lists and test list cycles for this template
-        rts_tl_ids = set(x[1] for x in rts_qc_ids if x[1] is not None)
-        rts_tlc_ids = set(x[2] for x in rts_qc_ids if x[2] is not None)
+        rts_tl_ids = set()
+        rts_tlc_ids = set()
+        for t_id, tl_id, tlc_id in rts_qc_ids:
+            if tl_id is not None:
+                rts_tl_ids.add(tl_id)
+            if tlc_id is not None:
+                rts_tlc_ids.add(tlc_id)
 
         # get active UTC ids assigned to this unit that match the template RTS QC
         matching_tl_ids = rts_tl_ids & unit_tls
