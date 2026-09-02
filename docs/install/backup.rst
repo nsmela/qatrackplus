@@ -42,7 +42,7 @@ Linux
 1. **Re-install QATrack+:** Follow the standard Linux installation instructions to rebuild your server. Ensure you check out the *exact same version* of QATrack+ that you were running when the backup was taken.
 2. **Restore Database:** Consult your IT department to restore the database from your automated backups using the native database tools (e.g., ``pg_restore`` or ``mysql``).
 3. **Restore Settings and Media:** Copy your backed-up ``local_settings.py`` file to the ``qatrackplus/qatrack/`` directory. Extract your backed-up ``media`` folder into the ``qatrackplus/qatrack/media/`` directory.
-4. **Permissions and Restart:** Ensure the QATrack+ user (and web server group, e.g., ``$USER:www-data``) has the correct ownership and permissions (``u=rwX,g=rX,o=``) for the restored ``media`` folder. Finally, restart the web server and your background task runner.
+4. **Permissions and Restart:** Ensure the QATrack+ user (and web server group, e.g., ``$USER:www-data``) has the correct ownership and permissions (``u=rwX,g=rX,o=`` with setgid ``g+s`` on directories) for the restored ``media`` folder. Finally, restart the web server and your background task runner.
 
 Windows
 .......

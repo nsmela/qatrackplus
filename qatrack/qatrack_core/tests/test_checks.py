@@ -18,6 +18,29 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                 errors = check_media_folder_permissions(None)
                 assert errors == []
 
+    def test_writable_parent_with_no_uploads_directory(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            media_path = Path(temp_dir) / 'media'
+            media_path.mkdir()
+            # media exists and is writable, but 'uploads' does not exist
+            with override_settings(MEDIA_ROOT=str(media_path)):
+                errors = check_media_folder_permissions(None)
+                assert errors == []
+
+    def test_media_root_is_file_not_directory(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / 'file.txt'
+            file_path.write_text('not a directory')
+            with override_settings(MEDIA_ROOT=str(file_path)):
+                errors = check_media_folder_permissions(None)
+                assert len(errors) >= 1
+                assert errors[0].id == 'qatrack.E001'
+                assert 'does not have write permissions' in errors[0].msg
+
     def test_root_user_warning(self):
         import tempfile
 
@@ -57,6 +80,7 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                     assert errors[0].id == 'qatrack.E001'
                     assert ':www-data' in errors[0].hint
                     assert 'u=rwX,g=rX,o=' in errors[0].hint
+                    assert 'chmod g+s' in errors[0].hint
 
     def test_dynamic_hint_with_sudo_user(self):
         import tempfile
@@ -66,7 +90,10 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
             with override_settings(MEDIA_ROOT=str(media_path)):
                 with patch.dict('os.environ', {'SUDO_USER': 'custom_user'}), patch('os.access', return_value=False):
                     errors = check_media_folder_permissions(None)
-                    assert any('custom_user:www-data' in e.hint for e in errors)
+                    assert any(
+                        'custom_user:www-data' in e.hint and 'u=rwX,g=rX,o=' in e.hint and 'chmod g+s' in e.hint
+                        for e in errors
+                    )
 
     def test_file_creation_error(self):
         import tempfile
@@ -99,4 +126,10 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
 
                 with patch('os.access', side_effect=mock_access):
                     errors = check_media_folder_permissions(None)
-                    assert any(e.id == 'qatrack.E001' and ':www-data' in e.hint for e in errors)
+                    assert any(
+                        e.id == 'qatrack.E001'
+                        and ':www-data' in e.hint
+                        and 'u=rwX,g=rX,o=' in e.hint
+                        and 'chmod g+s' in e.hint
+                        for e in errors
+                    )
