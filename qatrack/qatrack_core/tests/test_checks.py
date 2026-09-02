@@ -18,10 +18,23 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                 errors = check_media_folder_permissions(None)
                 assert errors == []
 
+    def test_root_user_warning(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            media_path = Path(temp_dir)
+            (media_path / 'uploads').mkdir()
+            (media_path / 'uploads' / 'tmp').mkdir()
+            with override_settings(MEDIA_ROOT=str(media_path)):
+                with patch('os.geteuid', return_value=0, create=True):
+                    errors = check_media_folder_permissions(None)
+                    assert any(e.id == 'qatrack.W001' for e in errors)
+
     def test_media_root_not_configured(self):
         with override_settings(MEDIA_ROOT=None):
             errors = check_media_folder_permissions(None)
             assert len(errors) == 1
+            assert errors[0].id == 'qatrack.E003'
             assert errors[0].msg == 'The Media folder is not configured'
 
     def test_media_root_does_not_exist(self):
@@ -29,6 +42,7 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
         with override_settings(MEDIA_ROOT=non_existent_path):
             errors = check_media_folder_permissions(None)
             assert len(errors) == 1
+            assert errors[0].id == 'qatrack.E004'
             assert f"The Media folder '{non_existent_path}' does not exist" in errors[0].msg
 
     def test_media_root_not_writable(self):
@@ -41,7 +55,18 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                     errors = check_media_folder_permissions(None)
                     assert len(errors) >= 1
                     assert errors[0].id == 'qatrack.E001'
-                    assert '$USER:www-data' in errors[0].hint
+                    assert ':www-data' in errors[0].hint
+                    assert 'u=rwX,g=rX,o=' in errors[0].hint
+
+    def test_dynamic_hint_with_sudo_user(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            media_path = Path(temp_dir)
+            with override_settings(MEDIA_ROOT=str(media_path)):
+                with patch.dict('os.environ', {'SUDO_USER': 'custom_user'}), patch('os.access', return_value=False):
+                    errors = check_media_folder_permissions(None)
+                    assert any('custom_user:www-data' in e.hint for e in errors)
 
     def test_file_creation_error(self):
         import tempfile
@@ -74,4 +99,4 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
 
                 with patch('os.access', side_effect=mock_access):
                     errors = check_media_folder_permissions(None)
-                    assert any(e.id == 'qatrack.E001' and '$USER:www-data' in e.hint for e in errors)
+                    assert any(e.id == 'qatrack.E001' and ':www-data' in e.hint for e in errors)
