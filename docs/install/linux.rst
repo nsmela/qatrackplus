@@ -448,11 +448,12 @@ In order for Django Q to run properly and for Nginx to serve uploaded files, we 
 .. code-block:: bash
 
     sudo usermod -a -G www-data $USER
-    exec sg www-data newgrp `id -gn` # this refreshes users group memberships without needing to log off/on
     mkdir -p logs qatrack/media
     touch logs/{migrate,debug,django-q2,auth}.log
-    sudo chown -R www-data:www-data logs qatrack/media
-    sudo chmod ug+rwxs logs qatrack/media
+    sudo chown -R $USER:www-data logs qatrack/media
+    sudo chmod -R 775 logs qatrack/media
+    sudo find logs qatrack/media -type d -exec chmod g+s {} +
+
 
 
 and then set up the Django Q configuration:

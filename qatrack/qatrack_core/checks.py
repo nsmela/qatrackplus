@@ -10,27 +10,26 @@ from django.core.checks import Error, register
 def check_media_folder_permissions(app_configs, **kwargs):
     errors = []
     media_root = getattr(settings, 'MEDIA_ROOT', None)
-    
+
     # Check if MEDIA_ROOT is configured and if the directory exists
     # This check is very likely unnecessary, since Django appears to recreate the folder on manage.py check, but it is here for completeness.
 
     if not media_root:
-        errors.append(Error("The Media folder is not configured"))
+        errors.append(Error('The Media folder is not configured'))
         return errors
-        
+
     media_root_path = Path(media_root)
 
     if not media_root_path.exists():
         errors.append(Error(f"The Media folder '{media_root}' does not exist"))
         return errors
-    # End of redundant check    
-    
+    # End of redundant check
+
     uploads_dirs = [
         media_root_path,
         media_root_path / 'uploads',
         media_root_path / 'uploads' / 'tmp',
     ]
-    
 
     for directory in uploads_dirs:
         if directory.exists():
@@ -38,7 +37,7 @@ def check_media_folder_permissions(app_configs, **kwargs):
                 errors.append(
                     Error(
                         f"The Django server process does not have write permissions to '{directory}'.",
-                        hint=f"Check folder permissions. You may need to run `sudo chown -R www-data:www-data {media_root}` and `sudo chmod -R 775 {media_root}` (replace www-data with your web server user).",
+                        hint=f'Check folder permissions. You may need to run `sudo chown -R $USER:www-data {media_root}` and `sudo chmod -R 775 {media_root}` (ensure the user running Gunicorn/Django owns the folder).',
                         id='qatrack.E001',
                     )
                 )
@@ -51,7 +50,7 @@ def check_media_folder_permissions(app_configs, **kwargs):
                     errors.append(
                         Error(
                             f"The Django server process could not create a file in '{directory}': {e}",
-                            hint="Check folder permissions and disk space.",
+                            hint='Check folder permissions and disk space.',
                             id='qatrack.E002',
                         )
                     )
@@ -61,7 +60,7 @@ def check_media_folder_permissions(app_configs, **kwargs):
                 errors.append(
                     Error(
                         f"The Django server process does not have write permissions to '{parent}' to create '{directory}'.",
-                        hint=f"Check folder permissions. You may need to run `sudo chown -R www-data:www-data {media_root}`.",
+                        hint=f'Check folder permissions. You may need to run `sudo chown -R $USER:www-data {media_root}` and `sudo chmod -R 775 {media_root}`.',
                         id='qatrack.E001',
                     )
                 )
