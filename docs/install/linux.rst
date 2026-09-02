@@ -445,8 +445,8 @@ In order for Django Q to run properly and for Nginx to serve uploaded files, we 
     mkdir -p logs qatrack/media
     touch logs/{migrate,debug,django-q2,auth}.log
     sudo chown -R $USER:www-data logs qatrack/media
-    sudo chmod -R u=rwX,g=rX,o= logs qatrack/media
-    sudo find logs qatrack/media -type d -exec chmod g+s {} +
+    sudo find logs qatrack/media -type d -exec chmod 2775 {} +
+    sudo find logs qatrack/media -type f -exec chmod 664 {} +
 
 
 and then set up the Django Q configuration:

@@ -36,13 +36,20 @@ def check_media_folder_permissions(app_configs, **kwargs):
         return errors
     # End of redundant check
 
-    app_user = os.environ.get('SUDO_USER') or getpass.getuser()
+    try:
+        import pwd
+
+        app_user = pwd.getpwuid(os.geteuid()).pw_name
+    except (ImportError, KeyError, AttributeError):
+        app_user = getpass.getuser()
+
     if app_user == 'root':
         app_user = '$USER'
 
     perm_hint = (
         f'Check folder permissions. You may need to run `sudo chown -R {app_user}:www-data {media_root}`, '
-        f'`sudo chmod -R u=rwX,g=rX,o= {media_root}`, and `sudo find {media_root} -type d -exec chmod g+s {{}} +`.'
+        f'`sudo find {media_root} -type d -exec chmod 2775 {{}} +`, and '
+        f'`sudo find {media_root} -type f -exec chmod 664 {{}} +`.'
     )
 
     uploads_dirs = [

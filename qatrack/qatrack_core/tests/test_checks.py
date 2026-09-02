@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
@@ -79,19 +79,44 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                     assert len(errors) >= 1
                     assert errors[0].id == 'qatrack.E001'
                     assert ':www-data' in errors[0].hint
-                    assert 'u=rwX,g=rX,o=' in errors[0].hint
-                    assert 'chmod g+s' in errors[0].hint
+                    assert 'chmod 2775' in errors[0].hint
+                    assert 'chmod 664' in errors[0].hint
 
-    def test_dynamic_hint_with_sudo_user(self):
+    def test_dynamic_hint_with_pwd(self):
         import tempfile
 
         with tempfile.TemporaryDirectory() as temp_dir:
             media_path = Path(temp_dir)
             with override_settings(MEDIA_ROOT=str(media_path)):
-                with patch.dict('os.environ', {'SUDO_USER': 'custom_user'}), patch('os.access', return_value=False):
+                mock_pwd = Mock()
+                mock_pwd.getpwuid.return_value.pw_name = 'custom_user'
+                with (
+                    patch.dict('sys.modules', {'pwd': mock_pwd}),
+                    patch('os.geteuid', return_value=1000, create=True),
+                    patch('os.access', return_value=False),
+                ):
                     errors = check_media_folder_permissions(None)
                     assert any(
-                        'custom_user:www-data' in e.hint and 'u=rwX,g=rX,o=' in e.hint and 'chmod g+s' in e.hint
+                        'custom_user:www-data' in e.hint
+                        and 'chmod 2775' in e.hint
+                        and 'chmod 664' in e.hint
+                        for e in errors
+                    )
+
+    def test_dynamic_hint_with_getpass_fallback(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            media_path = Path(temp_dir)
+            with override_settings(MEDIA_ROOT=str(media_path)):
+                with (
+                    patch.dict('sys.modules', {'pwd': None}),
+                    patch('getpass.getuser', return_value='fallback_user'),
+                    patch('os.access', return_value=False),
+                ):
+                    errors = check_media_folder_permissions(None)
+                    assert any(
+                        'fallback_user:www-data' in e.hint and 'chmod 2775' in e.hint and 'chmod 664' in e.hint
                         for e in errors
                     )
 
@@ -129,7 +154,7 @@ class TestCheckMediaFolderPermissions(SimpleTestCase):
                     assert any(
                         e.id == 'qatrack.E001'
                         and ':www-data' in e.hint
-                        and 'u=rwX,g=rX,o=' in e.hint
-                        and 'chmod g+s' in e.hint
+                        and 'chmod 2775' in e.hint
+                        and 'chmod 664' in e.hint
                         for e in errors
                     )

@@ -179,8 +179,8 @@ Next, update the ownership and permissions of your logs and media directories so
 
     cd ~/web/qatrackplus
     sudo chown -R $USER:www-data logs qatrack/media
-    sudo chmod -R u=rwX,g=rX,o= logs qatrack/media
-    sudo find logs qatrack/media -type d -exec chmod g+s {} +
+    sudo find logs qatrack/media -type d -exec chmod 2775 {} +
+    sudo find logs qatrack/media -type f -exec chmod 664 {} +
 
 Now we can generate our new Nginx and Supervisor configurations:
 
