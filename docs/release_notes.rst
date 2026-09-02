@@ -45,6 +45,8 @@ Technical Improvements
 Bug Fixes
 ^^^^^^^^^
 
+* Fixed issue where Service Event Templates with Return to Service QC across multiple units or modalities failed to appear in the template selection dropdown (:issue:`829`).
+* Fixed issue where restoring an autosaved QA session corrupted date fields when using Flatpickr datetime formatting.
 * Fixed tolerance compatibility validation across different test types.
 * Fixed reference value type preservation in admin forms.
 * Improved handling and messaging for incompatible tolerance and test-type combinations.
