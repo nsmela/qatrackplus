@@ -40,6 +40,21 @@ def weasyprint_to_pdf(html, name="", paper_size="letter"):
     return pdf.getvalue()
 
 
+def set_paper_size(html, paper_size="letter"):
+    """Return html with an `@page { size: ... }` rule appended to its head.
+
+    Chrome has no command line switch for the print-to-pdf paper size -- the
+    `--print-to-pdf-paper-format` we used to pass is not a recognised flag and
+    silently did nothing, so every report came out Letter regardless of what
+    the user picked.  CSS is the only lever that works, and it has to come
+    after reports/pdf.css so it wins the cascade against its `@page` block.
+    """
+    rule = "<style>@page { size: %s; }</style>" % paper_size.lower()
+    if "</head>" in html:
+        return html.replace("</head>", "%s</head>" % rule, 1)
+    return rule + html
+
+
 def chrometopdf(html, name="", paper_size="letter"):
     """use headles chrome to convert an html document to pdf
 
@@ -62,11 +77,8 @@ def chrometopdf(html, name="", paper_size="letter"):
         out_path = "%s.pdf" % path
 
         tmp_html = open(path, "wb")
-        tmp_html.write(html.encode("UTF-8"))
+        tmp_html.write(set_paper_size(html, paper_size).encode("UTF-8"))
         tmp_html.close()
-
-        # Set paper size for Chrome PDF generation
-        paper_format = "Letter" if paper_size == "letter" else "A4"
 
         command = [
             settings.CHROME_PATH,
@@ -75,7 +87,6 @@ def chrometopdf(html, name="", paper_size="letter"):
             '--no-sandbox',
             '--print-to-pdf=%s' % out_path,
             '--print-to-pdf-no-header',
-            '--print-to-pdf-paper-format=%s' % paper_format,
             "file://%s" % tmp_html.name,
         ]
 

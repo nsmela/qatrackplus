@@ -12,13 +12,18 @@
     padding: 0;
   }
 
-  /* Bootstrap floats every grid column, but a float can not be fragmented
-   * across pages by WeasyPrint: anything past the first page of a floated
-   * column is dropped.  A full width column lays out identically with or
-   * without the float, so drop it here and let long report content flow onto
-   * as many pages as it needs.  The narrower columns (header, filter details,
-   * signature) hold a few lines each and must keep floating to stay side by
-   * side. */
+  /* Neither a flex container nor a float can be fragmented across pages by
+   * WeasyPrint -- content past the first page is simply dropped.  Bootstrap
+   * floats every grid column, and a `.row` has at times been made `display:
+   * flex` by the PDF engine, so pin both back to plain blocks for print.  A
+   * full width column lays out identically either way, so this costs nothing
+   * and keeps the stylesheet correct on its own.  The narrower columns
+   * (header, filter details, signature) hold a few lines each and must keep
+   * floating to stay side by side. */
+  .row {
+    display: block;
+  }
+
   .col-xs-12 {
     float: none;
     width: 100%;
