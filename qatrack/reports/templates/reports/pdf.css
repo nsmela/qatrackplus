@@ -12,9 +12,30 @@
     padding: 0;
   }
 
+  /* Bootstrap floats every grid column, but a float can not be fragmented
+   * across pages by WeasyPrint: anything past the first page of a floated
+   * column is dropped.  A full width column lays out identically with or
+   * without the float, so drop it here and let long report content flow onto
+   * as many pages as it needs.  The narrower columns (header, filter details,
+   * signature) hold a few lines each and must keep floating to stay side by
+   * side. */
+  .col-xs-12 {
+    float: none;
+    width: 100%;
+  }
+
   .page {
     page-break-after: always;
     page-break-inside: avoid;
+  }
+
+  /* `.page` is also applied to table rows (service log & fault reports) where
+   * it was only ever meant to keep a row from being split.  Headless Chrome
+   * ignores forced breaks on table rows so this went unnoticed, but WeasyPrint
+   * honours them, which put every row on a page of its own and truncated the
+   * rest of the report.  Keep the "don't split me" half only. */
+  tr.page {
+    page-break-after: auto;
   }
 
   .table-striped > tbody > tr:nth-of-type(odd) {

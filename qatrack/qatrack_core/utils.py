@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uuid
+from io import BytesIO
 
 from dateutil import relativedelta as rdelta
 from django.conf import settings
@@ -10,164 +11,33 @@ from django.utils.text import slugify
 
 def weasyprint_to_pdf(html, name="", paper_size="letter"):
     """Convert HTML to PDF using WeasyPrint with proper paper size support
-    
+
     Args:
         html: HTML content to convert
-        name: Optional name for temporary files
+        name: Unused, kept for signature compatibility with chrometopdf
         paper_size: Paper size for PDF ('letter' or 'a4')
     """
     try:
         from weasyprint import CSS, HTML
     except ImportError:
         raise ImportError("WeasyPrint not installed. Install with: uv pip install weasyprint")
-    
-    import tempfile
-    import uuid
-    
-    if not name:
-        name = uuid.uuid4().hex[:10]
-    
-    # Define paper size CSS separately from layout CSS
+
+    # The report templates link the real bootstrap/adminlte print stylesheets
+    # and include reports/pdf.css themselves, so the only thing we need to add
+    # here is the page geometry.  Do *not* re-implement the Bootstrap grid: a
+    # flexbox `.row` stops WeasyPrint from fragmenting its contents across
+    # pages, which silently truncates any report containing a forced page
+    # break (see reports/pdf.css).
     paper_css = """
     @page {
         size: %s;
         margin: 20px 20px 20px 30px;
     }
     """ % paper_size.lower()
-    
-    # Define layout CSS separately
-    layout_css = """
-    /* Basic resets */
-    * {
-        box-sizing: border-box;
-    }
-    
-    body {
-        margin: 0;
-        padding: 0;
-        width: 100%%;
-    }
-    
-    /* Bootstrap grid emulation */
-    .row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-right: -15px;
-        margin-left: -15px;
-        width: 100%%;
-    }
-    
-    .col-xs-4 {
-        flex: 0 0 33.333333%%;
-        max-width: 33.333333%%;
-        padding-right: 15px;
-        padding-left: 15px;
-    }
-    
-    .col-xs-8 {
-        flex: 0 0 66.666667%%;
-        max-width: 66.666667%%;
-        padding-right: 15px;
-        padding-left: 15px;
-    }
-    
-    .col-xs-12 {
-        flex: 0 0 100%%;
-        max-width: 100%%;
-        padding-right: 15px;
-        padding-left: 15px;
-    }
-    
-    /* Text alignment */
-    .text-right {
-        text-align: right !important;
-    }
-    
-    /* Logo styling */
-    .logo {
-        max-height: 60px;
-        margin-top: 20px;
-        float: right;
-    }
-    
-    .logo-visible {
-        opacity: 1;
-    }
-    
-    .logo-hidden {
-        opacity: 0;
-    }
-    
-    /* Container */
-    .container {
-        width: 100%%;
-        padding-right: 15px;
-        padding-left: 15px;
-        margin-right: auto;
-        margin-left: auto;
-    }
-    
-    /* Header specific */
-    h1.pdf {
-        margin-top: 20px;
-        color: #777;
-    }
-    
-    h5 {
-        color: #1c9aea;
-        font-weight: bold;
-        padding-left: 4px;
-    }
-    
-    /* Filter details styling */
-    .dl-horizontal {
-        margin: 0;
-        width: 100%%;
-    }
-    .dl-horizontal::after {
-        content: "";
-        display: table;
-        clear: both;
-    }
-    
-    .dl-horizontal dt {
-        float: left;
-        clear: left;
-        text-align: right;
-        width: 40%%;
-        font-weight: bold;
-        margin-bottom: 5px;
-        padding-right: 10px;
-        word-wrap: break-word; /* Allow long words to wrap */
-    }
-    
-    .dl-horizontal dd {
-        display: block;
-        overflow: hidden; /* Establishes a new block formatting context */
-        margin-bottom: 5px;
-        padding-left: 10px;
-        min-height: 20px;
-    }
-    
-    /* Report details section */
-    .report-details {
-        margin-top: 1em;
-        margin-bottom: 1em;
-    }
-    """
-    
-    # Create WeasyPrint documents with both CSS rules
-    html_doc = HTML(string=html)
-    css_docs = [
-        CSS(string=paper_css),
-        CSS(string=layout_css),
-    ]
-    
-    # Generate PDF and return as bytes
-    with tempfile.NamedTemporaryFile() as pdf_file:
-        html_doc.write_pdf(pdf_file.name, stylesheets=css_docs)
-        pdf_file.seek(0)
-        return pdf_file.read()
+
+    pdf = BytesIO()
+    HTML(string=html).write_pdf(pdf, stylesheets=[CSS(string=paper_css)])
+    return pdf.getvalue()
 
 
 def chrometopdf(html, name="", paper_size="letter"):
