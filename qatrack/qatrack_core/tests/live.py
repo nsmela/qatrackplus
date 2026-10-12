@@ -41,7 +41,9 @@ from functools import wraps
 import pytest
 from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.core.servers.basehttp import WSGIServer
 from django.test import TransactionTestCase
+from django.test.testcases import LiveServerThread
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
@@ -114,9 +116,11 @@ def WebElement_click(self):
     """
     Monkey patches the element click command to work around issue with
     later versions of webdrivers that won't click on an element if it
-    is not in view
+    is not in view. The element is scrolled to the middle of the window:
+    scrolled to the top it sits under the fixed navigation bar, and the
+    click lands on the bar instead ("element click intercepted").
     """
-    self.parent.execute_script("arguments[0].scrollIntoView();", self)
+    self.parent.execute_script("arguments[0].scrollIntoView({block: 'center'});", self)
     return self._execute(Command.CLICK_ELEMENT)
 
 
@@ -126,7 +130,7 @@ orig_send_keys = WebElement.send_keys
 @retry_if_exception(WebDriverException, 5, sleep_time=1)  # noqa: E302
 def WebElement_send_keys(self, *keys):
     """Monky patch send_keys to ensure element is in view"""
-    self.parent.execute_script("arguments[0].scrollIntoView();", self)
+    self.parent.execute_script("arguments[0].scrollIntoView({block: 'center'});", self)
     return orig_send_keys(self, *keys)
 
 
@@ -138,6 +142,35 @@ if not getattr(WebElement, '_qatrack_patched', False):
     WebElement._qatrack_patched = True
 
 
+class SerialWSGIServer(WSGIServer):
+    """Django's development WSGI server, answering one request at a time.
+
+    Accepts (and ignores) `connections_override` so LiveServerThread can create
+    it exactly as it creates the threaded server. LiveServerThread.run() has
+    already handed the test's database connections to the server thread.
+    """
+
+    def __init__(self, *args, connections_override=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class SerialLiveServerThread(LiveServerThread):
+    """A live server that handles requests one after another.
+
+    With SQLite the tests and every request thread of Django's threaded live
+    server share one in-memory connection. Many QATrack+ pages fire two or
+    more ajax requests at once (choosing a unit on the service event form,
+    loading the groups page), and requests running together on that one
+    connection fail at random with a 500 or 401 ("bad parameter or other API
+    misuse"). Answering them in turn removes the race and changes nothing
+    the page can observe. A non-threaded server also sends
+    "Connection: close", so the browser's keep-alive connections cannot hold
+    it up.
+    """
+
+    server_class = SerialWSGIServer
+
+
 def _safe_filename(name):
     return re.sub(r'[^A-Za-z0-9_.-]+', '_', name).strip('_')[:180]
 
@@ -145,6 +178,8 @@ def _safe_filename(name):
 @pytest.mark.selenium
 class SeleniumTests(StaticLiveServerTestCase):
     """A live server, one browser per test class, and helpers for driving it."""
+
+    server_thread_class = SerialLiveServerThread
 
     @classmethod
     def setUpClass(cls):

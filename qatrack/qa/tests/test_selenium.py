@@ -904,7 +904,9 @@ class TestReviewQC(BaseQATests):
         with transaction.atomic():
             self.login()
             self.open(self.url)
-            time.sleep(0.1)
+            # The table is drawn by JavaScript after the page loads; a fixed
+            # 0.1 s pause was not always enough on a busy machine.
+            self.wait.until(e_c.element_to_be_clickable((By.CLASS_NAME, "test-selected-toggle")))
             self.driver.find_elements(By.CLASS_NAME, "test-selected-toggle")[0].click()
             self.select_by_text("bulk-status", "Approved")
             self.click("submit-review")
