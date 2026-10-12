@@ -70,7 +70,7 @@ def selenium_setting(name, default=None):
         value = os.environ[name]
         if isinstance(default, bool):
             return value.strip().lower() in TRUTHY
-        if isinstance(default, (int, float)) and not isinstance(default, bool):
+        if isinstance(default, int | float) and not isinstance(default, bool):
             return type(default)(value)
         return value
 
