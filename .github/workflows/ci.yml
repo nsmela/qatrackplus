@@ -254,12 +254,20 @@ jobs:
         if: failure()
         run: |
           python3 - <<'PY'
+          import os
+          import re
           import xml.etree.ElementTree as ET
           for case in ET.parse('selenium-results.xml').iter('testcase'):
               for problem in list(case.iter('failure')) + list(case.iter('error')):
-                  name = '%s::%s' % (case.get('classname'), case.get('name'))
-                  message = (problem.get('message') or '').splitlines()[0][:300] if problem.get('message') else ''
-                  print('::error title=%s::%s' % (name, message.replace('%', '%25')))
+                  name = '%s.%s' % (case.get('classname'), case.get('name'))
+                  text = problem.text or ''
+                  # The last line of our own code in the traceback, and the error itself.
+                  places = re.findall(r'^(qatrack/\S+\.py):(\d+)', text, re.M)
+                  errors = [line[1:].strip() for line in text.splitlines() if line.startswith('E ')]
+                  message = (errors[0] if errors else problem.get('message') or '')[:300]
+                  ours = [p for p in places if os.path.basename(p[0]).startswith('test_')] or places
+                  where = ',file=%s,line=%s' % ours[-1] if ours else ''
+                  print('::error title=%s%s::%s' % (name, where, message.replace('%', '%25')))
           PY
 
       - name: Upload failure screenshots

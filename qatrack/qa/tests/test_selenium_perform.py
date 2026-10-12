@@ -7,6 +7,7 @@ while performing QC is held to the same answer the server records.
 """
 
 import os
+import re
 import shutil
 import tempfile
 
@@ -14,10 +15,9 @@ import pytest
 from django.contrib.auth.models import Permission
 from django.urls import reverse
 from django.utils import timezone
-from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as e_c
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
@@ -118,7 +118,13 @@ class PerformQCTestCase(SeleniumTestCase):
         """Type a value the way a user would; the change event fires when focus leaves."""
         el = self.value_input(slug)
         el.clear()
-        el.send_keys(str(value), Keys.TAB)
+        el.send_keys(str(value))
+        # Make sure every key landed before focus leaves and the change event fires.
+        self.wait_until(
+            lambda: el.get_attribute('value') == str(value) or not self._numeric(value),
+            message='%s never showed %r after typing' % (slug, value),
+        )
+        el.send_keys(Keys.TAB)
 
     def choose(self, slug, text):
         Select(self.driver.find_element(By.CSS_SELECTOR, '#%s-value select' % slug)).select_by_visible_text(text)
@@ -161,20 +167,36 @@ class PerformQCTestCase(SeleniumTestCase):
         so if the form does not start submitting we wait for idle and try again.
         """
         form = self.driver.find_element(By.ID, 'qa-form')
+
+        def submitting():
+            # The page can navigate away between the two checks. A stale form or a
+            # missing button both mean the submit went through.
+            if self._stale(form):
+                return True
+            try:
+                return self.driver.find_element(By.ID, 'submit-qa').text == 'Submitting...'
+            except (NoSuchElementException, StaleElementReferenceException):
+                return True
+
         for attempt in range(3):
             self.wait_for_idle()
-            self.driver.find_element(By.ID, 'submit-qa').click()
             try:
-                # The page can navigate away between the two checks, leaving the button
-                # stale mid-read; that means the submit went through, so just poll again.
-                WebDriverWait(self.driver, 5, ignored_exceptions=(StaleElementReferenceException,)).until(
-                    lambda d: self._stale(form) or d.find_element(By.ID, 'submit-qa').text == 'Submitting...'
-                )
+                self.driver.find_element(By.ID, 'submit-qa').click()
+            except (NoSuchElementException, StaleElementReferenceException):
+                # A slow earlier click was submitted after all.
+                break
+            try:
+                WebDriverWait(self.driver, self.timeout).until(lambda d: submitting())
                 break
             except TimeoutException:
                 if attempt == 2:
                     raise
-        WebDriverWait(self.driver, self.timeout * 3).until(e_c.staleness_of(form))
+        WebDriverWait(self.driver, self.timeout * 3).until(lambda d: self._stale(form))
+
+    @staticmethod
+    def _numeric(value):
+        """True for a plain number like 10.5 or -2, which a number field shows exactly as typed."""
+        return re.fullmatch(r'-?\d+(\.\d+)?', str(value)) is not None
 
     @staticmethod
     def _stale(element):

@@ -45,10 +45,11 @@ from django.core.servers.basehttp import WSGIServer
 from django.test import TransactionTestCase
 from django.test.testcases import LiveServerThread
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.command import Command
+from selenium.webdriver.remote.errorhandler import ErrorHandler
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as e_c
 from selenium.webdriver.support.expected_conditions import staleness_of
@@ -169,6 +170,33 @@ class SerialLiveServerThread(LiveServerThread):
     """
 
     server_class = SerialWSGIServer
+
+
+orig_check_response = ErrorHandler.check_response
+
+
+def ErrorHandler_check_response(self, response):
+    """Report Chrome's "node does not belong to the document" as the stale element it is.
+
+    When a page is replaced while WebDriver is looking at one of its elements,
+    chromedriver sometimes answers with this generic "unknown error" instead of
+    a StaleElementReferenceException. Selenium's own staleness_of() and
+    every `ignored_exceptions=(StaleElementReferenceException,)` then miss it,
+    and a test that was simply waiting for the next page fails at random.
+    """
+    try:
+        return orig_check_response(self, response)
+    except StaleElementReferenceException:
+        raise
+    except WebDriverException as e:
+        if 'does not belong to the document' in (e.msg or ''):
+            raise StaleElementReferenceException(e.msg, e.screen, e.stacktrace) from e
+        raise
+
+
+if not getattr(ErrorHandler, '_qatrack_patched', False):
+    ErrorHandler.check_response = ErrorHandler_check_response
+    ErrorHandler._qatrack_patched = True
 
 
 def _safe_filename(name):
