@@ -59,9 +59,14 @@ REVIEW_BULK = True
 TIME_ZONE = 'America/Toronto'
 
 # Selenium browser configuration for testing
-# Set to True to use headless browser for testing (requires xvfb)
-# Set to False to see the browser during test execution
-SELENIUM_VIRTUAL_DISPLAY = False
+# 'chromium' or 'firefox'. Paths can be left empty if the driver is on your PATH.
+SELENIUM_BROWSER = 'firefox'
+SELENIUM_CHROMIUM_DRIVER_PATH = ''
+SELENIUM_FIREFOX_DRIVER_PATH = ''
+
+# True runs the browser without a window (no xvfb needed).
+# False shows the browser while the tests run, which is handy when writing one.
+SELENIUM_HEADLESS = False
 
 # Test-specific password hasher for faster testing
 from django.contrib.auth.hashers import BasePasswordHasher  # noqa: E402

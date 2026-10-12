@@ -490,7 +490,7 @@ QATrack+ directory using the `py.test` command:
     ./qatrackplus> py.test
     Test session starts (platform: linux, Python 3.6.5, pytest 3.5.0, pytest-sugar 0.9.1)
     Django settings: qatrack.settings (from ini file)
-    rootdir: /home/dev/projects/qatrackplus, inifile: pytest.ini
+    rootdir: /home/dev/projects/qatrackplus, configfile: pyproject.toml
     plugins: django-4.5.2, cov-3.0.0
 
     qatrack/accounts/tests.py ✓✓✓
@@ -599,64 +599,67 @@ After downloading, make the driver executable and verify the path.
 
 **Configuring Selenium Tests**
 
-You'll need to configure your browser settings in two files. First, update the Selenium configuration in `qatrack/settings.py`:
+Put your browser settings in `qatrack/local_test_settings.py` (copy
+`deploy/dev/local_test_settings.dev.py` to start). It is read last when the
+tests run, so it overrides `qatrack/settings.py` and `qatrack/test_settings.py`.
 
-.. code-block::
+.. code-block:: python
 
-    # Selenium Browser Configuration
-    # Options: 'firefox', 'chromium'
-    SELENIUM_BROWSER = ''
-    
-    # Browser Driver Paths
-    SELENIUM_FIREFOX_DRIVER_PATH = ''  # Path to geckodriver as shown above
-    SELENIUM_CHROMIUM_DRIVER_PATH = ''   # Path to chromedriver as shown above
-    
-    # Leave this False in 4.0 - see the note below
-    SELENIUM_VIRTUAL_DISPLAY = False
-
-Then also set `SELENIUM_VIRTUAL_DISPLAY` in `qatrack/test_settings.py`:
-
-.. code-block::
-    
-    # In qatrack/test_settings.py:
-    SELENIUM_VIRTUAL_DISPLAY = False
-
-**Configuration Examples**
-
-**Firefox with visible browser:**
-
-.. code-block::
-
-    # In qatrack/settings.py:
-    SELENIUM_BROWSER = 'firefox'
-    SELENIUM_VIRTUAL_DISPLAY = False
-    SELENIUM_FIREFOX_DRIVER_PATH = '/snap/bin/geckodriver' 
-    
-    # In qatrack/test_settings.py:
-    SELENIUM_VIRTUAL_DISPLAY = False
-
-**Chromium with visible browser:**
-
-.. code-block::
-
-    # In qatrack/settings.py:
-    SELENIUM_BROWSER = 'chromium'
-    SELENIUM_VIRTUAL_DISPLAY = False
+    # In qatrack/local_test_settings.py:
+    SELENIUM_BROWSER = 'chromium'                       # or 'firefox'
     SELENIUM_CHROMIUM_DRIVER_PATH = '/usr/bin/chromedriver'
-    
-    # In qatrack/test_settings.py:
-    SELENIUM_VIRTUAL_DISPLAY = False
+    SELENIUM_FIREFOX_DRIVER_PATH = ''                   # empty = use the one on your PATH
+    SELENIUM_HEADLESS = True                            # False shows the browser window
+
+Every ``SELENIUM_*`` setting can also be given as an environment variable of the
+same name, which wins over the settings files. That is the quickest way to try a
+headless run without editing anything:
+
+.. code-block:: shell
+
+    SELENIUM_BROWSER=chromium SELENIUM_HEADLESS=1 uv run pytest -m selenium
+
+The settings are:
+
+* ``SELENIUM_BROWSER``: ``'chromium'`` or ``'firefox'`` (the default).
+* ``SELENIUM_HEADLESS``: run the browser without a window, using its own headless
+  mode. Works on Linux, Windows and macOS and needs nothing extra installed.
+* ``SELENIUM_CHROMIUM_DRIVER_PATH`` / ``SELENIUM_FIREFOX_DRIVER_PATH``: the driver.
+  Leave empty to use the one on your ``PATH``.
+* ``SELENIUM_CHROMIUM_BINARY_PATH`` / ``SELENIUM_FIREFOX_BINARY_PATH``: the browser
+  itself, when the driver cannot find it.
+* ``SELENIUM_TIMEOUT``: seconds to wait for something to appear before a test
+  fails (default 10). Raise it on a slow machine.
+* ``SELENIUM_ARTIFACTS_DIR``: where a failing test saves its screenshot, page HTML
+  and browser console log (default ``selenium-screenshots``).
+* ``SELENIUM_VIRTUAL_DISPLAY``: run inside a virtual X display through ``xvfb``
+  (Linux only, ``xvfb`` must be installed). Implies headless. Most people want
+  ``SELENIUM_HEADLESS`` instead.
 
 .. note::
 
-    **The browser tests run with a visible browser in 4.0.** Headless running is not
-    supported here and is being done properly for 4.1.
+    The browser and its driver must be the same major version: chromedriver 141
+    drives Chromium 141 and nothing else. A mismatch fails every test at start-up
+    with "session not created: This version of ChromeDriver only supports...".
 
-    ``SELENIUM_VIRTUAL_DISPLAY = True`` in 4.0 does not mean the browser's own
-    headless mode: it means a virtual X display through ``xvfb``, which exists on
-    Linux and not on Windows. So it cannot work on a Windows development machine at
-    all, and on Linux it needs ``xvfb`` installed and a ``pyvirtualdisplay`` that is
-    not in the default dependencies. Leave it ``False``.
+**Writing a Selenium test**
+
+Inherit from ``SeleniumTestCase`` in ``qatrack/qatrack_core/tests/live.py``. It
+gives you a superuser (``self.user``), ``login()``, ``load_admin()``, the
+``selenium`` marker, and helpers for finding and waiting on elements. Wait for a
+condition rather than sleeping:
+
+.. code-block:: python
+
+    self.click("submit-qa")
+    self.wait_for_element(".alert-success")
+    self.wait_until(lambda: models.TestListInstance.objects.count() == 1)
+
+``wait_for_ajax()`` waits until jQuery has no requests in flight, which is what
+most pages need after a click that talks to the server.
+
+When a test fails, look in ``selenium-screenshots/`` first: the screenshot usually
+shows why.
 
 Writing Documentation
 ---------------------

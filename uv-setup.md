@@ -87,14 +87,14 @@ Run only non-selenium tests (faster):
 python -m pytest -m "not selenium"
 ```
 
-You should see output showing the tests running, with most tests passing. Some selenium-based browser tests may fail depending on your environment, but the core functionality tests should all pass.
+You should see output showing the tests running, all passing. The selenium (browser) tests need a browser and its driver; see the developer guide's "Setting Up Selenium Browser Testing" section to run them.
 
 ## Troubleshooting
 
 - **Missing dependencies**: If you encounter import errors, ensure you activated your virtual environment and installed the development dependencies with `uv sync --group dev`.
 - **Python version conflicts**: If you encounter compatibility issues, ensure you're using Python 3.12 with `uv python pin 3.12`. This creates the .python-version file.
 - **Database issues**: Make sure you've copied the `local_settings.py` file and run migrations before starting the server.
-- **Test failures**: Some selenium browser tests may fail due to browser/environment issues. This is normal and doesn't affect core functionality.
+- **Selenium test failures**: check that the browser and its driver are the same major version, then look in `selenium-screenshots/` for the screenshot and console log of the failing test.
 
 ## Complete setup commands (copy-paste ready)
 

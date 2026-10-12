@@ -3,7 +3,6 @@ import time
 import pytest
 from django.contrib.auth.models import Permission
 from django.db import transaction
-from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -12,11 +11,11 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as e_c
 from selenium.webdriver.support.ui import Select
 
-from qatrack.accounts.tests.utils import create_group, create_user
+from qatrack.accounts.tests.utils import create_group
 from qatrack.qa import models
 from qatrack.qa.tests import utils
 from qatrack.qatrack_core.dates import format_as_date
-from qatrack.qatrack_core.tests.live import SeleniumTests
+from qatrack.qatrack_core.tests.live import SeleniumTestCase
 from qatrack.service_log.tests import utils as sl_utils
 
 objects = {
@@ -140,44 +139,10 @@ objects = {
 }  # yapf: disable
 
 
-class BaseQATests(SeleniumTests, TransactionTestCase):
-
-    def setUp(self):
-        with transaction.atomic():
-            self.password = 'password'
-            self.user = create_user(pwd=self.password)
-
-    def login(self):
-        self.open("/accounts/login/")
-        self.send_keys("id_username", self.user.username)
-        self.send_keys("id_password", self.password)
-        self.driver.find_element(By.CSS_SELECTOR, 'button').click()
-
-        # Wait for proof that the login POST was handled and the redirect has
-        # rendered. The logout link is inside {% if user.is_authenticated %}
-        # in site_base.html, so its presence means both.
-        #
-        # This used to wait for "head > title", which every page has -
-        # including the login page still on screen. It was satisfied
-        # immediately, before the POST had even been sent, so a slow round
-        # trip left the test unauthenticated. It then failed later, somewhere
-        # else, as a timeout waiting for an element that only exists when
-        # logged in - which looks like an unrelated flake.
-        self.wait.until(
-            e_c.presence_of_element_located((By.CSS_SELECTOR, 'a[href*="logout"]'))
-        )
-
-    def load_main(self):
-        self.login()
-        self.open("")
-
-    def load_admin(self):
-        self.open("/admin/")
-        self.send_keys("id_username", self.user.username)
-        self.send_keys("id_password", self.password)
-        self.driver.find_element(By.CSS_SELECTOR, 'button').click()
-
-        self.wait.until(e_c.presence_of_element_located((By.CSS_SELECTOR, "head > title")))
+# The user, login() and load_admin() that used to live on this class are now on
+# the shared harness, so that other apps' browser tests need not import from this
+# module. The name is kept because existing tests (here and in reports) use it.
+BaseQATests = SeleniumTestCase
 
 
 @pytest.mark.selenium

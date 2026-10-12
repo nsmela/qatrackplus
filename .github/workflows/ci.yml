@@ -213,6 +213,50 @@ jobs:
       - name: Run Tests
         run: uv run pytest -x -m "not selenium"
 
+  selenium-tests:
+    name: Browser (Selenium) Tests
+    runs-on: ubuntu-latest
+    needs: [lint, requirements]
+    # Non-blocking while the browser suite settles in CI. Once it has been
+    # green for a while, delete this line so a failure blocks the merge.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Setup Database configuration
+        run: cp deploy/sqlite/local_settings.py qatrack/local_settings.py
+
+      # GitHub's Ubuntu runners ship Google Chrome with a matching
+      # chromedriver, whose directory is in $CHROMEWEBDRIVER.
+      - name: Run browser tests
+        env:
+          SELENIUM_BROWSER: chromium
+          SELENIUM_HEADLESS: "1"
+        run: |
+          export SELENIUM_CHROMIUM_DRIVER_PATH="$CHROMEWEBDRIVER/chromedriver"
+          uv run pytest -m selenium
+
+      - name: Upload failure screenshots
+        if: failure()
+        # TODO: pin to a commit SHA like the other actions in this file.
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-screenshots
+          path: selenium-screenshots/
+          if-no-files-found: ignore
+
   docker-check:
     name: Docker Build & Run Check
     runs-on: ubuntu-latest

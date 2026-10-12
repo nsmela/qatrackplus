@@ -821,18 +821,33 @@ if EMAIL_NOTIFICATION_PWD and not EMAIL_HOST_PASSWORD:
 # Testing settings
 
 # Selenium Browser Configuration
-# Options: 'firefox', 'chromium'
-# Set to 'firefox' to use Firefox, 'chromium' to use Chromium
+# Options: 'firefox', 'chromium'. Empty means Firefox.
+# Any SELENIUM_* setting can also be given as an environment variable of the
+# same name, which takes precedence (see qatrack/qatrack_core/tests/live.py).
 SELENIUM_BROWSER = ''
 
-# Browser Driver Paths (leave empty to use system default)
+# Browser Driver Paths (leave empty to use the driver on your PATH)
 SELENIUM_FIREFOX_DRIVER_PATH = ''  # Path to geckodriver
 SELENIUM_CHROMIUM_DRIVER_PATH = ''   # Path to chromedriver
 
+# Browser binary paths (leave empty to let the driver find the browser)
+SELENIUM_FIREFOX_BINARY_PATH = ''
+SELENIUM_CHROMIUM_BINARY_PATH = ''
+
 # Headless Mode
-# Set to True to run browsers in headless mode (no visible browser window)
-# Set to False to see the browser during test execution
-SELENIUM_VIRTUAL_DISPLAY = False  # Set to True to use headless browser for testing (requires xvfb)
+# Set to True to run the browser without a window, using its own headless
+# mode. Works on Linux, Windows and macOS with no extra software.
+SELENIUM_HEADLESS = False
+
+# Virtual display (Linux only): run inside xvfb, which must be installed.
+# Implies headless. Most people want SELENIUM_HEADLESS instead.
+SELENIUM_VIRTUAL_DISPLAY = False
+
+# Seconds a browser test waits for something to appear before failing.
+SELENIUM_TIMEOUT = 10
+
+# Where a failing browser test saves its screenshot, page HTML and console log
+SELENIUM_ARTIFACTS_DIR = 'selenium-screenshots'
 
 if any([('py.test' in v or 'pytest' in v) for v in sys.argv]):
     DATABASES.pop('readonly', None)

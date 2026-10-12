@@ -147,8 +147,10 @@ Please attempt your best effort at these guidelines, but don't be afraid if you 
 uv run pytest -m "not selenium"
 ```
 
-This excludes the GUI (Selenium/browser) tests, which aren't yet set up to
-run headless. `runtests.sh` and `python manage.py test` use Django's own
+This excludes the GUI (Selenium/browser) tests, which need a browser and its
+driver installed. With Chromium and chromedriver on your machine you can run
+them headless with
+`SELENIUM_BROWSER=chromium SELENIUM_HEADLESS=1 uv run pytest -m selenium`. `runtests.sh` and `python manage.py test` use Django's own
 test runner, not pytest, and don't support marker filtering — prefer `pytest`
 directly. See [AGENTS.md](AGENTS.md#running-the-tests) for more detail.
 

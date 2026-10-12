@@ -178,18 +178,28 @@ uv run pre-commit run --all-files
 ## Running the tests
 
 The primary, agent-safe way to run the suite is `pytest`, excluding the GUI
-(Selenium/browser) tests — these are not yet configured to run headless, so
-they will fail or hang in most agent and CI environments:
+(Selenium/browser) tests, which need a browser and its driver installed:
 
 ```bash
 uv run pytest -m "not selenium"
 ```
 
-To run the full suite, including GUI tests (requires a real browser/display):
+To run the browser tests too, install Chromium + chromedriver (or Firefox +
+geckodriver) and run them headless — no display or xvfb needed:
 
 ```bash
-uv run pytest
+SELENIUM_BROWSER=chromium SELENIUM_HEADLESS=1 uv run pytest -m selenium
 ```
+
+Every `SELENIUM_*` setting can be given as an environment variable like this,
+or set in `qatrack/local_test_settings.py`; the full list is at the top of
+`qatrack/qatrack_core/tests/live.py`. Driver and browser must be the same major
+version. A failing browser test saves a screenshot, the page HTML and the
+browser console log to `selenium-screenshots/` — look there first.
+
+New browser tests should inherit from `SeleniumTestCase` in
+`qatrack/qatrack_core/tests/live.py`, and wait for conditions
+(`wait_for_ajax`, `wait_for_element`, `wait_until`) rather than `time.sleep`.
 
 `runtests.sh` and `python manage.py test` invoke Django's own test runner,
 not pytest — they don't understand the `selenium` marker or `-m` filtering,
