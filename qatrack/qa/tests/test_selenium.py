@@ -1,7 +1,10 @@
 import time
+from datetime import date
 
 import pytest
+import recurrence
 from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -14,9 +17,10 @@ from selenium.webdriver.support.ui import Select
 from qatrack.accounts.tests.utils import create_group
 from qatrack.qa import models
 from qatrack.qa.tests import utils
-from qatrack.qatrack_core.dates import format_as_date
+from qatrack.qa.tests.test_selenium_admin import AdminSeleniumMixin
 from qatrack.qatrack_core.tests.live import SeleniumTestCase
 from qatrack.service_log.tests import utils as sl_utils
+from qatrack.units import models as u_models
 
 objects = {
 
@@ -92,7 +96,7 @@ objects = {
     'Unit': {
         'name': 'TestUnit',
         'number': '1',
-        'date_acceptance': format_as_date(timezone.now())
+        'date_acceptance': '2026-01-05',
     },
     'Frequency': {
         'name': 'TestFrequency',
@@ -100,7 +104,6 @@ objects = {
         'due_interval': '3',
         'window_end': '4'
     },
-    'UnitTestCollection': {},
     'absoluteTolerance': {
         'act_low': '-2',
         'tol_low': '-1',
@@ -117,25 +120,6 @@ objects = {
         'mc_pass_choices': '3',
         'mc_tol_choices': '2,4'
     },
-    'refTols': {
-        'multipleChoice': {},
-        'simpleNumeric': {
-            'reference_value': '0'
-        },
-        'composite': {
-            'reference_value': '23.23'
-        }
-    },
-    'statuses': {
-        'testStatus': {
-            'default': True,
-            'requiresApproval': True
-        },
-        'testApprovalStatus': {
-            'dfault': False,
-            'requiresApproval': False
-        }
-    },
 }  # yapf: disable
 
 
@@ -146,307 +130,329 @@ BaseQATests = SeleniumTestCase
 
 
 @pytest.mark.selenium
-class LiveQATests(BaseQATests):
+class LiveQATests(AdminSeleniumMixin, BaseQATests):
+    """Creating the basic QC configuration through the Django admin.
 
-    def setUp(self):
-
-        super().setUp()
+    Each test goes through the admin as a person would - from the index, to
+    the add page, filling the form in and saving - and then reads back from
+    the database what was saved. A success message alone would pass even if a
+    field were silently dropped on the way.
+    """
 
     def test_admin_category(self):
+        """A category is saved with the name, slug and description typed in."""
 
         self.load_admin()
         self.driver.find_element(By.XPATH, '//a[@href="/admin/qa/category/"]').click()
         self.click_by_link_text("ADD CATEGORY")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['Category']['name'])
-        self.driver.find_element(By.ID, 'id_slug').send_keys(objects['Category']['slug'])
-        self.driver.find_element(By.ID, 'id_description').send_keys(objects['Category']['description'])
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.type_into('id_name', objects['Category']['name'])
+        # The slug is filled in from the name as it is typed; replace it.
+        self.type_into('id_slug', objects['Category']['slug'], clear=True)
+        self.type_into('id_description', objects['Category']['description'])
+        self.save()
+
+        category = models.Category.objects.get(name=objects['Category']['name'])
+        assert category.slug == objects['Category']['slug']
+        assert category.description == objects['Category']['description']
 
     def test_admin_tests(self):
+        """Tests of each type are saved with their type, category, choices, constant and procedure.
+
+        The calculation procedure is typed into the code editor that replaces
+        the plain text box; if the editor stopped copying its text back to the
+        form, the procedure would be saved empty.
+        """
+
+        category = utils.create_category(
+            name=objects['Category']['name'],
+            slug=objects['Category']['slug'],
+            description=objects['Category']['description'],
+        )
+        type_labels = dict(models.TEST_TYPE_CHOICES)
 
         self.load_admin()
-
-        if not utils.exists('qa', 'Category', 'name', objects['Category']['name']):
-            utils.create_category(
-                name=objects['Category']['name'],
-                slug=objects['Category']['slug'],
-                description=objects['Category']['description'],
-            )
-
         self.driver.find_element(By.LINK_TEXT, 'Tests').click()
         self.click_by_link_text("ADD TEST")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        # for i in range(len(objects['Tests'])):
 
-        for i in range(len(objects['Tests'])):
-            # the_test = objects['Tests'][i]
-            the_test = objects['Tests'][i]
-            self.send_keys('id_name', the_test['name'])
-            self.send_keys('id_slug', the_test['name'])
-            self.select_by_index('id_category', 1)
-            self.select_by_value('id_type', the_test['name'])
-            time.sleep(0.1)
+        for i, the_test in enumerate(objects['Tests']):
+            # Wait for a fresh, empty add form: after "Save and add another"
+            # the previous page's success message must not be mistaken for
+            # this one's.
+            self.wait.until(lambda d: self.value_of('id_name') == '')
+            self.type_into('id_name', the_test['name'])
+            self.type_into('id_slug', the_test['name'])
+            self.select2_choose('id_category', category.name)
+            self.select2_choose('id_type', type_labels[the_test['test_type']])
 
             if the_test['choices']:
-                self.send_keys('id_choices', '1,2,3,4,5')
+                self.type_into('id_choices', the_test['choices'])
             if the_test['constant_value']:
-                self.send_keys('id_constant_value', '23.23')
+                self.type_into('id_constant_value', the_test['constant_value'])
             if the_test['procedure']:
-                time.sleep(1)
-                self.driver.find_element(By.CSS_SELECTOR, '#calc-procedure-editor > textarea').send_keys(
-                    the_test['procedure'],
-                )
-                self.driver.find_element(By.CSS_SELECTOR, '.submit-row').click()
+                self.click_css('#calc-procedure-editor')
+                self.driver.switch_to.active_element.send_keys(the_test['procedure'])
+                # The editor copies its text into the form when it loses focus.
+                self.click_css('#id_name')
+                self.wait.until(lambda d: self.value_of('id_calculation_procedure') == the_test['procedure'])
 
-            # Firefox webdriver being weird with clicks. Had to use javascript here:
-            if i + 1 == len(objects['Tests']):
-                self.driver.execute_script("$('input[name=_save]').click();")
-            else:
-                self.driver.execute_script("$('input[name=_addanother]').click();")
+            last = i + 1 == len(objects['Tests'])
+            self.save('_save' if last else '_addanother')
+            assert models.Test.objects.filter(name=the_test['name']).exists(), the_test['name']
 
-            for i in range(3):
-                try:
-                    self.wait_for_success()
-                    break
-                except:  # noqa: E722
-                    if i == 2:
-                        raise
-                    else:
-                        time.sleep(1)
+        assert models.Test.objects.count() == len(objects['Tests'])
+        for the_test in objects['Tests']:
+            saved = models.Test.objects.get(name=the_test['name'])
+            assert saved.slug == the_test['name']
+            assert saved.type == the_test['test_type'], the_test['name']
+            assert saved.category == category
+            assert (saved.choices or None) == the_test['choices'], the_test['name']
+            expected_constant = float(the_test['constant_value']) if the_test['constant_value'] else None
+            assert saved.constant_value == expected_constant, the_test['name']
+            # Saving tidies the procedure with black, which adds a final newline.
+            assert (saved.calculation_procedure or '').strip() == (the_test['procedure'] or ''), the_test['name']
 
     def test_admin_testlist(self):
+        """A test list is saved with every test entered, each in its own position."""
+
+        for the_test in objects['Tests']:
+            utils.create_test(
+                name=the_test['name'],
+                test_type=the_test['test_type'],
+                choices=the_test['choices'],
+                procedure=the_test['procedure'],
+                constant_value=the_test['constant_value'],
+            )
+        test_pks = list(models.Test.objects.order_by('pk').values_list('pk', flat=True))
 
         self.load_admin()
-
-        for i in range(len(objects['Tests'])):
-            the_test = objects['Tests'][i]
-            if not utils.exists('qa', 'Test', 'name', the_test['name']):
-                utils.create_test(
-                    name=the_test['name'],
-                    test_type=the_test['test_type'],
-                    choices=the_test['choices'],
-                    procedure=the_test['procedure'],
-                    constant_value=the_test['constant_value'],
-                )
-
         self.click_by_link_text("Test Lists")
         self.click_by_link_text("ADD TEST LIST")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['TestList']['name'])
-        self.driver.find_element(By.ID, 'id_slug').send_keys(objects['TestList']['name'].lower())
-        self.driver.find_element(By.LINK_TEXT, 'Add another Test List Membership').click()
-        self.driver.find_element(By.LINK_TEXT, 'Add another Test List Membership').click()
-        self.driver.find_element(By.LINK_TEXT, 'Add another Test List Membership').click()
-        for i, pk in enumerate(models.Test.objects.values_list("pk", flat=True)):
-            self.driver.find_element(By.ID, 'id_testlistmembership_set-' + str(i) + '-test').send_keys(str(pk))
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.type_into('id_name', objects['TestList']['name'])
+        self.type_into('id_slug', objects['TestList']['name'].lower(), clear=True)
+        # The add page offers five empty rows; three more are needed.
+        for i in range(3):
+            self.click_element(self.driver.find_element(By.LINK_TEXT, 'Add another Test List Membership'))
+            self.wait_for_element('#id_testlistmembership_set-%d-test' % (5 + i))
+        for i, pk in enumerate(test_pks):
+            self.type_into('id_testlistmembership_set-%d-test' % i, str(pk))
+        self.save()
+
+        test_list = models.TestList.objects.get(name=objects['TestList']['name'])
+        assert test_list.slug == objects['TestList']['name'].lower()
+        memberships = models.TestListMembership.objects.filter(test_list=test_list)
+        assert sorted(memberships.values_list('test_id', flat=True)) == test_pks
+        assert sorted(memberships.values_list('order', flat=True)) == list(range(len(test_pks)))
 
     def test_admin_modality(self):
+        """A treatment and imaging modality is saved with its name."""
 
         self.load_admin()
         self.click_by_link_text("Treatment and Imaging Modalities")
         self.click_by_link_text("ADD TREATMENT AND IMAGING MODALITY")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['Modality']['name'])
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.type_into('id_name', objects['Modality']['name'])
+        self.save()
+
+        assert list(u_models.Modality.objects.values_list('name', flat=True)) == [objects['Modality']['name']]
 
     def test_admin_unittype(self):
+        """A unit type is saved with its name and the vendor chosen."""
+
+        vendor = utils.create_vendor(objects['UnitType']['vendor'])
 
         self.load_admin()
         self.click_by_link_text("Unit Types")
         self.click_by_link_text("ADD UNIT TYPE")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['UnitType']['name'])
-        self.driver.find_element(By.ID, 'id_vendor').send_keys(objects['UnitType']['vendor'])
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.type_into('id_name', objects['UnitType']['name'])
+        self.choose_option('id_vendor', vendor.name)
+        self.save()
+
+        unit_type = u_models.UnitType.objects.get(name=objects['UnitType']['name'])
+        assert unit_type.vendor == vendor
 
     def test_admin_unit(self):
+        """A unit is saved with its type, modalities, service areas and the hours of its schedule."""
 
-        if not utils.exists('units', 'UnitType', 'name', objects['UnitType']['name']):
-            utils.create_unit_type(
-                name=objects['UnitType']['name'], vendor=utils.create_vendor(objects['UnitType']['vendor'])
-            )
-
-        if not utils.exists('units', 'Modality', 'name', objects['Modality']['name']):
-            utils.create_modality(name=objects['Modality']['name'])
-
-        sl_utils.create_service_area()
+        unit_type = utils.create_unit_type(
+            name=objects['UnitType']['name'], vendor=utils.create_vendor(objects['UnitType']['vendor'])
+        )
+        modality = utils.create_modality(name=objects['Modality']['name'])
+        utils.create_modality(name='Unused Modality')
+        service_area = sl_utils.create_service_area(name='Gantry')
+        other_service_area = sl_utils.create_service_area(name='Couch')
 
         self.load_admin()
         self.click_by_link_text("Units")
         self.click_by_link_text("ADD UNIT")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['Unit']['name'])
-        self.driver.find_element(By.ID, 'id_number').send_keys(objects['Unit']['number'])
-        self.driver.find_element(By.ID, 'id_date_acceptance').send_keys(objects['Unit']['date_acceptance'])
-        self.driver.find_element(By.CSS_SELECTOR, '#id_service_areas_add_all_link').click()
-        self.select_by_index("id_type", 1)
-        # self.driver.find_element(By.ID,'id_modalities_add_all_link').click()
-        # self.driver.find_element(By.ID,'id_hours_monday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_tuesday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_wednesday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_thursday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_friday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_saturday').send_keys('800')
-        # self.driver.find_element(By.ID,'id_hours_sunday').send_keys('800')
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.type_into('id_name', objects['Unit']['name'])
+        self.type_into('id_number', objects['Unit']['number'])
+        self.type_into('id_date_acceptance', objects['Unit']['date_acceptance'])
+        self.choose_option('id_type', '%s :: %s' % (objects['UnitType']['vendor'], unit_type.name))
+        self.move_to_chosen('modalities', modality.name)
+        self.click_css('#id_service_areas_add_all_link')
+        self.wait_for_element('#id_service_areas_to option[title="Couch"]')
+
+        # The first schedule row: from acceptance, 10.5 hours on Mondays.
+        self.type_into('id_unitavailabletime_set-0-date_changed', objects['Unit']['date_acceptance'])
+        self.type_into('id_unitavailabletime_set-0-hours_monday', '10:30', clear=True)
+        self.save()
+
+        unit = u_models.Unit.objects.get(name=objects['Unit']['name'])
+        assert unit.number == int(objects['Unit']['number'])
+        assert unit.date_acceptance == date(2026, 1, 5)
+        assert unit.type == unit_type
+        assert list(unit.modalities.all()) == [modality]
+        assert set(unit.service_areas.all()) == {service_area, other_service_area}
+
+        schedule = u_models.UnitAvailableTime.objects.get(unit=unit)
+        assert schedule.date_changed == date(2026, 1, 5)
+        assert schedule.hours_monday == timezone.timedelta(hours=10, minutes=30)
+        assert schedule.hours_tuesday == timezone.timedelta(hours=8)
+        assert schedule.hours_sunday == timezone.timedelta(0)
 
     def test_admin_frequency(self):
+        """A weekly frequency is saved with the weekdays clicked in the rule editor and its window."""
 
         self.load_admin()
         self.click_by_link_text("Frequencies")
         self.click_by_link_text("ADD FREQUENCY")
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys(objects['Frequency']['name'])
-        self.driver.find_element(By.CLASS_NAME, "recurrence-label").click()
-        self.driver.find_elements(By.CSS_SELECTOR, ".weekly td")[0].click()
-        self.driver.find_elements(By.CSS_SELECTOR, ".weekly td")[2].click()
-        self.driver.find_elements(By.CSS_SELECTOR, ".weekly td")[4].click()
-        self.driver.find_element(By.ID, 'id_window_end').send_keys(objects['Frequency']['window_end'])
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
-        assert models.Frequency.objects.get(name=objects['Frequency']['name']).nominal_interval < 3
+        self.type_into('id_name', objects['Frequency']['name'])
+        self.click_css('.add-rule .recurrence-label')
+        days = self.wait.until(lambda d: d.find_elements(By.CSS_SELECTOR, '.weekly td'))
+        for index in (0, 2, 4):  # Monday, Wednesday, Friday
+            self.click_element(days[index])
+        self.type_into('id_window_end', objects['Frequency']['window_end'])
+        self.wait.until(lambda d: 'BYDAY=MO,WE,FR' in self.value_of('id_recurrences'))
+        self.save()
+
+        frequency = models.Frequency.objects.get(name=objects['Frequency']['name'])
+        assert frequency.slug == objects['Frequency']['name'].lower()
+        assert frequency.window_end == int(objects['Frequency']['window_end'])
+        assert frequency.window_start is None
+        [rule] = frequency.recurrences.rrules
+        assert rule.freq == recurrence.WEEKLY
+        assert [str(day) for day in rule.byday] == ['MO', 'WE', 'FR']
+        assert frequency.nominal_interval < 3
 
     def test_admin_unittestcollection(self):
+        """A test list assigned to a unit is saved with its unit, frequency, groups and the test list picked."""
 
-        if not utils.exists('auth', 'Group', 'name', objects['Group']['name']):
-            create_group(name=objects['Group']['name'])
-
-        if not utils.exists('units', 'Unit', 'name', objects['Modality']['name']):
-            utils.create_unit(name=objects['Modality']['name'], number=objects['Unit']['number'])
-
-        if not utils.exists('qa', 'Frequency', 'name', objects['Frequency']['name']):
-            utils.create_frequency(name=objects['Frequency']['name'])
-
-        if not utils.exists('qa', 'TestList', 'name', objects['TestList']['name']):
-            utils.create_test_list(name=objects['TestList']['name'])
+        group = create_group(name=objects['Group']['name'])
+        unit = utils.create_unit(name=objects['Unit']['name'], number=objects['Unit']['number'])
+        frequency = utils.create_frequency(name=objects['Frequency']['name'], slug='testfrequency')
+        utils.create_test_list(name='Another Test List')
+        test_list = utils.create_test_list(name=objects['TestList']['name'])
+        test_list_type = ContentType.objects.get_for_model(models.TestList)
 
         self.load_admin()
         self.click_by_link_text("Assign Test Lists to Units")
         self.click_by_link_text('ADD UNIT TEST COLLECTION')
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_unit')))
+        self.wait_for_element('#id_unit ~ .select2')
 
-        self.select_by_index("id_unit", -1)
-        time.sleep(0.5)
-        self.select_by_index("id_frequency", -1)
-        self.select_by_index("id_assigned_to", 0)
-        self.select_by_index("id_content_type", 1)
-        self.driver.find_element(By.CSS_SELECTOR, '#id_visible_to_from > option:nth-child(1)').click()
-        self.driver.find_element(By.CSS_SELECTOR, '#id_visible_to_add_link').click()
+        self.select2_choose('id_unit', 'Other :: %s' % unit.name)
+        self.select2_choose('id_frequency', frequency.name)
+        self.select2_choose('id_assigned_to', group.name)
+        Select(self.driver.find_element(By.ID, 'id_content_type')).select_by_value(str(test_list_type.pk))
+        self.move_to_chosen('visible_to', group.name)
+        # Choosing the content type loads the test lists into a second box.
+        self.select2_choose('generic_object_id', '(%d) %s' % (test_list.pk, test_list.name))
+        self.wait.until(lambda d: self.value_of('id_object_id') == str(test_list.pk))
+        self.save()
 
-        time.sleep(2)
-
-        self.driver.find_element(By.ID, 'select2-generic_object_id-container').click()
-        self.driver.find_element(By.ID, 'select2-generic_object_id-container').click()
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        utc = models.UnitTestCollection.objects.get()
+        assert utc.unit == unit
+        assert utc.frequency == frequency
+        assert utc.assigned_to == group
+        assert utc.content_type == test_list_type
+        assert utc.tests_object == test_list
+        assert list(utc.visible_to.all()) == [group]
 
     def test_admin_tolerances(self):
+        """Absolute, percentage and multiple choice tolerances are each saved with their own type and limits."""
 
-        # Add absolute tolerance
         self.load_admin()
         self.click_by_link_text('Tolerances')
         self.click_by_link_text('ADD TOLERANCE')
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_type')))
-        self.select_by_index("id_type", 1)
-        self.driver.find_element(By.ID, 'id_act_low').send_keys(objects['absoluteTolerance']['act_low'])
-        self.driver.find_element(By.ID, 'id_tol_low').send_keys(objects['absoluteTolerance']['tol_low'])
-        self.driver.find_element(By.ID, 'id_tol_high').send_keys(objects['absoluteTolerance']['tol_high'])
-        self.driver.find_element(By.ID, 'id_act_high').send_keys(objects['absoluteTolerance']['act_high'])
-        self.driver.find_element(By.NAME, '_addanother').click()
-        self.wait_for_success()
 
-        # Add percentage tolerance
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_type')))
-        self.select_by_index("id_type", 1)
-        self.driver.find_element(By.ID, 'id_act_low').send_keys(objects['percentTolerance']['act_low'])
-        self.driver.find_element(By.ID, 'id_tol_low').send_keys(objects['percentTolerance']['tol_low'])
-        self.driver.find_element(By.ID, 'id_tol_high').send_keys(objects['percentTolerance']['tol_high'])
-        self.driver.find_element(By.ID, 'id_act_high').send_keys(objects['percentTolerance']['act_high'])
-        self.driver.find_element(By.NAME, '_addanother').click()
-        self.wait_for_success()
+        for tol_type, values in [(models.ABSOLUTE, 'absoluteTolerance'), (models.PERCENT, 'percentTolerance')]:
+            self.wait.until(lambda d: self.value_of('id_act_low') == '')
+            Select(self.wait_for_visible('#id_type')).select_by_value(tol_type)
+            for field in ('act_low', 'tol_low', 'tol_high', 'act_high'):
+                self.type_into('id_%s' % field, objects[values][field])
+            self.save('_addanother')
 
-        # Add multi tolerance
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_type')))
-        self.select_by_index("id_type", 3)
-        self.driver.find_element(By.ID,
-                                 'id_mc_pass_choices').send_keys(objects['multiChoiceTolerance']['mc_pass_choices'])
-        self.driver.find_element(By.ID,
-                                 'id_mc_tol_choices').send_keys(objects['multiChoiceTolerance']['mc_tol_choices'])
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.wait.until(lambda d: self.value_of('id_mc_pass_choices') == '')
+        Select(self.wait_for_visible('#id_type')).select_by_value(models.MULTIPLE_CHOICE)
+        self.type_into('id_mc_pass_choices', objects['multiChoiceTolerance']['mc_pass_choices'])
+        self.type_into('id_mc_tol_choices', objects['multiChoiceTolerance']['mc_tol_choices'])
+        self.save()
+
+        assert models.Tolerance.objects.exclude(type=models.BOOLEAN).count() == 3
+        for tol_type, values in [(models.ABSOLUTE, 'absoluteTolerance'), (models.PERCENT, 'percentTolerance')]:
+            tol = models.Tolerance.objects.get(type=tol_type)
+            for field in ('act_low', 'tol_low', 'tol_high', 'act_high'):
+                assert getattr(tol, field) == float(objects[values][field]), (tol_type, field)
+        mc_tol = models.Tolerance.objects.get(type=models.MULTIPLE_CHOICE)
+        assert mc_tol.mc_pass_choices == objects['multiChoiceTolerance']['mc_pass_choices']
+        assert mc_tol.mc_tol_choices == objects['multiChoiceTolerance']['mc_tol_choices']
 
     def test_admin_set_ref_tols(self):
+        """References and tolerances chosen on Set References & Tolerances are saved on the unit's tests."""
 
-        utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices="a,b")
+        mc_tol = utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices='3', mc_tol_choices='2,4')
+        abs_tol = utils.create_tolerance()
 
-        utils.create_tolerance()
-
-        for the_test in objects['Tests']:
-
-            if the_test['test_type'] == models.MULTIPLE_CHOICE:
-                if not utils.exists('qa', 'Test', 'name', the_test['name']):
-                    mult_test = utils.create_test(
-                        test_type=models.MULTIPLE_CHOICE, choices=the_test['choices'], name=the_test['name']
-                    )
-            elif the_test['test_type'] == models.SIMPLE:
-                if not utils.exists('qa', 'Test', 'name', the_test['name']):
-                    simp_test = utils.create_test(test_type=models.SIMPLE, name=the_test['name'])
-            elif the_test['test_type'] == models.COMPOSITE:
-                if not utils.exists('qa', 'Test', 'name', the_test['name']):
-                    comp_test = utils.create_test(test_type=models.COMPOSITE, name=the_test['name'])
-
-        if not utils.exists('qa', 'TestList', 'name', objects['TestList']['name']):
-            test_list = utils.create_test_list(objects['TestList']['name'])
-            utils.create_test_list_membership(test_list=test_list, test=mult_test)
-            utils.create_test_list_membership(test_list=test_list, test=simp_test)
-            utils.create_test_list_membership(test_list=test_list, test=comp_test)
-
-        utils.create_unit_test_collection(test_collection=test_list)
+        mult_test = utils.create_test(name='multchoice', test_type=models.MULTIPLE_CHOICE, choices='1,2,3,4,5')
+        simp_test = utils.create_test(name='simple', test_type=models.SIMPLE)
+        comp_test = utils.create_test(name='composite', test_type=models.COMPOSITE)
+        test_list = utils.create_test_list(objects['TestList']['name'])
+        for order, test in enumerate([mult_test, simp_test, comp_test]):
+            utils.create_test_list_membership(test_list=test_list, test=test, order=order)
+        utc = utils.create_unit_test_collection(test_collection=test_list)
 
         self.load_admin()
         self.click_by_link_text('Set References & Tolerances')
-        self.click_by_link_text(mult_test.name)
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_tolerance')))
-        self.select_by_index("id_tolerance", 1)
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
 
-        self.driver.find_element(By.LINK_TEXT, 'simple').click()
-        self.select_by_index("id_tolerance", 1)
-        self.driver.find_element(By.ID, 'id_reference_value').send_keys('0')
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        for test, tol, reference in [(mult_test, mc_tol, None), (simp_test, abs_tol, '0'), (comp_test, abs_tol, '23.23')]:
+            self.click_by_link_text(test.name)
+            self.choose_option('id_tolerance', str(tol))
+            if reference is not None:
+                self.type_into('id_reference_value', reference)
+            self.save()
 
-        self.driver.find_element(By.LINK_TEXT, 'composite').click()
-        self.select_by_index("id_tolerance", 1)
-        self.driver.find_element(By.ID, 'id_reference_value').send_keys('23.23')
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        def uti(test):
+            return models.UnitTestInfo.objects.select_related('reference').get(unit=utc.unit, test=test)
+
+        assert uti(mult_test).tolerance == mc_tol
+        assert uti(mult_test).reference is None
+        assert uti(simp_test).tolerance == abs_tol
+        assert uti(simp_test).reference.value == 0
+        assert uti(comp_test).tolerance == abs_tol
+        assert uti(comp_test).reference.value == 23.23
 
     def test_admin_statuses(self):
+        """Test instance statuses are saved with the default and review flags ticked."""
 
         self.load_admin()
         self.wait.until(e_c.presence_of_element_located((By.XPATH, "//a[contains(@href,'testinstancestatus')]")))
         self.driver.find_element(By.XPATH, "//a[contains(@href,'testinstancestatus')]").click()
         self.click_by_link_text('ADD TEST INSTANCE STATUS')
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys('testStatus')
-        self.driver.find_element(By.ID, 'id_is_default').click()
-        self.driver.find_element(By.NAME, '_addanother').click()
-        self.wait_for_success()
+        self.type_into('id_name', 'testStatus')
+        self.click_css('#id_is_default')
+        self.save('_addanother')
 
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_name')))
-        self.driver.find_element(By.ID, 'id_name').send_keys('testApprovalStatus')
-        self.driver.find_element(By.ID, 'id_requires_review').click()
-        self.driver.find_element(By.NAME, '_save').click()
-        self.wait_for_success()
+        self.wait.until(lambda d: self.value_of('id_name') == '')
+        self.type_into('id_name', 'testApprovalStatus')
+        self.click_css('#id_requires_review')
+        self.save()
+
+        default = models.TestInstanceStatus.objects.get(name='testStatus')
+        assert default.slug == 'teststatus'
+        assert default.is_default
+        assert default.requires_review
+
+        approval = models.TestInstanceStatus.objects.get(name='testApprovalStatus')
+        assert not approval.is_default
+        assert not approval.requires_review
 
     def rest(self):
 
