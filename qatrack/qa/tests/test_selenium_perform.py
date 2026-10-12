@@ -1,0 +1,1002 @@
+"""Browser tests for the Perform QC page (qa/js/qa.js).
+
+The perform page decides in JavaScript whether each measurement is shown as
+OK, TOL or ACT, long before the server sees it. These tests drive that page in
+a real browser and then check the database, so that what a therapist sees
+while performing QC is held to the same answer the server records.
+"""
+
+import os
+import shutil
+import tempfile
+
+import pytest
+from django.contrib.auth.models import Permission
+from django.urls import reverse
+from django.utils import timezone
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as e_c
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.wait import WebDriverWait
+
+from qatrack.qa import models
+from qatrack.qa.tests import utils
+from qatrack.qatrack_core.tests.live import SeleniumTestCase
+from qatrack.service_log.tests import utils as sl_utils
+
+# Bootstrap button classes qa.js uses to colour the status cell.
+OK_CLASS = 'btn-success'
+TOL_CLASS = 'btn-warning'
+ACT_CLASS = 'btn-danger'
+STATUS_CLASSES = (OK_CLASS, TOL_CLASS, ACT_CLASS, 'btn-info')
+
+# What the status cell says (settings.TEST_STATUS_DISPLAY_SHORT) for each saved pass_fail value.
+DISPLAYED_TO_PASS_FAIL = {'OK': models.OK, 'TOL': models.TOLERANCE, 'ACT': models.ACTION}
+
+
+@pytest.mark.selenium
+class PerformQCTestCase(SeleniumTestCase):
+    """Shared set-up and helpers for driving the Perform QC page."""
+
+    def setUp(self):
+        super().setUp()
+        self.unit = utils.create_unit()
+        self.group = utils.create_group()
+        self.user.groups.add(self.group)
+        self.default_status = utils.create_status(name='Unreviewed', slug='unreviewed', is_default=True)
+        self.test_list = utils.create_test_list('Daily QC')
+
+        sl_utils.create_service_event_status(is_default=True)
+        sl_utils.create_unit_service_area(self.unit)
+        sl_utils.create_service_type()
+
+    # ---- set-up helpers --------------------------------------------------
+
+    def make_test(self, name, test_type=models.SIMPLE, **kwargs):
+        """Create a test and add it to the end of self.test_list."""
+        calc = kwargs.pop('calculation_procedure', None)
+        formatting = kwargs.pop('formatting', None)
+        test = utils.create_test(name=name, test_type=test_type, **kwargs)
+        if calc is not None or formatting is not None:
+            test.calculation_procedure = calc or ''
+            test.formatting = formatting or ''
+            test.save()
+        order = models.TestListMembership.objects.filter(test_list=self.test_list).count()
+        utils.create_test_list_membership(self.test_list, test, order=order)
+        return test
+
+    def assign(self, test_list=None):
+        """Assign the test list to the unit (this creates the UnitTestInfos)."""
+        self.utc = utils.create_unit_test_collection(unit=self.unit, test_collection=test_list or self.test_list)
+        self.url = reverse('perform_qa', kwargs={'pk': self.utc.pk})
+        return self.utc
+
+    def set_ref_tol(self, test, ref=None, tol=None):
+        uti = models.UnitTestInfo.objects.get(unit=self.unit, test=test)
+        if ref is not None:
+            ref_type = models.BOOLEAN if test.type == models.BOOLEAN else models.NUMERICAL
+            uti.reference = utils.create_reference(name='ref %s' % test.slug, ref_type=ref_type, value=ref)
+        uti.tolerance = tol
+        uti.save()
+        return uti
+
+    def make_limited_user(self):
+        """A non-superuser in self.group who may perform QC and nothing more.
+
+        In particular they lack qa.can_view_ref_tol and qa.can_skip_without_comment.
+        """
+        user = utils.create_user(uname='therapist', pwd=self.password, is_staff=False, is_superuser=False)
+        user.groups.add(self.group)
+        user.user_permissions.set(Permission.objects.filter(codename='add_testlistinstance'))
+        return user
+
+    # ---- page helpers ----------------------------------------------------
+
+    def wait_for_idle(self):
+        """Wait until the page has finished loading, calculating and autosaving."""
+        self.wait_until(
+            lambda: self.driver.execute_script(
+                "return typeof jQuery !== 'undefined' && jQuery.active === 0"
+                " && !document.body.classList.contains('loading')"
+                " && !jQuery('#submit-qa').prop('disabled');"
+            ),
+            message='perform page never became idle',
+        )
+
+    def load_perform(self, url=None, user=None):
+        self.login(user=user)
+        self.open(url or self.url)
+        self.wait_for_element('#perform-qa-table')
+        self.wait_for_idle()
+
+    def value_input(self, slug):
+        return self.driver.find_element(By.CSS_SELECTOR, '#%s-value .qa-input' % slug)
+
+    def enter_value(self, slug, value):
+        """Type a value the way a user would; the change event fires when focus leaves."""
+        el = self.value_input(slug)
+        el.clear()
+        el.send_keys(str(value), Keys.TAB)
+
+    def choose(self, slug, text):
+        Select(self.driver.find_element(By.CSS_SELECTOR, '#%s-value select' % slug)).select_by_visible_text(text)
+
+    def status_cell(self, slug):
+        return self.driver.find_element(By.ID, '%s-status' % slug)
+
+    def status_text(self, slug):
+        return self.status_cell(slug).text.strip()
+
+    def status_colour(self, slug):
+        classes = self.status_cell(slug).get_attribute('class').split()
+        found = [c for c in STATUS_CLASSES if c in classes]
+        return found[0] if found else None
+
+    def wait_for_status(self, slug, text, colour=None):
+        """Wait for the status cell to read exactly `text` (and have the `colour` class, if given).
+
+        An exact match on purpose: 'TOL' is contained in 'NO TOL'.
+        """
+
+        def matches():
+            if self.status_text(slug) != text:
+                return False
+            return colour is None or self.status_colour(slug) == colour
+
+        try:
+            self.wait_until(matches)
+        except TimeoutException:
+            raise AssertionError(
+                'status of %s: expected %r/%s, page shows %r/%s' %
+                (slug, text, colour, self.status_text(slug), self.status_colour(slug))
+            )
+
+    def submit(self):
+        """Click Submit once the page is idle, and wait for the next page to load.
+
+        The button is disabled while an autosave or calculation is in flight. An
+        autosave can start between our idle check and the click, swallowing it,
+        so if the form does not start submitting we wait for idle and try again.
+        """
+        form = self.driver.find_element(By.ID, 'qa-form')
+        for attempt in range(3):
+            self.wait_for_idle()
+            self.driver.find_element(By.ID, 'submit-qa').click()
+            try:
+                # The page can navigate away between the two checks, leaving the button
+                # stale mid-read; that means the submit went through, so just poll again.
+                WebDriverWait(self.driver, 5, ignored_exceptions=(StaleElementReferenceException,)).until(
+                    lambda d: self._stale(form) or d.find_element(By.ID, 'submit-qa').text == 'Submitting...'
+                )
+                break
+            except TimeoutException:
+                if attempt == 2:
+                    raise
+        WebDriverWait(self.driver, self.timeout * 3).until(e_c.staleness_of(form))
+
+    @staticmethod
+    def _stale(element):
+        try:
+            element.is_enabled()
+            return False
+        except StaleElementReferenceException:
+            return True
+
+    def saved(self, test):
+        """The one TestInstance saved for `test`."""
+        return models.TestInstance.objects.get(unit_test_info__test=test)
+
+    def open_sidebar_menu(self, menu_id, list_id):
+        """Expand the collapsed sidebar and one of its tree menus, as a user would."""
+        if 'sidebar-collapse' in self.driver.find_element(By.TAG_NAME, 'body').get_attribute('class'):
+            self.click('sidebar-toggle')
+            self.wait_until(
+                lambda: 'sidebar-collapse' not in self.driver.find_element(By.TAG_NAME, 'body').get_attribute('class')
+            )
+        self.click(menu_id)
+        self.wait_for_visible('#%s' % list_id)
+
+    def make_session(self, values, in_progress=False):
+        """Save a test list instance directly, as if it had been performed earlier.
+
+        `values` is a list of (test, value) pairs, in test list order.
+        """
+        tli = utils.create_test_list_instance(
+            unit_test_collection=self.utc, created_by=self.user, in_progress=in_progress
+        )
+        for order, (test, value) in enumerate(values):
+            uti = models.UnitTestInfo.objects.get(unit=self.unit, test=test)
+            models.TestInstance.objects.create(
+                unit_test_info=uti,
+                value=value,
+                skipped=False,
+                reference=uti.reference,
+                tolerance=uti.tolerance,
+                status=self.default_status,
+                order=order,
+                created_by=self.user,
+                modified_by=self.user,
+                test_list_instance=tli,
+                work_started=tli.work_started,
+                work_completed=tli.work_completed,
+            )
+        return tli
+
+    def make_file(self, name, content):
+        """Write a small file for uploading and return its absolute path."""
+        directory = tempfile.mkdtemp(prefix='qatrack-perform-')
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        path = os.path.join(directory, name)
+        with open(path, 'w') as f:
+            f.write(content)
+        return path
+
+    def use_temporary_media_root(self):
+        """Keep uploaded files out of the working tree."""
+        media = tempfile.mkdtemp(prefix='qatrack-media-')
+        self.addCleanup(shutil.rmtree, media, ignore_errors=True)
+        override = self.settings(MEDIA_ROOT=media)
+        override.enable()
+        self.addCleanup(override.disable)
+
+
+class TestNumericalTolerances(PerformQCTestCase):
+
+    def test_absolute_tolerance_status_matches_saved_pass_fail(self):
+        """Values in the OK, TOL and ACT bands of an absolute tolerance are shown and saved the same way.
+
+        If this fails, a therapist can see OK on screen for a result the server records
+        as out of tolerance (or the reverse).
+        """
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        tests = [self.make_test(name) for name in ('ok_inside', 'ok_on_border', 'tol_band', 'act_band')]
+        self.assign()
+        for t in tests:
+            self.set_ref_tol(t, ref=10, tol=tol)
+
+        self.load_perform()
+
+        # One input taken through every band shows the status follows the value.
+        self.enter_value('act_band', '12.5')
+        self.wait_for_status('act_band', 'ACT(2.50)', ACT_CLASS)
+        self.enter_value('act_band', '11.5')
+        self.wait_for_status('act_band', 'TOL(1.50)', TOL_CLASS)
+        self.enter_value('act_band', '10.5')
+        self.wait_for_status('act_band', 'OK(0.50)', OK_CLASS)
+
+        entered = {
+            'ok_inside': ('9.5', 'OK(-0.50)', OK_CLASS),
+            'ok_on_border': ('11', 'OK(1.00)', OK_CLASS),  # exactly on tol_high is still OK
+            'tol_band': ('8.5', 'TOL(-1.50)', TOL_CLASS),
+            'act_band': ('7.5', 'ACT(-2.50)', ACT_CLASS),
+        }
+        for slug, (value, text, colour) in entered.items():
+            self.enter_value(slug, value)
+            self.wait_for_status(slug, text, colour)
+
+        self.submit()
+
+        for t in tests:
+            value, text, _ = entered[t.slug]
+            ti = self.saved(t)
+            assert ti.value == float(value)
+            assert ti.pass_fail == DISPLAYED_TO_PASS_FAIL[text.split('(')[0]], t.slug
+
+    def test_percent_tolerance_status_matches_saved_pass_fail(self):
+        """Values in each band of a percent tolerance are shown and saved the same way.
+
+        If this fails, the percent difference qa.js shows (and colours) disagrees with the
+        pass/fail the server stores.
+        """
+        tol = utils.create_tolerance(tol_type=models.PERCENT, act_low=-5, tol_low=-1, tol_high=1, act_high=5)
+        entered = {
+            'pct_ok': ('201', 'OK(0.5%)', OK_CLASS),
+            'pct_tol': ('204', 'TOL(2.0%)', TOL_CLASS),
+            'pct_on_act_border': ('190', 'TOL(-5.0%)', TOL_CLASS),  # exactly on act_low is still TOL
+            'pct_act': ('212', 'ACT(6.0%)', ACT_CLASS),
+        }
+        tests = [self.make_test(slug) for slug in entered]
+        self.assign()
+        for t in tests:
+            self.set_ref_tol(t, ref=200, tol=tol)
+
+        self.load_perform()
+        for slug, (value, text, colour) in entered.items():
+            self.enter_value(slug, value)
+            self.wait_for_status(slug, text, colour)
+
+        self.submit()
+
+        for t in tests:
+            value, text, _ = entered[t.slug]
+            ti = self.saved(t)
+            assert ti.value == float(value)
+            assert ti.pass_fail == DISPLAYED_TO_PASS_FAIL[text.split('(')[0]], t.slug
+
+    def test_wraparound_status_uses_distance_across_the_wrap_point(self):
+        """A wraparound reading just below the wrap point is close to a reference just above it.
+
+        With a 0-360 wrap and a reference of 0, 359.5 is only 0.5 away. If this fails, a
+        gantry or collimator angle near 0/360 shows as a huge difference (or the browser
+        and server disagree about it).
+        """
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        entered = {
+            'wrap_ok': ('359.5', 'OK(-0.50)', OK_CLASS),
+            'wrap_tol': ('358.5', 'TOL(-1.50)', TOL_CLASS),
+            'wrap_act': ('357', 'ACT(-3.00)', ACT_CLASS),
+            'wrap_tol_above': ('1.5', 'TOL(1.50)', TOL_CLASS),
+        }
+        tests = [self.make_test(slug, test_type=models.WRAPAROUND, wrap_low=0, wrap_high=360) for slug in entered]
+        self.assign()
+        for t in tests:
+            self.set_ref_tol(t, ref=0, tol=tol)
+
+        self.load_perform()
+        for slug, (value, text, colour) in entered.items():
+            self.enter_value(slug, value)
+            self.wait_for_status(slug, text, colour)
+
+        self.submit()
+
+        for t in tests:
+            value, text, _ = entered[t.slug]
+            ti = self.saved(t)
+            assert ti.value == float(value)
+            assert ti.pass_fail == DISPLAYED_TO_PASS_FAIL[text.split('(')[0]], t.slug
+
+
+class TestChoiceTolerances(PerformQCTestCase):
+
+    def test_boolean_status_and_warning_only_tolerance(self):
+        """A boolean answer that differs from its reference is ACT, or TOL with a warning-only tolerance.
+
+        If this fails, a failed yes/no check (an interlock, say) is shown or saved with the
+        wrong severity.
+        """
+        warn_only = models.Tolerance.objects.create(
+            type=models.BOOLEAN, bool_warning_only=True, created_by=self.user, modified_by=self.user
+        )
+        bool_ok = self.make_test('bool_ok', test_type=models.BOOLEAN)
+        bool_act = self.make_test('bool_act', test_type=models.BOOLEAN)
+        bool_warn = self.make_test('bool_warn', test_type=models.BOOLEAN)
+        self.assign()
+        self.set_ref_tol(bool_ok, ref=1)
+        self.set_ref_tol(bool_act, ref=1)
+        self.set_ref_tol(bool_warn, ref=1, tol=warn_only)
+
+        self.load_perform()
+
+        def answer(slug, value):
+            self.driver.find_element(By.CSS_SELECTOR, '#%s-value input[value="%d"]' % (slug, value)).click()
+
+        # The status follows the answer both ways.
+        answer('bool_act', 1)
+        self.wait_for_status('bool_act', 'OK', OK_CLASS)
+        answer('bool_act', 0)
+        self.wait_for_status('bool_act', 'ACT', ACT_CLASS)
+
+        answer('bool_ok', 1)
+        self.wait_for_status('bool_ok', 'OK', OK_CLASS)
+        answer('bool_warn', 0)
+        self.wait_for_status('bool_warn', 'TOL', TOL_CLASS)
+
+        self.submit()
+
+        assert (self.saved(bool_ok).value, self.saved(bool_ok).pass_fail) == (1, models.OK)
+        assert (self.saved(bool_act).value, self.saved(bool_act).pass_fail) == (0, models.ACTION)
+        assert (self.saved(bool_warn).value, self.saved(bool_warn).pass_fail) == (0, models.TOLERANCE)
+
+    def test_multiple_choice_tolerance_status_matches_saved_pass_fail(self):
+        """Pass, tolerance and other choices of a multiple choice test show OK, TOL and ACT, and save so.
+
+        If this fails, choosing e.g. 'Poor' could be shown as acceptable on screen.
+        """
+        tol = utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices='Good', mc_tol_choices='Fair')
+        chosen = {
+            'mc_ok': ('Good', 'OK', OK_CLASS),
+            'mc_tol': ('Fair', 'TOL', TOL_CLASS),
+            'mc_act': ('Poor', 'ACT', ACT_CLASS),
+        }
+        tests = [self.make_test(slug, test_type=models.MULTIPLE_CHOICE, choices='Good,Fair,Poor') for slug in chosen]
+        self.assign()
+        for t in tests:
+            self.set_ref_tol(t, tol=tol)
+
+        self.load_perform()
+        for slug, (choice, text, colour) in chosen.items():
+            self.choose(slug, choice)
+            self.wait_for_status(slug, text, colour)
+
+        self.submit()
+
+        for t in tests:
+            choice, text, _ = chosen[t.slug]
+            ti = self.saved(t)
+            assert ti.string_value == choice
+            assert ti.pass_fail == DISPLAYED_TO_PASS_FAIL[text], t.slug
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason='qa/static/qa/js/qa.js:211-214 compares string/choice values to the tolerance '
+        'case-sensitively, but qa/models.py:2185-2189 lowercases both, so "PASS" shows ACT and saves OK',
+    )
+    def test_string_status_shown_matches_saved_when_case_differs(self):
+        """A string answer differing from the tolerance's pass choice only in case is shown as it is saved.
+
+        The tolerance passes 'pass'. A typed 'PASS' and a choice 'Pass' are saved as OK by the
+        server, but the browser shows them as ACT. Whichever side is changed, the therapist must
+        see the status that gets recorded.
+        """
+        tol = utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices='pass', mc_tol_choices='')
+        str_exact = self.make_test('str_exact', test_type=models.STRING)
+        str_case = self.make_test('str_case', test_type=models.STRING)
+        mc_case = self.make_test('mc_case', test_type=models.MULTIPLE_CHOICE, choices='Pass,Fail')
+        self.assign()
+        for t in (str_exact, str_case, mc_case):
+            self.set_ref_tol(t, tol=tol)
+
+        self.load_perform()
+        self.enter_value('str_exact', 'pass')
+        self.enter_value('str_case', 'PASS')
+        self.choose('mc_case', 'Pass')
+
+        # Control: an exact match works, so a failure below is the case handling and not the test.
+        try:
+            self.wait_for_status('str_exact', 'OK', OK_CLASS)
+        except AssertionError as e:
+            pytest.fail('control check failed: %s' % e)
+        self.wait_until(lambda: self.status_text('str_case') != 'Not Done' and self.status_text('mc_case') != 'Not Done')
+        shown = {slug: self.status_text(slug) for slug in ('str_case', 'mc_case')}
+
+        self.submit()
+
+        if self.saved(str_exact).pass_fail != models.OK:
+            pytest.fail('control: exact match "pass" was not saved as OK')
+        mismatches = {
+            t.slug: 'shown %s, saved %s' % (shown[t.slug], self.saved(t).pass_fail)
+            for t in (str_case, mc_case)
+            if self.saved(t).pass_fail != DISPLAYED_TO_PASS_FAIL[shown[t.slug]]
+        }
+        assert mismatches == {}
+
+
+class TestStatusDisplay(PerformQCTestCase):
+
+    def test_do_not_treat_warning_follows_action_results(self):
+        """The test list's 'do not treat' warning appears, and Submit turns red, only while a result is at action.
+
+        If this fails, a therapist can submit an out-of-action result without the warning that
+        tells them not to treat.
+        """
+        self.test_list.warning_message = 'Do not treat'
+        self.test_list.save()
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        output = self.make_test('output')
+        self.assign()
+        self.set_ref_tol(output, ref=100, tol=tol)
+
+        self.load_perform()
+        self.wait_for_invisible('.do-not-treat')
+
+        def submit_is(colour):
+            classes = self.driver.find_element(By.ID, 'submit-qa').get_attribute('class').split()
+            other = 'btn-primary' if colour == 'btn-danger' else 'btn-danger'
+            return colour in classes and other not in classes
+
+        self.enter_value('output', '101.5')
+        self.wait_for_status('output', 'TOL(1.50)', TOL_CLASS)
+        assert not any(e.is_displayed() for e in self.driver.find_elements(By.CSS_SELECTOR, '.do-not-treat'))
+
+        self.enter_value('output', '103')
+        self.wait_for_status('output', 'ACT(3.00)', ACT_CLASS)
+        self.wait_for_visible('.box-header .do-not-treat')
+        assert 'Do not treat' in self.driver.find_element(By.CSS_SELECTOR, '.box-header .do-not-treat').text
+        self.wait_until(lambda: submit_is('btn-danger'), message='submit button never turned red')
+
+        self.enter_value('output', '100')
+        self.wait_for_status('output', 'OK(0.00)', OK_CLASS)
+        self.wait_for_invisible('.do-not-treat')
+        self.wait_until(lambda: submit_is('btn-primary'), message='submit button never turned back')
+
+    def test_pass_fail_only_user_does_not_see_tolerance_detail(self):
+        """A user without 'can view ref/tol' sees only OK or Fail, with no reference column.
+
+        TOL is shown as OK and ACT as Fail, but the server must still record the real status.
+        If this fails, either such users see detail they should not, or hiding it changes
+        what is saved.
+        """
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        entered = {
+            'pf_ok': ('10.5', 'OK', OK_CLASS, models.OK),
+            'pf_tol': ('11.5', 'OK', OK_CLASS, models.TOLERANCE),
+            'pf_act': ('12.5', 'Fail', ACT_CLASS, models.ACTION),
+        }
+        tests = [self.make_test(slug) for slug in entered]
+        self.assign()
+        for t in tests:
+            self.set_ref_tol(t, ref=10, tol=tol)
+        therapist = self.make_limited_user()
+
+        self.load_perform(user=therapist)
+        assert self.driver.find_elements(By.CSS_SELECTOR, '#perform-qa-table .qa-reference') == []
+        assert 'Reference' not in self.driver.find_element(By.CSS_SELECTOR, '#perform-qa-table thead').text
+
+        for slug, (value, text, colour, _) in entered.items():
+            self.enter_value(slug, value)
+            self.wait_for_status(slug, text, colour)
+
+        self.submit()
+
+        for t in tests:
+            ti = self.saved(t)
+            assert ti.value == float(entered[t.slug][0])
+            assert ti.pass_fail == entered[t.slug][3], t.slug
+
+
+class TestSkipping(PerformQCTestCase):
+
+    def test_skipped_test_requires_comment(self):
+        """Skipping opens the comment box, and a skip without a comment is sent back with an error.
+
+        Applies to users without 'can skip without comment'. If this fails, tests can be
+        skipped with no explanation for the reviewer.
+        """
+        flatness = self.make_test('flatness')
+        self.assign()
+        therapist = self.make_limited_user()
+
+        self.load_perform(user=therapist)
+        comment_box = self.driver.find_element(By.CSS_SELECTOR, '#flatness-comment textarea')
+        assert not comment_box.is_displayed()
+
+        self.driver.find_element(By.CSS_SELECTOR, '#flatness-skip input[type=checkbox]').click()
+        self.wait_for_visible('#flatness-comment textarea')
+
+        self.submit()
+        self.wait_for_text('#perform-qa-table .qa-error-text', 'Please add comment when skipping')
+        assert models.TestListInstance.objects.count() == 0
+
+        # The re-rendered page keeps the skip ticked; the comment box has to be opened by hand
+        # (see test_comment_box_open_when_skip_sent_back below).
+        assert self.driver.find_element(By.CSS_SELECTOR, '#flatness-skip input[type=checkbox]').is_selected()
+        self.click('comment-toggle-flatness')
+        self.wait_for_visible('#flatness-comment textarea').send_keys('Chamber out for calibration')
+        self.submit()
+
+        ti = self.saved(flatness)
+        assert ti.skipped
+        assert ti.value is None
+        assert ti.comment == 'Chamber out for calibration'
+        assert ti.pass_fail == models.NOT_DONE
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason='qa/static/qa/js/qa.js:801 fires the skip change handler while comment_on_skip is still '
+        'undefined (it is only read at qa.js:1318, after tli.initialize()), so a skipped test sent back '
+        'for a missing comment shows its comment box closed',
+    )
+    def test_comment_box_open_when_skip_sent_back(self):
+        """When a skip is sent back for a missing comment, its comment box is already open.
+
+        The error says 'Please add comment when skipping'; the box to do that in should be
+        open, as it is when the user ticks Skip. If this fails, the user has to find the
+        comment icon themselves.
+        """
+        self.make_test('flatness')
+        self.assign()
+        therapist = self.make_limited_user()
+
+        self.load_perform(user=therapist)
+        self.driver.find_element(By.CSS_SELECTOR, '#flatness-skip input[type=checkbox]').click()
+        self.wait_for_visible('#flatness-comment textarea')
+        self.submit()
+        self.wait_for_text('#perform-qa-table .qa-error-text', 'Please add comment when skipping')
+        self.wait_for_idle()
+
+        if not self.driver.find_element(By.CSS_SELECTOR, '#flatness-skip input[type=checkbox]').is_selected():
+            pytest.fail('the re-rendered page lost the ticked skip, so this test proves nothing')
+        assert self.driver.find_element(By.CSS_SELECTOR, '#flatness-comment textarea').is_displayed()
+
+    def test_entering_a_value_clears_skip(self):
+        """Typing a value into a skipped test un-ticks Skip, so the value is saved rather than rejected.
+
+        If this fails, the user gets a 'Clear value if skipping' error for something they
+        plainly meant to perform.
+        """
+        symmetry = self.make_test('symmetry')
+        self.assign()
+
+        self.load_perform()
+        skip = self.driver.find_element(By.CSS_SELECTOR, '#symmetry-skip input[type=checkbox]')
+        skip.click()
+        self.wait_until(skip.is_selected)
+
+        self.enter_value('symmetry', '1.2')
+        self.wait_until(lambda: not skip.is_selected(), message='skip stayed ticked after entering a value')
+        self.submit()
+
+        ti = self.saved(symmetry)
+        assert not ti.skipped
+        assert ti.value == 1.2
+
+
+class TestCategoryFilter(PerformQCTestCase):
+
+    def setUp(self):
+        super().setUp()
+        dosimetry = utils.create_category(name='Dosimetry', slug='dosimetry', description='dose')
+        mechanical = utils.create_category(name='Mechanical', slug='mechanical', description='mech')
+        self.dose = self.make_test('dose', category=dosimetry)
+        self.laser = self.make_test('laser', category=mechanical)
+        self.mechanical = mechanical
+        self.assign()
+
+    def untick_mechanical(self):
+        self.open_sidebar_menu('menu-categories', 'category-list')
+        # sidebar.js turns a click anywhere on the row into a click on the iCheck box.
+        self.driver.find_element(By.CSS_SELECTOR, '#category-list a:has(#category-%d)' % self.mechanical.pk).click()
+        self.wait_for_invisible('#laser-row')
+
+    def test_unticked_category_is_skipped_with_comment(self):
+        """Unticking a category hides its tests and saves them as skipped, 'Category not performed'.
+
+        If this fails, a partial session either cannot be submitted or is saved without
+        recording why tests were left out.
+        """
+        self.load_perform()
+        self.untick_mechanical()
+
+        assert self.driver.find_element(By.CSS_SELECTOR, '#laser-skip input[type=checkbox]').is_selected()
+        assert self.driver.find_element(By.CSS_SELECTOR, '#laser-comment textarea').get_attribute(
+            'value'
+        ) == 'Category not performed'
+        assert self.driver.find_element(By.ID, 'dose-row').is_displayed()
+
+        self.enter_value('dose', '1.01')
+        self.submit()
+
+        dose, laser = self.saved(self.dose), self.saved(self.laser)
+        assert (dose.value, dose.skipped) == (1.01, False)
+        assert laser.skipped
+        assert laser.value is None
+        assert laser.comment == 'Category not performed'
+        assert laser.pass_fail == models.NOT_DONE
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=AssertionError,
+        reason='qa/static/qa/js/qa.js:691-698 keeps the value of a filtered-out test ("nulled on submit") '
+        'but the submit handler at qa.js:1425-1437 never clears it, so views/forms.py:65 rejects the '
+        'session with "Clear value if skipping"',
+    )
+    def test_value_entered_before_unticking_category_is_dropped(self):
+        """A value typed into a test whose category is then unticked does not block submission.
+
+        qa.js keeps the value in case the category is ticked again ('Filtered values will be
+        nulled on submit'). If this fails, the user is sent back with 'Clear value if
+        skipping' for a test they cannot even see.
+        """
+        self.load_perform()
+        self.enter_value('laser', '0.5')
+        self.wait_for_status('laser', 'NO TOL')
+        self.untick_mechanical()
+
+        self.enter_value('dose', '1.01')
+        self.submit()
+
+        errors = [e.text for e in self.driver.find_elements(By.CSS_SELECTOR, '.qa-error-text')]
+        assert models.TestListInstance.objects.count() == 1, 'session rejected: %s' % errors
+        laser = self.saved(self.laser)
+        assert laser.skipped
+        assert laser.value is None
+        assert laser.comment == 'Category not performed'
+
+
+class TestInputHandling(PerformQCTestCase):
+
+    def test_numeric_input_is_cleaned(self):
+        """What is left in a numeric field after typing is exactly the number that is judged and saved.
+
+        qa.js completes a leading '.' to '0.' (qautils.js clean_numerical_value). Letters and a
+        second decimal point never reach qa.js in Chromium: the number input drops them as they
+        are typed, so the two-dot check in qa.js:627-632 cannot be reached this way. A value the
+        browser cannot read at all is shown as not done. If this fails, the status could be
+        judged on a different number than the one on screen.
+        """
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        dose = self.make_test('dose')
+        self.assign()
+        self.set_ref_tol(dose, ref=0, tol=tol)
+
+        self.load_perform()
+        typed = [
+            ('.5', '0.5', 'OK(0.50)'),
+            ('1.5abc', '1.5', 'TOL(1.50)'),
+            ('--1', '', 'Not Done'),
+            ('-.5', '-0.5', 'OK(-0.50)'),
+        ]
+        for keys, field, status in typed:
+            self.enter_value('dose', keys)
+            self.wait_for_status('dose', status)
+            assert self.value_input('dose').get_attribute('value') == field, keys
+
+        self.submit()
+        saved = self.saved(dose)
+        assert (saved.value, saved.pass_fail) == (-0.5, models.OK)
+
+    def test_composite_error_shows_failed(self):
+        """A composite whose calculation raises shows 'Failed' with the error, and recovers when fixed.
+
+        If this fails, a broken calculation could look like a missing or valid result.
+        """
+        self.make_test('reading')
+        ratio = self.make_test('ratio', test_type=models.COMPOSITE, calculation_procedure='result = 10 / reading')
+        self.assign()
+
+        self.load_perform()
+        self.enter_value('reading', '0')
+        self.wait_for_status('ratio', 'Failed', ACT_CLASS)
+        assert 'ZeroDivisionError' in self.status_cell('ratio').get_attribute('title')
+
+        self.enter_value('reading', '4')
+        self.wait_for_status('ratio', 'NO TOL')
+        assert float(self.value_input('ratio').get_attribute('value')) == 2.5
+
+        self.submit()
+        assert self.saved(ratio).value == 2.5
+
+    def test_formatted_values_save_raw_value(self):
+        """A composite or constant with display formatting shows the formatted number but saves the full value.
+
+        If this fails, rounding meant only for display ends up in the clinical record.
+        """
+        self.make_test('reading')
+        third = self.make_test(
+            'third', test_type=models.COMPOSITE, calculation_procedure='result = reading / 3', formatting='%.2f'
+        )
+        pi = self.make_test('pi', test_type=models.CONSTANT, constant_value=3.14159265, formatting='%.1f')
+        self.assign()
+
+        self.load_perform()
+        assert self.value_input('pi').get_attribute('value') == '3.1'
+        self.enter_value('reading', '1')
+        self.wait_until(lambda: self.value_input('third').get_attribute('value') == '0.33')
+        assert self.value_input('third').get_attribute('title') == 'Actual value = %r' % (1 / 3)
+
+        self.submit()
+        assert self.saved(third).value == pytest.approx(1 / 3, rel=1e-12)
+        assert self.saved(pi).value == 3.14159265
+
+    def test_upload_is_processed_and_saved(self):
+        """A file uploaded through the Upload button is processed, feeds composites, and is saved.
+
+        If this fails, an uploaded measurement file is lost or its result never reaches
+        the tests that depend on it.
+        """
+        self.use_temporary_media_root()
+        upload = self.make_test('profile', test_type=models.UPLOAD, calculation_procedure='result = float(FILE.read())')
+        doubled = self.make_test('doubled', test_type=models.COMPOSITE, calculation_procedure='result = profile * 2')
+        self.assign()
+        path = self.make_file('profile.txt', '21\n')
+
+        self.load_perform()
+        self.driver.find_element(By.CSS_SELECTOR, 'input.dz-hidden-input').send_keys(path)
+        self.wait_for_status('profile', 'Success', OK_CLASS)
+        self.wait_until(lambda: self.value_input('doubled').get_attribute('value') not in ('', None))
+        assert float(self.value_input('doubled').get_attribute('value')) == 42
+
+        self.submit()
+
+        ti = self.saved(upload)
+        assert ti.json_value == 21
+        attachment = ti.attachment_set.get()
+        assert attachment.label == 'profile.txt'
+        assert self.saved(doubled).value == 42
+
+    def test_enter_moves_to_next_input_without_submitting(self):
+        """Pressing Enter in a value moves to the next test instead of submitting the form.
+
+        If this fails, a habitual Enter submits a half-finished session.
+        """
+        for name in ('first', 'second', 'third'):
+            self.make_test(name)
+        self.assign()
+
+        self.load_perform()
+        first = self.value_input('first')
+        first.click()
+        first.send_keys('1', Keys.ENTER)
+        self.wait_until(lambda: self.driver.switch_to.active_element == self.value_input('second'))
+        self.driver.switch_to.active_element.send_keys('2', Keys.ENTER)
+        self.wait_until(lambda: self.driver.switch_to.active_element == self.value_input('third'))
+
+        self.wait_for_status('first', 'NO TOL')
+        assert self.driver.current_url.endswith(self.url)
+        assert models.TestListInstance.objects.count() == 0
+
+    def test_leave_page_warning_after_value_entered(self):
+        """Leaving the page asks for confirmation once a value has been entered, and not before.
+
+        If this fails, a stray Back or link click silently throws away entered results.
+        """
+        self.make_test('dose')
+        self.assign()
+        trigger = (
+            "var e = jQuery.Event('beforeunload'); jQuery(window).trigger(e);"
+            "return e.result === undefined ? null : e.result;"
+        )
+
+        self.load_perform()
+        assert self.driver.execute_script(trigger) is None
+
+        self.enter_value('dose', '1')
+        self.wait_for_status('dose', 'NO TOL')
+        assert 'lose all entered values' in self.driver.execute_script(trigger)
+
+    def test_session_attachment_is_saved(self):
+        """A file chosen in the test list Attachments box is listed on the page and saved with the session.
+
+        If this fails, supporting files (screenshots, exports) silently go missing.
+        """
+        self.use_temporary_media_root()
+        self.make_test('dose')
+        self.assign()
+        path = self.make_file('linac-log.txt', 'all good\n')
+
+        self.load_perform()
+        self.driver.find_element(By.ID, 'id_tli_attachments').send_keys(path)
+        self.wait_for_text('#tli-attachment-names', 'linac-log.txt')
+        self.enter_value('dose', '1')
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        attachment = tli.attachment_set.get()
+        assert attachment.label == 'linac-log.txt'
+
+
+class TestExistingSessions(PerformQCTestCase):
+
+    def setUp(self):
+        super().setUp()
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        self.output = self.make_test('output')
+        self.energy = self.make_test('energy')
+        self.assign()
+        self.set_ref_tol(self.output, ref=100, tol=tol)
+        self.set_ref_tol(self.energy, ref=100, tol=tol)
+
+    def test_edit_session_repopulates_and_updates(self):
+        """Editing a session shows its saved values and statuses, and saving updates the same records.
+
+        If this fails, a correction made while editing is lost, duplicated, or judged
+        against the wrong status.
+        """
+        tli = self.make_session([(self.output, 103.0), (self.energy, 100.5)])
+        output_pk = self.saved(self.output).pk
+
+        self.load_perform(url=reverse('edit_tli', kwargs={'pk': tli.pk}))
+        assert float(self.value_input('output').get_attribute('value')) == 103
+        self.wait_for_status('output', 'ACT(3.00)', ACT_CLASS)
+        self.wait_for_status('energy', 'OK(0.50)', OK_CLASS)
+
+        self.enter_value('output', '100.8')
+        self.wait_for_status('output', 'OK(0.80)', OK_CLASS)
+        self.submit()
+
+        assert models.TestListInstance.objects.count() == 1
+        output = self.saved(self.output)
+        assert output.pk == output_pk
+        assert (output.value, output.pass_fail) == (100.8, models.OK)
+        assert self.saved(self.energy).value == 100.5
+
+    def test_continue_in_progress_session(self):
+        """Continuing an in-progress session keeps its values and completes it when submitted.
+
+        If this fails, work saved as 'in progress' cannot be finished, or finishing it loses
+        what was already entered.
+        """
+        tli = self.make_session([(self.output, 101.5), (self.energy, None)], in_progress=True)
+
+        self.load_perform(url=reverse('continue_tli', kwargs={'pk': tli.pk}))
+        self.wait_for_status('output', 'TOL(1.50)', TOL_CLASS)
+        self.wait_for_status('energy', 'Not Done')
+
+        self.enter_value('energy', '99.5')
+        self.wait_for_status('energy', 'OK(-0.50)', OK_CLASS)
+        self.submit()
+
+        tli.refresh_from_db()
+        assert not tli.in_progress
+        assert (self.saved(self.output).value, self.saved(self.output).pass_fail) == (101.5, models.TOLERANCE)
+        assert (self.saved(self.energy).value, self.saved(self.energy).pass_fail) == (99.5, models.OK)
+
+
+class TestCycles(PerformQCTestCase):
+
+    def test_cycle_day_selector_switches_test_list(self):
+        """Choosing another day of a cycle loads that day's test list, and the session is saved against it.
+
+        If this fails, the wrong day's tests are performed or recorded.
+        """
+        monday = utils.create_test_list('Monday')
+        tuesday = utils.create_test_list('Tuesday')
+        utils.create_test_list_membership(monday, utils.create_test('monday_output'))
+        tuesday_test = utils.create_test('tuesday_lasers')
+        utils.create_test_list_membership(tuesday, tuesday_test)
+        cycle = utils.create_cycle([monday, tuesday], name='Weekly cycle')
+        self.assign(test_list=cycle)
+
+        self.load_perform()
+        assert self.driver.find_elements(By.ID, 'monday_output-row')
+        assert not self.driver.find_elements(By.ID, 'tuesday_lasers-row')
+
+        self.open_sidebar_menu('menu-days', 'days-list')
+        with self.wait_for_page_load():
+            self.driver.find_element(By.CSS_SELECTOR, '#days-list a:has(#day-2)').click()
+        self.wait_for_element('#perform-qa-table')
+        self.wait_for_idle()
+        assert 'day=2' in self.driver.current_url
+        assert self.driver.find_elements(By.ID, 'tuesday_lasers-row')
+        assert not self.driver.find_elements(By.ID, 'monday_output-row')
+
+        self.enter_value('tuesday_lasers', '1')
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert (tli.test_list, tli.day) == (tuesday, 1)
+        assert self.saved(tuesday_test).value == 1
+
+
+class TestWorkTimes(PerformQCTestCase):
+
+    def type_datetime(self, el_id, text):
+        el = self.driver.find_element(By.ID, el_id)
+        el.send_keys(Keys.CONTROL, 'a')
+        el.send_keys(Keys.BACKSPACE, text, Keys.TAB)
+
+    def test_work_completed_cannot_precede_work_started(self):
+        """The Work Completed picker refuses a time before Work Started, and accepts a later one.
+
+        If this fails, a session can be recorded as finishing before it started, which
+        breaks durations and the order of results in the history.
+        """
+        self.make_test('dose')
+        self.assign()
+        started = (timezone.localtime() - timezone.timedelta(days=3)).replace(hour=9, minute=0, second=0, microsecond=0)
+        fmt = '%Y-%m-%d %H:%M'
+
+        def field(el_id):
+            return self.driver.find_element(By.ID, el_id).get_attribute('value')
+
+        self.load_perform()
+        self.type_datetime('id_work_started', started.strftime(fmt))
+        self.wait_until(lambda: field('id_work_started') == started.strftime(fmt))
+
+        # A later time is accepted, and the duration follows it...
+        completed = started + timezone.timedelta(minutes=90)
+        self.type_datetime('id_work_completed', completed.strftime(fmt))
+        self.wait_until(lambda: field('id_work_completed') == completed.strftime(fmt))
+        self.wait_until(lambda: field('id_work_duration') == '1hr:30min')
+
+        # ...an earlier one is refused (flatpickr's minDate clears it)...
+        too_early = started - timezone.timedelta(days=1)
+        self.type_datetime('id_work_completed', too_early.strftime(fmt))
+        self.wait_until(lambda: field('id_work_completed') != too_early.strftime(fmt) and field('id_work_completed')
+                        != completed.strftime(fmt), message='the completed time did not react to typing')
+        assert field('id_work_completed') == ''
+
+        # ...and the later time can be entered again.
+        self.type_datetime('id_work_completed', completed.strftime(fmt))
+        self.wait_until(lambda: field('id_work_completed') == completed.strftime(fmt))
+
+        self.enter_value('dose', '1')
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert timezone.localtime(tli.work_started) == started
+        assert timezone.localtime(tli.work_completed) == completed
