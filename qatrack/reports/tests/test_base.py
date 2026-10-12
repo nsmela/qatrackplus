@@ -853,21 +853,43 @@ class TestReportInterface(BaseQATests):
         self.wait.until(e_c.presence_of_element_located((By.ID, 'select2-id_root-report_type-container')))
 
     def test_report_preview(self):
-        """Select report and make sure it previews"""
+        """Select report and make sure its preview lists a session completed in the default period (last month)"""
+        first_of_month = timezone.localtime().replace(day=1, hour=12, minute=0, second=0, microsecond=0)
+        unit = utils.create_unit(name="Linac Preview")
+        utc = utils.create_unit_test_collection(unit=unit, test_collection=utils.create_test_list(name="Preview QC"))
+        utils.create_test_list_instance(
+            unit_test_collection=utc, work_completed=first_of_month - timezone.timedelta(days=15),
+        )
+
         self.select_by_text('id_root-report_type', qc.TestListInstanceSummaryReport.name)
         self.wait.until(e_c.presence_of_element_located((By.ID, 'id_work_completed')))
         self.click("preview")
-        self.driver.find_element(By.CSS_SELECTOR, '#report .container-fluid')
+        self.wait.until(e_c.text_to_be_present_in_element((By.ID, 'report'), "Preview QC"))
+        report = self.driver.find_element(By.CSS_SELECTOR, '#report .container-fluid')
+        assert "Linac Preview" in report.text
+        assert str(qc.TestListInstanceSummaryReport.name) in report.find_element(By.TAG_NAME, 'h5').text
 
     def test_save_report(self):
-        """Ensure filling and saving a report results in a SavedReport in the db"""
+        """Ensure filling and saving a report saves its title, type, format and filters"""
         self.select_by_text('id_root-report_type', qc.TestListInstanceSummaryReport.name)
         self.wait.until(e_c.presence_of_element_located((By.ID, 'id_work_completed')))
+        self.select_by_value('id_root-report_format', 'csv')
         assert models.SavedReport.objects.count() == 0
         self.click("save")
         self.wait.until(e_c.presence_of_element_located((By.CLASS_NAME, 'success-message')))
         assert models.SavedReport.objects.count() == 1
         sr = models.SavedReport.objects.first()
+        assert sr.title == str(qc.TestListInstanceSummaryReport.name)
+        assert sr.report_type == qc.TestListInstanceSummaryReport.report_type
+        assert sr.report_format == "csv"
+        assert sr.created_by == self.user
+        assert sr.filters == {
+            'work_completed': 'Last Month',
+            'unit_test_collection__unit__site': [],
+            'unit_test_collection__unit': [],
+            'unit_test_collection__frequency': [],
+            'unit_test_collection__assigned_to': [],
+        }
         self.wait.until(e_c.presence_of_element_located((By.ID, 'report-id-%s' % sr.pk)))
 
     def test_save_report_with_note(self):
