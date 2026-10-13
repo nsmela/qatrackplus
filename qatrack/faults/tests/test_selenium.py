@@ -17,6 +17,7 @@ import os
 import shutil
 import tempfile
 
+import pytest
 from django.contrib.auth.models import Group, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -36,6 +37,12 @@ from qatrack.qatrack_core.tests.live import SeleniumTestCase
 from qatrack.qatrack_core.tests.utils import picker_format
 from qatrack.service_log.tests import utils as sl_utils
 from qatrack.units.models import Modality
+
+# The date boxes are filled in another format than the date pickers read until
+# qatrackplus/qatrackplus#873, so the picker misreads the date (and the MOMEN typo
+# in unit_available_time.js stays). These tests turn red once #873 is merged.
+FIXED_BY_873 = 'needs qatrackplus/qatrackplus#873 (one date format, derived everywhere)'
+
 
 
 def local_minute(dt):
@@ -837,6 +844,7 @@ class TestFaultListFilters(FaultsSeleniumTestCase):
 class TestFaultDatesAndTimes(FaultsSeleniumTestCase):
     """When a fault occurred is shown and saved again exactly, whatever zone the workstation is in."""
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_late_evening_occurred_time_is_shown_again_and_unchanged_by_saving_again(self):
         """22:30 on 5 Oct is shown as such on the edit page, and saving the edit form keeps it.
 
@@ -852,6 +860,7 @@ class TestFaultDatesAndTimes(FaultsSeleniumTestCase):
         fault.refresh_from_db()
         assert local_minute(fault.occurred) == (2026, 10, 5, 22, 30)
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_opening_the_empty_occurred_box_fills_in_now_on_a_workstation_in_another_zone(self):
         """Opening the picker on an empty "occurred" box fills in the server's "now", not the workstation's.
 

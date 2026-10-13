@@ -677,7 +677,7 @@ class TestPerformQC(BaseQATests):
         self.driver.execute_script("$('#id_datetime_service').focus()")
         self.click_by_css_selector(".flatpickr-calendar.open .today")
         # The date & time calendar stays open over the form until it is closed, as a person would.
-        self.driver.find_element(By.ID, 'id_datetime_service').send_keys(Keys.ESCAPE)
+        self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
         self.wait_for_invisible('.flatpickr-calendar.open')
         self.wait.until(lambda d: len(self.option_texts("id_service_area_field_fake")) > 1)
         self.select_by_index("id_service_area_field_fake", 1)

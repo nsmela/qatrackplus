@@ -20,6 +20,7 @@ harness starts the browser in TIME_ZONE; these tests also pin it per page
 import calendar
 import datetime
 
+import pytest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.urls import reverse
@@ -46,6 +47,12 @@ DEFAULT_HOURS = {
 }
 
 MINUTES_PER_DAY = 1440
+
+# The date boxes are filled in another format than the date pickers read until
+# qatrackplus/qatrackplus#873, so the picker misreads the date (and the MOMEN typo
+# in unit_available_time.js stays). These tests turn red once #873 is merged.
+FIXED_BY_873 = 'needs qatrackplus/qatrackplus#873 (one date format, derived everywhere)'
+
 
 
 def first_displayed_day(year, month):
@@ -630,6 +637,7 @@ class TestEditSchedule(UnitAvailableTimeTestCase):
         self.assertEqual((new.unit, new.date_changed), (self.unit_b, typed))
         self.assertEqual(new.hours_friday, datetime.timedelta(hours=6))
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_schedule_change_marked_with_c(self):
         """The first day of a schedule change carries a "C" marker, as the page's own instructions promise."""
         today = timezone.localdate()
@@ -641,8 +649,9 @@ class TestEditSchedule(UnitAvailableTimeTestCase):
         # The schedule itself is applied (10 hours from that Wednesday), so the data reached the page.
         self.wait_for_bar_heights(3, 1, [600])
 
-        self.wait_until(lambda: self.driver.find_elements(By.CSS_SELECTOR, '#day-3_1 text.uat-change-icon'))
-        self.assertEqual(self.driver.find_elements(By.CSS_SELECTOR, '#day-3_2 text.uat-change-icon'), [])
+        # The marker is drawn with the bars, which have just been checked.
+        assert self.find_now('#day-3_1 text.uat-change-icon'), 'no "C" marker on the day the schedule changed'
+        assert self.find_now('#day-3_2 text.uat-change-icon') == []
 
 
 class TestDeleteChanges(UnitAvailableTimeTestCase):

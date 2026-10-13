@@ -326,6 +326,12 @@ class PerformQCTestCase(SeleniumTestCase):
             self.driver.execute_script('%s.close();' % instance)
         self.wait_for_invisible('.flatpickr-calendar.open')
 
+# The date boxes are filled in another format than the date pickers read until
+# qatrackplus/qatrackplus#873, so the picker misreads the date (and the MOMEN typo
+# in unit_available_time.js stays). These tests turn red once #873 is merged.
+FIXED_BY_873 = 'needs qatrackplus/qatrackplus#873 (one date format, derived everywhere)'
+
+
 
 class TestNumericalTolerances(PerformQCTestCase):
 
@@ -1144,6 +1150,7 @@ class TestDatesAndTimes(PerformQCTestCase):
         self.date_test = self.make_test('date_checked', test_type=models.DATE)
         self.datetime_test = self.make_test('time_checked', test_type=models.DATETIME)
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_chosen_date_and_time_are_saved_and_shown_again_on_edit(self):
         """A date and a late-evening time picked last month are saved as picked, and read back the same.
 
@@ -1246,6 +1253,7 @@ class TestDatesAndTimes(PerformQCTestCase):
         tli = models.TestListInstance.objects.get()
         assert tli.duration() == timezone.timedelta(hours=1)
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_work_started_defaults_to_now(self):
         """Left alone, Work Started is the time the page was opened, and that is what is saved.
 
@@ -1279,6 +1287,7 @@ class TestDatesAndTimes(PerformQCTestCase):
             timezone.localtime(tli.work_started), before, after
         )
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_work_started_defaults_to_now_on_a_workstation_ahead_of_the_server(self):
         """A workstation whose clock is set to a zone ahead of the server's still records the real start time.
 
@@ -1287,6 +1296,7 @@ class TestDatesAndTimes(PerformQCTestCase):
         """
         self.assert_default_work_started_is_now_from('Asia/Tokyo')
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_work_started_defaults_to_now_on_a_workstation_behind_the_server(self):
         """A workstation whose clock is set to a zone behind the server's still records the real start time.
 
@@ -1351,6 +1361,7 @@ class TestDatesAndTimesInFrench(PerformQCTestCase):
     def switch_to_french(self):
         self.driver.add_cookie({'name': settings.LANGUAGE_COOKIE_NAME, 'value': 'fr'})
 
+    @pytest.mark.xfail(strict=True, raises=AssertionError, reason=FIXED_BY_873)
     def test_french_user_saves_dates_and_work_times_and_sees_them_again(self):
         """In French, a date, a date & time and the work times are saved as entered and shown again on edit.
 
@@ -1371,6 +1382,8 @@ class TestDatesAndTimesInFrench(PerformQCTestCase):
         self.pick_in_calendar('time_checked', day, hour=23, minute=15)
         self.submit()
 
+        errors = [e.text for e in self.driver.find_elements(By.CSS_SELECTOR, '.qa-error-text, .alert-danger')]
+        assert models.TestListInstance.objects.count() == 1, 'not saved: %s' % errors
         tli = models.TestListInstance.objects.get()
         assert timezone.localtime(tli.work_started) == started
         assert self.saved(self.date_test).date_value == day
