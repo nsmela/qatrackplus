@@ -34,6 +34,7 @@ otherwise - the screenshot usually shows the reason at a glance.
 import os
 import re
 import shutil
+import threading
 import time
 from contextlib import contextmanager
 from functools import wraps
@@ -153,6 +154,37 @@ class SerialWSGIServer(WSGIServer):
 
     def __init__(self, *args, connections_override=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._busy_lock = threading.Lock()
+        self.requests_in_progress = 0
+        self.last_request_finished = time.monotonic()
+
+    def process_request(self, request, client_address):
+        with self._busy_lock:
+            self.requests_in_progress += 1
+        try:
+            super().process_request(request, client_address)
+        finally:
+            with self._busy_lock:
+                self.requests_in_progress -= 1
+                self.last_request_finished = time.monotonic()
+
+    def wait_until_quiet(self, quiet_for=0.5, timeout=30):
+        """Wait until no request has been in progress for `quiet_for` seconds.
+
+        The test's database is flushed as soon as a test ends. A request the
+        browser sent just before (a debounced autosave, an ajax lookup) would
+        otherwise run on the shared connection during or after the flush, and
+        fail with a foreign key error that breaks every test after it.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._busy_lock:
+                idle = self.requests_in_progress == 0
+                quiet = time.monotonic() - self.last_request_finished
+            if idle and quiet >= quiet_for:
+                return True
+            time.sleep(0.05)
+        return False
 
 
 class SerialLiveServerThread(LiveServerThread):
@@ -363,6 +395,12 @@ class SeleniumTests(StaticLiveServerTestCase):
             self.driver.get("about:blank")
         except WebDriverException:
             pass
+
+        # Let anything the page sent before it was closed finish before the
+        # database is flushed underneath it.
+        httpd = getattr(getattr(self, 'server_thread', None), 'httpd', None)
+        if hasattr(httpd, 'wait_until_quiet'):
+            httpd.wait_until_quiet()
         super().tearDown()
 
     def _test_failed(self):
