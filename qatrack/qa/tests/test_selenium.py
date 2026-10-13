@@ -1,4 +1,3 @@
-import time
 from datetime import date
 
 import pytest
@@ -454,109 +453,6 @@ class LiveQATests(AdminSeleniumMixin, BaseQATests):
         assert not approval.is_default
         assert not approval.requires_review
 
-    def rest(self):
-
-        self.load_main()
-
-        # Perform test
-        self.click_by_link_text('TestUnit')
-        self.click_by_link_text('Perform')
-
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_form-0-value')))
-        basic = self.driver.find_element(By.ID, 'id_form-0-value')
-        boolean = self.driver.find_element(By.NAME, 'form-1-value')
-        basic.send_keys('3')
-        boolean.click()
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[1]/td[5][contains(text(), "ACT(3.00)")]')
-            )
-        )
-
-        basic.send_keys(Keys.BACKSPACE, '2')
-        boolean.click()
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[1]/td[5][contains(text(), "TOL(2.00)")]')
-            )
-        )
-
-        basic.send_keys(Keys.BACKSPACE, '1')
-        boolean.click()
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[1]/td[5][contains(text(), "OK(1.00)")]')
-            )
-        )
-
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[13]/td[5][contains(text(), "OK(0.0%)")]')
-            )
-        )
-
-        basic.send_keys(Keys.BACKSPACE, '1.06')
-        boolean.click()
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[13]/td[5][contains(text(), "ACT(6.0%)")]')
-            )
-        )
-
-        basic.send_keys(Keys.BACKSPACE, '5')
-        boolean.click()
-        self.wait.until(
-            e_c.presence_of_element_located(
-                (By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[13]/td[5][contains(text(), "TOL(5.0%)")]')
-            )
-        )
-
-        basic.send_keys(Keys.BACKSPACE, Keys.BACKSPACE, Keys.BACKSPACE)
-        boolean.click()
-        # time.sleep(1)
-
-        multi = self.driver.find_element(By.ID, 'id_form-2-string_value')
-        multi.click()
-        multi.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
-        self.assertTrue(
-            self.driver.find_element(By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[7]/td[5]').text == 'ACT'
-        )
-        multi.click()
-        multi.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
-        self.assertTrue(
-            self.driver.find_element(By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[7]/td[5]').text == 'TOL'
-        )
-        multi.click()
-        multi.send_keys(Keys.ARROW_DOWN, Keys.ENTER)
-        self.assertTrue(
-            self.driver.find_element(By.XPATH, '//*[@id="perform-qa-table"]/tbody/tr[7]/td[5]').text == 'OK'
-        )
-
-        self.driver.find_element(By.ID, 'id_form-5-string_value').send_keys('a string')
-        boolean.click()
-        self.wait.until(
-            e_c.text_to_be_present_in_element_value((By.ID, 'id_form-6-string_value'), 'a string composite')
-        )
-
-        self.driver.find_element(By.ID, 'id_form-7-skipped').click()
-
-        self.driver.find_element(By.ID, 'submit-qa').click()
-
-        self.wait.until(e_c.presence_of_element_located((By.XPATH, '//div[contains(text(), "Showing 1 to 1")]')))
-        self.driver.find_element(By.PARTIAL_LINK_TEXT, 'Review Data').click()
-        self.driver.find_element(By.PARTIAL_LINK_TEXT, 'Unreviewed Visible To Your Groups').click()
-        self.click_by_link_text('Review')
-
-        self.wait.until(e_c.presence_of_element_located((By.ID, 'id_testinstance_set-0-status')))
-        self.driver.find_element(By.ID, 'bulk-status').click()
-        self.driver.find_element(By.ID, 'bulk-status').send_keys(Keys.ARROW_DOWN, Keys.ARROW_DOWN, Keys.ENTER)
-
-        self.driver.find_element(By.XPATH, '//button[@type = "submit"]').click()
-
-        self.wait.until(
-            e_c.presence_of_element_located((By.XPATH, '//td[contains(text(), "No data available in table")]'))
-        )
-
 
 @pytest.mark.selenium
 class TestPerformQC(BaseQATests):
@@ -615,12 +511,27 @@ class TestPerformQC(BaseQATests):
             sl_utils.create_unit_service_area(self.utc.unit)
             sl_utils.create_service_type()
 
+    def wait_for_perform_page(self):
+        """Wait until the perform page has loaded, calculated and finished any autosave load."""
+        self.wait_for_element('#perform-qa-table')
+        self.wait_until(
+            lambda: self.driver.execute_script(
+                "return typeof jQuery !== 'undefined' && jQuery.active === 0"
+                " && !document.body.classList.contains('loading')"
+                " && !jQuery('#submit-qa').prop('disabled');"
+            ),
+            message='perform page never became idle',
+        )
+
     def test_ok_on_load(self):
         """Ensure that no failed tests on load and 3 "NO TOL" tests present"""
         with transaction.atomic():
             self.login()
             self.open(self.url)
+            # Only once the page's JavaScript has set every status does "none failed" mean anything.
+            self.wait_for_perform_page()
             assert len(self.driver.find_elements(By.CSS_SELECTOR, ".qa-status.btn-danger")) == 0
+            assert len(self.driver.find_elements(By.CSS_SELECTOR, ".qa-status")) == 8
 
     def fill_testlist(self):
 
@@ -739,15 +650,13 @@ class TestPerformQC(BaseQATests):
         self.wait.until(e_c.presence_of_element_located((By.CLASS_NAME, 'alert-success')))
 
         self.open("/qc/session/unreviewed/")
-        time.sleep(0.2)
 
         self.click_by_link_text("Review")
         self.select_by_text("bot-status-select", "reviewed")
 
         self.send_keys("id_comment", "testlistcomment")
         self.click("post-comment")
-        time.sleep(0.2)
-        assert models.Comment.objects.count() == 1
+        self.wait_until(lambda: models.Comment.objects.count() == 1, message='the comment was never saved')
 
         assert models.TestListInstance.objects.unreviewed().count() == 1
         self.click("submit-review")
@@ -763,13 +672,13 @@ class TestPerformQC(BaseQATests):
 
         self.wait.until(e_c.presence_of_element_located((By.CLASS_NAME, 'alert-success')))
 
-        time.sleep(0.2)
+        self.wait_for_element('#id_datetime_service')
+        self.wait_for_ajax()
         self.driver.execute_script("$('#id_datetime_service').focus()")
-        time.sleep(0.3)
-        self.click_by_css_selector(".today")
-        time.sleep(0.2)
+        self.click_by_css_selector(".flatpickr-calendar.open .today")
+        self.wait.until(lambda d: len(self.option_texts("id_service_area_field_fake")) > 1)
         self.select_by_index("id_service_area_field_fake", 1)
-        time.sleep(0.2)
+        self.wait_for_ajax()
         self.select_by_index("id_service_type", 1)
         self.send_keys("id_problem_description", "Problem!")
         # Wait for the save to finish and the next page to load; a fixed 0.2 s
@@ -783,14 +692,14 @@ class TestPerformQC(BaseQATests):
 
         self.login()
         self.open(self.url)
-        time.sleep(0.2)
+        self.wait_for_perform_page()
         inputs = self.driver.find_elements(By.CLASS_NAME, "qa-input")[:3]
         inputs[0].send_keys(1)
         assert models.AutoSave.objects.count() == 0
-        time.sleep(1)
         inputs[0].send_keys(Keys.ENTER)
-        time.sleep(4.2)  # auto save is debounced with a 4s interval
-        assert models.AutoSave.objects.count() == 1
+        # Autosave is debounced: it is sent four seconds after the last change.
+        self.wait_until(lambda: models.AutoSave.objects.count() == 1, timeout=self.timeout + 10,
+                        message='nothing was autosaved')
 
     def test_load_autosave(self):
         """Ensure an autosave is restored with its test values, comments and
@@ -830,7 +739,7 @@ class TestPerformQC(BaseQATests):
 
         url = reverse("perform_qa", kwargs={'pk': utc.pk})
         self.open(url + "?autosave_id=%d&day=%d" % (auto.pk, auto.day + 1))
-        time.sleep(0.2)
+        self.wait_for_perform_page()
 
         inputs = self.driver.find_elements(By.CLASS_NAME, "qa-input")[:3]
         title = "Perform %s : day 2" % utc.unit.name
@@ -879,7 +788,7 @@ class TestPerformQC(BaseQATests):
 
         url = reverse("perform_qa", kwargs={'pk': utc.pk})
         self.open(url + "?autosave_id=%d&day=%d" % (auto.pk, auto.day + 1))
-        time.sleep(0.2)
+        self.wait_for_perform_page()
 
         self.click("submit-qa")
         # click() returns as soon as the click is dispatched, not when the

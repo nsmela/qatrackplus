@@ -200,6 +200,11 @@ browser console log to `selenium-screenshots/` — look there first.
 New browser tests should inherit from `SeleniumTestCase` in
 `qatrack/qatrack_core/tests/live.py`, and wait for conditions
 (`wait_for_ajax`, `wait_for_element`, `wait_until`) rather than `time.sleep`.
+Drive the page with its helpers (`click_css`, `type_into`, `select2_choose`,
+`select2_search`, `value_of`, ...) instead of writing new copies, and never
+click or set values with JavaScript: a test must fail where a person would be
+stuck. The browser runs in `TIME_ZONE`; `use_browser_timezone()` puts it in
+another zone on purpose (Chromium only).
 
 `runtests.sh` and `python manage.py test` invoke Django's own test runner,
 not pytest — they don't understand the `selenium` marker or `-m` filtering,

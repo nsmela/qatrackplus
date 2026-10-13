@@ -846,6 +846,10 @@ SELENIUM_VIRTUAL_DISPLAY = False
 # Seconds a browser test waits for something to appear before failing.
 SELENIUM_TIMEOUT = 10
 
+# Seconds find_element() keeps looking before it gives up. Kept short: it is also
+# how long every check that correctly finds nothing takes.
+SELENIUM_IMPLICIT_WAIT = 2
+
 # Where a failing browser test saves its screenshot, page HTML and console log
 SELENIUM_ARTIFACTS_DIR = 'selenium-screenshots'
 

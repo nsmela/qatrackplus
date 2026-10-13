@@ -309,6 +309,8 @@ jobs:
           import os
           import re
           import xml.etree.ElementTree as ET
+          if not os.path.exists('selenium-results.xml'):
+              raise SystemExit('pytest wrote no results; see the "Run browser tests" step')
           for case in ET.parse('selenium-results.xml').iter('testcase'):
               for problem in list(case.iter('failure')) + list(case.iter('error')):
                   name = '%s.%s' % (case.get('classname'), case.get('name'))
@@ -330,8 +332,7 @@ jobs:
 
       - name: Upload failure screenshots
         if: failure()
-        # TODO: pin to a commit SHA like the other actions in this file.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: selenium-screenshots/

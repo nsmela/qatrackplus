@@ -35,6 +35,7 @@ import datetime
 import os
 import re
 import shutil
+import tempfile
 import threading
 import time
 import warnings
@@ -49,8 +50,8 @@ from django.test import TransactionTestCase
 from django.test.testcases import LiveServerThread
 from selenium import webdriver
 from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.command import Command
 from selenium.webdriver.remote.errorhandler import ErrorHandler
 from selenium.webdriver.remote.webelement import WebElement
@@ -266,7 +267,7 @@ class SeleniumTests(StaticLiveServerTestCase):
         headless = selenium_setting('SELENIUM_HEADLESS', False) or use_virtual_display
         browser_setting = selenium_setting('SELENIUM_BROWSER', 'firefox')
         cls.timeout = selenium_setting('SELENIUM_TIMEOUT', 10)
-        implicit_wait = selenium_setting('SELENIUM_IMPLICIT_WAIT', 2)
+        cls.implicit_wait = selenium_setting('SELENIUM_IMPLICIT_WAIT', 2)
 
         cls.display = None
         cls.driver = None
@@ -300,7 +301,7 @@ class SeleniumTests(StaticLiveServerTestCase):
             #    every find_elements() that correctly finds *nothing* takes.
             cls.driver.set_page_load_timeout(cls.timeout * 3)
             cls.driver.set_script_timeout(cls.timeout * 3)
-            cls.driver.implicitly_wait(implicit_wait)
+            cls.driver.implicitly_wait(cls.implicit_wait)
 
             cls.driver.set_window_position(0, 0)
             cls.driver.set_window_size(1920, 1080)
@@ -392,25 +393,12 @@ class SeleniumTests(StaticLiveServerTestCase):
             cls.display = None
 
     @classmethod
-    def maximize(cls):
-
-        if selenium_setting('SELENIUM_VIRTUAL_DISPLAY', False):
-            for i in range(5):
-                try:
-                    cls.driver.maximize_window()
-                    return
-                except WebDriverException:
-                    time.sleep(1)
-
-        cls.driver.set_window_size(1920, 1080)
-
-    @classmethod
     def tearDownClass(cls):
         cls._stop_browser()
         super().tearDownClass()
 
     def tearDown(self):
-        if self._test_failed():
+        if self._test_failed() and not self._expected_to_fail():
             self.save_failure_artifacts()
 
         # One browser serves the whole class, so leave nothing behind for the
@@ -449,6 +437,11 @@ class SeleniumTests(StaticLiveServerTestCase):
         recorded = list(getattr(result, 'errors', [])) + list(getattr(result, 'failures', []))
         return any(test is self for test, _ in recorded)
 
+    def _expected_to_fail(self):
+        """True for a test marked xfail: its failure is the expected answer, not one to debug."""
+        method = getattr(self, self._testMethodName, None)
+        return any(mark.name == 'xfail' for mark in getattr(method, 'pytestmark', []))
+
     def save_failure_artifacts(self):
         """Write a screenshot, the page source and the console log for the current page.
 
@@ -486,7 +479,13 @@ class SeleniumTests(StaticLiveServerTestCase):
             return []
 
     def javascript_errors(self):
-        """Console entries at SEVERE level: uncaught exceptions and failed requests."""
+        """Console entries at SEVERE level: uncaught exceptions and failed requests.
+
+        Chromium only. On Firefox this is always empty, so a check that there are
+        none proves nothing there; a warning says so.
+        """
+        if not hasattr(self.driver, 'execute_cdp_cmd'):
+            warnings.warn('javascript_errors() cannot read the console on this browser; run with Chromium to check it')
         return [entry for entry in self.browser_log() if entry.get('level') == 'SEVERE']
 
     def browser_timezone(self):
@@ -527,15 +526,10 @@ class SeleniumTests(StaticLiveServerTestCase):
         yield
         WebDriverWait(self.driver, timeout or self.timeout).until(staleness_of(old_page))
 
-    @retry_if_exception(Exception, 2, sleep_time=1)
+    @retry_if_exception(WebDriverException, 2, sleep_time=1)
     def open(self, url):
         with self.wait_for_page_load():
             self.driver.execute_script("window.location.href='%s%s'" % (self.live_server_url, url))
-
-    def wait_for_success(self):
-        self.wait.until(
-            e_c.presence_of_element_located((By.XPATH, '//ul[@class = "messagelist"]/li[@class = "success"]'))
-        )
 
     def wait_for_ajax(self, timeout=None):
         """Wait until jQuery has no requests in flight.
@@ -582,147 +576,229 @@ class SeleniumTests(StaticLiveServerTestCase):
         """
         return WebDriverWait(self.driver, timeout or self.timeout).until(lambda d: condition(), message)
 
-    def scroll_into_view(self, el_id):
-        self.wait.until(e_c.presence_of_element_located((By.ID, el_id)))
-        actions = ActionChains(self.driver)
-        element = self.driver.find_element(By.ID, el_id)
-        actions.move_to_element(element)
-        time.sleep(1)
-        try:
-            actions.perform()
-            self.driver.find_element(By.CSS_SELECTOR, "body").click()
-            self.driver.execute_script("window.scrollTo(0, -200);")
-        except:  # noqa: E722
-            pass
+    # -- clicking and typing ---------------------------------------------------------------------
+    #
+    # These act through the real page: no JavaScript clicks, no values set behind the
+    # page's back. If a person could not click it, neither can a test, and the error
+    # says why (covered by the navbar, disabled, hidden) instead of passing anyway.
 
-    def scroll_into_view_css(self, css_sel):
-        self.wait.until(e_c.presence_of_element_located((By.CSS_SELECTOR, css_sel)))
-        actions = ActionChains(self.driver)
-        element = self.driver.find_element(By.CSS_SELECTOR, css_sel)
-        actions.move_to_element(element)
-        time.sleep(1)
-        try:
-            actions.perform()
-            self.driver.execute_script("window.scrollTo(0, -200);")
-        except:  # noqa: E722
-            pass
+    def click_element(self, element):
+        """Scroll `element` to the middle of the window and click it.
 
-    def select_by_index(self, el_id, index):
-        """Set force_select2= True when selecting a 0 index for a select2 element"""
+        The middle, because at the top the fixed navbar covers it. A click that
+        lands on something else raises ElementClickInterceptedException.
+        """
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        element.click()
 
-        self.scroll_into_view(el_id)
-        try:
-            # select2?
-            sel2 = self.driver.find_element(By.ID, "select2-%s-container" % el_id)
-            sel2.click()
-            time.sleep(0.1)
-            els = self.driver.find_elements(By.CLASS_NAME, "select2-results__option")
-            els[index].click()
-        except:  # noqa: E722
-            select_el = self.driver.find_element(By.ID, el_id)
-            select = Select(select_el)
-            try:
-                select.select_by_index(index)
-            except WebDriverException:
-                val = select.options[index].get_attribute("value")
-                self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", select_el, val)
-
-    def select_by_text(self, el_id, text):
-
-        self.scroll_into_view(el_id)
-        try:
-            select_el = self.driver.find_element(By.ID, el_id)
-            select = Select(select_el)
-            try:
-                select.select_by_visible_text(text)
-            except WebDriverException:
-                found = False
-                for opt in select.options:
-                    if opt.text == text:
-                        self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", select_el, opt.get_attribute("value"))
-                        found = True
-                        break
-                if not found:
-                    raise Exception("Option with text '%s' not found" % text)
-        except WebDriverException:
-
-            sel2 = self.driver.find_element(By.ID, "select2-%s-container" % el_id)
-            sel2.click()
-
-            els = self.driver.find_elements(By.CLASS_NAME, "select2-results__option")
-            for el in els:
-                if el.text == text:
-                    el.click()
-                    break
-
-    def select_by_value(self, el_id, val):
-
-        self.scroll_into_view(el_id)
-        try:
-            select_el = self.driver.find_element(By.ID, el_id)
-            select = Select(select_el)
-            try:
-                select.select_by_value(val)
-            except WebDriverException:
-                found = False
-                for opt in select.options:
-                    if opt.get_attribute("value") == val:
-                        self.driver.execute_script("arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", select_el, val)
-                        found = True
-                        break
-                if not found:
-                    raise Exception("Option with value '%s' not found" % val)
-        except WebDriverException:
-
-            sel2 = self.driver.find_element(By.ID, "select2-%s-container" % el_id)
-            sel2.click()
-
-            els = self.driver.find_elements(By.CLASS_NAME, "select2-results__option")
-            for el in els:
-                if el.get_attribute('id').endswith(val):
-                    el.click()
-                    break
-
-    def send_keys(self, el_id, text):
-        for i in range(3):
-            try:
-                self.scroll_into_view(el_id)
-                self.driver.find_element(By.ID, el_id).send_keys(text)
-                break
-            except:  # noqa: E722
-                if i == 2:
-                    raise
-                else:
-                    time.sleep(1)
+    def click_css(self, css):
+        """Wait for the element matching `css` to be visible, and click it."""
+        self.click_element(self.wait_for_visible(css))
 
     def click(self, el_id, scroll=True):
-        if scroll:
-            self.scroll_into_view(el_id)
-        element = self.driver.find_element(By.ID, el_id)
-        try:
-            element.click()
-        except:  # noqa: E722
-            self.driver.execute_script("arguments[0].click();", element)
+        """Click the element with id `el_id`."""
+        self.click_element(self.wait_for_visible('#%s' % el_id))
 
     def click_by_css_selector(self, css_sel):
-        self.scroll_into_view_css(css_sel)
-        element = self.driver.find_element(By.CSS_SELECTOR, css_sel)
-        try:
-            element.click()
-        except:  # noqa: E722
-            self.driver.execute_script("arguments[0].click();", element)
+        self.click_css(css_sel)
 
     def click_by_link_text(self, link_text):
-        for i in range(3):
+        self.click_element(self.wait.until(e_c.element_to_be_clickable((By.LINK_TEXT, link_text))))
+
+    def type_into(self, el_id, text, clear=False):
+        """Click into the box with id `el_id` and type `text`, first emptying it if `clear`.
+
+        Emptied with the keyboard rather than element.clear(), so the page sees the
+        same key events as when a person does it.
+        """
+        element = self.wait_for_visible('#%s' % el_id)
+        self.click_element(element)
+        if clear:
+            element.send_keys(Keys.CONTROL, 'a')
+            element.send_keys(Keys.DELETE)
+        element.send_keys(text)
+        return element
+
+    def send_keys(self, el_id, text):
+        """Type `text` into the element with id `el_id` (without clicking into it first)."""
+        element = self.wait_for_visible('#%s' % el_id)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        element.send_keys(text)
+
+    def scroll_into_view(self, el_id):
+        self.scroll_into_view_css('#%s' % el_id)
+
+    def scroll_into_view_css(self, css_sel):
+        element = self.wait_for_element(css_sel)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+
+    # -- reading the page --------------------------------------------------------------------------
+
+    def page_text(self):
+        """Everything the page shows as text."""
+        return self.driver.find_element(By.TAG_NAME, 'body').text
+
+    def value_of(self, el_id):
+        """The value of the form field with id `el_id`, as jQuery reports it.
+
+        jQuery, because it gives a select's chosen value (or a list of them for a
+        multiple select) and None when nothing is chosen.
+        """
+        return self.driver.execute_script(
+            'var el = document.getElementById(arguments[0]);'
+            'return typeof jQuery === "undefined" ? el.value : jQuery(el).val();', el_id
+        )
+
+    def is_checked(self, el_id):
+        return self.driver.execute_script('return document.getElementById(arguments[0]).checked;', el_id)
+
+    def is_disabled(self, el_id):
+        return self.driver.execute_script('return document.getElementById(arguments[0]).disabled;', el_id)
+
+    def is_shown(self, css):
+        """True if an element matching `css` exists and is displayed. Does not wait."""
+        return any(el.is_displayed() for el in self.find_now(css))
+
+    def find_now(self, css):
+        """The elements matching `css` right now, without the implicit wait.
+
+        find_elements() waits the whole implicit wait before it reports finding
+        nothing, which makes every "is it gone yet?" check slow.
+        """
+        self.driver.implicitly_wait(0)
+        try:
+            return self.driver.find_elements(By.CSS_SELECTOR, css)
+        finally:
+            self.driver.implicitly_wait(self.implicit_wait)
+
+    def option_texts(self, el_id):
+        """The text of every <option> in <select id=el_id>."""
+        return self.driver.execute_script(
+            'return Array.from(document.getElementById(arguments[0]).options)'
+            '  .map(function(o) { return o.text.trim(); });', el_id
+        )
+
+    def enabled_options(self, el_id):
+        """The text of every <option> in <select id=el_id> that is not disabled."""
+        return self.driver.execute_script(
+            'return Array.from(document.getElementById(arguments[0]).options)'
+            '  .filter(function(o) { return !o.disabled; })'
+            '  .map(function(o) { return o.text.trim(); });', el_id
+        )
+
+    # -- select boxes ------------------------------------------------------------------------------
+
+    def has_select2(self, el_id):
+        return bool(self.find_now('#%s ~ .select2' % el_id))
+
+    def open_select2(self, el_id):
+        self.click_css('#%s ~ .select2 .select2-selection' % el_id)
+        return self.wait_for_visible('.select2-container--open .select2-results')
+
+    def close_select2(self):
+        self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
+        self.wait_for_invisible('.select2-container--open .select2-results')
+
+    def select2_results(self):
+        """The text of each option a person can see in the open select2 dropdown.
+
+        Options hidden by CSS (as disabled ones are on some pages) are left out.
+        """
+        texts = self.driver.execute_script(
+            "return $('.select2-container--open li.select2-results__option:visible')"
+            "  .map(function() { return $(this).text().trim(); }).get();"
+        )
+        return [t for t in texts if t]
+
+    def _open_select2_option(self, text, exact=True):
+        """The option showing `text` in the open select2 dropdown, or False.
+
+        Ajax lookups replace the options while they are being read, so a stale
+        option just means "look again".
+        """
+        for option in self.find_now('.select2-container--open li.select2-results__option'):
             try:
-                self.wait.until(e_c.presence_of_element_located((By.LINK_TEXT, link_text)))
-                self.driver.find_element(By.LINK_TEXT, link_text).click()
-                break
-            except:  # noqa: E722
-                if i == 2:
-                    raise
-                else:
-                    time.sleep(1)
+                option_text = option.text.strip()
+            except StaleElementReferenceException:
+                return False
+            if (exact and option_text == text) or (not exact and text in option_text):
+                return option
+        return False
+
+    def select2_choose(self, el_id, text, exact=True):
+        """Open the select2 widget for <select id=el_id> and click the option showing `text`.
+
+        Going through select2's own dropdown runs the page's change handlers
+        exactly as they run for a person.
+        """
+        self.open_select2(el_id)
+        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
+        self.click_element(option)
+        self.wait_for_invisible('.select2-container--open .select2-results')
+
+    def select2_search(self, el_id, term, text, exact=False):
+        """Type `term` into the search box of the select2 for <select id=el_id> and click the result showing `text`."""
+        self.open_select2(el_id)
+        search = self.wait_for_visible('.select2-container--open .select2-search__field')
+        search.send_keys(term)
+        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
+        self.click_element(option)
+        self.wait_for_invisible('.select2-container--open .select2-results')
+
+    def select_by_text(self, el_id, text):
+        """Choose the option showing `text`, through select2 if the box has it."""
+        if self.has_select2(el_id):
+            self.select2_choose(el_id, text)
+        else:
+            Select(self.wait_for_visible('#%s' % el_id)).select_by_visible_text(text)
+
+    def select_by_value(self, el_id, val):
+        """Choose the option whose value is `val`, through select2 if the box has it."""
+        if self.has_select2(el_id):
+            text = self.driver.execute_script(
+                'var o = Array.from(document.getElementById(arguments[0]).options)'
+                '  .filter(function(o) { return o.value === arguments[1]; })[0];'
+                'return o ? o.text.trim() : null;', el_id, val
+            )
+            assert text is not None, 'no option with value %r in #%s' % (val, el_id)
+            self.select2_choose(el_id, text)
+        else:
+            Select(self.wait_for_visible('#%s' % el_id)).select_by_value(val)
+
+    def select_by_index(self, el_id, index):
+        """Choose the option at `index`, through select2 if the box has it."""
+        if self.has_select2(el_id):
+            self.select2_choose(el_id, self.option_texts(el_id)[index])
+        else:
+            Select(self.wait_for_visible('#%s' % el_id)).select_by_index(index)
+
+    # -- files -------------------------------------------------------------------------------------
+
+    def use_temporary_media_root(self):
+        """Keep uploaded files out of the working tree for this test.
+
+        UPLOAD_ROOT and TMP_UPLOAD_ROOT move with MEDIA_ROOT, as they do in
+        settings.py: an attachment is only moved out of the staging folder when
+        its path is inside TMP_UPLOAD_ROOT, so leaving them behind would skip
+        that step.
+        """
+        media = tempfile.mkdtemp(prefix='qatrack-media-')
+        self.addCleanup(shutil.rmtree, media, ignore_errors=True)
+        uploads = os.path.join(media, 'uploads')
+        os.makedirs(os.path.join(uploads, 'tmp'))
+        override = self.settings(MEDIA_ROOT=media, UPLOAD_ROOT=uploads, TMP_UPLOAD_ROOT=os.path.join(uploads, 'tmp'))
+        override.enable()
+        self.addCleanup(override.disable)
+        return media
+
+    def make_file(self, name, content):
+        """Write a small text file for uploading and return its absolute path."""
+        directory = tempfile.mkdtemp(prefix='qatrack-upload-')
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        path = os.path.join(directory, name)
+        with open(path, 'w') as f:
+            f.write(content)
+        return path
 
 
 class SeleniumTestCase(SeleniumTests, TransactionTestCase):

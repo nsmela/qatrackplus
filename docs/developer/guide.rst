@@ -630,6 +630,8 @@ The settings are:
   itself, when the driver cannot find it.
 * ``SELENIUM_TIMEOUT``: seconds to wait for something to appear before a test
   fails (default 10). Raise it on a slow machine.
+* ``SELENIUM_IMPLICIT_WAIT``: seconds ``find_element`` keeps looking before it
+  gives up (default 2).
 * ``SELENIUM_ARTIFACTS_DIR``: where a failing test saves its screenshot, page HTML
   and browser console log (default ``selenium-screenshots``).
 * ``SELENIUM_VIRTUAL_DISPLAY``: run inside a virtual X display through ``xvfb``
@@ -657,6 +659,18 @@ condition rather than sleeping:
 
 ``wait_for_ajax()`` waits until jQuery has no requests in flight, which is what
 most pages need after a click that talks to the server.
+
+Drive the page with the helpers ``SeleniumTestCase`` already has (``click_css``,
+``type_into``, ``select2_choose``, ``select2_search``, ``value_of``,
+``use_temporary_media_root`` and so on) rather than writing new copies in your
+test file. They click and type the way a person does, and never fall back to
+clicking or setting values with JavaScript, so a test fails where a person
+would be stuck.
+
+The browser is started in the site's ``TIME_ZONE``, because several pages fill
+in "now" from the browser's clock. To check what happens on a workstation set
+to another zone, call ``use_browser_timezone('Asia/Tokyo')`` before opening the
+page (Chromium only; the test is skipped on Firefox).
 
 When a test fails, look in ``selenium-screenshots/`` first: the screenshot usually
 shows why.
