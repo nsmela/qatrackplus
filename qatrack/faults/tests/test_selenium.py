@@ -17,7 +17,6 @@ import os
 import shutil
 import tempfile
 
-import pytest
 from django.contrib.auth.models import Group, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -236,17 +235,18 @@ class TestCreateFault(FaultsSeleniumTestCase):
         """
         self.open_create_form()
 
+        # The blank option is always there: modality is optional.
         self.choose_unit('Linac Two')
-        assert self.enabled_options('id_fault-modality') == ['Proton']
+        assert self.enabled_options('id_fault-modality') == ['---------', 'Proton']
 
         self.choose_unit('Linac One')
-        assert sorted(self.enabled_options('id_fault-modality')) == ['6MV Photon', '9MeV Electron']
+        assert sorted(self.enabled_options('id_fault-modality')) == ['---------', '6MV Photon', '9MeV Electron']
 
         # The select2 dropdown, which is what a person actually clicks, agrees:
         # faults.css hides the disabled options altogether.
         self.open_select2('id_fault-modality')
         self.wait.until(lambda d: self._open_select2_option('6MV Photon'))
-        assert sorted(self.select2_results()) == ['6MV Photon', '9MeV Electron']
+        assert sorted(self.select2_results()) == ['---------', '6MV Photon', '9MeV Electron']
         self.close_select2()
         assert self.javascript_errors() == []
 
@@ -306,13 +306,6 @@ class TestCreateFault(FaultsSeleniumTestCase):
         assert [c.comment for c in Comment.objects.for_model(fault)] == ['Leaf 12 stuck during morning QC']
         assert not fault.faultreviewinstance_set.exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'faults.js:146-147 compares parseInt(value) with "", which is never true, so the blank '
-            'modality option is always disabled and a chosen modality cannot be cleared'
-        ),
-    )
     def test_modality_can_be_cleared_after_one_was_chosen(self):
         """Modality is optional, so a modality picked by mistake must be removable again."""
         self.open_create_form()
@@ -326,6 +319,24 @@ class TestCreateFault(FaultsSeleniumTestCase):
         assert '---------' in self.select2_results()
         self.click_element(self._open_select2_option('---------'))
         self.wait.until(lambda d: self.value_of('id_fault-modality') in ('', None))
+
+    def test_changing_unit_keeps_a_modality_the_new_unit_has_and_clears_one_it_lacks(self):
+        """Switching unit clears a modality only when the new unit does not have it.
+
+        If this fails, a fault can be saved against a beam the new unit does not
+        have, or a valid choice is thrown away for no reason.
+        """
+        self.other_unit.modalities.add(self.photon)
+        self.open_create_form()
+        self.choose_unit('Linac One')
+        self.select2_choose('id_fault-modality', '9MeV Electron')
+
+        self.choose_unit('Linac Two')
+        assert self.value_of('id_fault-modality') in ('', None)
+
+        self.select2_choose('id_fault-modality', '6MV Photon')
+        self.choose_unit('Linac One')
+        assert self.value_of('id_fault-modality') == str(self.photon.pk)
 
     def test_new_fault_type_typed_into_the_box_is_created_with_the_fault(self):
         """A code that does not exist yet must be offered as *code* and created when the fault is saved.
@@ -395,7 +406,7 @@ class TestLogFaultFromPerformQC(FaultsSeleniumTestCase):
         self.open_fault_modal()
         # The unit being tested is chosen already.
         assert self.value_of('id_fault-unit') == str(self.unit.pk)
-        assert sorted(self.enabled_options('id_fault-modality')) == ['6MV Photon', '9MeV Electron']
+        assert sorted(self.enabled_options('id_fault-modality')) == ['---------', '6MV Photon', '9MeV Electron']
 
         self.select2_choose('id_fault-modality', '6MV Photon')
         self.choose_fault_type('ML', 'MLC-12')
@@ -483,17 +494,53 @@ class TestReviewing(FaultsSeleniumTestCase):
         for fault in (first, second, other):
             review = fault.faultreviewinstance_set.get()
             assert review.reviewed_by == self.user
-        assert already.faultreviewinstance_set.count() == 1
         assert not models.Fault.objects.unreviewed().exists()
+
+    def test_bulk_acknowledge_reviews_only_the_ticked_faults(self):
+        """Ticking two of three faults summarises and reviews those two, and leaves the third unreviewed.
+
+        If this fails, a reviewer signs off faults they never looked at.
+        """
+        first = self.create_fault()
+        second = self.create_fault(unit=self.other_unit, fault_type=self.gantry)
+        skipped = self.create_fault()
+
+        self.login()
+        self.open(reverse('fault_list_unreviewed'))
+        table = '#listable-table-fault_list_unreviewed tbody'
+        self.wait.until(lambda d: len(d.find_elements(By.CSS_SELECTOR, table + ' input.test-selected')) == 3)
+        for fault in (first, second):
+            self.click_css('%s input.test-selected[data-fault="%d"]' % (table, fault.pk))
+
+        self.click_css('#submit-review')
+        self.wait_for_visible('#bulk-review-modal #confirm-update')
+        rows = [
+            [td.text.strip() for td in tr.find_elements(By.TAG_NAME, 'td')]
+            for tr in self.driver.find_elements(By.CSS_SELECTOR, '#instance-summary tbody tr')
+        ]
+        assert sorted(rows) == [['GANTRY-3', 'Linac Two', '1'], ['MLC-12', 'Linac One', '1']]
+
+        with self.wait_for_page_load():
+            self.click_css('#confirm-update')
+        self.wait_for_text('.content-header', 'Successfully reviewed 2 faults')
+
+        assert first.faultreviewinstance_set.get().reviewed_by == self.user
+        assert second.faultreviewinstance_set.get().reviewed_by == self.user
+        assert not skipped.faultreviewinstance_set.exists()
 
     def test_reviewer_chosen_on_the_edit_form_is_saved(self):
         """Choosing a reviewer for a required review group on the edit form must record that review."""
         frg = self.make_review_group(required=True)
-        fault = self.create_fault()
+        fault = self.create_fault(modality=self.photon)
 
         self.open_edit_form(fault)
+        assert self.value_of('id_fault-modality') == str(self.photon.pk)
         self.select2_choose('id_review-form-0-reviewed_by', 'Pat Physicist')
         self.save_fault_form()
+
+        # Saving the edit form must not lose what it did not change.
+        fault.refresh_from_db()
+        assert fault.modality == self.photon
 
         review = models.FaultReviewInstance.objects.get()
         assert review.fault == fault
@@ -584,13 +631,6 @@ class TestFaultDetails(FaultsSeleniumTestCase):
         assert self.value_of('id_comment') == ''
         assert not self.driver.find_element(By.ID, 'post-comment').is_enabled()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'faults/templates/faults/fault_details.html:122 uses fault.fault_type.code, but Fault has '
-            'fault_types (many to many), so the heading names no fault type'
-        ),
-    )
     def test_other_occurrences_heading_names_the_fault_type(self):
         """The "Other Occurrences" box must say which fault type it is listing other occurrences of."""
         fault = self.create_fault()
@@ -629,13 +669,6 @@ class TestFaultDetails(FaultsSeleniumTestCase):
         assert not Comment.objects.filter(comment='Doomed').exists()
         assert self.driver.current_url.endswith(reverse('fault_list'))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'faults/views.py:370-375 DeleteFault overrides delete(), which Django 4 DeleteView no longer '
-            'calls on POST (it calls form_valid), so the "Successfully deleted" message is never added'
-        ),
-    )
     def test_deleting_a_fault_confirms_it_with_a_message(self):
         """After deleting a fault the user must be told which fault was deleted."""
         fault = self.create_fault()
@@ -706,6 +739,42 @@ class TestAttachments(FaultsSeleniumTestCase):
 
         assert list(Attachment.objects.all()) == [kept]
         assert list(fault.fault_types.all()) == [self.mlc]
+
+    def test_ticking_two_delete_boxes_removes_both_attachments(self):
+        """Two attachments ticked for deletion are both removed (the form sends them as "5,6")."""
+        fault = self.create_fault()
+        doomed = [
+            Attachment.objects.create(
+                attachment=SimpleUploadedFile(name, b'old'), label=name, fault=fault, created_by=self.user,
+            ) for name in ('one.txt', 'two.txt')
+        ]
+
+        self.open_edit_form(fault)
+        for attachment in doomed:
+            self.click_css('#attach-%d-DELETE' % attachment.pk)
+        self.save_fault_form()
+
+        assert not Attachment.objects.exists()
+
+    def test_attachments_of_other_records_are_never_deleted(self):
+        """Only this record's own attachments can be deleted, whatever ids the browser sends.
+
+        The delete ids travel in a hidden field. If this fails, an edited request can
+        delete anyone's attachments, from any record.
+        """
+        fault = self.create_fault()
+        other = Attachment.objects.create(
+            attachment=SimpleUploadedFile('other.txt', b'other'), label='other.txt',
+            fault=self.create_fault(unit=self.other_unit), created_by=self.user,
+        )
+
+        self.open_edit_form(fault)
+        self.driver.execute_script(
+            "document.getElementById('id_fault-attachments_delete_ids').value = arguments[0];", str(other.pk)
+        )
+        self.save_fault_form()
+
+        assert list(Attachment.objects.all()) == [other]
 
 
 class TestFaultListFilters(FaultsSeleniumTestCase):

@@ -502,12 +502,6 @@ class TestChoiceTolerances(PerformQCTestCase):
             assert ti.string_value == choice
             assert ti.pass_fail == DISPLAYED_TO_PASS_FAIL[text], t.slug
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason='qa/static/qa/js/qa.js:211-214 compares string/choice values to the tolerance '
-        'case-sensitively, but qa/models.py:2185-2189 lowercases both, so "PASS" shows ACT and saves OK',
-    )
     def test_string_status_shown_matches_saved_when_case_differs(self):
         """A string answer differing from the tolerance's pass choice only in case is shown as it is saved.
 
@@ -620,6 +614,72 @@ class TestStatusDisplay(PerformQCTestCase):
             assert ti.value == float(entered[t.slug][0])
             assert ti.pass_fail == entered[t.slug][3], t.slug
 
+    def test_do_not_treat_warning_shown_when_editing_a_session_already_at_action(self):
+        """Opening a saved session with an action-level result shows the warning and a red Submit at once.
+
+        If this fails, someone editing or continuing such a session sees no warning
+        until they happen to change a value.
+        """
+        self.test_list.warning_message = 'Do not treat'
+        self.test_list.save()
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        output = self.make_test('output')
+        self.assign()
+        self.set_ref_tol(output, ref=100, tol=tol)
+        tli = self.make_session([(output, 103.0)])
+
+        self.load_perform(url=reverse('edit_tli', kwargs={'pk': tli.pk}))
+        self.wait_for_status('output', 'ACT(3.00)', ACT_CLASS)
+        self.wait_for_visible('.box-header .do-not-treat')
+        assert 'btn-danger' in self.driver.find_element(By.ID, 'submit-qa').get_attribute('class').split()
+
+    def test_pass_fail_only_user_sees_no_tolerance_detail_on_a_continued_session(self):
+        """A session reopened by a user without 'can view ref/tol' shows OK or Fail, not TOL(1.50).
+
+        If this fails, such users see the detail hidden from them whenever they
+        continue or edit a session.
+        """
+        tol = utils.create_tolerance(tol_type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        within, tolerance = self.make_test('within'), self.make_test('tolerance')
+        self.assign()
+        for t in (within, tolerance):
+            self.set_ref_tol(t, ref=10, tol=tol)
+        therapist = self.make_limited_user()
+        tli = self.make_session([(within, 10.5), (tolerance, None)], in_progress=True)
+        tli.created_by = therapist
+        tli.save()
+
+        self.load_perform(url=reverse('continue_tli', kwargs={'pk': tli.pk}), user=therapist)
+        self.wait_for_status('within', 'OK', OK_CLASS)
+        self.wait_for_status('tolerance', 'Not Done')
+        self.enter_value('tolerance', '11.5')
+        self.wait_for_status('tolerance', 'OK', OK_CLASS)
+
+    def test_clearing_a_value_shows_not_done_for_a_pass_fail_only_user(self):
+        """Typing a value and then clearing it shows Not Done again, and other untouched tests stay Not Done.
+
+        If this fails, a pass/fail-only user sees "OK" on tests nobody has done.
+        """
+        tol = utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices='yes', mc_tol_choices='')
+        answer = self.make_test('answer', test_type=models.STRING)
+        untouched = self.make_test('untouched', test_type=models.STRING)
+        self.assign()
+        for t in (answer, untouched):
+            self.set_ref_tol(t, tol=tol)
+        therapist = self.make_limited_user()
+
+        self.load_perform(user=therapist)
+        self.enter_value('answer', 'yes')
+        self.wait_for_status('answer', 'OK', OK_CLASS)
+        self.value_input('answer').clear()
+        self.value_input('answer').send_keys(Keys.TAB)
+        self.wait_for_status('answer', 'Not Done')
+        self.enter_value('untouched', 'no')
+        self.value_input('untouched').clear()
+        self.value_input('untouched').send_keys(Keys.TAB)
+        self.wait_for_status('untouched', 'Not Done')
+        assert self.status_text('answer') == 'Not Done'
+
 
 class TestSkipping(PerformQCTestCase):
 
@@ -644,10 +704,9 @@ class TestSkipping(PerformQCTestCase):
         self.wait_for_text('#perform-qa-table .qa-error-text', 'Please add comment when skipping')
         assert models.TestListInstance.objects.count() == 0
 
-        # The re-rendered page keeps the skip ticked; the comment box has to be opened by hand
+        # The re-rendered page keeps the skip ticked, with its comment box open
         # (see test_comment_box_open_when_skip_sent_back below).
         assert self.driver.find_element(By.CSS_SELECTOR, '#flatness-skip input[type=checkbox]').is_selected()
-        self.click('comment-toggle-flatness')
         self.wait_for_visible('#flatness-comment textarea').send_keys('Chamber out for calibration')
         self.submit()
 
@@ -657,13 +716,6 @@ class TestSkipping(PerformQCTestCase):
         assert ti.comment == 'Chamber out for calibration'
         assert ti.pass_fail == models.NOT_DONE
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason='qa/static/qa/js/qa.js:801 fires the skip change handler while comment_on_skip is still '
-        'undefined (it is only read at qa.js:1318, after tli.initialize()), so a skipped test sent back '
-        'for a missing comment shows its comment box closed',
-    )
     def test_comment_box_open_when_skip_sent_back(self):
         """When a skip is sent back for a missing comment, its comment box is already open.
 
@@ -751,13 +803,6 @@ class TestCategoryFilter(PerformQCTestCase):
         assert laser.comment == 'Category not performed'
         assert laser.pass_fail == models.NOT_DONE
 
-    @pytest.mark.xfail(
-        strict=True,
-        raises=AssertionError,
-        reason='qa/static/qa/js/qa.js:691-698 keeps the value of a filtered-out test ("nulled on submit") '
-        'but the submit handler at qa.js:1425-1437 never clears it, so views/forms.py:65 rejects the '
-        'session with "Clear value if skipping"',
-    )
     def test_value_entered_before_unticking_category_is_dropped(self):
         """A value typed into a test whose category is then unticked does not block submission.
 

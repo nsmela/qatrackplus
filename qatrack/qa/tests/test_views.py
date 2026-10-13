@@ -2340,3 +2340,33 @@ class TestCopyReferencesTolerancesView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'qa/copy_refs_tols.html')
         self.assertContains(response, 'Copy References &amp; Tolerances')
+
+
+class TestBulkReviewPermissions(TestCase):
+    """Bulk review approves QC sessions, so only reviewers may do it, and only by POST."""
+
+    def setUp(self):
+        self.tli = utils.create_test_list_instance()
+        utils.create_test_instance(test_list_instance=self.tli)
+        self.status = utils.create_status(name='Approved', slug='approved', is_default=False, requires_review=False)
+        self.url = reverse('qa-bulk-review')
+        self.data = {'tlis': ['%d,%d' % (self.status.pk, self.tli.pk)]}
+
+    def test_user_without_can_review_is_refused(self):
+        utils.create_user(uname='therapist', is_staff=False, is_superuser=False)
+        self.client.login(username='therapist', password='password')
+        assert self.client.post(self.url, self.data).status_code == 403
+        self.tli.refresh_from_db()
+        assert not self.tli.all_reviewed
+
+    def test_get_is_refused(self):
+        utils.create_user(uname='reviewer', is_superuser=True)
+        self.client.login(username='reviewer', password='password')
+        assert self.client.get(self.url).status_code == 405
+
+    def test_reviewer_can_bulk_review(self):
+        utils.create_user(uname='reviewer', is_superuser=True)
+        self.client.login(username='reviewer', password='password')
+        assert self.client.post(self.url, self.data).status_code == 200
+        self.tli.refresh_from_db()
+        assert self.tli.all_reviewed

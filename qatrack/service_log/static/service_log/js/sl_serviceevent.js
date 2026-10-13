@@ -913,7 +913,11 @@ require(['jquery', 'lodash', 'moment', 'autosize', 'select2', 'flatpickr', 'sl_u
             }else {
                 $service_areas_fake.prop('disabled', false);
             }
-            $review_required_fake.prop('checked', values['is_review_required']);
+            // change() copies the box into the hidden field that is actually saved. A
+            // service type that forces review keeps it ticked whatever the template says.
+            $review_required_fake.prop(
+                'checked', values['is_review_required'] || !!se_types_review[$service_type.val()]
+            ).change();
             $problem_description.val(values['problem_description']);
             $work_description.val(values['work_description']);
 

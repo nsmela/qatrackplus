@@ -380,7 +380,7 @@ require(['jquery', 'moment_timezone', 'd3', 'flatpickr', 'daterangepicker', 'sel
                             date_acceptance = unit_available_time_data[unit_id].date_acceptance,
                             unit_avail_time_today = 0,
                             day_str = day.format(siteConfig.MOMENT_DATE_FMT),
-                            day_str_data = day.format(siteConfig.MOMEN_DATE_DATA_FMT),
+                            day_str_data = day.format(siteConfig.MOMENT_DATE_DATA_FMT),
                             day_edit_name = null,
                             available_time_changed,
                             unit_name = unit_available_time_data[unit_id].name;
@@ -487,7 +487,8 @@ require(['jquery', 'moment_timezone', 'd3', 'flatpickr', 'daterangepicker', 'sel
         }
 
         function duration_readable(_int) {
-            return Math.floor(_int / 60).toString() + ':' + (_int % 60).toString();
+            var minutes = _int % 60;
+            return Math.floor(_int / 60).toString() + ':' + (minutes < 10 ? '0' : '') + minutes.toString();
         }
 
         function duration_hours_minutes(duration_string) {

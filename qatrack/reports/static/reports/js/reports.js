@@ -220,7 +220,7 @@ require(['jquery', 'lodash', 'moment', 'datatables.net-bs'], function ($, _, mom
             moment()
         ],
         "Last 180 Days": [
-            moment().subtract(90, 'days'),
+            moment().subtract(180, 'days'),
             moment()
         ],
         "Last 365 Days": [
@@ -486,8 +486,11 @@ require(['jquery', 'lodash', 'moment', 'datatables.net-bs'], function ($, _, mom
             _.each(data.fields, function(vals, field){
                 setFieldVal(field, vals);
             });
+            // setFieldVal fires only select2's own change, so the format's handler did not run.
+            togglePdfFields();
 
-            initializeNotes(data.notes);
+            // A report opened from a ?opts= link has no saved notes.
+            initializeNotes(data.notes || {count: 0, notes: {}});
 
             if (!data.editable){
                 $reportId.val("");

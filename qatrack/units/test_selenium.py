@@ -20,7 +20,6 @@ harness starts the browser in TIME_ZONE; these tests also pin it per page
 import calendar
 import datetime
 
-import pytest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.urls import reverse
@@ -548,10 +547,6 @@ class TestEditAvailableTime(UnitAvailableTimeTestCase):
         self.shown_month = (today.year, today.month)
         return self.cell_date(x, y)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='unit_available_time.js:490 duration_readable() does not pad minutes, so 2 hours reads "2:0"',
-    )
     def test_hours_tooltip_shows_hours_and_minutes(self):
         """Hovering a bar shows the unit and its available time as h:mm."""
         UnitAvailableTimeEdit.objects.create(
@@ -635,11 +630,6 @@ class TestEditSchedule(UnitAvailableTimeTestCase):
         self.assertEqual((new.unit, new.date_changed), (self.unit_b, typed))
         self.assertEqual(new.hours_friday, datetime.timedelta(hours=6))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='unit_available_time.js:383 formats with siteConfig.MOMEN_DATE_DATA_FMT (typo), '
-        'so no day ever matches a schedule change and the "C" marker is never drawn',
-    )
     def test_schedule_change_marked_with_c(self):
         """The first day of a schedule change carries a "C" marker, as the page's own instructions promise."""
         today = timezone.localdate()
@@ -731,11 +721,6 @@ class TestBrowserEastOfServer(UnitAvailableTimeTestCase):
 
     timezone_id = 'Europe/London'
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='units/views.py:128 converts the browser-midnight timestamp to the server zone with '
-        'timezone.localtime() before taking .date(), so a browser ahead of the server saves the day before',
-    )
     def test_edit_saved_on_day_clicked(self):
         """An edit made from a browser ahead of the server still lands on the day that was clicked."""
         self.load_page()

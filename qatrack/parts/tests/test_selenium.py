@@ -18,7 +18,6 @@ import shutil
 import tempfile
 from decimal import Decimal
 
-import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from selenium.webdriver.common.action_chains import ActionChains
@@ -269,7 +268,8 @@ class TestPartStorage(PartsSeleniumTestCase):
         self.submit_with_new_location_but_no_part_number('Drawer')
 
         assert self.wait_for_location_reload_or_error() == []
-        assert self.option_texts('id_storage-0-location') == ['<no specific location>', 'Drawer']
+        # The room's other locations stay on offer alongside the new one.
+        assert self.option_texts('id_storage-0-location') == ['<no specific location>', 'Shelf A', 'Shelf B', 'Drawer']
         assert self.value_of('id_storage-0-location') == '__new__Drawer'
         assert p_models.Part.objects.count() == 0
 
@@ -281,11 +281,6 @@ class TestPartStorage(PartsSeleniumTestCase):
         psc = p_models.PartStorageCollection.objects.get()
         assert (psc.storage, psc.quantity) == (storage, 3)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="qatrack/parts/static/parts/js/p_part.js:76 builds the selector option[value=__new__Top Drawer] "
-               "without quotes; jQuery throws on the space, so the row's locations are never reloaded",
-    )
     def test_typed_new_location_with_a_space_is_kept_through_a_validation_error(self):
         """A new location whose name has a space must survive a validation error like any other.
 
@@ -294,7 +289,9 @@ class TestPartStorage(PartsSeleniumTestCase):
         self.submit_with_new_location_but_no_part_number('Top Drawer')
 
         assert self.wait_for_location_reload_or_error() == []
-        assert self.option_texts('id_storage-0-location') == ['<no specific location>', 'Top Drawer']
+        assert self.option_texts('id_storage-0-location') == [
+            '<no specific location>', 'Shelf A', 'Shelf B', 'Top Drawer'
+        ]
         assert self.value_of('id_storage-0-location') == '__new__Top Drawer'
 
     def test_two_storage_rows_are_both_saved_and_summed(self):
@@ -487,6 +484,27 @@ class TestPartAttachments(PartsSeleniumTestCase):
 
         assert list(Attachment.objects.all()) == [kept]
 
+    def test_attachments_of_other_records_are_never_deleted(self):
+        """Only this record's own attachments can be deleted, whatever ids the browser sends.
+
+        The delete ids travel in a hidden field. If this fails, an edited request can
+        delete anyone's attachments, from any record.
+        """
+        part = self.create_part()
+        other_part = self.create_part(part_number='OTHER-1', name='Other part')
+        other = Attachment.objects.create(
+            attachment=SimpleUploadedFile('other.txt', b'other'), label='other.txt', part=other_part,
+            created_by=self.user,
+        )
+
+        self.open_edit_form(part)
+        self.driver.execute_script(
+            "document.getElementById('id_part_attachments_delete_ids').value = arguments[0];", str(other.pk)
+        )
+        self.save_part()
+
+        assert list(Attachment.objects.all()) == [other]
+
 
 class TestPartLists(PartsSeleniumTestCase):
 
@@ -539,11 +557,6 @@ class TestPartLists(PartsSeleniumTestCase):
         assert 'CF-200' not in self.table_text()
         assert 'Low Inventory Parts' in self.page_text()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/parts/views.py:308-346 PartsList.locations returns HTML that is not marked safe, so '
-               'listable escapes it and the Locations column shows raw <div> markup',
-    )
     def test_locations_column_shows_where_each_part_is_stored(self):
         """The Locations column must read "site/room/location" with a count, not raw HTML markup.
 

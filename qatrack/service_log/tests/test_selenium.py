@@ -549,13 +549,6 @@ class TestServiceEventTemplates(ServiceLogSeleniumTestCase):
         assert se.is_review_required
         assert list(se.returntoserviceqa_set.values_list('unit_test_collection', flat=True)) == [self.utc.pk]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'sl_serviceevent.js:916 sets the visible "Review required" box from the template without '
-            'triggering change, so the hidden is_review_required field keeps its old value'
-        ),
-    )
     def test_template_that_does_not_require_review_is_saved_without_review(self):
         """A template that does not require review must save an event that does not require review.
 
@@ -628,6 +621,26 @@ class TestAttachments(ServiceLogSeleniumTestCase):
         self.save_service_event()
 
         assert list(Attachment.objects.all()) == [kept]
+
+    def test_attachments_of_other_records_are_never_deleted(self):
+        """Only this record's own attachments can be deleted, whatever ids the browser sends.
+
+        The delete ids travel in a hidden field. If this fails, an edited request can
+        delete anyone's attachments, from any record.
+        """
+        se = self.create_service_event()
+        other = Attachment.objects.create(
+            attachment=SimpleUploadedFile('other.txt', b'other'), label='other.txt',
+            serviceevent=self.create_service_event(problem_description='Another event'), created_by=self.user,
+        )
+
+        self.open_edit_form(se)
+        self.driver.execute_script(
+            "document.getElementById('id_se_attachments_delete_ids').value = arguments[0];", str(other.pk)
+        )
+        self.save_service_event()
+
+        assert list(Attachment.objects.all()) == [other]
 
 
 class TestEditAndDeleteServiceEvent(ServiceLogSeleniumTestCase):
@@ -710,10 +723,6 @@ class TestEditAndDeleteServiceEvent(ServiceLogSeleniumTestCase):
         assert log.extra_info == {'reason': 'Invalid', 'comment': 'Logged against the wrong unit'}
         assert 'Service event %d deleted' % se.pk in self.driver.find_element(By.TAG_NAME, 'body').text
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='service_log/views.py:858-862 DeleteServiceEvent.form_invalid returns a URL string, not a response',
-    )
     def test_invalid_delete_form_warns_and_keeps_the_service_event(self):
         """A delete form that fails validation must show a warning and leave the event active.
 
@@ -800,13 +809,6 @@ class TestDownTimeAndSchedules(ServiceLogSeleniumTestCase):
         )
         return schedule
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'service_log/urls.py:44-48 se_schedule_overview_due_dates_user uses DueDateOverview, '
-            'not DueDateOverviewUser, so it is not filtered to the user\'s groups'
-        ),
-    )
     def test_due_dates_for_your_groups_hides_schedules_of_other_groups(self):
         """The "For Your Groups" overview must list only schedules visible to the user's groups."""
         mine = Group.objects.create(name='Physics')
@@ -823,13 +825,6 @@ class TestDownTimeAndSchedules(ServiceLogSeleniumTestCase):
         assert 'For Your Groups' in page
         assert 'Their Monthly PM' not in page
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'service_log/templates/service_log/overview_by_due_date.html:155 links with '
-            'se_schedule.pk, which is not in the context (the loop variable is sch), so the link has no schedule'
-        ),
-    )
     def test_due_date_overview_link_opens_the_scheduled_service_event(self):
         """Each schedule in the due date overview must link to a new event for that schedule."""
         group = Group.objects.create(name='Physics')

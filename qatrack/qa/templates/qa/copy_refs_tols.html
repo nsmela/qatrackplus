@@ -14,15 +14,37 @@
   
   {% if dest_source_utis %}
     <input type="hidden" name="stage" value="2">
-    <input type="hidden" name="confirm" value="Confirm">
+    <h3>{% blocktrans with source_unit=source_unit dest_unit=dest_unit %}References and tolerances to copy from {{ source_unit }} to {{ dest_unit }}{% endblocktrans %}</h3>
+    <table id="copy-preview">
+      <thead>
+        <tr>
+          <th>{% trans "Test" %}</th>
+          <th>{% trans "Reference now" %}</th>
+          <th>{% trans "Tolerance now" %}</th>
+          <th>{% trans "Reference after copying" %}</th>
+          <th>{% trans "Tolerance after copying" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for dest_uti, source_uti in dest_source_utis %}
+          <tr>
+            <td>{{ dest_uti.test.name }}</td>
+            <td>{{ dest_uti.reference|default:"" }}</td>
+            <td>{{ dest_uti.tolerance|default:"" }}</td>
+            <td>{{ source_uti.reference|default:"" }}</td>
+            <td>{{ source_uti.tolerance|default:"" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   {% else %}
     <input type="hidden" name="stage" value="1">
   {% endif %}
   
   <div class="submit-row">
     {% if dest_source_utis %}
-      <input type="submit" value="{% trans 'Confirm' %}" class="default" />
-      <input type="submit" name="cancel" value="{% trans 'Cancel' %}" />
+      <button type="submit" name="confirm" value="confirm" class="default">{% trans 'Confirm' %}</button>
+      <button type="submit" name="cancel" value="cancel">{% trans 'Cancel' %}</button>
     {% else %}
       <input type="submit" value="{% trans 'Preview' %}" class="default" />
     {% endif %}

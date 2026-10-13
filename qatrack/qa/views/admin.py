@@ -320,7 +320,7 @@ class CopyReferencesTolerancesView(PermissionRequiredMixin, FormView):
         stage = self.request.POST.get('stage')
         if stage == '1':
             return self.render_to_response(self.get_context_data(form=form))
-        elif stage == '2' and self.request.POST.get('confirm') == 'Confirm':
+        elif stage == '2' and 'confirm' in self.request.POST and 'cancel' not in self.request.POST:
             try:
                 form.save()
                 messages.success(self.request, _("References and tolerances copied successfully"))

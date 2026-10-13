@@ -40,7 +40,7 @@ class QCCompletedNoticeAdminForm(forms.ModelForm):
         if is_follow_up and cleaned_data.get('follow_up_days') in ("", None):
             msg = _("You must set the number of days to follow after for Follow Up notifications.")
             self.add_error("follow_up_days", forms.ValidationError(msg))
-        elif cleaned_data.get("follow_up_days") not in ("", None):
+        elif not is_follow_up and cleaned_data.get("follow_up_days") not in ("", None):
             msg = _("Leave 'Follow up days' blank if not creating a Follow Up notification")
             self.add_error("follow_up_days", forms.ValidationError(msg))
 

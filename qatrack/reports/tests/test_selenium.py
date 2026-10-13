@@ -519,10 +519,6 @@ class TestFilterWidgets(ReportsSeleniumTestCase):
         assert 'Recent Check' in text
         assert 'Older Check' not in text
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/reports/static/reports/js/reports.js:222-225 "Last 180 Days" preset subtracts 90 days',
-    )
     def test_last_180_days_preset_starts_180_days_ago(self):
         """The "Last 180 Days" preset must select a range starting 180 days ago.
 
@@ -619,11 +615,6 @@ class TestReportFormat(ReportsSeleniumTestCase):
         assert not self.is_disabled('download')
         assert self.pdf_fields_shown() == [False, False]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/reports/static/reports/js/reports.js:467-469 loading a saved report sets the format '
-               'with change.select2 only, so togglePdfFields never runs and PDF-only fields stay shown',
-    )
     def test_loading_a_saved_csv_report_hides_the_pdf_only_fields(self):
         """A saved CSV report, once loaded, must hide the logo and paper size fields like choosing CSV does."""
         report = self.create_saved_report(title='CSV export', report_format='csv')

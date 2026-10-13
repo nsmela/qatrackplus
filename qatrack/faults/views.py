@@ -368,10 +368,12 @@ class DeleteFault(PermissionRequiredMixin, DeleteView):
         return self.request.GET.get("next", reverse("fault_list"))
 
     @atomic
-    def delete(self, request, *args, **kwargs):
-        Comment.objects.for_model(models.Fault).filter(object_pk=kwargs['pk']).delete()
-        res = super().delete(self, request, *args, **kwargs)
-        messages.success(request, _("Successfully deleted Fault {fault_id}").format(fault_id=kwargs['pk']))
+    def form_valid(self, form):
+        # Django 4's DeleteView calls form_valid() on POST, not delete().
+        fault_id = self.object.pk
+        Comment.objects.for_model(models.Fault).filter(object_pk=fault_id).delete()
+        res = super().form_valid(form)
+        messages.success(self.request, _("Successfully deleted Fault {fault_id}").format(fault_id=fault_id))
         return res
 
 
@@ -448,9 +450,14 @@ def save_valid_fault_form(form, request):
             created_by=request.user
         )
 
-    a_ids = [a for a in request.POST.getlist('fault-attachments_delete_ids', '') if a]
+    # Only this fault's own attachments: the ids come from the browser, comma separated
+    # (faults.js joins every ticked box into one value).
+    a_ids = [
+        a for value in request.POST.getlist('fault-attachments_delete_ids', '') for a in value.split(',')
+        if a.isdigit()
+    ]
     if a_ids:
-        Attachment.objects.filter(id__in=a_ids).delete()
+        Attachment.objects.filter(id__in=a_ids, fault=fault).delete()
 
     return fault
 
@@ -529,6 +536,7 @@ class FaultDetails(FaultList):
         )
 
         context['fault'] = get_object_or_404(qs, pk=self.kwargs['pk'])
+        context['fault_type_codes'] = ', '.join(ft.code for ft in context['fault'].fault_types.all())
 
         if models.can_review_faults(self.request.user):
             context['review_form'] = forms.ReviewFaultForm(instance=context['fault'])

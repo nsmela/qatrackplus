@@ -167,6 +167,9 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
         this.check_value = function(value){
             var result = self.check_dispatch[self.test.type](value);
             if (pass_fail_only){
+                // A copy: the checks can return the shared NOT_DONE / NO_TOL statuses,
+                // and changing those made every Not Done test read "OK".
+                result = new Status(result.status, result.diff, result.message);
                 if (result.status === QAUtils.ACTION){
                     result.message = QAUtils.FAIL_DISP;
                 }else if (result.status === QAUtils.TOLERANCE || result.status === QAUtils.NO_TOL){
@@ -208,10 +211,16 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
             if (_.isEmpty(self.tolerance) || self.tolerance.mc_pass_choices.length === 0){
                 return NO_TOL;
             }
-            if (_.indexOf(self.tolerance.mc_pass_choices,value) >= 0){
+            // Case-insensitive, as the server judges it (TestInstance.string_pass_fail),
+            // so the status shown is the status saved.
+            var lower = function(choices){
+                return _.map(choices, function(c){ return String(c).toLowerCase(); });
+            };
+            var lower_value = String(value).toLowerCase();
+            if (_.indexOf(lower(self.tolerance.mc_pass_choices), lower_value) >= 0){
                 status = QAUtils.WITHIN_TOL;
                 message = QAUtils.WITHIN_TOL_DISP;
-            }else if (_.indexOf(self.tolerance.mc_tol_choices,value) >= 0){
+            }else if (_.indexOf(lower(self.tolerance.mc_tol_choices), lower_value) >= 0){
                 status = QAUtils.TOLERANCE;
                 message = QAUtils.TOLERANCE_DISP;
             }else{
@@ -941,6 +950,9 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                 // if there is no composites, ensure loading gets disabled
                 $('body').removeClass("loading");
                 processing_off();
+                // Normally sent when composites come back. Without any, the "Do not treat"
+                // warning never saw values loaded with the page (edit, continue, sent back).
+                $.Topic("qaUpdated").publish();
                 return;
             }
 
@@ -1309,13 +1321,16 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
     $(document).ready(function(){
 
         window.init_task_count = 0;
+
+        // Read before the rows are built: building them sets each row's status and skip
+        // state, which depend on these.
+        pass_fail_only = $("#pass-fail-only").val() === "yes" ? true : false;
+        comment_on_skip = $("#require-comment-on-skip").val() === "yes" ? true : false;
+
         tli = new TestListInstance();
         tli.initialize();
 
         context = $("#perform-qa-table")[0];
-
-        pass_fail_only = $("#pass-fail-only").val() === "yes" ? true : false;
-        comment_on_skip = $("#require-comment-on-skip").val() === "yes" ? true : false;
 
         $("#test-list-info-toggle").click(function(){
             $("#test-list-info").toggle(600);
@@ -1429,6 +1444,19 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
              * submitting */
             _.each(tli.test_instances, function(ti){
                 var tt = ti.test_info.test.type;
+                if (!ti.visible){
+                    // Filtered out by an unticked category. Its value was only kept in case
+                    // the category was ticked again; a skipped test must be sent empty.
+                    if (tt === QAUtils.BOOLEAN){
+                        ti.inputs.prop("checked", false);
+                    }else if (tt === QAUtils.UPLOAD){
+                        ti.inputs.filter(".qa-input:hidden").val("");
+                        ti.json_value.val("");
+                    }else{
+                        ti.inputs.val("");
+                    }
+                    return;
+                }
                 if (tt === QAUtils.COMPOSITE || tt === QAUtils.CONSTANT){
                     ti.inputs.val(ti.value);
                 }else if (tt !== QAUtils.UPLOAD && _.isObject(ti.value)){

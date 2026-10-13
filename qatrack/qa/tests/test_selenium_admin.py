@@ -271,11 +271,6 @@ class TestTestAdmin(AdminTestCase):
         assert test.type == models.STRING_COMPOSITE
         assert not test.chart_visibility
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/admin_media/js/test_admin.js:46 tests indexOf(...) > 0, so "string", the first '
-               'never-charted type, keeps chart visibility ticked',
-    )
     def test_string_test_is_saved_hidden_from_charts(self):
         """A String test can not be charted either, so it too must be saved hidden from charts."""
         test = self.save_new_test('couch_comment', 'String')
@@ -361,11 +356,6 @@ class TestTestListAdmin(AdminTestCase):
         # The sublist's own tests are not copied into the parent.
         assert not models.TestListMembership.objects.filter(test_list=self.test_list, test__name='couch').exists()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="qatrack/urls.py:45 admin.site.urls (with Django's final catch-all view) is listed before "
-               "admin/dynamic_raw_id/ at :53, so the name lookup for a raw id box answers 404",
-    )
     def test_typing_a_test_id_shows_the_tests_name(self):
         """After typing a test's id into a member row, the test's name is shown beside it.
 
@@ -465,14 +455,22 @@ class TestReferencesAndTolerancesAdmin(AdminTestCase):
         self.choose_option('id_source_testlist', 'Monthly Output')
         self.choose_option('id_dest_unit', 'Other :: Linac Two')
         self.submit_and_wait('input[type=submit][value=Preview]')
-        self.wait_for_visible('input[type=submit][value=Confirm]')
-        self.wait_for_visible('input[type=submit][name=cancel]')
+        self.wait_for_visible('button[name=confirm]')
+        self.wait_for_visible('button[name=cancel]')
         assert self.dest_refs_tols() == {'output': (None, None), 'flatness': (None, None)}, 'copied before confirming'
+
+        # The preview shows, test by test, what the destination has now and what it will get.
+        rows = [
+            [td.text.strip() for td in tr.find_elements(By.TAG_NAME, 'td')]
+            for tr in self.driver.find_elements(By.CSS_SELECTOR, '#copy-preview tbody tr')
+        ]
+        assert [(r[0], r[1], r[2]) for r in rows] == [('flatness', '', ''), ('output', '', '')]
+        assert all(r[3] and r[4] == str(self.tolerance) for r in rows), rows
 
     def test_confirmed_copy_gives_destination_unit_the_source_references_and_tolerances(self):
         """After Preview then Confirm, the destination unit has the source unit's references and tolerances."""
         self.preview_copy()
-        self.submit_and_wait('input[type=submit][value=Confirm]')
+        self.submit_and_wait('button[name=confirm]')
         self.wait_for_text('ul.messagelist li.success', 'copied successfully')
 
         assert self.dest_refs_tols() == {
@@ -483,20 +481,17 @@ class TestReferencesAndTolerancesAdmin(AdminTestCase):
         source = models.UnitTestInfo.objects.get(unit=self.source, test=self.output)
         assert (source.reference, source.tolerance) == (self.references['output'], self.tolerance)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/qa/templates/qa/copy_refs_tols.html:17 always posts confirm=Confirm, '
-               'and qa/views/admin.py:325 never looks at "cancel", so Cancel copies too',
-    )
     def test_cancelling_the_copy_changes_nothing(self):
         """Pressing Cancel on the preview leaves the destination unit's references and tolerances alone."""
         self.preview_copy()
-        self.submit_and_wait('input[type=submit][name=cancel]')
+        self.submit_and_wait('button[name=cancel]')
+        assert not self.driver.find_elements(By.CSS_SELECTOR, 'ul.messagelist li.success')
 
         assert self.dest_refs_tols() == {'output': (None, None), 'flatness': (None, None)}
 
     @pytest.mark.xfail(
         strict=True,
+        raises=AssertionError,
         reason='qatrack/qa/admin.py:288 UnitTestInfoAdmin has no `actions`, so set_multiple_references_and_'
                'tolerances is never offered (and :502 would render set_multiple.html, which does not exist)',
     )
@@ -694,11 +689,6 @@ class TestNotificationAdmin(AdminTestCase):
         assert notice.units == self.linacs
         assert notice.test_lists is None
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="qatrack/notifications/qccompleted/admin.py:43 the elif refuses 'Follow up days' whenever it is "
-               "filled in, Follow Up notices included, so no follow up notice can be saved",
-    )
     def test_follow_up_notice_is_saved_with_its_days(self):
         """A follow up notice is saved with the number of days to wait before following up."""
         notice = self.fill_in_notice('Follow up notification', follow_up_days=3)

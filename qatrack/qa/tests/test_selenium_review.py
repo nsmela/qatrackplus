@@ -8,7 +8,6 @@ these tests drive them in a real browser and then check what was saved.
 
 from urllib.parse import parse_qs, urlparse
 
-import pytest
 from django.urls import reverse
 from django.utils import timezone
 from selenium.common.exceptions import NoSuchElementException
@@ -261,14 +260,6 @@ class TestDeleteSession(ReviewTestCase):
         assert models.TestListInstance.objects.filter(pk=self.keep.pk).exists()
         assert self.keep.testinstance_set.count() == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'qa/views/review.py:248-249 get_success_url returns the empty "next" that '
-            'testlistinstance_review.html:559 sends when the review page had no referrer; the browser is left '
-            'on a blank page'
-        ),
-    )
     def test_delete_from_a_review_page_opened_directly_lands_on_a_page(self):
         """Deleting from a review page opened directly (a bookmark, a new tab) must still land on a real page.
 
@@ -287,13 +278,6 @@ class TestDeleteSession(ReviewTestCase):
         assert urlparse(self.driver.current_url).path != reverse('delete_test_list_instance', kwargs={'pk': self.tli.pk})
         assert self.driver.find_elements(By.CSS_SELECTOR, 'a[href*="logout"]'), 'not left on a QATrack+ page'
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'qa/views/review.py:251-256 TestListInstanceDelete.delete() is never called on Django >= 4.0 '
-            '(DeleteView.post calls form_valid), so the service event log never records the lost RTS QC'
-        ),
-    )
     def test_deleting_return_to_service_qc_is_logged_on_the_service_event(self):
         """Deleting a session used as return-to-service QC must leave a note in that service event's log.
 
@@ -757,10 +741,6 @@ class TestChartLink(ChartsTestCase):
         assert self.plotted_points() == self.output_ti_ids()
         assert len(self.table_rows()) == 3
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qa/static/qa/js/qacharts.js:506,2346 the link writes "relative" but is read back as "relative_diff"',
-    )
     def test_link_restores_relative_to_reference(self):
         """A link made with "Relative to reference" ticked must reopen with it ticked."""
         self.open_charts()
@@ -776,13 +756,6 @@ class TestChartLink(ChartsTestCase):
         assert self.driver.find_element(By.ID, 'relative-diff').is_selected()
         assert self.table_headers() == ['Linac One - Daily Output :: Output (relative to ref)']
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'qa/static/qa/js/qacharts.js:478,2371,2389 an unticked show_events is left out of the link, '
-            'and .prop("checked", undefined) leaves the box ticked'
-        ),
-    )
     def test_link_restores_unticked_service_events(self):
         """A link made with "Show service events?" unticked must reopen with it unticked."""
         self.open_charts()
@@ -796,10 +769,6 @@ class TestChartLink(ChartsTestCase):
         self.wait_for_element('#chart svg circle')
         assert not self.driver.find_element(By.ID, 'show_events').is_selected()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qa/static/qa/js/qacharts.js:504,2344 the link writes "fit_data" but is read back as "include_fit"',
-    )
     def test_link_restores_control_chart_fit(self):
         """A control chart link made with "Fit" ticked must reopen with it ticked."""
         self.open_charts()

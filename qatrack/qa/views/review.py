@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from braces.views import JSONResponseMixin, PermissionRequiredMixin
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q
 from django.db.transaction import atomic
@@ -13,9 +14,11 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
+from django.views.decorators.http import require_POST
 from django.views.generic import (
     DeleteView,
     DetailView,
@@ -246,14 +249,23 @@ class TestListInstanceDelete(PermissionRequiredMixin, DeleteView):
     model = models.TestListInstance
 
     def get_success_url(self):
-        return self.request.GET.get("next", reverse("home"))
+        # "next" is empty when the review page was opened without a referrer, and must
+        # never send the user off-site.
+        next_url = self.request.GET.get("next", "")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure(),
+        ):
+            return next_url
+        return reverse("home")
 
-    def delete(self, request, *args, **kwargs):
-        service_events = ServiceEvent.objects.filter(returntoserviceqa__test_list_instance_id=kwargs['pk'])
-        delete = super().delete(request, *args, **kwargs)
+    def form_valid(self, form):
+        # Django 4's DeleteView calls form_valid() on POST, not delete(). The service
+        # events are listed first: deleting the session unlinks its return to service QC.
+        service_events = list(ServiceEvent.objects.filter(returntoserviceqa__test_list_instance=self.object))
+        response = super().form_valid(form)
         for se in service_events:
-            ServiceLog.objects.log_rtsqa_changes(request.user, se)
-        return delete
+            ServiceLog.objects.log_rtsqa_changes(self.request.user, se)
+        return response
 
 
 class UTCReview(PermissionRequiredMixin, UTCList):
@@ -460,6 +472,8 @@ class Unreviewed(PermissionRequiredMixin, TestListInstances):
         return _("Unreviewed Test List Instances")
 
 
+@require_POST
+@permission_required("qa.can_review", raise_exception=True)
 def bulk_review(request):
 
     count = 0

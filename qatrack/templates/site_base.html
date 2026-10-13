@@ -473,7 +473,7 @@
                   </li>
                 {% endif %}
 
-                {% if perms.service_log.add_serviceevent or perms.service_log.view_serviceevent or perms.service_log.review_serviceevent or perms.qa.can_review or service_log.view_returntoserviceqa or perms.service_log.perform_returntoserviceqa or perms.parts.add_part or perms.parts.view_part %}
+                {% if perms.service_log.add_serviceevent or perms.service_log.view_serviceevent or perms.service_log.review_serviceevent or perms.qa.can_review or perms.service_log.view_returntoserviceqa or perms.service_log.perform_returntoserviceqa or perms.parts.add_part or perms.parts.view_part %}
                   <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                       {% trans "Service Log" %}
@@ -590,7 +590,7 @@
                         {% endif %}
 
                       {% endif %}
-                      {% if perms.qa.can_review or service_log.view_returntoserviceqa or perms.service_log.perform_returntoserviceqa %}
+                      {% if perms.qa.can_review or perms.service_log.view_returntoserviceqa or perms.service_log.perform_returntoserviceqa %}
 
                         <li class="divider"></li>
 
@@ -637,7 +637,7 @@
                       {% endif %}
 
 
-                      {% if perms.parts.add_part or perms.view_part %}
+                      {% if perms.parts.add_part or perms.parts.view_part %}
                         <li class="divider"></li>
                         <li class="nav-header">{% trans "Parts" %}</li>
                         {% if perms.parts.add_part %}
@@ -685,7 +685,7 @@
                   </li>
                 {% endif %}
 
-                {% if perms.faults.add_fault or perms.faults.view_fault or perms.faults.review_fault %}
+                {% if perms.faults.add_fault or perms.faults.view_fault or perms.faults.can_review %}
                   <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                       {% trans "Fault Log" %}
@@ -923,7 +923,7 @@
               </li>
             </ul>
 
-            {% if user.is_staff or perms.units.change_unitavailable_time %}
+            {% if user.is_staff or perms.units.change_unitavailabletime %}
               <h4 class="control-sidebar-heading">Admin Options</h4>
               <ul class="control-sidebar-menu">
                 {% if user.is_staff %}

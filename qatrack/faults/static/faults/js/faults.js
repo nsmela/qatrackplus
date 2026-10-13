@@ -140,11 +140,16 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
                 if (cur_unit in unitInfo){
                     unit_modalities = unitInfo[cur_unit].modalities;
                 }
-                $modality.val("");
+                // Keep the chosen modality if the unit has it: this handler also runs when
+                // the page loads, and clearing it then wiped a saved fault's modality.
+                var cur_modality = parseInt($modality.val(), 10);
+                if (unit_modalities.indexOf(cur_modality) < 0){
+                    $modality.val("");
+                }
                 $modality.find("option").each(function(i, opt){
                     var $opt = $(opt);
-                    var mod_id = parseInt($(opt).val());
-                    var enable = unit_modalities.indexOf(mod_id) >= 0 || mod_id === "";
+                    // The blank option is always allowed: modality is optional.
+                    var enable = $opt.val() === "" || unit_modalities.indexOf(parseInt($opt.val(), 10)) >= 0;
                     $opt.prop('disabled', !enable);
                 });
                 $modality.select2("destroy");

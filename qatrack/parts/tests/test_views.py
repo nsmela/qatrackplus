@@ -261,3 +261,31 @@ class TestPartViews(TestCase):
     def test_parts_low_title(self):
         response = self.client.get(reverse('low_inventory_parts_list'))
         self.assertContains(response, 'Low Inventory Parts')
+
+
+class TestPartFormPermissions(TestCase):
+    """The add and edit part pages refuse users who may not add or change parts.
+
+    The menu hides the links from them, but the pages must not rely on that.
+    """
+
+    def setUp(self):
+        self.part = sl_utils.create_part(part_category=sl_utils.create_part_category())
+        self.user = qa_utils.create_user(uname='viewer', is_staff=False, is_superuser=False)
+        self.client.login(username='viewer', password='password')
+
+    def give(self, codename):
+        from django.contrib.auth.models import Permission
+        self.user.user_permissions.add(Permission.objects.get(codename=codename))
+
+    def test_add_page_needs_add_part(self):
+        assert self.client.get(reverse('part_new')).status_code == 403
+        self.give('add_part')
+        assert self.client.get(reverse('part_new')).status_code == 200
+
+    def test_edit_page_needs_change_part(self):
+        url = reverse('part_edit', kwargs={'pk': self.part.pk})
+        assert self.client.get(url).status_code == 403
+        assert self.client.post(url, {}).status_code == 403
+        self.give('change_part')
+        assert self.client.get(url).status_code == 200

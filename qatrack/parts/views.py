@@ -3,12 +3,14 @@ from collections import defaultdict
 from braces.views import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.auth.context_processors import PermWrapper
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
 from django.forms.utils import timezone
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import get_template
 from django.urls import resolve, reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
@@ -75,6 +77,11 @@ class PartUpdateCreate(LoginRequiredMixin, SingleObjectTemplateResponseMixin, Mo
 
     def dispatch(self, request, *args, **kwargs):
         self.user = request.user
+        # The menu only offers these pages to users who may add or change parts; the page
+        # itself must refuse everyone else too. (Anonymous users go to the login page.)
+        perm = 'parts.change_part' if kwargs.get('pk') else 'parts.add_part'
+        if request.user.is_authenticated and not request.user.has_perm(perm):
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
@@ -127,9 +134,10 @@ class PartUpdateCreate(LoginRequiredMixin, SingleObjectTemplateResponseMixin, Mo
                 created_by=self.request.user
             )
 
-        a_ids = self.request.POST.get('part_attachments_delete_ids', '').split(',')
-        if a_ids != ['']:
-            Attachment.objects.filter(id__in=a_ids).delete()
+        # Only this part's own attachments: the ids come from the browser.
+        a_ids = [a for a in self.request.POST.get('part_attachments_delete_ids', '').split(',') if a.isdigit()]
+        if a_ids:
+            Attachment.objects.filter(id__in=a_ids, part=part).delete()
 
     def form_valid(self, form):
 
@@ -332,21 +340,23 @@ class PartsList(BaseListableView):
         tmp_cache = defaultdict(lambda: {'rooms': [], 'locations': []})
         for part_id, quantity, loc, site_name, room_name in psc:
             site = "%s/" % site_name if site_name else ""
-            text = (
+            text = format_html(
                 '<div style="display: inline-block; white-space: nowrap;">'
-                '%s%s/%s <span class="badge">%d</span>'
-                '</div>'
-            ) % (site, room_name, loc or "", quantity)
+                '{}{}/{} <span class="badge">{}</span>'
+                '</div>',
+                site, room_name, loc or "", quantity,
+            )
             tmp_cache[part_id]['locations'].append(text)
             tmp_cache[part_id]['rooms'].append(f"{site}{room_name}")
 
         self._parts_locations_cache = defaultdict(dict)
         for part_id, storages in tmp_cache.items():
-            for storage_loc in ['locations', 'rooms']:
-                self._parts_locations_cache[part_id][storage_loc] = ', '.join(storages[storage_loc])
+            # Each location is built with format_html above, so the joined HTML is safe to show.
+            self._parts_locations_cache[part_id]['locations'] = mark_safe(', '.join(storages['locations']))
+            self._parts_locations_cache[part_id]['rooms'] = ', '.join(storages['rooms'])
 
     def part_number(self, part):
-        return part.part_number or "<em>N/A</em>"
+        return part.part_number or mark_safe("<em>N/A</em>")
 
     def attachments(self, part):
         return listable_attachment_tags(part)

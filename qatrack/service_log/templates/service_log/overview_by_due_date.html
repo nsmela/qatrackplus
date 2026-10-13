@@ -154,7 +154,7 @@ $(document).ready(function(){
                         <tr>
                           <td>
                             <a title="Perform {{sch.service_event_template.name}} on {{sch.unit_service_area.unit.name}}"
-                              href="{% url 'sl_new' %}?se_schedule={{ se_schedule.pk }}&next={{request.path|cut:"data/"}}"
+                              href="{% url 'sl_new' %}?se_schedule={{ sch.pk }}&next={{request.path|cut:"data/"}}"
                             >
                               {{sch.service_event_template.name}}
                             </a>

@@ -43,7 +43,7 @@ urlpatterns = [
     url(r'^event/schedule/due-dates/$', views.DueDateOverview.as_view(), name='se_schedule_overview_due_dates'),
     url(
         r'^event/schedule/due-dates-user/$',
-        views.DueDateOverview.as_view(),
+        views.DueDateOverviewUser.as_view(),
         name='se_schedule_overview_due_dates_user'
     ),
 ]

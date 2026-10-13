@@ -8,7 +8,6 @@ them shows up everywhere at once.
 
 from urllib.parse import urlparse
 
-import pytest
 from django.contrib.auth.models import Permission
 from django.test import override_settings
 from django.urls import reverse
@@ -170,11 +169,6 @@ class TestNavigationGating(CoreSeleniumTestCase):
                      'groups-app', 'unit_available_time', 'auth_logout'):
             assert reverse(name) in links, name
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/templates/site_base.html:664 checks perms.faults.review_fault, which does not exist '
-               '(the real permission is faults.can_review), so a fault reviewer gets no Fault Log menu',
-    )
     def test_fault_reviewer_sees_fault_log_menu(self):
         """A user whose only fault permission is 'Can Review Faults' must still reach the unreviewed faults list."""
         reviewer = create_limited_user(uname='reviewer', perms=['faults.can_review'])
@@ -183,11 +177,6 @@ class TestNavigationGating(CoreSeleniumTestCase):
 
         assert reverse('fault_list_unreviewed') in self.menu_links()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/templates/site_base.html:902 checks perms.units.change_unitavailable_time, which does '
-               'not exist (the real permission is units.change_unitavailabletime), so only staff see the link',
-    )
     def test_non_staff_with_unit_availability_permission_sees_link(self):
         """A non-staff user allowed to change unit available times must be offered the Unit Available Times page."""
         scheduler = create_limited_user(uname='scheduler', perms=['units.change_unitavailabletime'])
@@ -196,11 +185,6 @@ class TestNavigationGating(CoreSeleniumTestCase):
 
         assert reverse('unit_available_time') in self.menu_links()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/templates/site_base.html:452 and :569 test service_log.view_returntoserviceqa without '
-               'the perms. prefix, which is always false, so a view-only RTS user gets no Service Log menu',
-    )
     def test_return_to_service_viewer_sees_rts_link(self):
         """A user who may only view Return To Service QC must be offered the RTS QC list."""
         viewer = create_limited_user(uname='rtsviewer', perms=['service_log.view_returntoserviceqa'])
@@ -209,11 +193,6 @@ class TestNavigationGating(CoreSeleniumTestCase):
 
         assert reverse('rtsqa_list_all') in self.menu_links()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason='qatrack/templates/site_base.html:616 tests perms.view_part (no app label), which is always '
-               'false, so a view-only parts user gets a Service Log menu with no Parts links in it',
-    )
     def test_parts_viewer_sees_parts_list(self):
         """A user who may only view parts must be offered the parts list."""
         viewer = create_limited_user(uname='partsviewer', perms=['parts.view_part'])

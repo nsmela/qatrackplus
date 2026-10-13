@@ -41,7 +41,9 @@ urlpatterns = [
     url(r'^faults/', include('qatrack.faults.urls')),
     url(r'^issues/', include('qatrack.issue_tracker.urls')),
 
-    # Uncomment the next line to enable the admin:
+    # Before admin.site.urls: the admin's catch-all view would otherwise answer
+    # these lookups with a 404.
+    url(r'^admin/dynamic_raw_id/', include('dynamic_raw_id.urls')),
     path(r'admin/', admin.site.urls),
     path('i18n/', include('django.conf.urls.i18n')),
     url(r'^favicon\.ico$', favicon_view),
@@ -50,7 +52,6 @@ urlpatterns = [
     # third party
     url(r'^', include('qatrack.genericdropdown.urls')),
     url(r'^comments/', include('django_comments.urls')),
-    url(r'^admin/dynamic_raw_id/', include('dynamic_raw_id.urls')),
     url(r'^api/', include('qatrack.api.urls')),
 ]
 

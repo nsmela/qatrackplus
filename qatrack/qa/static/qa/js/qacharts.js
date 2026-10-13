@@ -2341,12 +2341,15 @@ require(['jquery', 'lodash', 'd3', 'moment', 'saveSvgAsPng', 'slimscroll', 'qaut
             var chart_type = get_filtered_option_values("chart_type", options)[0];
             var subgroup_size = get_filtered_option_values("subgroup_size", options)[0];
             var n_baseline_subgroups = get_filtered_option_values("n_baseline_subgroups", options)[0];
-            var include_fit = get_filtered_option_values("include_fit", options)[0];
-            var combine_data = get_filtered_option_values("combine_data", options)[0];
-            var relative_diff = get_filtered_option_values("relative_diff", options)[0];
-            var highlight_flags = get_filtered_option_values("highlight_flags", options)[0];
-            var highlight_comments = get_filtered_option_values("highlight_comments", options)[0];
-            var show_events = get_filtered_option_values("show_events", options)[0];
+            // Read back under the names get_data_filters() writes. A box that was not ticked
+            // is left out of the link, so absent means unticked.
+            var ticked = function(name) { return get_filtered_option_values(name, options)[0] === "true"; };
+            var include_fit = ticked("fit_data");
+            var combine_data = ticked("combine_data");
+            var relative_diff = ticked("relative");
+            var highlight_flags = ticked("highlight_flags");
+            var highlight_comments = ticked("highlight_comments");
+            var show_events = ticked("show_events");
             var inactive_units = get_filtered_option_values('inactive_units', options)[0];
             var inactive_test_lists = get_filtered_option_values('inactive_test_lists', options)[0];
 

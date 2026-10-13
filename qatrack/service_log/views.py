@@ -440,9 +440,10 @@ class ServiceEventUpdateCreate(
                 created_by=self.request.user
             )
 
-        a_ids = self.request.POST.get('se_attachments_delete_ids', '').split(',')
-        if a_ids != ['']:
-            Attachment.objects.filter(id__in=a_ids).delete()
+        # Only this service event's own attachments: the ids come from the browser.
+        a_ids = [a for a in self.request.POST.get('se_attachments_delete_ids', '').split(',') if a.isdigit()]
+        if a_ids:
+            Attachment.objects.filter(id__in=a_ids, serviceevent=service_event).delete()
 
     def form_valid(self, form):
 
@@ -856,10 +857,11 @@ class DeleteServiceEvent(DeleteView, FormView, PermissionRequiredMixin):
         return HttpResponseRedirect(success_url)
 
     def form_invalid(self, form):
+        self.object = self.get_object()
         messages.add_message(
-            self.request, messages.WARNING, f'Could not delete service event {form.instance.id}'
+            self.request, messages.WARNING, f'Could not delete service event {self.object.id}'
         )
-        return reverse('sl_dash')
+        return HttpResponseRedirect(reverse('sl_details', kwargs={'pk': self.object.pk}))
 
     def get_success_url(self):
         return reverse('sl_dash')

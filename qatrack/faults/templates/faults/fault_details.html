@@ -119,7 +119,7 @@
         <div class="box-header">
           <i class="fa fa-exclamation-triangle fa-fw" aria-hidden="true"></i>
           <h3 class="box-title">
-            {% blocktrans with fault_type_code=fault.fault_type.code %}
+            {% blocktrans with fault_type_code=fault_type_codes %}
               Other Occurrences of fault type {{ fault_type_code }}
             {% endblocktrans %}
           </h3>

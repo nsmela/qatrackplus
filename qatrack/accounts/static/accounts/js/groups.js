@@ -81,10 +81,10 @@ require(['jquery', 'lodash', 'vue', 'datatables', 'jquery-ui'], function ($, _, 
                     this.newGroupName = this.selectedGroup;
                     this.groupModalTitle = "Edit Group";
                     this.groupModalButton = "Save Group";
+                    // Every user, not only the members: a selection left over from editing
+                    // another group would otherwise be saved into this one.
                     _.each(this.users, function(user){
-                        if (self.groupData.user_set.indexOf(user.url) >= 0){
-                            user.selected = true;
-                        }
+                        user.selected = self.groupData.user_set.indexOf(user.url) >= 0;
                     });
                 }else{
                     this.newGroupName = '';

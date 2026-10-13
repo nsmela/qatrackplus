@@ -124,10 +124,10 @@ def handle_unit_available_time_edit(request):
         tz = ZoneInfo(tz)
     except Exception:
         tz = ZoneInfo(settings.TIME_ZONE)
-    days = [
-        timezone.localtime(timezone.datetime.fromtimestamp(int(d) / 1000, tz)).date()
-        for d in request.POST.getlist('days[]', [])
-    ]  # noqa: E501
+    # Each day arrives as the browser's midnight; its date in the browser's own zone is the
+    # day that was clicked. Converting to the server's zone first moved it a day back for a
+    # browser ahead of the server.
+    days = [timezone.datetime.fromtimestamp(int(d) / 1000, tz).date() for d in request.POST.getlist('days[]', [])]
 
     hours_mins = request.POST.get('hours_mins', None)
     if hours_mins:

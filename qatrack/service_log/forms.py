@@ -798,9 +798,10 @@ class ServiceEventForm(BetterModelForm):
                 added_a.append(str(f))
             form_strings['a_added'] = {'new': added_a, 'old': ''}
 
-        a_delete_ids = self.cleaned_data.get('se_attachments_delete_ids').split(',')
-        if a_delete_ids != ['']:
-            attachments = Attachment.objects.filter(id__in=a_delete_ids)
+        a_delete_ids = [a for a in self.cleaned_data.get('se_attachments_delete_ids').split(',') if a.isdigit()]
+        if a_delete_ids:
+            # The same attachments the view deletes: only this service event's own.
+            attachments = Attachment.objects.filter(id__in=a_delete_ids, serviceevent=self.instance)
             deleted_a = []
             for a in attachments:
                 deleted_a.append(a.label)

@@ -73,20 +73,26 @@ require(['jquery', 'lodash', 'moment', 'autosize', 'select2', 'sl_utils', 'input
                     ;
                     if (initial_val && initial_val.indexOf('__new__') !== -1) {
                         keep_new_val = true;
-                        $keep_new_opt = $('option[value=' + initial_val + ']');
+                        // Found by value rather than with an [value=...] selector, which
+                        // breaks on the spaces most location names have, and only in this
+                        // row's own select.
+                        $keep_new_opt = location_select.find('option').filter(function() {
+                            return this.value === initial_val;
+                        });
                         $old_new_location = $keep_new_opt;
                     }
 
                     location_select.find('option').remove();
                     location_select.append('<option value="' + response.storage_no_location + '">&lt;no specific location&gt;</option>');
+                    // The room's existing locations are offered even when a new one typed
+                    // before a validation error is kept, so the user can still pick one.
+                    for (var l in response.storage) {
+                        if (response.storage[l][1] && response.storage[l][1].replace(/ /g, '') !== '') {
+                            location_select.append('<option value="' + response.storage[l][0] + '" title="' + response.storage[l][2] + '">' + response.storage[l][1] + '</option>');
+                        }
+                    }
                     if (keep_new_val) {
                         location_select.append($keep_new_opt);
-                    } else {
-                        for (var l in response.storage) {
-                            if (response.storage[l][1] && response.storage[l][1].replace(/ /g, '') !== '') {
-                                location_select.append('<option value="' + response.storage[l][0] + '" title="' + response.storage[l][2] + '">' + response.storage[l][1] + '</option>');
-                            }
-                        }
                     }
                     if (initial_val) {
                         location_select.val(initial_val);

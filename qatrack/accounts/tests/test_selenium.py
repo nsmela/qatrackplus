@@ -297,3 +297,32 @@ class TestGroupsPage(AccountsSeleniumTestCase):
         assert set(User.objects.get(username='therapist').groups.values_list('name', flat=True)) == {
             'Beta Therapists'
         }
+
+    def open_edit_dialog(self):
+        self.click_element(self.driver.find_element(By.CSS_SELECTOR, '#app a[title="Edit Group Name & Members"]'))
+        self.wait_for_visible('#new-group-modal')
+        self.wait_for_text('#new-group-modal .modal-title', 'Edit Group')
+        self.wait_for_element('#user-table tbody tr')
+
+    def test_editing_another_group_after_cancelling_does_not_carry_members_over(self):
+        """Cancelling Edit Group on one group, then editing another, starts from that group's own members.
+
+        If this fails, saving the second group quietly adds the first group's
+        members to it, and gives them its permissions.
+        """
+        self.alpha.user_set.add(self.other)
+        self.open_groups_page('Alpha Physicists')
+        self.open_edit_dialog()
+        self.wait_until(lambda: self.user_row_selected('therapist'), message='existing member not pre-selected')
+        self.click_element(self.driver.find_element(By.CSS_SELECTOR, '#new-group-modal [data-dismiss="modal"]'))
+        self.wait_for_invisible('#new-group-modal')
+
+        self.select_by_text('groups', 'Beta Therapists')
+        self.wait_for_group_loaded('Beta Therapists')
+        self.open_edit_dialog()
+        assert not self.user_row_selected('therapist')
+        self.save_group_dialog()
+        self.wait_for_ajax()
+
+        assert not self.beta.user_set.exists()
+        assert list(self.alpha.user_set.values_list('username', flat=True)) == ['therapist']
