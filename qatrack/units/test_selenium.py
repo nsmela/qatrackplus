@@ -11,10 +11,10 @@ Available time feeds the downtime and utilisation figures in service-log
 reports, so a change saved against the wrong day or the wrong unit quietly
 skews those figures. That is what most of these tests guard against.
 
-The browser's time zone is pinned to the site's TIME_ZONE (Chromium only),
-because the page sends each day as a timestamp at the browser's midnight and
-the server turns it back into a date. Without the pin these tests would pass
-or fail depending on the time zone of the machine running them.
+The page sends each day as a timestamp at the browser's midnight and the
+server turns it back into a date, so the browser's time zone matters here. The
+harness starts the browser in TIME_ZONE; these tests also pin it per page
+(Chromium only) so one class can put the browser in another zone on purpose.
 """
 
 import calendar
@@ -25,7 +25,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
-from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -87,21 +87,6 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
 
     # -- the browser's clock -----------------------------------------------------------------------
 
-    def pin_browser_timezone(self, timezone_id):
-        """Make the browser believe it is in `timezone_id` for the rest of this test (Chromium only)."""
-        if not hasattr(self.driver, 'execute_cdp_cmd'):
-            pytest.skip('Pinning the browser time zone needs Chromium')
-        # Chromium refuses a second override while one is in effect, so clear any old one first.
-        self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': ''})
-        self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': timezone_id})
-        self.addCleanup(self.clear_browser_timezone)
-
-    def clear_browser_timezone(self):
-        try:
-            self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': ''})
-        except WebDriverException:
-            pass
-
     def browser_today(self):
         """Today's date as the page sees it."""
         y, m, d = self.driver.execute_script(
@@ -117,7 +102,7 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
         The calendar draws its day rectangles only on the second pass, after
         the unit data has arrived, so 42 of them (six weeks) means it is ready.
         """
-        self.pin_browser_timezone(timezone_id or self.timezone_id)
+        self.use_browser_timezone(timezone_id or self.timezone_id)
         self.login()
         self.open(reverse('unit_available_time'))
         self.wait_until(lambda: len(self.driver.find_elements(By.CSS_SELECTOR, 'rect.day-rect')) == 42)

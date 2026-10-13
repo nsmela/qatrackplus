@@ -31,11 +31,13 @@ test that fails with nothing but "TimeoutException" is close to undebuggable
 otherwise - the screenshot usually shows the reason at a glance.
 """
 
+import datetime
 import os
 import re
 import shutil
 import threading
 import time
+import warnings
 from contextlib import contextmanager
 from functools import wraps
 
@@ -231,6 +233,20 @@ if not getattr(ErrorHandler, '_qatrack_patched', False):
     ErrorHandler._qatrack_patched = True
 
 
+def browser_environment():
+    """The environment the browser is started with: ours, with TZ set to the site's TIME_ZONE.
+
+    QATrack+ shows and reads every date and time in TIME_ZONE, and several pages
+    fill in "now" from the browser's clock. A browser in another zone would make
+    those tests pass or fail depending on where they run. Django already sets TZ
+    on Linux and macOS when it loads its settings, but not on Windows, so it is
+    set here for every platform. Firefox and Chromium both honour it.
+    """
+    env = dict(os.environ)
+    env['TZ'] = settings.TIME_ZONE
+    return env
+
+
 def _safe_filename(name):
     return re.sub(r'[^A-Za-z0-9_.-]+', '_', name).strip('_')[:180]
 
@@ -289,6 +305,7 @@ class SeleniumTests(StaticLiveServerTestCase):
             cls.driver.set_window_position(0, 0)
             cls.driver.set_window_size(1920, 1080)
             cls.wait = WebDriverWait(cls.driver, cls.timeout)
+            cls._check_browser_timezone()
 
             super().setUpClass()
         except BaseException:
@@ -324,11 +341,9 @@ class SeleniumTests(StaticLiveServerTestCase):
         })
         chrome_options.add_argument('--disable-features=PasswordLeakDetection')
 
-        driver_path = selenium_setting('SELENIUM_CHROMIUM_DRIVER_PATH', '')
-        if driver_path:
-            service = ChromeService(executable_path=driver_path)
-            return webdriver.Chrome(service=service, options=chrome_options)
-        return webdriver.Chrome(options=chrome_options)
+        driver_path = selenium_setting('SELENIUM_CHROMIUM_DRIVER_PATH', '') or None
+        service = ChromeService(executable_path=driver_path, env=browser_environment())
+        return webdriver.Chrome(service=service, options=chrome_options)
 
     @classmethod
     def _start_firefox(cls, headless):
@@ -347,10 +362,20 @@ class SeleniumTests(StaticLiveServerTestCase):
         # Fall back to a geckodriver on the PATH, and failing that let
         # Selenium find (or fetch) one itself.
         driver_path = selenium_setting('SELENIUM_FIREFOX_DRIVER_PATH', '') or shutil.which('geckodriver')
-        if driver_path:
-            service = FirefoxService(executable_path=driver_path)
-            return webdriver.Firefox(service=service, options=ff_options)
-        return webdriver.Firefox(options=ff_options)
+        service = FirefoxService(executable_path=driver_path, env=browser_environment())
+        return webdriver.Firefox(service=service, options=ff_options)
+
+    @classmethod
+    def _check_browser_timezone(cls):
+        """Warn, once per class, if the browser ignored TZ and runs in another zone than TIME_ZONE."""
+        zone = cls.driver.execute_script('return Intl.DateTimeFormat().resolvedOptions().timeZone;')
+        if zone != settings.TIME_ZONE:
+            warnings.warn(
+                'The test browser runs in %s, not TIME_ZONE (%s), so tests that compare dates may fail. '
+                'Set the TZ environment variable to %s before running the tests.' % (
+                    zone, settings.TIME_ZONE, settings.TIME_ZONE
+                )
+            )
 
     @classmethod
     def _stop_browser(cls):
@@ -463,6 +488,38 @@ class SeleniumTests(StaticLiveServerTestCase):
     def javascript_errors(self):
         """Console entries at SEVERE level: uncaught exceptions and failed requests."""
         return [entry for entry in self.browser_log() if entry.get('level') == 'SEVERE']
+
+    def browser_timezone(self):
+        """The IANA time zone the page's JavaScript is running in, e.g. 'America/Toronto'."""
+        return self.driver.execute_script('return Intl.DateTimeFormat().resolvedOptions().timeZone;')
+
+    def browser_now(self):
+        """The browser's wall-clock time, as a naive datetime (to the second)."""
+        parts = self.driver.execute_script(
+            'var d = new Date();'
+            'return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()];'
+        )
+        return datetime.datetime(*parts)
+
+    def use_browser_timezone(self, timezone_id):
+        """Make the current page believe it is in `timezone_id` for the rest of this test.
+
+        For the case of a workstation whose clock is set to a different zone from
+        the server's. Chromium only (the test is skipped on Firefox), and only for
+        the current tab: a pop-up window opened afterwards has the normal zone.
+        """
+        if not hasattr(self.driver, 'execute_cdp_cmd'):
+            pytest.skip('Changing the browser time zone needs Chromium')
+        # Chromium refuses a second override while one is in effect, so clear any old one first.
+        self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': ''})
+        self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': timezone_id})
+        self.addCleanup(self._clear_browser_timezone)
+
+    def _clear_browser_timezone(self):
+        try:
+            self.driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {'timezoneId': ''})
+        except WebDriverException:
+            pass
 
     @contextmanager
     def wait_for_page_load(self, timeout=None):
