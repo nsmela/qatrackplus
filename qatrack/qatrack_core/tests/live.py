@@ -281,6 +281,16 @@ class SeleniumTests(StaticLiveServerTestCase):
             chrome_options.add_argument('--window-size=1920,1080')
         # Lets a failing test report what the page logged to its console.
         chrome_options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+        # Keep Chrome's password manager out of the way. The test users all log
+        # in with "password", and newer Chrome answers a known-leaked password
+        # with a "change your password" bubble that takes keyboard focus from
+        # the page, so later typing and clicks go nowhere.
+        chrome_options.add_experimental_option('prefs', {
+            'credentials_enable_service': False,
+            'profile.password_manager_enabled': False,
+            'profile.password_manager_leak_detection': False,
+        })
+        chrome_options.add_argument('--disable-features=PasswordLeakDetection')
 
         driver_path = selenium_setting('SELENIUM_CHROMIUM_DRIVER_PATH', '')
         if driver_path:

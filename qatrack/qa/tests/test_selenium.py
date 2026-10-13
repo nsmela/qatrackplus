@@ -772,8 +772,10 @@ class TestPerformQC(BaseQATests):
         time.sleep(0.2)
         self.select_by_index("id_service_type", 1)
         self.send_keys("id_problem_description", "Problem!")
-        self.click("save-se")
-        time.sleep(0.2)
+        # Wait for the save to finish and the next page to load; a fixed 0.2 s
+        # pause was not always enough on a busy machine.
+        with self.wait_for_page_load():
+            self.click("save-se")
         assert models.TestListInstance.objects.first().serviceevents_initiated.count() == 1
 
     def test_autosave(self):
