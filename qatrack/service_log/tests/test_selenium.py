@@ -841,3 +841,80 @@ class TestDownTimeAndSchedules(ServiceLogSeleniumTestCase):
         link = self.wait.until(lambda d: d.find_element(By.LINK_TEXT, 'Our Monthly PM'))
 
         assert 'se_schedule=%d&' % schedule.pk in link.get_attribute('href')
+
+
+class TestServiceDatesAndTimes(ServiceLogSeleniumTestCase):
+    """The service date is saved, shown and re-saved exactly, whatever zone the workstation is in.
+
+    Late-evening times are used on purpose: in UTC they are already the next
+    day, so a conversion done in the wrong zone shows up as a wrong date.
+    """
+
+    def test_late_evening_service_date_is_shown_again_and_unchanged_by_saving_again(self):
+        """22:30 on 5 Oct is saved as such, shown as such on the edit and details pages, and survives a re-save.
+
+        If this fails, a service event moves to the wrong day, and each edit can move it again.
+        """
+        self.open_new_form()
+        self.fill_required_fields()
+        self.enter_service_date('2026-10-05 22:30')
+        self.save_service_event()
+        se = sl_models.ServiceEvent.objects.get()
+        assert local_minute(se.datetime_service) == (2026, 10, 5, 22, 30)
+
+        self.open_edit_form(se)
+        assert self.value_of('id_datetime_service') == '2026-10-05 22:30'
+        self.save_service_event()
+        se.refresh_from_db()
+        assert local_minute(se.datetime_service) == (2026, 10, 5, 22, 30)
+
+        self.open(reverse('sl_details', kwargs={'pk': se.pk}))
+        self.wait_for_visible('.box-body')
+        assert '2026-10-05 22:30' in self.driver.find_element(By.TAG_NAME, 'body').text
+
+    def assert_opening_the_empty_date_fills_in_now(self):
+        before = timezone.localtime().replace(second=0, microsecond=0)
+        self.open_new_form()
+        self.click_css('#id_datetime_service')
+        self.wait_until(lambda: self.value_of('id_datetime_service'), message='opening the picker filled in nothing')
+        after = timezone.localtime()
+        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_datetime_service'), '%Y-%m-%d %H:%M'))
+        assert before <= shown <= after, 'the picker filled in %s, opened between %s and %s' % (shown, before, after)
+
+    def test_opening_the_empty_service_date_fills_in_now(self):
+        """Opening the picker on an empty service date fills in the time now.
+
+        If this fails, a service event recorded without changing the date is filed
+        at the wrong time.
+        """
+        self.assert_opening_the_empty_date_fills_in_now()
+
+    def test_opening_the_empty_service_date_fills_in_now_on_a_workstation_in_another_zone(self):
+        """The same on a workstation whose clock is set to another zone: it is the server's "now" that counts.
+
+        If this fails, service events entered from a computer set to another zone
+        are filed hours out.
+        """
+        self.use_browser_timezone('Asia/Tokyo')
+        self.assert_opening_the_empty_date_fills_in_now()
+
+    def test_return_to_service_qc_time_is_shown_in_the_sites_time_on_a_workstation_in_another_zone(self):
+        """The completion time of linked return to service QC reads the same as everywhere else on the site.
+
+        The row is filled in by JavaScript from the server's answer. If this fails,
+        a workstation set to another zone shows the QC as done at another time, or
+        on another day, than the server-rendered pages say.
+        """
+        se = self.create_service_event()
+        tli = qa_utils.create_test_list_instance(
+            unit_test_collection=self.utc, created_by=self.user, work_completed=aware(2026, 10, 5, 22, 30)
+        )
+        sl_utils.create_return_to_service_qa(
+            service_event=se, unit_test_collection=self.utc, user_assigned_by=self.user, add_test_list_instance=tli
+        )
+
+        self.use_browser_timezone('Asia/Tokyo')
+        self.open_edit_form(se)
+        self.wait_until(lambda: self.driver.find_element(By.ID, 'work-completed-rtsqa-0').text.strip(),
+                        message='the return to service QC row never showed a completion time')
+        assert self.driver.find_element(By.ID, 'work-completed-rtsqa-0').text.strip() == '05 Oct 2026 22:30'

@@ -762,3 +762,36 @@ class TestFaultListFilters(FaultsSeleniumTestCase):
         text = self.table_text()
         assert 'MLC-12' in text
         assert 'Linac One' in text
+
+
+class TestFaultDatesAndTimes(FaultsSeleniumTestCase):
+    """When a fault occurred is shown and saved again exactly, whatever zone the workstation is in."""
+
+    def test_late_evening_occurred_time_is_shown_again_and_unchanged_by_saving_again(self):
+        """22:30 on 5 Oct is shown as such on the edit page, and saving the edit form keeps it.
+
+        If this fails, editing a fault (to add a reviewer, say) moves it to another
+        day, out of the reports and trends it belongs to.
+        """
+        fault = self.create_fault(occurred=aware(2026, 10, 5, 22, 30))
+
+        self.open_edit_form(fault)
+        assert self.value_of('id_fault-occurred') == '2026-10-05 22:30'
+        self.save_fault_form()
+
+        fault.refresh_from_db()
+        assert local_minute(fault.occurred) == (2026, 10, 5, 22, 30)
+
+    def test_opening_the_empty_occurred_box_fills_in_now_on_a_workstation_in_another_zone(self):
+        """Opening the picker on an empty "occurred" box fills in the server's "now", not the workstation's.
+
+        If this fails, faults logged from a computer set to another zone are filed hours out.
+        """
+        self.use_browser_timezone('Asia/Tokyo')
+        before = timezone.localtime().replace(second=0, microsecond=0)
+        self.open_create_form()
+        self.click_css('#id_fault-occurred')
+        self.wait_until(lambda: self.value_of('id_fault-occurred'), message='opening the picker filled in nothing')
+        after = timezone.localtime()
+        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_fault-occurred'), '%Y-%m-%d %H:%M'))
+        assert before <= shown <= after, 'the picker filled in %s, opened between %s and %s' % (shown, before, after)

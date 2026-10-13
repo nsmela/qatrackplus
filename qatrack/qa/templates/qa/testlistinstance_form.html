@@ -44,12 +44,12 @@
 {#        var se_statuses = {{ se_statuses|safe }};#}
         var unit_id = {{ unit_test_collection.unit.id }};
         {% if test_list_instance.work_completed %}
-            var work_completed_initial = "{{ test_list_instance.work_completed|safe }}";
+            var work_completed_initial = "{{ test_list_instance.work_completed|date:"Y-m-d H:i" }}";
         {% else %}
             var work_completed_initial = null;
         {% endif %}
         {% if test_list_instance.work_started %}
-            var work_started_initial = "{{ test_list_instance.work_started|safe }}";
+            var work_started_initial = "{{ test_list_instance.work_started|date:"Y-m-d H:i" }}";
         {% else %}
             var work_started_initial = null;
         {% endif %}

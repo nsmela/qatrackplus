@@ -45,9 +45,33 @@
             FLATPICKR_DATE_FMT: '{{ FLATPICKR_DATE_FMT }}',
             FLATPICKR_DATETIME_FMT: '{{ FLATPICKR_DATETIME_FMT }}',
             DATERANGEPICKER_DATE_FMT: '{{ DATERANGEPICKER_DATE_FMT }}',
+            TIME_ZONE: '{{ TIME_ZONE }}',
 
             CSRF_COOKIE_NAME: '{{ CSRF_COOKIE_NAME }}'
         };
+
+        /* QATrack+ reads and shows every date and time on the server's clock
+         * (TIME_ZONE), but JavaScript dates use the workstation's. On a computer
+         * set to another zone, a box filled with "now", or a time from the server
+         * shown with moment(), would be hours out. serverDate() turns an instant
+         * (a Date, an ISO string or milliseconds; default now) into a Date whose
+         * local fields read the server's wall-clock time, ready to format or to
+         * hand to a date picker. */
+        siteConfig.serverDate = function(instant) {
+            var date = instant === undefined ? new Date() : new Date(instant);
+            try {
+                var parts = {};
+                new Intl.DateTimeFormat('en-US', {
+                    timeZone: siteConfig.TIME_ZONE, hourCycle: 'h23',
+                    year: 'numeric', month: 'numeric', day: 'numeric',
+                    hour: 'numeric', minute: 'numeric', second: 'numeric'
+                }).formatToParts(date).forEach(function(part) { parts[part.type] = part.value; });
+                return new Date(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+            } catch (e) {
+                return date;
+            }
+        };
+        siteConfig.serverNow = function() { return siteConfig.serverDate(); };
 
         var QAURLs = {
             COMPOSITE_URL:"{% url 'composite' %}",

@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
@@ -104,6 +105,12 @@ class FaultForm(BetterModelForm):
             if '%s-unit' % self.prefix in self.data:
                 if not self.data['%s-unit' % self.prefix]:
                     self.fields['related_service_events'].widget.attrs.update({'disabled': True})
+
+        # The format Flatpickr reads the box in (FLATPICKR_DATETIME_FMT 'Y-m-d H:i').
+        # In the language's default format it misread a saved fault's time
+        # ("05 Oct 2026 22:30" became 30 Oct 2027 00:00) and saving stored that.
+        self.fields['occurred'].widget.format = settings.DATETIME_INPUT_FORMATS[2]
+        self.fields['occurred'].input_formats = settings.DATETIME_INPUT_FORMATS
 
         self.fields['unit'].choices = unit_site_unit_type_choices(
             include_empty=True, serviceable_only=True, visible_for_user=user

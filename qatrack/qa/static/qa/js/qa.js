@@ -72,7 +72,7 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
     }
 
     function autosaving_off(){
-        var saved = moment().format(siteConfig.MOMENT_DATETIME_FMT);
+        var saved = moment(siteConfig.serverNow()).format(siteConfig.MOMENT_DATETIME_FMT);
         $autoSaveStatusSpinners.removeClass("fa-spin fa-circle-o-notch").addClass("fa-save").attr("title", gettext("Last auto saved at ") + saved);
         $autoSaveStatusContent.html(saved);
         $autoSaveStatus.removeClass("label-warning").addClass("label-info");
@@ -1473,8 +1473,13 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                 $complete_clear = $('#clear-work_completed');
 
             var duration_change = true;
-            var work_started_initial = !work_started_initial ? moment().valueOf() : moment(work_started_initial).valueOf();
-            var work_completed_initial = !work_completed_initial ? false : moment(work_completed_initial).valueOf();
+            /* "Now" on the server's clock, which is what the boxes show (see
+             * siteConfig.serverDate). The saved times arrive as the server's wall-clock
+             * time already. The page's work_*_initial globals are read through window:
+             * a var of the same name here hides them, which left both always empty. */
+            var serverNowMs = function() { return siteConfig.serverNow().valueOf(); };
+            var work_started_initial = window.work_started_initial ? moment(window.work_started_initial).valueOf() : serverNowMs();
+            var work_completed_initial = window.work_completed_initial ? moment(window.work_completed_initial).valueOf() : false;
 
             if (work_completed_initial) {
                 $complete_clear.show();
@@ -1505,7 +1510,7 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                 time_24hr: true,
                 minuteIncrement: 1,
                 dateFormat: siteConfig.FLATPICKR_DATETIME_FMT,
-                maxDate: work_completed_initial ? _.max([work_completed_initial, moment().valueOf()]) : moment().valueOf(),
+                maxDate: work_completed_initial ? _.max([work_completed_initial, serverNowMs()]) : serverNowMs(),
                 allowInput: true,
                 onChange: function(selectedDates, dateStr, instance) {
 
@@ -1538,7 +1543,7 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                 allowInput: true,
                 onOpen: function(selectedDates, dateStr, instance) {
                     if (dateStr === '') {
-                        instance.setDate(work_completed_initial ? work_completed_initial : moment().valueOf(), true);
+                        instance.setDate(work_completed_initial ? work_completed_initial : serverNowMs(), true);
                     }
                 },
                 onChange: function(selectedDates, dateStr, instance) {
@@ -1551,10 +1556,10 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                     setDuration($start_picker[0]._flatpickr.selectedDates[0], selectedDates[0], true);
 
                     if (selectedDates.length > 0) {
-                        $start_picker[0]._flatpickr.set('maxDate', _.max([selectedDates[0].valueOf(), moment().valueOf()]));
+                        $start_picker[0]._flatpickr.set('maxDate', _.max([selectedDates[0].valueOf(), serverNowMs()]));
                         $complete_clear.fadeIn('fast');
                     } else {
-                        $start_picker[0]._flatpickr.set('maxDate', moment().valueOf());
+                        $start_picker[0]._flatpickr.set('maxDate', serverNowMs());
                     }
                 }
             });

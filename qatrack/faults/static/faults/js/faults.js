@@ -50,7 +50,7 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
                 onOpen: [
                     function(selectedDates, dateStr, instance) {
                         if (dateStr === '') {
-                            instance.setDate(moment()._d);
+                            instance.setDate(siteConfig.serverNow());
                         }
                     }
                 ]
@@ -259,7 +259,7 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
                     var se_id = data.service_events[i][0],
                         se_status_id = data.service_events[i][1],
                         se_problem_description = data.service_events[i][2],
-                        se_date = moment(data.service_events[i][3]).format(siteConfig.MOMENT_DATETIME_FMT),
+                        se_date = moment(siteConfig.serverDate(data.service_events[i][3])).format(siteConfig.MOMENT_DATETIME_FMT),
                         se_status_name = data.service_events[i][4];
                     results.push({id: se_id, text: se_id, title: se_problem_description, date: se_date, status: se_status_name});
                     se_statuses[se_id] = se_status_id;
