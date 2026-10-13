@@ -12,6 +12,7 @@ import shutil
 import tempfile
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.urls import reverse
 from django.utils import timezone
@@ -31,6 +32,10 @@ OK_CLASS = 'btn-success'
 TOL_CLASS = 'btn-warning'
 ACT_CLASS = 'btn-danger'
 STATUS_CLASSES = (OK_CLASS, TOL_CLASS, ACT_CLASS, 'btn-info')
+
+# The formats the date pickers write (FLATPICKR_DATE_FMT 'd M Y' and FLATPICKR_DATETIME_FMT 'Y-m-d H:i').
+FLATPICKR_DATE = '%d %b %Y'
+FLATPICKR_DATETIME = '%Y-%m-%d %H:%M'
 
 # What the status cell says (settings.TEST_STATUS_DISPLAY_SHORT) for each saved pass_fail value.
 DISPLAYED_TO_PASS_FAIL = {'OK': models.OK, 'TOL': models.TOLERANCE, 'ACT': models.ACTION}
@@ -262,6 +267,63 @@ class PerformQCTestCase(SeleniumTestCase):
         override = self.settings(MEDIA_ROOT=media)
         override.enable()
         self.addCleanup(override.disable)
+
+
+    # ---- dates and times ------------------------------------------------
+
+    @staticmethod
+    def aware(*args):
+        return timezone.make_aware(timezone.datetime(*args))
+
+    def field(self, el_id):
+        return self.driver.find_element(By.ID, el_id).get_attribute('value')
+
+    def type_datetime(self, el_id, text, accepted=True):
+        """Type into a work time box. Unless told the picker will refuse it, wait until the box shows it."""
+        el = self.driver.find_element(By.ID, el_id)
+        el.send_keys(Keys.CONTROL, 'a')
+        el.send_keys(Keys.BACKSPACE, text, Keys.TAB)
+        if accepted:
+            self.wait_until(lambda: self.field(el_id) == text, message='%s never showed %r' % (el_id, text))
+
+    def pick_in_calendar(self, slug, day, hour=None, minute=None):
+        """Choose `day` (and a time) in the test's flatpickr calendar, as a user would with the mouse.
+
+        The calendar opens on the current month, so this steps back or forward to
+        the month of `day` with the arrows first.
+        """
+        is_datetime = hour is not None
+        self.click_by_css_selector('#%s-value .choose-date%s' % (slug, 'time' if is_datetime else ''))
+        calendar = self.wait_for_visible('.flatpickr-calendar.open')
+        instance = "document.querySelector('#%s-value .qa-input')._flatpickr" % slug
+
+        def shown():
+            year, month = self.driver.execute_script('return [%s.currentYear, %s.currentMonth + 1];' % (instance, instance))
+            return (year, month)
+
+        for _ in range(36):
+            if shown() == (day.year, day.month):
+                break
+            arrow = '.flatpickr-prev-month' if shown() > (day.year, day.month) else '.flatpickr-next-month'
+            calendar.find_element(By.CSS_SELECTOR, arrow).click()
+        assert shown() == (day.year, day.month)
+
+        calendar.find_element(
+            By.XPATH,
+            './/span[contains(@class, "flatpickr-day") and not(contains(@class, "prevMonthDay"))'
+            ' and not(contains(@class, "nextMonthDay")) and normalize-space(text())="%d"]' % day.day,
+        ).click()
+
+        if is_datetime:
+            for css, value in (('.flatpickr-hour', hour), ('.flatpickr-minute', minute), ('.flatpickr-second', 0)):
+                box = calendar.find_element(By.CSS_SELECTOR, css)
+                box.click()
+                # Ctrl+A does not select the text of these number boxes in every browser.
+                self.driver.execute_script('arguments[0].select();', box)
+                box.send_keys('%02d' % value, Keys.TAB)
+            # Closing the calendar is what commits the time to the input.
+            self.driver.execute_script('%s.close();' % instance)
+        self.wait_for_invisible('.flatpickr-calendar.open')
 
 
 class TestNumericalTolerances(PerformQCTestCase):
@@ -976,11 +1038,6 @@ class TestCycles(PerformQCTestCase):
 
 class TestWorkTimes(PerformQCTestCase):
 
-    def type_datetime(self, el_id, text):
-        el = self.driver.find_element(By.ID, el_id)
-        el.send_keys(Keys.CONTROL, 'a')
-        el.send_keys(Keys.BACKSPACE, text, Keys.TAB)
-
     def test_work_completed_cannot_precede_work_started(self):
         """The Work Completed picker refuses a time before Work Started, and accepts a later one.
 
@@ -990,31 +1047,26 @@ class TestWorkTimes(PerformQCTestCase):
         self.make_test('dose')
         self.assign()
         started = (timezone.localtime() - timezone.timedelta(days=3)).replace(hour=9, minute=0, second=0, microsecond=0)
-        fmt = '%Y-%m-%d %H:%M'
-
-        def field(el_id):
-            return self.driver.find_element(By.ID, el_id).get_attribute('value')
 
         self.load_perform()
-        self.type_datetime('id_work_started', started.strftime(fmt))
-        self.wait_until(lambda: field('id_work_started') == started.strftime(fmt))
+        self.type_datetime('id_work_started', started.strftime(FLATPICKR_DATETIME))
 
         # A later time is accepted, and the duration follows it...
         completed = started + timezone.timedelta(minutes=90)
-        self.type_datetime('id_work_completed', completed.strftime(fmt))
-        self.wait_until(lambda: field('id_work_completed') == completed.strftime(fmt))
-        self.wait_until(lambda: field('id_work_duration') == '1hr:30min')
+        self.type_datetime('id_work_completed', completed.strftime(FLATPICKR_DATETIME))
+        self.wait_until(lambda: self.field('id_work_duration') == '1hr:30min')
 
         # ...an earlier one is refused (flatpickr's minDate clears it)...
-        too_early = started - timezone.timedelta(days=1)
-        self.type_datetime('id_work_completed', too_early.strftime(fmt))
-        self.wait_until(lambda: field('id_work_completed') != too_early.strftime(fmt) and field('id_work_completed')
-                        != completed.strftime(fmt), message='the completed time did not react to typing')
-        assert field('id_work_completed') == ''
+        too_early = (started - timezone.timedelta(days=1)).strftime(FLATPICKR_DATETIME)
+        self.type_datetime('id_work_completed', too_early, accepted=False)
+        self.wait_until(
+            lambda: self.field('id_work_completed') not in (too_early, completed.strftime(FLATPICKR_DATETIME)),
+            message='the completed time did not react to typing',
+        )
+        assert self.field('id_work_completed') == ''
 
         # ...and the later time can be entered again.
-        self.type_datetime('id_work_completed', completed.strftime(fmt))
-        self.wait_until(lambda: field('id_work_completed') == completed.strftime(fmt))
+        self.type_datetime('id_work_completed', completed.strftime(FLATPICKR_DATETIME))
 
         self.enter_value('dose', '1')
         self.submit()
@@ -1022,3 +1074,262 @@ class TestWorkTimes(PerformQCTestCase):
         tli = models.TestListInstance.objects.get()
         assert timezone.localtime(tli.work_started) == started
         assert timezone.localtime(tli.work_completed) == completed
+
+
+class TestDatesAndTimes(PerformQCTestCase):
+    """Dates and times entered on the perform page are saved, and shown again, exactly as chosen.
+
+    The page formats every date in the browser and the server parses it back in
+    TIME_ZONE, so a mismatch shifts a result by hours or a day without any error.
+    Times late in the evening are used on purpose: in UTC they already fall on
+    the next day, so a conversion done in the wrong zone shows up as a wrong date.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.dose = self.make_test('dose')
+
+    def add_date_tests(self):
+        """Add a date test and a date & time test to the list (they are required, so only where used)."""
+        self.date_test = self.make_test('date_checked', test_type=models.DATE)
+        self.datetime_test = self.make_test('time_checked', test_type=models.DATETIME)
+
+    def test_chosen_date_and_time_are_saved_and_shown_again_on_edit(self):
+        """A date and a late-evening time picked last month are saved as picked, and read back the same.
+
+        If this fails, a date result is recorded on the wrong day: off by one when
+        the browser and server disagree about the zone, or a month out when the
+        calendar's month arrows and the saved value disagree.
+        """
+        self.add_date_tests()
+        self.assign()
+        last_month_end = timezone.localdate().replace(day=1) - timezone.timedelta(days=1)
+        first_of_last_month = last_month_end.replace(day=1)
+
+        self.load_perform()
+        self.enter_value('dose', '1')
+        self.pick_in_calendar('date_checked', first_of_last_month)
+        self.pick_in_calendar('time_checked', last_month_end, hour=22, minute=35)
+
+        expected_date = first_of_last_month.strftime(FLATPICKR_DATE)
+        expected_datetime = '%s 22:35' % last_month_end.strftime('%Y-%m-%d')
+        assert self.value_input('date_checked').get_attribute('value') == expected_date
+        assert self.value_input('time_checked').get_attribute('value') == expected_datetime
+        self.submit()
+
+        assert self.saved(self.date_test).date_value == first_of_last_month
+        assert timezone.localtime(self.saved(self.datetime_test).datetime_value) == self.aware(
+            last_month_end.year, last_month_end.month, last_month_end.day, 22, 35
+        )
+
+        tli = models.TestListInstance.objects.get()
+        self.load_perform(url=reverse('edit_tli', kwargs={'pk': tli.pk}))
+        assert self.value_input('date_checked').get_attribute('value') == expected_date
+        assert self.value_input('time_checked').get_attribute('value') == expected_datetime
+
+    def test_typed_work_times_are_saved_and_shown_again_on_edit(self):
+        """Work started and completed late in the evening are saved as typed, and the edit page shows them again.
+
+        If this fails, the session is filed against the wrong day, which moves it in
+        the history, the due dates and every report filtered by date.
+        """
+        self.assign()
+        started = (timezone.localtime() - timezone.timedelta(days=2)).replace(hour=22, minute=10, second=0, microsecond=0)
+        completed = started + timezone.timedelta(minutes=95)  # 23:45, still the same day locally
+
+        self.load_perform()
+        self.enter_value('dose', '1')
+        self.type_datetime('id_work_started', started.strftime(FLATPICKR_DATETIME))
+        self.type_datetime('id_work_completed', completed.strftime(FLATPICKR_DATETIME))
+        self.wait_until(lambda: self.field('id_work_duration') == '1hr:35min')
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert timezone.localtime(tli.work_started) == started
+        assert timezone.localtime(tli.work_completed) == completed
+
+        self.load_perform(url=reverse('edit_tli', kwargs={'pk': tli.pk}))
+        assert self.field('id_work_started') == started.strftime(FLATPICKR_DATETIME)
+        assert self.field('id_work_completed') == completed.strftime(FLATPICKR_DATETIME)
+        assert self.field('id_work_duration') == '1hr:35min'
+
+    def test_duration_across_the_autumn_clock_change_is_the_real_time_taken(self):
+        """00:30 to 03:30 on the night the clocks go back took four hours, on the page and in the database.
+
+        If this fails, a session that spans the change from daylight saving time is
+        shown or recorded an hour short.
+        """
+        self.assign()
+        started = self.aware(2025, 11, 2, 0, 30)  # America/Toronto falls back at 02:00 on 2 Nov 2025
+        completed = self.aware(2025, 11, 2, 3, 30)
+
+        self.load_perform()
+        self.enter_value('dose', '1')
+        self.type_datetime('id_work_started', '2025-11-02 00:30')
+        self.type_datetime('id_work_completed', '2025-11-02 03:30')
+        self.wait_until(lambda: self.field('id_work_duration') == '4hr:00min',
+                        message='duration shows %r' % self.field('id_work_duration'))
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert (tli.work_started, tli.work_completed) == (started, completed)
+        assert tli.duration() == timezone.timedelta(hours=4)
+
+    def test_duration_across_the_spring_clock_change_is_the_real_time_taken(self):
+        """01:30 to 03:30 on the night the clocks go forward took one hour, on the page and in the database.
+
+        If this fails, a session that spans the change to daylight saving time is
+        shown or recorded an hour long.
+        """
+        self.assign()
+        self.load_perform()
+        self.enter_value('dose', '1')
+        self.type_datetime('id_work_started', '2026-03-08 01:30')  # America/Toronto springs forward at 02:00
+        self.type_datetime('id_work_completed', '2026-03-08 03:30')
+        self.wait_until(lambda: self.field('id_work_duration') == '1hr:00min',
+                        message='duration shows %r' % self.field('id_work_duration'))
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert tli.duration() == timezone.timedelta(hours=1)
+
+    def test_work_started_defaults_to_now(self):
+        """Left alone, Work Started is the time the page was opened, and that is what is saved.
+
+        If this fails, every session performed without touching the times is
+        recorded at the wrong time.
+        """
+        self.assign()
+        before = timezone.localtime().replace(second=0, microsecond=0)
+        self.load_perform()
+        shown = timezone.make_aware(timezone.datetime.strptime(self.field('id_work_started'), FLATPICKR_DATETIME))
+        after = timezone.localtime()
+        assert before <= shown <= after, 'Work Started shows %s, opened between %s and %s' % (shown, before, after)
+
+        self.enter_value('dose', '1')
+        self.submit()
+        tli = models.TestListInstance.objects.get()
+        assert before <= tli.work_started <= after
+
+    def assert_default_work_started_is_now_from(self, timezone_id):
+        self.assign()
+        self.use_browser_timezone(timezone_id)
+        before = timezone.localtime().replace(second=0, microsecond=0)
+        self.load_perform()
+        assert self.browser_timezone() == timezone_id
+        self.enter_value('dose', '1')
+        self.submit()
+        after = timezone.localtime()
+
+        tli = models.TestListInstance.objects.get()
+        assert before <= tli.work_started <= after, 'saved %s, performed between %s and %s' % (
+            timezone.localtime(tli.work_started), before, after
+        )
+
+    def test_work_started_defaults_to_now_on_a_workstation_ahead_of_the_server(self):
+        """A workstation whose clock is set to a zone ahead of the server's still records the real start time.
+
+        If this fails, sessions performed from a computer set to another zone (a
+        laptop brought back from travel, a remote reviewer) are recorded hours off.
+        """
+        self.assert_default_work_started_is_now_from('Asia/Tokyo')
+
+    def test_work_started_defaults_to_now_on_a_workstation_behind_the_server(self):
+        """A workstation whose clock is set to a zone behind the server's still records the real start time.
+
+        The start picker refuses times after the browser's "now", so a browser
+        behind the server could reject the server's default and put its own clock in.
+        """
+        self.assert_default_work_started_is_now_from('America/Vancouver')
+
+    def test_autosaved_dates_and_times_are_restored_exactly(self):
+        """A date result, a time result and the work times come back unchanged when an autosave is reopened.
+
+        If this fails, resuming interrupted QC silently changes the dates that were
+        already entered.
+        """
+        self.add_date_tests()
+        self.assign()
+        day = timezone.localdate().replace(day=1)
+        started = (timezone.localtime() - timezone.timedelta(days=1)).replace(hour=22, minute=5, second=0, microsecond=0)
+
+        self.load_perform()
+        self.type_datetime('id_work_started', started.strftime(FLATPICKR_DATETIME))
+        self.enter_value('dose', '1')
+        self.pick_in_calendar('date_checked', day)
+        self.pick_in_calendar('time_checked', day, hour=23, minute=50)
+        expected = {
+            'date_checked': day.strftime(FLATPICKR_DATE),
+            'time_checked': '%s 23:50' % day.strftime('%Y-%m-%d'),
+        }
+
+        # Autosave is debounced by four seconds after the last change.
+        self.wait_until(
+            lambda: any(a.data['tests'].get('time_checked') for a in models.AutoSave.objects.all()),
+            timeout=self.timeout + 10, message='the time result was never autosaved',
+        )
+        self.wait_for_idle()
+        autosave = models.AutoSave.objects.get()
+
+        self.open(self.url + '?autosave_id=%d' % autosave.pk)
+        self.wait_for_element('#perform-qa-table')
+        self.wait_for_idle()
+        for slug, text in expected.items():
+            self.wait_until(lambda: self.value_input(slug).get_attribute('value') == text,
+                            message='%s shows %r, not %r' % (slug, self.value_input(slug).get_attribute('value'), text))
+        assert self.field('id_work_started') == started.strftime(FLATPICKR_DATETIME)
+
+
+class TestDatesAndTimesInFrench(PerformQCTestCase):
+    """The same date entry, with the user's language set to French.
+
+    French has its own date input formats (formats/fr/formats.py, day/month/year),
+    while the calendars write the same English formats in every language. A
+    French user must still be able to submit, and see their dates again.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.dose = self.make_test('dose')
+        self.date_test = self.make_test('date_checked', test_type=models.DATE)
+        self.datetime_test = self.make_test('time_checked', test_type=models.DATETIME)
+        self.assign()
+
+    def switch_to_french(self):
+        self.driver.add_cookie({'name': settings.LANGUAGE_COOKIE_NAME, 'value': 'fr'})
+
+    def test_french_user_saves_dates_and_work_times_and_sees_them_again(self):
+        """In French, a date, a date & time and the work times are saved as entered and shown again on edit.
+
+        If this fails, French-speaking staff cannot submit QC containing a date, or
+        their dates change when the session is edited.
+        """
+        day = timezone.localdate().replace(day=1)
+        started = (timezone.localtime() - timezone.timedelta(days=1)).replace(hour=21, minute=40, second=0, microsecond=0)
+
+        self.login()
+        self.switch_to_french()
+        self.load_perform()
+        assert self.driver.find_element(By.TAG_NAME, 'html').get_attribute('lang').startswith('fr')
+
+        self.type_datetime('id_work_started', started.strftime('%Y-%m-%d %H:%M'))
+        self.enter_value('dose', '1')
+        self.pick_in_calendar('date_checked', day)
+        self.pick_in_calendar('time_checked', day, hour=23, minute=15)
+        self.submit()
+
+        tli = models.TestListInstance.objects.get()
+        assert timezone.localtime(tli.work_started) == started
+        assert self.saved(self.date_test).date_value == day
+        assert timezone.localtime(self.saved(self.datetime_test).datetime_value) == timezone.make_aware(
+            timezone.datetime(day.year, day.month, day.day, 23, 15)
+        )
+
+        self.open(reverse('edit_tli', kwargs={'pk': tli.pk}))
+        self.wait_for_element('#perform-qa-table')
+        self.wait_for_idle()
+        assert self.value_input('date_checked').get_attribute('value') == day.strftime('%d %b %Y')
+        assert self.value_input('time_checked').get_attribute('value') == '%s 23:15' % day.strftime('%Y-%m-%d')
+        assert self.driver.find_element(By.ID, 'id_work_started').get_attribute('value') == started.strftime(
+            '%Y-%m-%d %H:%M'
+        )
