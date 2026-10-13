@@ -10,10 +10,8 @@ from urllib.parse import parse_qs, urlparse
 
 from django.urls import reverse
 from django.utils import timezone
-from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as e_c
 from selenium.webdriver.support.ui import Select
 
 from qatrack.qa import models
@@ -87,9 +85,6 @@ class ReviewTestCase(SeleniumTestCase):
         return models.TestInstance.objects.get(test_list_instance=tli, unit_test_info__test=test)
 
     # ---- page helpers ----------------------------------------------------
-
-    def click_css(self, css):
-        self.wait.until(e_c.element_to_be_clickable((By.CSS_SELECTOR, css))).click()
 
     def wait_for_success_alert(self):
         return self.wait_for_visible('.alert-success')
@@ -564,12 +559,6 @@ class ChartsTestCase(ReviewTestCase):
 
     def option(self, kind, pk):
         return '#felter-option-%s-div-%s' % (kind, pk)
-
-    def is_shown(self, css):
-        try:
-            return self.driver.find_element(By.CSS_SELECTOR, css).is_displayed()
-        except NoSuchElementException:
-            return False
 
     def is_selected_option(self, kind, pk):
         return 'felter-selected' in self.driver.find_element(By.CSS_SELECTOR, self.option(kind, pk)).get_attribute(

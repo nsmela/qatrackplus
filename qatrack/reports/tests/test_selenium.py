@@ -23,7 +23,6 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 
 from qatrack.accounts.tests.utils import create_user
@@ -62,8 +61,6 @@ class ReportsSeleniumTestCase(SeleniumTestCase):
         self.site = Site.objects.create(name='Main Site', slug='main-site')
         self.unit = qa_utils.create_unit(name='Linac Alpha', site=self.site)
 
-    # -- seeding -----------------------------------------------------------------------------------
-
     def create_qc(self, unit=None, test_list_name='Daily Output', test_name='Output Dose', work_completed=None,
                   value=1.23):
         """Assign a one-test list to `unit` and complete one session of it, with `value` for the test."""
@@ -95,50 +92,7 @@ class ReportsSeleniumTestCase(SeleniumTestCase):
         defaults.update(kwargs)
         return models.SavedReport.objects.create(**defaults)
 
-    # -- clicking and typing -----------------------------------------------------------------------
-
-    def click_element(self, element):
-        """Scroll `element` to the middle of the window and click it like a mouse would."""
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        ActionChains(self.driver).move_to_element(element).click().perform()
-
-    def click_css(self, css):
-        self.click_element(self.wait_for_visible(css))
-
-    def value_of(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).value;', el_id)
-
-    def is_disabled(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).disabled;', el_id)
-
-    def is_displayed(self, css):
-        return self.driver.find_element(By.CSS_SELECTOR, css).is_displayed()
-
     # -- select2 -----------------------------------------------------------------------------------
-
-    def select2_choose(self, el_id, text, search=False):
-        """Open the select2 widget for <select id=el_id> and click the option showing `text`.
-
-        This goes through select2's own dropdown the way a person would, so the
-        page's change handlers run exactly as they do for a real user. With
-        `search`, `text` is typed into the search box first.
-        """
-        self.click_css('#%s + .select2 .select2-selection' % el_id)
-        if search:
-            box = self.wait_for_visible('.select2-container--open .select2-search__field')
-            box.send_keys(text)
-        option = self.wait.until(lambda d: self._open_select2_option(text))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def _open_select2_option(self, text):
-        options = self.driver.find_elements(
-            By.CSS_SELECTOR, '.select2-container--open li.select2-results__option[aria-selected]'
-        )
-        for option in options:
-            if option.text.strip() == text:
-                return option
-        return False
 
     def select2_options(self, el_id):
         """The text of every <option> in <select id=el_id>."""
@@ -146,8 +100,6 @@ class ReportsSeleniumTestCase(SeleniumTestCase):
             'return Array.from(document.getElementById(arguments[0]).options).map(function(o) {'
             '  return o.text.trim(); });', el_id
         )
-
-    # -- the reports page --------------------------------------------------------------------------
 
     def open_reports(self, query=''):
         """Log in, open the reports page and wait for its saved reports table to load."""
@@ -165,7 +117,7 @@ class ReportsSeleniumTestCase(SeleniumTestCase):
         """
         title = self.driver.find_element(By.ID, 'id_root-title')
         title.clear()
-        self.select2_choose('id_root-report_type', str(name), search=True)
+        self.select2_search('id_root-report_type', str(name), str(name), exact=True)
         self.wait_for_ajax()
         self.wait_for_element('#filters #%s' % filter_field)
         self.wait.until(lambda d: not self.is_disabled('preview'))
@@ -608,7 +560,7 @@ class TestReportFormat(ReportsSeleniumTestCase):
         assert not self.is_disabled('preview')
 
         self.driver.find_element(By.ID, 'id_root-title').clear()
-        self.select2_choose('id_root-report_type', 'CSV Only Assignments', search=True)
+        self.select2_search('id_root-report_type', 'CSV Only Assignments', 'CSV Only Assignments', exact=True)
         self.wait_for_ajax()
         self.wait.until(lambda d: self.is_disabled('preview'))
         assert self.select2_options('id_root-report_format') == ['CSV']
@@ -677,4 +629,4 @@ class TestScheduling(ReportsSeleniumTestCase):
         self.wait_for_ajax()
 
         assert not models.ReportSchedule.objects.exists()
-        assert not self.is_displayed('#schedule-message')
+        assert not self.is_shown('#schedule-message')

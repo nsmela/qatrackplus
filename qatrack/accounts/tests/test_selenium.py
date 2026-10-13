@@ -42,16 +42,6 @@ class AccountsSeleniumTestCase(SeleniumTestCase):
         with self.wait_for_page_load():
             self.driver.find_element(By.CSS_SELECTOR, '#qatrack-wrapper button[type=submit]').click()
 
-    def click_element(self, element):
-        """Click like a user would, with the element in the middle of the window.
-
-        The harness's patched WebElement.click scrolls the element to the very
-        top of the window, where the fixed navbar covers it, so near-the-top
-        controls such as the Add Group button get "click intercepted".
-        """
-        self.driver.execute_script('arguments[0].scrollIntoView({block: "center"});', element)
-        ActionChains(self.driver).move_to_element(element).click().perform()
-
     def logout_through_sidebar(self):
         """Log out the way a user does: hover the gear menu, then click Logout."""
         btn = self.wait_for_visible('#control-sidebar-btn')

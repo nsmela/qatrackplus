@@ -28,7 +28,6 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     WebDriverException,
 )
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
@@ -119,75 +118,7 @@ class ServiceLogSeleniumTestCase(SeleniumTestCase):
         defaults.update(kwargs)
         return sl_utils.create_service_event(**defaults)
 
-    # -- clicking and typing ---------------------------------------------------------------------
-
-    def click_element(self, element):
-        """Scroll `element` to the middle of the window and click it like a mouse would.
-
-        The harness's patched WebElement.click scrolls the element to the very
-        top of the window, where the fixed navigation bar then covers it.
-        """
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        ActionChains(self.driver).move_to_element(element).click().perform()
-
-    def click_css(self, css):
-        self.click_element(self.wait_for_visible(css))
-
-    def type_into(self, el_id, text, clear=False):
-        element = self.wait_for_visible('#%s' % el_id)
-        self.click_element(element)
-        if clear:
-            element.send_keys(Keys.CONTROL, 'a')
-            element.send_keys(Keys.DELETE)
-        element.send_keys(text)
-
-    def value_of(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).value;', el_id)
-
-    def is_checked(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).checked;', el_id)
-
-    def is_disabled(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).disabled;', el_id)
-
-    def option_texts(self, el_id):
-        """The text of every <option> currently in <select id=el_id>."""
-        return self.driver.execute_script(
-            'return Array.from(document.getElementById(arguments[0]).options).map(function(o) {'
-            '  return o.text.trim(); });', el_id
-        )
-
     # -- select2 -----------------------------------------------------------------------------------
-
-    def select2_choose(self, el_id, text, exact=True):
-        """Open the select2 widget for <select id=el_id> and click the option showing `text`.
-
-        This goes through select2's own dropdown the way a person would, so
-        the page's change handlers run exactly as they do for a real user.
-        """
-        self.click_css('#%s + .select2 .select2-selection' % el_id)
-        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def select2_search(self, el_id, term, text):
-        """Type `term` into an ajax select2 for <select id=el_id> and click the result containing `text`."""
-        self.click_css('#%s + .select2 .select2-selection' % el_id)
-        search = self.wait_for_visible('.select2-container--open .select2-search__field')
-        search.send_keys(term)
-        option = self.wait.until(lambda d: self._open_select2_option(text, exact=False))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def _open_select2_option(self, text, exact=True):
-        options = self.driver.find_elements(By.CSS_SELECTOR, '.select2-container--open li.select2-results__option')
-        for option in options:
-            option_text = option.text.strip()
-            if (exact and option_text == text) or (not exact and text in option_text):
-                return option
-        return False
-
-    # -- the service event form --------------------------------------------------------------------
 
     def open_new_form(self):
         self.login()
@@ -579,13 +510,7 @@ class TestAttachments(ServiceLogSeleniumTestCase):
     def setUp(self):
         super().setUp()
         # Keep uploaded files out of the repository's media directory.
-        self.media_root = tempfile.mkdtemp(prefix='qatrack-sl-selenium-')
-        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
-        media_settings = self.settings(
-            MEDIA_ROOT=self.media_root, UPLOAD_ROOT=os.path.join(self.media_root, 'uploads')
-        )
-        media_settings.enable()
-        self.addCleanup(media_settings.disable)
+        self.media_root = self.use_temporary_media_root()
 
     def test_uploaded_attachment_is_saved_with_the_service_event(self):
         """A file chosen in the attachments box must be stored against the service event."""

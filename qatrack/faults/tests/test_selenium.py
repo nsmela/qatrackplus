@@ -14,8 +14,6 @@ share one in-memory SQLite connection.
 """
 
 import os
-import shutil
-import tempfile
 
 import pytest
 from django.contrib.auth.models import Group, Permission
@@ -23,8 +21,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 from django_comments.models import Comment
-from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
-from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
@@ -99,94 +96,7 @@ class FaultsSeleniumTestCase(SeleniumTestCase):
             unit=unit or self.unit, fault_type=fault_type or self.mlc, user=self.user, **kwargs
         )
 
-    # -- clicking and typing ---------------------------------------------------------------------
-
-    def click_element(self, element):
-        """Scroll `element` to the middle of the window and click it like a mouse would."""
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        ActionChains(self.driver).move_to_element(element).click().perform()
-
-    def click_css(self, css):
-        self.click_element(self.wait_for_visible(css))
-
-    def type_into(self, el_id, text, clear=False):
-        element = self.wait_for_visible('#%s' % el_id)
-        self.click_element(element)
-        if clear:
-            element.send_keys(Keys.CONTROL, 'a')
-            element.send_keys(Keys.DELETE)
-        element.send_keys(text)
-
-    def value_of(self, el_id):
-        return self.driver.execute_script('return $(document.getElementById(arguments[0])).val();', el_id)
-
-    def page_text(self):
-        return self.driver.find_element(By.TAG_NAME, 'body').text
-
-    def enabled_options(self, el_id):
-        """The text of every <option> in <select id=el_id> that is not disabled."""
-        return self.driver.execute_script(
-            'return Array.from(document.getElementById(arguments[0]).options)'
-            '  .filter(function(o) { return !o.disabled; })'
-            '  .map(function(o) { return o.text.trim(); });', el_id
-        )
-
     # -- select2 -----------------------------------------------------------------------------------
-
-    def open_select2(self, el_id):
-        self.click_css('#%s ~ .select2 .select2-selection' % el_id)
-        return self.wait_for_visible('.select2-container--open .select2-results')
-
-    def close_select2(self):
-        self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def select2_results(self):
-        """The text of each option a person can see in the open select2 dropdown.
-
-        WebDriver gives hidden elements no text, so options hidden by CSS are left out.
-        """
-        texts = self.driver.execute_script(
-            "return $('.select2-container--open li.select2-results__option:visible')"
-            "  .map(function() { return $(this).text().trim(); }).get();"
-        )
-        return [t for t in texts if t]
-
-    def _open_select2_option(self, text, exact=True):
-        """The visible option showing `text` in the open select2 dropdown, or False.
-
-        The ajax lookups replace the options while they are being read, so a
-        stale option just means "look again".
-        """
-        options = self.driver.find_elements(By.CSS_SELECTOR, '.select2-container--open li.select2-results__option')
-        for option in options:
-            try:
-                option_text = option.text.strip()
-            except StaleElementReferenceException:
-                return False
-            if (exact and option_text == text) or (not exact and text in option_text):
-                return option
-        return False
-
-    def select2_choose(self, el_id, text, exact=True):
-        """Open the select2 widget for <select id=el_id> and click the option showing `text`.
-
-        Going through select2's own dropdown runs the page's change handlers
-        exactly as they run for a person.
-        """
-        self.open_select2(el_id)
-        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def select2_search(self, el_id, term, text, exact=False):
-        """Type `term` into an ajax select2 for <select id=el_id> and click the result showing `text`."""
-        self.open_select2(el_id)
-        search = self.wait_for_visible('.select2-container--open .select2-search__field')
-        search.send_keys(term)
-        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
 
     def choose_fault_type(self, term, text, exact=False):
         """Search for a fault type and pick it.
@@ -201,8 +111,6 @@ class FaultsSeleniumTestCase(SeleniumTestCase):
         self.click_element(option)
         self.wait_for_invisible('.select2-container--open .select2-results')
         self.wait_for_ajax()
-
-    # -- the fault form ----------------------------------------------------------------------------
 
     def open_create_form(self, user=None):
         self.login(user=user)
@@ -697,13 +605,7 @@ class TestAttachments(FaultsSeleniumTestCase):
     def setUp(self):
         super().setUp()
         # Keep uploaded files out of the repository's media directory.
-        self.media_root = tempfile.mkdtemp(prefix='qatrack-faults-selenium-')
-        self.addCleanup(shutil.rmtree, self.media_root, ignore_errors=True)
-        media_settings = self.settings(
-            MEDIA_ROOT=self.media_root, UPLOAD_ROOT=os.path.join(self.media_root, 'uploads')
-        )
-        media_settings.enable()
-        self.addCleanup(media_settings.disable)
+        self.media_root = self.use_temporary_media_root()
 
     def test_file_chosen_on_the_create_form_is_attached_to_the_fault(self):
         """A file chosen in the attachments box must be listed on the form and stored with the new fault."""

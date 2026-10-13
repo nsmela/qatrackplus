@@ -91,16 +91,12 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
             unit.save()
             create_schedule(unit, ACCEPTANCE)
 
-    # -- the browser's clock -----------------------------------------------------------------------
-
     def browser_today(self):
         """Today's date as the page sees it."""
         y, m, d = self.driver.execute_script(
             'var d = new Date(); return [d.getFullYear(), d.getMonth() + 1, d.getDate()];'
         )
         return datetime.date(y, m, d)
-
-    # -- loading the page --------------------------------------------------------------------------
 
     def load_page(self, timezone_id=None):
         """Log in and open the page with the calendar fully drawn.
@@ -120,8 +116,6 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
         """No ajax in flight and the calendar has finished redrawing (it marks <body> while it works)."""
         self.wait_for_ajax()
         self.wait_until(lambda: 'loading' not in self.driver.find_element(By.TAG_NAME, 'body').get_attribute('class'))
-
-    # -- the calendar ------------------------------------------------------------------------------
 
     def cell_date(self, x, y):
         """The date drawn in column `x` (0 = Sunday), row `y` of the calendar for the month shown."""
@@ -205,8 +199,6 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
             self.assertEqual(self.bar_heights(x, y), expected)
             raise
 
-    # -- units and buttons -------------------------------------------------------------------------
-
     def unit_option(self, unit):
         return self.driver.find_element(By.ID, 'felter-option-div-%d' % unit.pk)
 
@@ -229,16 +221,6 @@ class UnitAvailableTimeTestCase(SeleniumTestCase):
         self.wait_for_visible('#%s' % modal_id)
         # Bootstrap fades the window in; typing before it settles can lose keys.
         self.wait_until(lambda: 'in' in self.driver.find_element(By.ID, modal_id).get_attribute('class').split())
-
-    def type_into(self, el_id, text):
-        element = self.wait_for_visible('#%s' % el_id)
-        element.click()
-        element.send_keys(Keys.CONTROL, 'a')
-        element.send_keys(Keys.DELETE)
-        element.send_keys(text)
-
-    def value_of(self, el_id):
-        return self.driver.execute_script('return $(document.getElementById(arguments[0])).val();', el_id)
 
     def choose_select2(self, el_id, text):
         """Pick `text` in the select2 widget for <select id=el_id>, through its own drop-down."""

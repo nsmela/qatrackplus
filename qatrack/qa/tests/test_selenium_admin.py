@@ -20,13 +20,8 @@ import tempfile
 
 import pytest
 from django.contrib.auth.models import Group
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    StaleElementReferenceException,
-)
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.expected_conditions import staleness_of
 from selenium.webdriver.support.ui import Select
 
@@ -39,41 +34,7 @@ from qatrack.service_log.tests import utils as sl_utils
 
 
 class AdminSeleniumMixin:
-    """Helpers for driving Django admin pages. Mix into a `SeleniumTestCase`.
-
-    These avoid the harness's `send_keys`/`select_by_*` helpers, which sleep a
-    second each and, for select2 widgets, may set the value without running
-    the page's change handlers the way a person's click would.
-    """
-
-    # -- clicking and typing ---------------------------------------------------------------------
-
-    def click_element(self, element):
-        """Scroll `element` to the middle of the window and click it like a mouse would."""
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        ActionChains(self.driver).move_to_element(element).click().perform()
-
-    def click_css(self, css):
-        self.click_element(self.wait_for_visible(css))
-
-    def type_into(self, el_id, text, clear=False):
-        element = self.wait_for_visible('#%s' % el_id)
-        self.click_element(element)
-        if clear:
-            element.send_keys(Keys.CONTROL, 'a')
-            element.send_keys(Keys.DELETE)
-        element.send_keys(text)
-        return element
-
-    def value_of(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).value;', el_id)
-
-    def is_shown(self, css):
-        """True if an element matching `css` exists and is displayed."""
-        try:
-            return self.driver.find_element(By.CSS_SELECTOR, css).is_displayed()
-        except NoSuchElementException:
-            return False
+    """Helpers for driving Django admin pages. Mix into a `SeleniumTestCase`."""
 
     def choose_option(self, el_id, text):
         """Pick the option showing `text` in a plain (not select2) <select>."""
@@ -86,45 +47,6 @@ class AdminSeleniumMixin:
             self.click_element(option)
             self.click_css('#id_%s_add_link' % field)
             self.wait_for_element('#id_%s_to option[title="%s"]' % (field, text))
-
-    # -- select2 -----------------------------------------------------------------------------------
-
-    def open_select2(self, el_id):
-        self.click_css('#%s ~ .select2 .select2-selection' % el_id)
-        return self.wait_for_visible('.select2-container--open .select2-results')
-
-    def close_select2(self):
-        self.driver.switch_to.active_element.send_keys(Keys.ESCAPE)
-        self.wait_for_invisible('.select2-container--open .select2-results')
-
-    def select2_results(self):
-        """The text of each option a person can see in the open select2 dropdown."""
-        texts = self.driver.execute_script(
-            "return $('.select2-container--open li.select2-results__option:visible')"
-            "  .map(function() { return $(this).text().trim(); }).get();"
-        )
-        return [t for t in texts if t]
-
-    def _open_select2_option(self, text, exact=True):
-        """The selectable option showing `text` in the open select2 dropdown, or False."""
-        options = self.driver.find_elements(
-            By.CSS_SELECTOR, '.select2-container--open li.select2-results__option[aria-selected]'
-        )
-        for option in options:
-            try:
-                option_text = option.text.strip()
-            except StaleElementReferenceException:
-                return False
-            if (exact and option_text == text) or (not exact and text in option_text):
-                return option
-        return False
-
-    def select2_choose(self, el_id, text, exact=True):
-        """Open the select2 widget for <select id=el_id> and click the option showing `text`."""
-        self.open_select2(el_id)
-        option = self.wait.until(lambda d: self._open_select2_option(text, exact))
-        self.click_element(option)
-        self.wait_for_invisible('.select2-container--open .select2-results')
 
     # -- saving ------------------------------------------------------------------------------------
 
@@ -163,17 +85,6 @@ class AdminTestCase(AdminSeleniumMixin, SeleniumTestCase):
     def setUp(self):
         super().setUp()
         self.category = utils.create_category(name='Dosimetry', slug='dosimetry', description='Dose checks')
-
-    def enabled_options(self, el_id):
-        """The text of every <option> in <select id=el_id> that is not disabled."""
-        return self.driver.execute_script(
-            'return Array.from(document.getElementById(arguments[0]).options)'
-            '  .filter(function(o) { return !o.disabled; })'
-            '  .map(function(o) { return o.text.trim(); });', el_id
-        )
-
-    def is_checked(self, el_id):
-        return self.driver.execute_script('return document.getElementById(arguments[0]).checked;', el_id)
 
 
 class TestTestAdmin(AdminTestCase):

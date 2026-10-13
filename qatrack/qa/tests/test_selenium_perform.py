@@ -6,10 +6,7 @@ a real browser and then check the database, so that what a therapist sees
 while performing QC is held to the same answer the server records.
 """
 
-import os
 import re
-import shutil
-import tempfile
 
 import pytest
 from django.conf import settings
@@ -251,23 +248,6 @@ class PerformQCTestCase(SeleniumTestCase):
                 work_completed=tli.work_completed,
             )
         return tli
-
-    def make_file(self, name, content):
-        """Write a small file for uploading and return its absolute path."""
-        directory = tempfile.mkdtemp(prefix='qatrack-perform-')
-        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
-        path = os.path.join(directory, name)
-        with open(path, 'w') as f:
-            f.write(content)
-        return path
-
-    def use_temporary_media_root(self):
-        """Keep uploaded files out of the working tree."""
-        media = tempfile.mkdtemp(prefix='qatrack-media-')
-        self.addCleanup(shutil.rmtree, media, ignore_errors=True)
-        override = self.settings(MEDIA_ROOT=media)
-        override.enable()
-        self.addCleanup(override.disable)
 
 
     # ---- dates and times ------------------------------------------------
