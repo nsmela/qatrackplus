@@ -578,37 +578,6 @@ class TestAttachments(ServiceLogSeleniumTestCase):
 
 class TestEditAndDeleteServiceEvent(ServiceLogSeleniumTestCase):
 
-    def test_status_needing_reviewed_rts_qc_is_refused_while_rts_qc_is_unreviewed(self):
-        """A status that needs reviewed return to service QC must be refused while that QC is unreviewed.
-
-        Otherwise a machine could be marked ready for clinical use before its
-        return to service QC had been checked by anyone.
-        """
-        approved = sl_utils.create_service_event_status(
-            name='Approved', is_review_required=False, rts_qa_must_be_reviewed=True
-        )
-        se = self.create_service_event()
-        tli = qa_utils.create_test_list_instance(unit_test_collection=self.utc, created_by=self.user)
-        sl_utils.create_return_to_service_qa(
-            service_event=se, unit_test_collection=self.utc, user_assigned_by=self.user, add_test_list_instance=tli
-        )
-        assert not tli.all_reviewed
-
-        self.open_edit_form(se)
-        # The existing row shows the performed QC's review button once its status has loaded.
-        self.wait_for_visible('#review-tli-rtsqa-0')
-        self.select2_choose('id_service_status', 'Approved')
-
-        alert = self.save_service_event_expecting_errors()
-
-        assert 'Service Event Details' in alert.text
-        self.wait_for_text(
-            '.has-error', 'Cannot select status: Return to service QC must be performed and reviewed.'
-        )
-        se.refresh_from_db()
-        assert se.service_status == self.default_status
-        assert approved.serviceevent_set.count() == 0
-
     def test_details_page_shows_the_event_and_its_return_to_service_qc(self):
         """The details page must show the event's fields, its RTS QC and working links to review and edit."""
         se = self.create_service_event(

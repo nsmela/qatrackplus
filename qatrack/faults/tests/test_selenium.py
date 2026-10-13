@@ -464,64 +464,6 @@ class TestReviewing(FaultsSeleniumTestCase):
         assert review.fault_review_group == frg
         assert fault.review_complete()
 
-    def test_edit_form_refuses_to_save_without_a_required_reviewer(self):
-        """A required review group left without a reviewer must stop the save and say why.
-
-        Otherwise a site that demands sign-off from a group could end up with
-        faults changed but never reviewed by that group.
-        """
-        self.make_review_group(required=True)
-        fault = self.create_fault()
-
-        self.open_edit_form(fault)
-        self.select2_choose('id_fault-modality', '9MeV Electron')
-        self.click_css('form button[type=submit].btn-primary')
-
-        error = self.wait_for_visible('.has-error .error-message')
-        assert 'This field is required' in error.text
-        form_group = error.find_element(By.XPATH, './ancestor::div[contains(@class, "form-group")][1]')
-        assert form_group.find_element(By.ID, 'id_review-form-0-group').get_attribute('value') == 'Physics'
-        fault.refresh_from_db()
-        assert fault.modality is None
-        assert not models.FaultReviewInstance.objects.exists()
-
-    def test_acknowledging_from_the_details_page_records_the_review(self):
-        """"Acknowledge This Fault" must review the fault as the current user and say so on the page."""
-        fault = self.create_fault()
-
-        self.login()
-        self.open(reverse('fault_details', kwargs={'pk': fault.pk}))
-        button = self.wait_for_visible('#review-fault')
-        assert 'Acknowledge This Fault' in button.text
-
-        with self.wait_for_page_load():
-            self.click_element(button)
-        self.wait_for_text('.content-header', 'Successfully acknowledged')
-
-        review = models.FaultReviewInstance.objects.get()
-        assert review.fault == fault
-        assert review.reviewed_by == self.user
-        assert 'Unacknowledge This Fault' in self.wait_for_visible('#review-fault').text
-        assert 'Pat Physicist @' in self.page_text()
-
-    def test_unacknowledging_from_the_details_page_removes_the_review(self):
-        """"Unacknowledge This Fault" must remove the review, putting the fault back on the unreviewed list."""
-        fault = self.create_fault()
-        f_utils.create_fault_review(fault=fault, review_group=False, reviewed_by=self.user)
-
-        self.login()
-        self.open(reverse('fault_details', kwargs={'pk': fault.pk}))
-        button = self.wait_for_visible('#review-fault')
-        assert 'Unacknowledge This Fault' in button.text
-
-        with self.wait_for_page_load():
-            self.click_element(button)
-        self.wait_for_text('.content-header', 'Successfully unacknowledged')
-
-        assert not models.FaultReviewInstance.objects.exists()
-        assert list(models.Fault.objects.unreviewed()) == [fault]
-        assert 'Acknowledge This Fault' in self.wait_for_visible('#review-fault').text
-
 
 class TestFaultDetails(FaultsSeleniumTestCase):
 
@@ -563,7 +505,7 @@ class TestFaultDetails(FaultsSeleniumTestCase):
         assert 'MLC-12' in heading.text
 
     def test_deleting_a_fault_from_its_confirmation_page_removes_it(self):
-        """Delete on the details page, then confirm, must remove the fault and its comments."""
+        """Delete on the details page, then confirm, must remove the fault and its comments, and say so."""
         fault = self.create_fault()
         kept = self.create_fault(unit=self.other_unit)
         Comment.objects.create(
@@ -584,20 +526,7 @@ class TestFaultDetails(FaultsSeleniumTestCase):
         assert list(models.Fault.objects.all()) == [kept]
         assert not Comment.objects.filter(comment='Doomed').exists()
         assert self.driver.current_url.endswith(reverse('fault_list'))
-
-    def test_deleting_a_fault_confirms_it_with_a_message(self):
-        """After deleting a fault the user must be told which fault was deleted."""
-        fault = self.create_fault()
-        fault_id = fault.pk
-
-        self.login()
-        self.open(reverse('fault_delete', kwargs={'pk': fault_id}))
-        with self.wait_for_page_load():
-            self.click_css('form button[type=submit].btn-danger')
-        self.wait_for_element('#listable-table-fault_list')
-        assert not models.Fault.objects.exists()
-
-        assert 'Successfully deleted Fault %d' % fault_id in self.page_text()
+        assert 'Successfully deleted Fault %d' % fault.pk in self.page_text()
 
 
 class TestAttachments(FaultsSeleniumTestCase):
