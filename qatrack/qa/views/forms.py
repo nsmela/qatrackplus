@@ -3,8 +3,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.forms.models import inlineformset_factory
 from django.forms.widgets import (
-    DateInput,
-    DateTimeInput,
     HiddenInput,
     Input,
     NumberInput,
@@ -17,6 +15,7 @@ from django.utils.translation import gettext_lazy as _l
 
 from qatrack.qa import models
 from qatrack.qa.utils import format_qc_value
+from qatrack.qatrack_core.dates import format_datetime
 from qatrack.service_log import models as sl_models
 from qatrack.service_log.forms import ServiceEventMultipleField
 
@@ -95,20 +94,6 @@ class TestInstanceWidgetsMixin:
         for f in value_fields:
             self.fields[f].widget.attrs["class"] = "qa-input"
             widget_attrs[f] = self.fields[f].widget.attrs
-
-        # Date results are entered with Flatpickr, which reads and writes the box in
-        # FLATPICKR_DATE_FMT ('d M Y') and FLATPICKR_DATETIME_FMT ('Y-m-d H:i') in
-        # every language. Left to itself Django would show a saved value in the
-        # active language's first input format, which Flatpickr misreads: editing a
-        # session turned "30 Sep 2026 22:35" into 4 Nov 2027 00:00 and saved that.
-        self.fields["date_value"].widget = DateInput(
-            format=settings.DATE_INPUT_FORMATS[0], attrs=widget_attrs["date_value"],
-        )
-        self.fields["date_value"].input_formats = settings.DATE_INPUT_FORMATS
-        self.fields["datetime_value"].widget = DateTimeInput(
-            format=settings.DATETIME_INPUT_FORMATS[2], attrs=widget_attrs["datetime_value"],
-        )
-        self.fields["datetime_value"].input_formats = settings.DATETIME_INPUT_FORMATS
 
         test_type = self.unit_test_info.test.type
 
@@ -456,11 +441,8 @@ class CreateTestListInstanceForm(BaseTestListInstanceForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # A datetime, not a string, so the widget renders it in its own format
-        # (DATETIME_INPUT_FORMATS[2]), the one Flatpickr reads the box with. A
-        # string in any other format is misread by Flatpickr: "13 Oct 2026 00:42"
-        # comes out as 11 Jan 2026 00:00 and is then submitted as Work Started.
-        self.fields['work_started'].initial = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+        now = timezone.localtime(timezone.now())
+        self.fields['work_started'].initial = format_datetime(now)
         self.fields['comment'].widget.attrs['rows'] = '3'
         self.fields['comment'].widget.attrs['placeholder'] = _('Add comment about this set of tests')
         self.fields['comment'].widget.attrs['class'] = 'autosize form-control'

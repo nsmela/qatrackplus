@@ -25,6 +25,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from qatrack.qa import models
 from qatrack.qa.tests import utils
 from qatrack.qatrack_core.tests.live import SeleniumTestCase
+from qatrack.qatrack_core.tests.utils import picker_format
 from qatrack.service_log.tests import utils as sl_utils
 
 # Bootstrap button classes qa.js uses to colour the status cell.
@@ -33,9 +34,9 @@ TOL_CLASS = 'btn-warning'
 ACT_CLASS = 'btn-danger'
 STATUS_CLASSES = (OK_CLASS, TOL_CLASS, ACT_CLASS, 'btn-info')
 
-# The formats the date pickers write (FLATPICKR_DATE_FMT 'd M Y' and FLATPICKR_DATETIME_FMT 'Y-m-d H:i').
-FLATPICKR_DATE = '%d %b %Y'
-FLATPICKR_DATETIME = '%Y-%m-%d %H:%M'
+# The formats the date pickers write, as strftime formats.
+FLATPICKR_DATE = picker_format('FLATPICKR_DATE_FMT')
+FLATPICKR_DATETIME = picker_format('FLATPICKR_DATETIME_FMT')
 
 # What the status cell says (settings.TEST_STATUS_DISPLAY_SHORT) for each saved pass_fail value.
 DISPLAYED_TO_PASS_FAIL = {'OK': models.OK, 'TOL': models.TOLERANCE, 'ACT': models.ACTION}
@@ -631,7 +632,11 @@ class TestStatusDisplay(PerformQCTestCase):
         self.load_perform(url=reverse('edit_tli', kwargs={'pk': tli.pk}))
         self.wait_for_status('output', 'ACT(3.00)', ACT_CLASS)
         self.wait_for_visible('.box-header .do-not-treat')
-        assert 'btn-danger' in self.driver.find_element(By.ID, 'submit-qa').get_attribute('class').split()
+        # The button changes colour through a one second animation.
+        self.wait_until(
+            lambda: 'btn-danger' in self.driver.find_element(By.ID, 'submit-qa').get_attribute('class').split(),
+            message='submit button never turned red',
+        )
 
     def test_pass_fail_only_user_sees_no_tolerance_detail_on_a_continued_session(self):
         """A session reopened by a user without 'can view ref/tol' shows OK or Fail, not TOL(1.50).
@@ -1157,7 +1162,9 @@ class TestDatesAndTimes(PerformQCTestCase):
         self.pick_in_calendar('time_checked', last_month_end, hour=22, minute=35)
 
         expected_date = first_of_last_month.strftime(FLATPICKR_DATE)
-        expected_datetime = '%s 22:35' % last_month_end.strftime('%Y-%m-%d')
+        expected_datetime = self.aware(last_month_end.year, last_month_end.month, last_month_end.day, 22, 35).strftime(
+            FLATPICKR_DATETIME
+        )
         assert self.value_input('date_checked').get_attribute('value') == expected_date
         assert self.value_input('time_checked').get_attribute('value') == expected_datetime
         self.submit()
@@ -1210,8 +1217,8 @@ class TestDatesAndTimes(PerformQCTestCase):
 
         self.load_perform()
         self.enter_value('dose', '1')
-        self.type_datetime('id_work_started', '2025-11-02 00:30')
-        self.type_datetime('id_work_completed', '2025-11-02 03:30')
+        self.type_datetime('id_work_started', started.strftime(FLATPICKR_DATETIME))
+        self.type_datetime('id_work_completed', completed.strftime(FLATPICKR_DATETIME))
         self.wait_until(lambda: self.field('id_work_duration') == '4hr:00min',
                         message='duration shows %r' % self.field('id_work_duration'))
         self.submit()
@@ -1229,8 +1236,9 @@ class TestDatesAndTimes(PerformQCTestCase):
         self.assign()
         self.load_perform()
         self.enter_value('dose', '1')
-        self.type_datetime('id_work_started', '2026-03-08 01:30')  # America/Toronto springs forward at 02:00
-        self.type_datetime('id_work_completed', '2026-03-08 03:30')
+        # America/Toronto springs forward at 02:00 on 8 Mar 2026.
+        self.type_datetime('id_work_started', self.aware(2026, 3, 8, 1, 30).strftime(FLATPICKR_DATETIME))
+        self.type_datetime('id_work_completed', self.aware(2026, 3, 8, 3, 30).strftime(FLATPICKR_DATETIME))
         self.wait_until(lambda: self.field('id_work_duration') == '1hr:00min',
                         message='duration shows %r' % self.field('id_work_duration'))
         self.submit()
@@ -1305,7 +1313,7 @@ class TestDatesAndTimes(PerformQCTestCase):
         self.pick_in_calendar('time_checked', day, hour=23, minute=50)
         expected = {
             'date_checked': day.strftime(FLATPICKR_DATE),
-            'time_checked': '%s 23:50' % day.strftime('%Y-%m-%d'),
+            'time_checked': self.aware(day.year, day.month, day.day, 23, 50).strftime(FLATPICKR_DATETIME),
         }
 
         # Autosave is debounced by four seconds after the last change.
@@ -1357,7 +1365,7 @@ class TestDatesAndTimesInFrench(PerformQCTestCase):
         self.load_perform()
         assert self.driver.find_element(By.TAG_NAME, 'html').get_attribute('lang').startswith('fr')
 
-        self.type_datetime('id_work_started', started.strftime('%Y-%m-%d %H:%M'))
+        self.type_datetime('id_work_started', started.strftime(FLATPICKR_DATETIME))
         self.enter_value('dose', '1')
         self.pick_in_calendar('date_checked', day)
         self.pick_in_calendar('time_checked', day, hour=23, minute=15)
@@ -1373,8 +1381,9 @@ class TestDatesAndTimesInFrench(PerformQCTestCase):
         self.open(reverse('edit_tli', kwargs={'pk': tli.pk}))
         self.wait_for_element('#perform-qa-table')
         self.wait_for_idle()
-        assert self.value_input('date_checked').get_attribute('value') == day.strftime('%d %b %Y')
-        assert self.value_input('time_checked').get_attribute('value') == '%s 23:15' % day.strftime('%Y-%m-%d')
+        assert self.value_input('date_checked').get_attribute('value') == day.strftime(FLATPICKR_DATE)
+        assert self.value_input('time_checked').get_attribute('value') == self.aware(
+            day.year, day.month, day.day, 23, 15).strftime(FLATPICKR_DATETIME)
         assert self.driver.find_element(By.ID, 'id_work_started').get_attribute('value') == started.strftime(
-            '%Y-%m-%d %H:%M'
+            FLATPICKR_DATETIME
         )

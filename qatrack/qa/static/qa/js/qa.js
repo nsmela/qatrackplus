@@ -166,7 +166,7 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
 
         this.check_value = function(value){
             var result = self.check_dispatch[self.test.type](value);
-            if (pass_fail_only){
+            if (pass_fail_only && result.status !== QAUtils.NOT_DONE){
                 // A copy: the checks can return the shared NOT_DONE / NO_TOL statuses,
                 // and changing those made every Not Done test read "OK".
                 result = new Status(result.status, result.diff, result.message);

@@ -531,7 +531,7 @@ class TestPerformQC(BaseQATests):
             # Only once the page's JavaScript has set every status does "none failed" mean anything.
             self.wait_for_perform_page()
             assert len(self.driver.find_elements(By.CSS_SELECTOR, ".qa-status.btn-danger")) == 0
-            assert len(self.driver.find_elements(By.CSS_SELECTOR, ".qa-status")) == 8
+            assert len(self.driver.find_elements(By.CSS_SELECTOR, "td.qa-status")) == 8
 
     def fill_testlist(self):
 
@@ -676,6 +676,9 @@ class TestPerformQC(BaseQATests):
         self.wait_for_ajax()
         self.driver.execute_script("$('#id_datetime_service').focus()")
         self.click_by_css_selector(".flatpickr-calendar.open .today")
+        # The date & time calendar stays open over the form until it is closed, as a person would.
+        self.driver.find_element(By.ID, 'id_datetime_service').send_keys(Keys.ESCAPE)
+        self.wait_for_invisible('.flatpickr-calendar.open')
         self.wait.until(lambda d: len(self.option_texts("id_service_area_field_fake")) > 1)
         self.select_by_index("id_service_area_field_fake", 1)
         self.wait_for_ajax()

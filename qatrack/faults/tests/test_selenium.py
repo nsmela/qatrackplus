@@ -33,6 +33,7 @@ from qatrack.faults import models
 from qatrack.faults.tests import utils as f_utils
 from qatrack.qa.tests import utils as qa_utils
 from qatrack.qatrack_core.tests.live import SeleniumTestCase
+from qatrack.qatrack_core.tests.utils import picker_format
 from qatrack.service_log.tests import utils as sl_utils
 from qatrack.units.models import Modality
 
@@ -845,7 +846,7 @@ class TestFaultDatesAndTimes(FaultsSeleniumTestCase):
         fault = self.create_fault(occurred=aware(2026, 10, 5, 22, 30))
 
         self.open_edit_form(fault)
-        assert self.value_of('id_fault-occurred') == '2026-10-05 22:30'
+        assert self.value_of('id_fault-occurred') == aware(2026, 10, 5, 22, 30).strftime(picker_format())
         self.save_fault_form()
 
         fault.refresh_from_db()
@@ -862,5 +863,5 @@ class TestFaultDatesAndTimes(FaultsSeleniumTestCase):
         self.click_css('#id_fault-occurred')
         self.wait_until(lambda: self.value_of('id_fault-occurred'), message='opening the picker filled in nothing')
         after = timezone.localtime()
-        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_fault-occurred'), '%Y-%m-%d %H:%M'))
+        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_fault-occurred'), picker_format()))
         assert before <= shown <= after, 'the picker filled in %s, opened between %s and %s' % (shown, before, after)

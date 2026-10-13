@@ -679,10 +679,7 @@ class ServiceEventForm(BetterModelForm):
 
         for f in ['datetime_service']:
             self.fields[f].widget.attrs['class'] = 'daterangepicker-input'
-            # The format Flatpickr reads the box in (FLATPICKR_DATETIME_FMT 'Y-m-d H:i').
-            # In any other format it misreads the saved date ("05 Oct 2026 22:30"
-            # became 30 Oct 2027 00:00), and saving the form again stored that.
-            self.fields[f].widget.format = settings.DATETIME_INPUT_FORMATS[2]
+            self.fields[f].widget.format = settings.DATETIME_INPUT_FORMATS[0]
             self.fields[f].input_formats = settings.DATETIME_INPUT_FORMATS
             self.fields[f].widget.attrs['title'] = settings.DATETIME_HELP
             # self.fields[f].help_text = settings.DATETIME_HELP

@@ -22,6 +22,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 from selenium.common.exceptions import (
     NoSuchElementException,
     StaleElementReferenceException,
@@ -36,6 +37,7 @@ from qatrack.attachments.models import Attachment
 from qatrack.parts import models as p_models
 from qatrack.qa.tests import utils as qa_utils
 from qatrack.qatrack_core.tests.live import SeleniumTestCase
+from qatrack.qatrack_core.tests.utils import moment_format, picker_format
 from qatrack.service_log import models as sl_models
 from qatrack.service_log.tests import utils as sl_utils
 
@@ -850,22 +852,23 @@ class TestServiceDatesAndTimes(ServiceLogSeleniumTestCase):
 
         If this fails, a service event moves to the wrong day, and each edit can move it again.
         """
+        when = aware(2026, 10, 5, 22, 30)
         self.open_new_form()
         self.fill_required_fields()
-        self.enter_service_date('2026-10-05 22:30')
+        self.enter_service_date(when.strftime(picker_format()))
         self.save_service_event()
         se = sl_models.ServiceEvent.objects.get()
         assert local_minute(se.datetime_service) == (2026, 10, 5, 22, 30)
 
         self.open_edit_form(se)
-        assert self.value_of('id_datetime_service') == '2026-10-05 22:30'
+        assert self.value_of('id_datetime_service') == when.strftime(picker_format())
         self.save_service_event()
         se.refresh_from_db()
         assert local_minute(se.datetime_service) == (2026, 10, 5, 22, 30)
 
         self.open(reverse('sl_details', kwargs={'pk': se.pk}))
         self.wait_for_visible('.box-body')
-        assert '2026-10-05 22:30' in self.driver.find_element(By.TAG_NAME, 'body').text
+        assert date_format(when, 'DATETIME_FORMAT') in self.driver.find_element(By.TAG_NAME, 'body').text
 
     def assert_opening_the_empty_date_fills_in_now(self):
         before = timezone.localtime().replace(second=0, microsecond=0)
@@ -873,7 +876,7 @@ class TestServiceDatesAndTimes(ServiceLogSeleniumTestCase):
         self.click_css('#id_datetime_service')
         self.wait_until(lambda: self.value_of('id_datetime_service'), message='opening the picker filled in nothing')
         after = timezone.localtime()
-        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_datetime_service'), '%Y-%m-%d %H:%M'))
+        shown = timezone.make_aware(timezone.datetime.strptime(self.value_of('id_datetime_service'), picker_format()))
         assert before <= shown <= after, 'the picker filled in %s, opened between %s and %s' % (shown, before, after)
 
     def test_opening_the_empty_service_date_fills_in_now(self):
@@ -912,4 +915,5 @@ class TestServiceDatesAndTimes(ServiceLogSeleniumTestCase):
         self.open_edit_form(se)
         self.wait_until(lambda: self.driver.find_element(By.ID, 'work-completed-rtsqa-0').text.strip(),
                         message='the return to service QC row never showed a completion time')
-        assert self.driver.find_element(By.ID, 'work-completed-rtsqa-0').text.strip() == '05 Oct 2026 22:30'
+        expected = aware(2026, 10, 5, 22, 30).strftime(moment_format())
+        assert self.driver.find_element(By.ID, 'work-completed-rtsqa-0').text.strip() == expected

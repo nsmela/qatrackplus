@@ -756,8 +756,9 @@ class SeleniumTests(StaticLiveServerTestCase):
         """Choose the option whose value is `val`, through select2 if the box has it."""
         if self.has_select2(el_id):
             text = self.driver.execute_script(
+                'var val = arguments[1];'
                 'var o = Array.from(document.getElementById(arguments[0]).options)'
-                '  .filter(function(o) { return o.value === arguments[1]; })[0];'
+                '  .filter(function(o) { return o.value === val; })[0];'
                 'return o ? o.text.trim() : null;', el_id, val
             )
             assert text is not None, 'no option with value %r in #%s' % (val, el_id)
