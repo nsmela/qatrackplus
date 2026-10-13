@@ -213,13 +213,64 @@ jobs:
       - name: Run Tests
         run: uv run pytest -x -m "not selenium"
 
-  selenium-tests:
-    name: Browser (Selenium) Tests
+  selenium-plan:
+    name: Plan Browser Tests
     runs-on: ubuntu-latest
     needs: [lint, requirements]
+    outputs:
+      files: ${{ steps.plan.outputs.files }}
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Setup Database configuration
+        run: cp deploy/sqlite/local_settings.py qatrack/local_settings.py
+
+      # One browser job per test file, found by asking pytest, so a new
+      # browser test file gets its own job without anyone editing this file.
+      - name: List the browser test files
+        id: plan
+        run: |
+          uv run pytest -m selenium --collect-only -q -p no:cacheprovider > collected.txt
+          files=$(python3 - <<'PY'
+          import json
+          import re
+          files = set()
+          for line in open('collected.txt'):
+              # "path: N" with -qq, or "path::Class::test" with -q
+              found = re.match(r'(qatrack/\S+?\.py)(::|: \d+$)', line.strip())
+              if found:
+                  files.add(found.group(1))
+          if not files:
+              raise SystemExit('no browser test files were collected')
+          print(json.dumps(sorted(files)))
+          PY
+          )
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "$files"
+
+  selenium-tests:
+    name: Browser Tests (${{ matrix.file }})
+    runs-on: ubuntu-latest
+    needs: [selenium-plan]
     # Non-blocking while the browser suite settles in CI. Once it has been
     # green for a while, delete this line so a failure blocks the merge.
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        file: ${{ fromJSON(needs.selenium-plan.outputs.files) }}
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -244,9 +295,10 @@ jobs:
         env:
           SELENIUM_BROWSER: chromium
           SELENIUM_HEADLESS: "1"
+          TEST_FILE: ${{ matrix.file }}
         run: |
           export SELENIUM_CHROMIUM_DRIVER_PATH="$CHROMEWEBDRIVER/chromedriver"
-          uv run pytest -m selenium -rfE --junitxml=selenium-results.xml
+          uv run pytest -m selenium -rfE --junitxml=selenium-results.xml "$TEST_FILE"
 
       # Put each failing test on the run's summary page as an annotation,
       # so nobody has to dig through 20,000 lines of log to find it.
@@ -270,12 +322,18 @@ jobs:
                   print('::error title=%s%s::%s' % (name, where, message.replace('%', '%25')))
           PY
 
+      - name: Name the screenshots artifact
+        if: failure()
+        env:
+          TEST_FILE: ${{ matrix.file }}
+        run: echo "ARTIFACT_NAME=selenium-screenshots-$(echo "$TEST_FILE" | tr '/.' '--')" >> "$GITHUB_ENV"
+
       - name: Upload failure screenshots
         if: failure()
         # TODO: pin to a commit SHA like the other actions in this file.
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-screenshots
+          name: ${{ env.ARTIFACT_NAME }}
           path: selenium-screenshots/
           if-no-files-found: ignore
 
