@@ -1575,8 +1575,15 @@ ul.messagelist li.error {
 .tl-results-search #searchbar { border:0; outline:none; font-size:13px; min-width:210px; padding:0; margin:0; background:transparent; }
 .tl-results-search input[type="submit"] { border:0; background:var(--tl-primary); color:#fff; font-size:12px; padding:4px 11px; border-radius:2px; margin-left:8px; cursor:pointer; }
 .tl-results-search #changelist-search .quiet, .tl-results-search #changelist-search .help { display:none; }
+/* Rows scroll inside the card with the header pinned; initResultsScroll() fits
+   --tl-results-max to the viewport so the actions bar and paginator stay visible. */
+#changelist-form .results { max-height:var(--tl-results-max, calc(100vh - 320px)); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#c3c9d4 #f4f4f4; }
+#changelist-form .results::-webkit-scrollbar { width:10px; height:10px; }
+#changelist-form .results::-webkit-scrollbar-track { background:#f4f4f4; }
+#changelist-form .results::-webkit-scrollbar-thumb { background:#c3c9d4; border:2px solid #f4f4f4; border-radius:5px; }
+#changelist-form .results::-webkit-scrollbar-thumb:hover { background:#9aa2ae; }
 #result_list { width:100%; border-collapse:collapse; background:#fff; }
-#result_list thead th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--tl-line); font-size:13px; font-weight:600; color:#444; background:#fff; white-space:nowrap; }
+#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; padding:8px 10px; border-bottom:0; box-shadow:inset 0 -2px 0 var(--tl-line); font-size:13px; font-weight:600; color:#444; background:#fff; white-space:nowrap; }
 #result_list thead th a, #result_list thead th.sortable a { color:#444; }
 #result_list tbody td, #result_list tbody th { padding:8px 10px; border-top:1px solid var(--tl-line-soft); border-bottom:0; vertical-align:middle; font-size:13px; color:var(--tl-text); background:transparent; }
 #result_list tbody tr { background:#fff; }
@@ -1598,8 +1605,8 @@ ul.messagelist li.error {
 .tl-cell-modified { display:flex; flex-direction:column; font-size:13px; line-height:1.35; }
 .tl-cell-modified .tl-mod-by { color:var(--tl-muted); font-size:12px; }
 .tl-editlink { color:#9aa2ae; text-decoration:none; } .tl-editlink:hover { color:var(--tl-blue); }
-#changelist-form .actions { padding:8px 12px; background:#fbfcfd; border-bottom:1px solid var(--tl-line-soft); margin:0; }
-.paginator { padding:10px 12px; font-size:13px; color:var(--tl-muted); border-top:1px solid var(--tl-line-soft); background:#fff; }
+#changelist-form .actions { box-sizing:border-box; width:100%; padding:8px 12px; background:#fbfcfd; border-bottom:1px solid var(--tl-line-soft); margin:0; }
+.paginator { box-sizing:border-box; width:100%; padding:10px 12px; font-size:13px; color:var(--tl-muted); border-top:1px solid var(--tl-line-soft); background:#fff; }
 .paginator a:link, .paginator a:visited { color:var(--tl-blue); background:transparent; }
 .paginator .this-page { font-weight:700; color:#444; }
 #changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:16px; width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
@@ -1609,7 +1616,7 @@ ul.messagelist li.error {
 #changelist-filter #changelist-filter-clear a { color:var(--tl-blue); font-size:12px; font-weight:600; text-decoration:none; }
 #changelist-filter > h3 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--tl-group-label); margin:0; padding:14px 12px 6px; }
 #changelist-filter ul { list-style:none; margin:0; padding:0 8px; display:flex; flex-direction:column; gap:2px; }
-#changelist-filter ul li { margin:0; padding:0; }
+#changelist-filter ul li, #changelist-filter ul li.selected { margin:0; padding:0; border:0; }
 #changelist-filter ul li a { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:4px; font-size:13px; color:#4b5563; text-decoration:none; }
 #changelist-filter ul li a:hover { background:#f2f5f8; color:#1f2937; }
 #changelist-filter ul li.selected a { font-weight:600; color:#1f2937; }
@@ -1665,6 +1672,24 @@ ul.messagelist li.error {
         if (link) { window.location = link.href; }
       });
     });
+  }
+
+  // Changelist: cap the results pane at the space left in the viewport so only
+  // the rows scroll, not the whole page.
+  function initResultsScroll() {
+    var results = document.querySelector("#changelist-form .results");
+    if (!results || results.dataset.tlFit) { return; }
+    results.dataset.tlFit = "1";
+    var form = document.getElementById("changelist-form");
+    function fit() {
+      var box = results.getBoundingClientRect();
+      var top = box.top + window.scrollY;
+      var below = form.getBoundingClientRect().bottom - box.bottom;
+      var avail = window.innerHeight - top - below - 16;
+      results.style.setProperty("--tl-results-max", Math.max(240, avail) + "px");
+    }
+    fit();
+    window.addEventListener("resize", fit);
   }
 
   function sortBuilderItemsByOrder() {
@@ -2588,6 +2613,7 @@ ul.messagelist li.error {
   document.addEventListener("DOMContentLoaded", function () {
     initPreviewToggle();
     initRowClick();
+    initResultsScroll();
     sortBuilderItemsByOrder();
     initSortables();
     updateCounts();
@@ -2602,6 +2628,7 @@ ul.messagelist li.error {
     setTimeout(function () {
       initPreviewToggle();
       initRowClick();
+      initResultsScroll();
       sortBuilderItemsByOrder();
       initSortables();
       updateCounts();
