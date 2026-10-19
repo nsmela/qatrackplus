@@ -1556,10 +1556,11 @@ ul.messagelist li.error {
 .tl-object-tools { margin:0; padding:0; display:flex; gap:6px; list-style:none; }
 .tl-object-tools li { list-style:none; margin:0; float:none; }
 .tl-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; line-height:1.4; padding:6px 12px; border:1px solid #ddd; border-radius:3px; box-shadow:2px 2px 2px #ddd; text-decoration:none; white-space:nowrap; }
-.tl-btn-default { background:#f4f4f4; border-color:#ddd; color:#444; }
-.tl-btn-default:hover { background:#e7e7e7; color:#444; }
-.tl-btn-primary { background:var(--tl-primary); border-color:var(--tl-primary-2); color:#fff; }
-.tl-btn-primary:hover { background:var(--tl-primary-2); color:#fff; }
+/* a.tl-btn-*:link etc. outrank Django admin's a:link/a:visited/a:hover colours. */
+.tl-btn-default, a.tl-btn-default:link, a.tl-btn-default:visited { background:#f4f4f4; border-color:#ddd; color:#444; }
+.tl-btn-default:hover, a.tl-btn-default:hover, a.tl-btn-default:focus { background:#e7e7e7; color:#444; }
+.tl-btn-primary, a.tl-btn-primary:link, a.tl-btn-primary:visited { background:var(--tl-primary); border-color:var(--tl-primary-2); color:#fff; font-weight:600; }
+.tl-btn-primary:hover, a.tl-btn-primary:hover, a.tl-btn-primary:focus { background:var(--tl-primary-2); border-color:#262f35; color:#fff; }
 #changelist.filtered { display:grid; grid-template-columns:1fr 248px; column-gap:16px; row-gap:0; align-items:start; background:transparent; box-shadow:none; border:0; padding:0; margin:0; width:auto; }
 #changelist:not(.filtered) { background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
 .tl-results-head { grid-column:1; grid-row:1; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-top:3px solid var(--tl-primary); border-bottom:1px solid var(--tl-line-soft); box-shadow:var(--tl-card-shadow); }
