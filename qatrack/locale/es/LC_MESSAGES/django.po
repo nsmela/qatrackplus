@@ -416,7 +416,7 @@ msgstr "Falla"
 #: qatrack/service_log/templates/service_log/service_event_update.html:98
 #: qatrack/templates/explorer/query_list.html:58
 msgid "Created"
-msgstr "Created"
+msgstr "Creado"
 
 #: qatrack/attachments/models.py:106 qatrack/faults/models.py:124
 #: qatrack/qa/models.py:645 qatrack/qa/models.py:747 qatrack/qa/models.py:1078
@@ -866,7 +866,7 @@ msgstr "Última modificación"
 #: qatrack/reports/qc/testlistinstance.py:330
 #: qatrack/service_log/templates/service_log/log_rtsqa.html:43
 msgid "Reviewed"
-msgstr "Reviewed"
+msgstr "Revisado"
 
 #: qatrack/faults/templates/faults/_fault_details.html:65
 #: qatrack/faults/templates/faults/_fault_details.html:70
