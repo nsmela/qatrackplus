@@ -242,6 +242,25 @@ class TestFaultTypeDescriptionEdit(FaultDetailsTestCase):
         resp = self.client.post(self.url(), {"description": "Leaf interlock"})
         assert resp.json() == {"status": "success", "description": "Leaf interlock"}
 
+    def test_editor_shown_with_change_faulttype(self):
+        content = self.client.get(section_url(self.fault, "fault-types", edit=True), **HTMX).content.decode()
+        assert 'name="description-mlc"' in content
+        assert "data-fl-desc-edit" in content
+
+    def test_description_read_only_without_change_faulttype(self):
+        """Someone who can edit the fault but not fault types sees the description
+        but gets no way to change it, and the server refuses it anyway."""
+        self.login_with_perms("change_fault")
+        content = self.client.get(section_url(self.fault, "fault-types", edit=True), **HTMX).content.decode()
+        assert "MLC interlock" in content
+        assert 'name="description-mlc"' not in content
+        assert "data-fl-desc-edit" not in content
+
+        resp = self.client.post(self.url(), {"description-mlc": "changed"}, **HTMX)
+        assert resp.status_code == 403
+        self.fault_type.refresh_from_db()
+        assert self.fault_type.description == "MLC interlock"
+
     def test_missing_description_changes_nothing(self):
         resp = self.client.post(self.url(), {})
         assert resp.status_code == 400

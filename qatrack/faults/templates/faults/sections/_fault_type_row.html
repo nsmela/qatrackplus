@@ -1,4 +1,11 @@
 {% load i18n %}
+{% comment %}
+  A description belongs to the fault type, not to this fault, so changing an
+  existing one needs the "change fault type" permission (the view checks it
+  too). Without it the description is read-only: no pencil, no editor. A new
+  type's description can be set by whoever is creating that type.
+{% endcomment %}
+{% if row.is_new or perms.faults.change_faulttype %}{% firstof "1" as can_edit_desc %}{% endif %}
 <tr>
   <td>
     {% if editing %}<input type="hidden" name="fault-fault_types_field" value="{{ row.value }}">{% endif %}
@@ -11,7 +18,7 @@
       {% if row.is_new %}<span class="fl-new">{% trans "New" %}</span>{% endif %}
     </div>
     <div class="fl-desc" data-fl-desc-display data-empty-text="{% trans 'No description' %}">{% if row.description %}{{ row.description }}{% else %}<em>{% trans "No description" %}</em>{% endif %}</div>
-    {% if editing %}
+    {% if editing and can_edit_desc %}
       <div data-fl-desc-editor hidden>
         {% if row.is_new %}
           {# Sent with the section's Save, which is when the new type is created. #}
@@ -34,7 +41,7 @@
   </td>
   {% if editing %}
     <td class="tl-c-act">
-      {% if row.is_new or perms.faults.change_faulttype %}
+      {% if can_edit_desc %}
         <button type="button" class="tl-iconbtn" title="{% trans 'Edit description' %}" data-fl-desc-edit><i class="fa fa-pencil"></i></button>
       {% endif %}
       <button type="button" class="tl-iconbtn danger" title="{% trans 'Remove' %}" data-fl-remove-row><i class="fa fa-trash-o"></i></button>

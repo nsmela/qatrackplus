@@ -112,7 +112,7 @@ review.
 
    Select the fault you want to review
 
-On the details page, the **Record** box shows who logged the fault and who last
+On the Review page, the **Record** box shows who logged the fault and who last
 changed it. Click **Acknowledge fault** there to mark the fault as reviewed
 (click **Unacknowledge** to undo that), or **Delete** to delete the fault.
 
@@ -122,7 +122,10 @@ pencil in that box's header, make your changes, and click **Save**. Nothing is
 stored until you click Save, and **Cancel** puts the box back the way it was.
 The one exception is a fault type's description: editing the description of an
 existing fault type saves it straight away, because that description is shared
-by every fault of that type.
+by every fault of that type. For the same reason, only people allowed to change
+fault types see the pencil next to a fault type's description; for everyone
+else it is read-only. When you create a new fault type from this page you can
+give it a description, and it is saved along with the new type.
 
 Other occurrences of the same types of fault are listed at the bottom of the
 page.
