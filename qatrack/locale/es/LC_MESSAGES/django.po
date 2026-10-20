@@ -11731,126 +11731,104 @@ msgid ""
 msgstr "Actualmente hay %(SE_RTS_INCOMPLETE_QA_COUNT)s listas de pruebas de regreso al servicio incompletas"
 
 #: qatrack/faults/templates/faults/sections/_section_fault_types_edit.html:8 qatrack/faults/templates/faults/sections/_section_fault_types_read.html:4
-#, fuzzy
 msgid "Code / Description"
 msgstr "Código / Descripción"
 
 #: qatrack/faults/templates/faults/sections/_fault_type_picker_results.html:7
-#, fuzzy, python-format
+#, python-format
 msgid "Create “%(code)s”"
 msgstr "Crear “%(code)s”"
 
 #: qatrack/faults/templates/faults/sections/_fault_type_row.html:45
-#, fuzzy
 msgid "Edit description"
 msgstr "Editar descripción"
 
 #: qatrack/faults/templates/faults/sections/_section_box.html:23
-#, fuzzy
 msgid "Editing"
 msgstr "Editando"
 
 #: qatrack/faults/templates/faults/sections/_attachment_chip.html:10
-#, fuzzy
 msgid "File missing from server"
 msgstr "Archivo no encontrado en el servidor"
 
 #: qatrack/faults/templates/faults/sections/_fault_type_picker_results.html:8
-#, fuzzy
 msgid "New fault type, created when you save"
 msgstr "Nuevo tipo de falla, se creará al guardar"
 
 #: qatrack/faults/templates/faults/sections/_se_picker.html:15
-#, fuzzy
 msgid "New service event"
 msgstr "Nuevo evento de servicio"
 
 #: qatrack/faults/views.py:1069
-#, fuzzy
 msgid "No description was provided."
 msgstr "No se proporcionó ninguna descripción."
 
 #: qatrack/faults/views.py:1130
-#, fuzzy
 msgid "No fault type code was provided."
 msgstr "No se proporcionó ningún código de tipo de falla."
 
 #: qatrack/faults/templates/faults/sections/_section_fault_types_read.html:10
-#, fuzzy
 msgid "No fault types."
 msgstr "No hay tipos de falla."
 
 #: qatrack/faults/templates/faults/sections/_fault_type_picker_results.html:24 qatrack/faults/templates/faults/sections/_se_picker_results.html:17
-#, fuzzy
 msgid "No matches."
 msgstr "Sin resultados."
 
 #: qatrack/faults/views.py:1174
-#, fuzzy
 msgid "No service event was provided."
 msgstr "No se proporcionó ningún evento de servicio."
 
 #: qatrack/faults/templates/faults/sections/_section_occurrence_edit.html:16
-#, fuzzy
 msgid "Options limited to the selected unit."
 msgstr "Opciones limitadas a la unidad seleccionada."
 
 #: qatrack/faults/templates/faults/fault_details.html:95
-#, fuzzy
 msgid "Other occurrences of these fault types"
 msgstr "Otras ocurrencias de estos tipos de falla"
 
 #: qatrack/faults/templates/faults/_fault_record.html:10
-#, fuzzy
 msgid "Record"
 msgstr "Historial"
 
 #: qatrack/faults/templates/faults/sections/_fault_type_row.html:27
-#, fuzzy
 msgid "Save description"
 msgstr "Guardar descripción"
 
 #: qatrack/faults/templates/faults/sections/_section_box.html:20
-#, fuzzy
 msgid "Saved"
 msgstr "Guardado"
 
 #: qatrack/faults/templates/faults/sections/_fault_type_picker.html:6
-#, fuzzy
 msgid "Search fault types (2+ characters)…"
 msgstr "Buscar tipos de falla (2 caracteres o más)…"
 
 #: qatrack/faults/templates/faults/sections/_se_picker.html:6
-#, fuzzy, python-format
+#, python-format
 msgid "Search service events on %(unit)s…"
 msgstr "Buscar eventos de servicio en %(unit)s…"
 
 #: qatrack/templates/site_base.html:183
-#, fuzzy
 msgid "Something went wrong on the server and your change was not saved. Please try again."
 msgstr "Se produjo un error en el servidor y su cambio no se guardó. Inténtelo de nuevo."
 
 #: qatrack/templates/site_base.html:187
-#, fuzzy
 msgid "The server could not be reached, so your change was not saved. Check your connection and try again."
 msgstr "No se pudo conectar con el servidor, por lo que su cambio no se guardó. Compruebe su conexión e inténtelo de nuevo."
 
 #: qatrack/templates/site_base.html:182
-#, fuzzy
 msgid "You do not have permission to do that. Nothing was changed."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
 #: qatrack/faults/views.py:1138
-#, fuzzy
 msgid "You don't have permission to create fault types."
 msgstr "No tiene permiso para crear tipos de falla."
 
 #: qatrack/faults/forms.py:164
-#, fuzzy, python-format
+#, python-format
 msgid "You don't have permission to create new fault types (%(codes)s)."
 msgstr "No tiene permiso para crear nuevos tipos de falla (%(codes)s)."
 
 #: qatrack/faults/templates/faults/sections/_section_attachments_edit.html:4
-#, fuzzy
 msgid "pending"
 msgstr "pendiente"
