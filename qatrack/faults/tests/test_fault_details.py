@@ -310,7 +310,7 @@ class TestReviewFromDetailsPage(FaultDetailsTestCase):
     def test_htmx_unacknowledge(self):
         utils.create_fault_review(fault=self.fault)
         resp = self.client.post(reverse("fault_review", kwargs={"pk": self.fault.pk}), **HTMX)
-        assert "Acknowledge fault" in resp.content.decode()
+        assert "Acknowledge This Fault" in resp.content.decode()
         assert not self.fault.faultreviewinstance_set.exists()
 
 

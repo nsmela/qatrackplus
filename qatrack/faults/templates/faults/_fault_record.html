@@ -13,14 +13,14 @@
     <dl class="dl-horizontal tight">
       <dt>{% trans "Created" %}</dt>
       <dd>{{ fault.created_by|get_user_name }}<br><span class="fl-meta">{{ fault.created }}</span></dd>
-      <dt>{% trans "Last modified" %}</dt>
+      <dt>{% trans "Last Modified" %}</dt>
       {% include "faults/sections/_last_modified.html" %}
     </dl>
     <div class="fl-rec-review">
       <div class="fl-rec-status">
-        <span class="fl-rec-label">{% trans "Review" %}</span>
+        <span class="fl-rec-label">{% trans "Review Status" %}</span>
         {% if fault.review_complete %}
-          <span class="fl-rec-ok"><i class="fa fa-check"></i> {% trans "Acknowledged" %}</span>
+          <span class="fl-rec-ok"><i class="fa fa-check"></i> {% trans "Reviewed" %}</span>
         {% else %}
           <span class="fl-unrev">{% trans "Unreviewed" %}</span>
         {% endif %}
@@ -38,9 +38,9 @@
                   hx-post="{% url 'fault_review' pk=fault.pk %}" hx-target="#fault-section-record" hx-swap="outerHTML">
               {% csrf_token %}
               {% if fault.faultreviewinstance_set.exists %}
-                <button id="review-fault" type="submit" class="btn btn-warning btn-sm btn-flat"><i class="fa fa-undo"></i> {% trans "Unacknowledge" %}</button>
+                <button id="review-fault" type="submit" class="btn btn-warning btn-sm btn-flat"><i class="fa fa-undo"></i> {% trans "Unacknowledge This Fault" %}</button>
               {% else %}
-                <button id="review-fault" type="submit" class="btn btn-primary btn-sm btn-flat"><i class="fa fa-check-square-o"></i> {% trans "Acknowledge fault" %}</button>
+                <button id="review-fault" type="submit" class="btn btn-primary btn-sm btn-flat"><i class="fa fa-check-square-o"></i> {% trans "Acknowledge This Fault" %}</button>
               {% endif %}
             </form>
           {% endif %}

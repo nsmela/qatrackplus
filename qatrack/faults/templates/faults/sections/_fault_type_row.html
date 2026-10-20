@@ -17,7 +17,7 @@
       {% endif %}
       {% if row.is_new %}<span class="fl-new">{% trans "New" %}</span>{% endif %}
     </div>
-    <div class="fl-desc" data-fl-desc-display data-empty-text="{% trans 'No description' %}">{% if row.description %}{{ row.description }}{% else %}<em>{% trans "No description" %}</em>{% endif %}</div>
+    <div class="fl-desc" data-fl-desc-display data-empty-text="{% trans 'No description available' %}">{% if row.description %}{{ row.description }}{% else %}<em>{% trans "No description available" %}</em>{% endif %}</div>
     {% if editing and can_edit_desc %}
       <div data-fl-desc-editor hidden>
         {% if row.is_new %}

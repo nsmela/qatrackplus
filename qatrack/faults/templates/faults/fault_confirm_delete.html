@@ -30,9 +30,9 @@
           <p>
             {% trans "Are you sure you want to <strong>permanently delete</strong> this fault?" %}
           </p>
-          <button class="btn btn-danger btn-flat" type="submit"><i class="fa fa-trash-o"></i> Delete</button>
+          <button class="btn btn-danger btn-flat" type="submit"><i class="fa fa-trash-o"></i> {% trans "Delete" %}</button>
           <a href="{{ request.META.HTTP_REFERER }}" class="btn btn-default btn-flat">
-            <i class="fa fa-ban"></i> Cancel
+            <i class="fa fa-ban"></i> {% trans "Cancel" %}
           </a>
         </form>
       </div>

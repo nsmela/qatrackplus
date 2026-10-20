@@ -71,6 +71,8 @@ dd.fault_type_description {
 .fl-layout dl.dl-horizontal dd { margin-left: 146px; padding: 3px 0; min-height: 1.5em; }
 .fl-layout dl.tight dt { width: 96px; }
 .fl-layout dl.tight dd { margin-left: 108px; }
+/* Labels wrap rather than being cut off; translations are often longer than the English. */
+.fl-layout dl.dl-horizontal dt { white-space: normal; overflow: visible; }
 .fl-meta { font-size: 12px; color: #8a929e; }
 
 /* Fault types and related service events. */
@@ -143,7 +145,8 @@ dd.fault_type_description {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    flex-wrap: nowrap;
+    /* One line in English; a longer translation moves the buttons below rather than overflowing. */
+    flex-wrap: wrap;
     margin-top: 10px;
     border-top: 1px solid #f4f4f4;
     padding-top: 10px;

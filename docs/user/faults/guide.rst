@@ -113,8 +113,8 @@ review.
    Select the fault you want to review
 
 On the Review page, the **Record** box shows who logged the fault and who last
-changed it. Click **Acknowledge fault** there to mark the fault as reviewed
-(click **Unacknowledge** to undo that), or **Delete** to delete the fault.
+changed it. Click **Acknowledge This Fault** there to mark the fault as reviewed
+(click **Unacknowledge This Fault** to undo that), or **Delete** to delete the fault.
 
 Each part of the fault (its details, fault types, related service events and
 attachments) can be edited where it is, without leaving the page. Click the

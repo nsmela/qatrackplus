@@ -46,7 +46,7 @@
 <div class="max-width-lg">
   <div class="fl-page-head">
     <h1>
-      {% blocktrans with fault_id=fault.id %}Fault #{{ fault_id }}{% endblocktrans %}
+      {% blocktrans with fault_id=fault.id %}Fault ID {{ fault_id }}{% endblocktrans %}
       <small>{{ fault.unit }}</small>
       {% include "faults/_fault_review_status.html" %}
     </h1>
