@@ -919,7 +919,7 @@ class TestFaultTypeAutocomplete(TestCase):
 
         fts = [FaultType.objects.create(code="ft %d" % i) for i in range(3)]
         results = self.client.get(self.url, {'q': 'ft 2'}).json()['results']
-        expected = [{'id': fts[2].code, 'text': "ft 2", 'code': fts[2].code, 'description': ''}]
+        expected = [{'id': fts[2].code, 'text': "ft 2", 'code': fts[2].code, 'description': '', 'slug': fts[2].slug}]
         assert results == expected
 
     def test_query_exact_case_insensitive_match(self):
@@ -928,7 +928,7 @@ class TestFaultTypeAutocomplete(TestCase):
 
         fts = [FaultType.objects.create(code="ft %d" % i) for i in range(3)]
         results = self.client.get(self.url, {'q': 'FT 2'}).json()['results']
-        expected = [{'id': fts[2].code, 'text': "ft 2", 'code': fts[2].code, 'description': ''}]
+        expected = [{'id': fts[2].code, 'text': "ft 2", 'code': fts[2].code, 'description': '', 'slug': fts[2].slug}]
         assert results == expected
 
     def test_query_exact_match_plus_others(self):
@@ -945,19 +945,22 @@ class TestFaultTypeAutocomplete(TestCase):
                 'id': "ft 21",
                 'text': "ft 21",
                 'code': "ft 21",
-                'description': ''
+                'description': '',
+                'slug': "ft-21",
             },
             {
                 'id': "ft 212",
                 'text': "ft 212: description",
                 'code': "ft 212",
-                'description': 'description'
+                'description': 'description',
+                'slug': "ft-212",
             },
             {
                 'id': "ft 213",
                 'text': "ft 213",
                 'code': "ft 213",
-                'description': ''
+                'description': '',
+                'slug': "ft-213",
             },
         ]
 
@@ -976,19 +979,22 @@ class TestFaultTypeAutocomplete(TestCase):
                 'id': "ft 21",
                 'text': "ft 21",
                 'code': "ft 21",
-                'description': ''
+                'description': '',
+                'slug': "ft-21",
             },
             {
                 'id': "ft 212",
                 'text': "ft 212: description",
                 'code': "ft 212",
-                'description': 'description'
+                'description': 'description',
+                'slug': "ft-212",
             },
             {
                 'id': "ft 213",
                 'text': "ft 213",
                 'code': "ft 213",
-                'description': ''
+                'description': '',
+                'slug': "ft-213",
             },
         ]
 
