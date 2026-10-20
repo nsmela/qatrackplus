@@ -116,6 +116,34 @@ class TestSections(FaultDetailsTestCase):
         assert FaultType.objects.filter(code__iexact="mlc").count() == 1
         assert list(self.fault.fault_types.all()) == [self.fault_type]
 
+    def test_creating_a_type_needs_add_permission(self):
+        """The picker hides "Create" without the permission; a direct post is refused too."""
+        self.login_with_perms("change_fault")
+        data = {"fault-fault_types_field": ["MLC", forms.NEW_FAULT_TYPE_MARKER + "VACUUM"]}
+        resp = self.client.post(section_url(self.fault, "fault-types", edit=True), data, **HTMX)
+        assert resp.status_code == 422
+        assert "permission to create new fault types" in resp.content.decode()
+        assert not FaultType.objects.filter(code="VACUUM").exists()
+
+    def test_reusing_an_existing_type_needs_no_add_permission(self):
+        self.login_with_perms("change_fault")
+        data = {"fault-fault_types_field": [forms.NEW_FAULT_TYPE_MARKER + "mlc"]}
+        resp = self.client.post(section_url(self.fault, "fault-types", edit=True), data, **HTMX)
+        assert resp.status_code == 200
+
+    def test_new_type_description_cannot_fill_in_an_existing_blank_one(self):
+        """Describing an existing type needs change_faulttype, even when its description is blank."""
+        blank = utils.create_fault_type(code="BLANK", slug="blank")
+        self.login_with_perms("change_fault", "add_faulttype")
+        data = {
+            "fault-fault_types_field": [forms.NEW_FAULT_TYPE_MARKER + "blank"],
+            "new_fault_type_desc-blank": "sneaky",
+        }
+        resp = self.client.post(section_url(self.fault, "fault-types", edit=True), data, **HTMX)
+        assert resp.status_code == 200
+        blank.refresh_from_db()
+        assert blank.description == ""
+
     def test_new_type_description_does_not_overwrite_existing_one(self):
         data = {
             "fault-fault_types_field": [forms.NEW_FAULT_TYPE_MARKER + "mlc"],

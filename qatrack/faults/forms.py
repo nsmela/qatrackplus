@@ -136,9 +136,16 @@ class FaultForm(BetterModelForm):
             self.fields['occurred'].localize = False
             self.fields['occurred'].widget.format = '%Y-%m-%d %H:%M'
 
+    # Whether new fault type codes may be created through this form. Views that
+    # know the user set this from their permissions; see the fault details page.
+    can_create_fault_types = True
+
     def clean_fault_types_field(self):
         fault_types = self.cleaned_data.get('fault_types_field')
-        cleaned_fault_types = []
+
+        # Work out what's new first, so a refused request creates nothing.
+        resolved = []
+        to_create = []
         for fault_type in fault_types:
             if fault_type and NEW_FAULT_TYPE_MARKER in fault_type:
                 fault_type = fault_type.replace(NEW_FAULT_TYPE_MARKER, "").strip()
@@ -148,11 +155,20 @@ class FaultForm(BetterModelForm):
                 existing = models.FaultType.objects.filter(code__iexact=fault_type).first()
                 if existing:
                     fault_type = existing.code
-                else:
-                    models.FaultType.objects.create(code=fault_type)
-            cleaned_fault_types.append(fault_type)
+                elif fault_type not in to_create:
+                    to_create.append(fault_type)
+            resolved.append(fault_type)
 
-        return cleaned_fault_types
+        if to_create and not self.can_create_fault_types:
+            raise ValidationError(
+                _("You don't have permission to create new fault types (%(codes)s).") % {'codes': ", ".join(to_create)}
+            )
+
+        # Remembered so that only types created by this request get the
+        # descriptions typed for them; existing types keep theirs.
+        self.created_fault_types = [models.FaultType.objects.create(code=code) for code in to_create]
+
+        return resolved
 
     def clean_unit(self):
         unit = self.cleaned_data.get('unit')

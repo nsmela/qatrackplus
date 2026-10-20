@@ -66,7 +66,11 @@ def section_form_class(section):
 
     class _SectionForm(forms.FaultForm):
         def __init__(self, *a, **kw):
+            user = kw.get("user")
             super().__init__(*a, **kw)
+            # The picker only offers "Create" to people allowed to add fault
+            # types; check the same thing here for anything posted directly.
+            self.can_create_fault_types = bool(user and user.has_perm("faults.add_faulttype"))
             for name in list(self.fields):
                 if name not in keep:
                     self.fields.pop(name, None)
@@ -85,7 +89,7 @@ def save_section(section, form, request):
 
     if section == "fault-types":
         _save_fault_types(fault, form)
-        _save_new_fault_type_descriptions(request)
+        _save_new_fault_type_descriptions(form, request)
     elif section == "related-ses":
         _save_related_ses(fault, form)
     elif section == "attachments":
@@ -94,18 +98,19 @@ def save_section(section, form, request):
     return fault
 
 
-def _save_new_fault_type_descriptions(request):
-    """Give fault types created from the details page the description the user
-    typed for them. Only blank descriptions are filled in, so a type someone
-    else created in the meantime keeps its own description."""
-    marker = forms.NEW_FAULT_TYPE_MARKER
-    for value in request.POST.getlist("fault-fault_types_field"):
-        if not value.startswith(marker):
-            continue
-        code = value[len(marker):]
-        description = request.POST.get(NEW_FAULT_TYPE_DESC_PREFIX + code, "").strip()
+def _save_new_fault_type_descriptions(form, request):
+    """Give the fault types this save created the descriptions the user typed
+    for them.
+
+    Only types created by this request qualify. A "new" code that turned out
+    to match an existing type keeps that type's description, since changing
+    an existing description needs the change-fault-type permission.
+    """
+    for fault_type in getattr(form, "created_fault_types", []):
+        description = request.POST.get(NEW_FAULT_TYPE_DESC_PREFIX + fault_type.code, "").strip()
         if description:
-            models.FaultType.objects.filter(code__iexact=code, description="").update(description=description)
+            fault_type.description = description
+            fault_type.save()
 
 
 def fault_type_row(fault_type=None, new_code=None, new_description=""):
