@@ -1,0 +1,1 @@
+{% for fault_type in fault.fault_types.all %}<span class="fl-code-chip"{% if fault_type.description %} title="{{ fault_type.description }}"{% endif %}>{{ fault_type.code }}</span>{% endfor %}

@@ -8,6 +8,7 @@
 {% block extra_css %}
   <link href="{% static "qatrack_core/css/tables.css" %}?v={{VERSION}}" rel="stylesheet">
   <link href="{% static "qa/css/qa.css" %}?v={{VERSION}}" rel="stylesheet">
+  <link href="{% static "faults/css/faults.css" %}?v={{VERSION}}" rel="stylesheet">
 {% endblock extra_css %}
 
 {% block extra_js %}
@@ -19,31 +20,23 @@
 {% block body %}
 
 <div class="max-width-lg">
-  <div class="row">
-    <div class="col-md-12">
-      <div class="box">
-        <div class="box-body">
+  <div class="fl-layout">
+    {% include "faults/_fault_details.html" with readonly=True %}
 
-          {% include "faults/_fault_details.html" %}
-
-          <div class="row">
-            <div class="col-md-12">
-              <form class="form form-horizontal text-right" action="" method="post">
-                {% csrf_token %}
-                <p>
-                  {% trans "Are you sure you want to <strong>permanently delete</strong> this fault?" %}
-                </p>
-                <button class="btn btn-danger btn-flat" type="submit"><i class="fa fa-trash-o"></i> Delete</button>
-                <a href="{{ request.META.HTTP_REFERER }}" class="btn btn-default btn-flat">
-                  <i class="fa fa-ban"></i> Cancel
-                </a>
-              </form>
-            </div>
-          </div>
-        </div>
+    <div class="box box-danger fl-full">
+      <div class="box-body">
+        <form class="form form-horizontal text-right" action="" method="post">
+          {% csrf_token %}
+          <p>
+            {% trans "Are you sure you want to <strong>permanently delete</strong> this fault?" %}
+          </p>
+          <button class="btn btn-danger btn-flat" type="submit"><i class="fa fa-trash-o"></i> {% trans "Delete" %}</button>
+          <a href="{{ request.META.HTTP_REFERER }}" class="btn btn-default btn-flat">
+            <i class="fa fa-ban"></i> {% trans "Cancel" %}
+          </a>
+        </form>
       </div>
     </div>
   </div>
-
 </div>
 {% endblock %}

@@ -31,7 +31,7 @@
 {% block require_javascript %}
     require.config({
         paths: {
-            'faults': '{{ STATIC_URL }}faults/js/faults.js?v=htmx_fix_v11'
+            'faults': '{{ STATIC_URL }}faults/js/faults.js?v={{ VERSION }}'
         }
     });
     require(['faults']);

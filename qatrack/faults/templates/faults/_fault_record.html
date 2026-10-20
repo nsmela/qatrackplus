@@ -1,0 +1,52 @@
+{% load i18n qatrack_tags %}
+{% comment %}
+  Who created and last changed the fault, its review status and the
+  Delete / Acknowledge actions. Acknowledging swaps just this box, plus the
+  status label in the page header (out of band).
+{% endcomment %}
+<div id="fault-section-record" class="box box-info">
+  <div class="box-header with-border">
+    <i class="fa fa-history"></i>
+    <h3 class="box-title">{% trans "Record" %}</h3>
+  </div>
+  <div class="box-body">
+    <dl class="dl-horizontal tight">
+      <dt>{% trans "Created" %}</dt>
+      <dd>{{ fault.created_by|get_user_name }}<br><span class="fl-meta">{{ fault.created }}</span></dd>
+      <dt>{% trans "Last Modified" %}</dt>
+      {% include "faults/sections/_last_modified.html" %}
+    </dl>
+    <div class="fl-rec-review">
+      <div class="fl-rec-status">
+        <span class="fl-rec-label">{% trans "Review Status" %}</span>
+        {% if fault.review_complete %}
+          <span class="fl-rec-ok"><i class="fa fa-check"></i> {% trans "Reviewed" %}</span>
+        {% else %}
+          <span class="fl-unrev">{% trans "Unreviewed" %}</span>
+        {% endif %}
+      </div>
+      {% if not readonly %}
+        <div class="fl-rec-actions">
+          {% if perms.faults.delete_fault %}
+            <a class="btn btn-danger-ghost btn-sm btn-flat" href="{% url 'fault_delete' pk=fault.pk %}"
+               title="{% trans 'This will redirect you to a page where you can permanently delete this fault' %}">
+              <i class="fa fa-trash-o"></i> {% trans "Delete" %}
+            </a>
+          {% endif %}
+          {% if perms.faults.can_review %}
+            <form id="review-form" action="{% url 'fault_review' pk=fault.pk %}" method="post"
+                  hx-post="{% url 'fault_review' pk=fault.pk %}" hx-target="#fault-section-record" hx-swap="outerHTML">
+              {% csrf_token %}
+              {% if fault.faultreviewinstance_set.exists %}
+                <button id="review-fault" type="submit" class="btn btn-warning btn-sm btn-flat"><i class="fa fa-undo"></i> {% trans "Unacknowledge This Fault" %}</button>
+              {% else %}
+                <button id="review-fault" type="submit" class="btn btn-primary btn-sm btn-flat"><i class="fa fa-check-square-o"></i> {% trans "Acknowledge This Fault" %}</button>
+              {% endif %}
+            </form>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% if oob_status %}{% include "faults/_fault_review_status.html" with oob=True %}{% endif %}

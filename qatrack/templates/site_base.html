@@ -161,13 +161,30 @@
 
     </script>
 
-    <script src="{% static 'htmx/js/htmx.min.js' %}"></script>
+    {# Deferred: htmx needs the finished page before it does anything, so it shouldn't hold up drawing it. #}
+    <script src="{% static 'htmx/js/htmx.min.js' %}?v={{ VERSION }}" defer></script>
     <script type="text/javascript">
-      document.addEventListener('htmx:afterSettle', function(evt) {
-          // Re-init requireJS modules that may have been lost on DOM swap
-          if (typeof require !== 'undefined' && document.querySelector('.requires-legacy-faults')) {
-              require(['faults']);
+      // Views answer 422 when a form fails validation and send the form back with
+      // its errors. htmx leaves 4xx responses out of the page by default, so let
+      // these through and the errors show where the user is working.
+      document.addEventListener('htmx:beforeSwap', function(evt) {
+          if (evt.detail.xhr.status === 422) {
+              evt.detail.shouldSwap = true;
+              evt.detail.isError = false;
           }
+      });
+
+      // Anything else that fails would otherwise just stop the spinner, leaving
+      // the user to guess whether their change was saved. Say that it wasn't.
+      document.addEventListener('htmx:responseError', function(evt) {
+          var status = evt.detail.xhr.status;
+          var message = status === 403
+              ? "{{ _('You do not have permission to do that. Nothing was changed.')|escapejs }}"
+              : "{{ _('Something went wrong on the server and your change was not saved. Please try again.')|escapejs }}";
+          window.alert(message);
+      });
+      document.addEventListener('htmx:sendError', function() {
+          window.alert("{{ _('The server could not be reached, so your change was not saved. Check your connection and try again.')|escapejs }}");
       });
     </script>
     <script src="{% static "requirejs/js/require.min.js" %}?v={{ VERSION }}"></script>

@@ -1,0 +1,52 @@
+{% load i18n %}
+{% comment %}
+  The box every fault details section is drawn in. Read mode shows a pencil;
+  edit mode wraps the body in a form with Cancel / Save in the footer. Each
+  request dims the body and shows the spinner (hx-indicator), and htmx swaps
+  the whole box for whatever the server sends back.
+
+  Expects: section, title, icon, read_template, edit_template and optionally
+  box_class, count, no_pad, multipart, picker_template. `readonly` hides the
+  pencil, e.g. on the delete confirmation page.
+{% endcomment %}
+<div id="fault-section-{{ section }}" class="box {{ box_class|default:'box-info' }} fl-sec"
+     data-editing="{% if editing %}1{% else %}0{% endif %}" hx-target="this" hx-swap="outerHTML">
+  <div class="box-header with-border">
+    <i class="fa {{ icon }}"></i>
+    <h3 class="box-title">{{ title }}</h3>
+    {% if count is not None %}<span class="label label-default" data-fl-count>{{ count }}</span>{% endif %}
+    <div class="box-tools">
+      <i class="fa fa-spinner fa-spin fl-spin"></i>
+      {% if saved %}<span class="fl-saved"><i class="fa fa-check"></i> {% trans "Saved" %}</span>{% endif %}
+      {% if perms.faults.change_fault and not readonly %}
+        {% if editing %}
+          <span class="fl-editing-tag">{% trans "Editing" %}</span>
+        {% else %}
+          <button type="button" class="tl-iconbtn" title="{% trans 'Edit' %}"
+                  hx-get="{% url 'fault_section_edit' pk=fault.pk section=section %}"
+                  hx-indicator="#fault-section-{{ section }}"><i class="fa fa-pencil"></i></button>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% if editing %}
+    <form hx-post="{% url 'fault_section_edit' pk=fault.pk section=section %}"
+          hx-indicator="#fault-section-{{ section }}"{% if multipart %} hx-encoding="multipart/form-data"{% endif %}>
+      {% csrf_token %}
+      <div class="box-body fl-body{% if no_pad %} no-pad{% endif %}">
+        {% include "faults/sections/_form_errors.html" %}
+        {% include edit_template %}
+      </div>
+      <div class="tl-group-foot">
+        {% if picker_template %}{% include picker_template %}{% endif %}
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-default btn-sm btn-flat"
+                hx-get="{% url 'fault_section_detail' pk=fault.pk section=section %}"
+                hx-indicator="#fault-section-{{ section }}">{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary btn-sm btn-flat"><i class="fa fa-check"></i> {% trans "Save" %}</button>
+      </div>
+    </form>
+  {% else %}
+    <div class="box-body fl-body{% if no_pad %} no-pad{% endif %}">{% include read_template %}</div>
+  {% endif %}
+</div>

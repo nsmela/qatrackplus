@@ -1,0 +1,16 @@
+{% load i18n %}
+<tr>
+  <td class="fl-se-id">
+    {% if editing %}<input type="hidden" name="fault-related_service_events" value="{{ se.id }}">{% endif %}
+    <a href="{% url 'sl_details' pk=se.id %}" target="_blank"><b>#{{ se.id }}</b></a>
+  </td>
+  {# The border is the status's own colour, which only the data knows. #}
+  <td class="fl-se-status"><span class="label service-event-status-label" style="border-color: {{ se.service_status.colour }}">{{ se.service_status.name }}</span></td>
+  <td class="fl-se-date fl-meta">{{ se.datetime_service|date }}</td>
+  <td><div class="fl-desc">{{ se.problem_description }}</div></td>
+  {% if editing %}
+    <td class="tl-c-act">
+      <button type="button" class="tl-iconbtn danger" title="{% trans 'Remove' %}" data-fl-remove-row><i class="fa fa-trash-o"></i></button>
+    </td>
+  {% endif %}
+</tr>

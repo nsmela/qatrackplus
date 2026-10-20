@@ -1,0 +1,13 @@
+{% comment %}
+  Errors for a section form. The occurrence section shows field errors next to
+  each field, so it only needs the non-field ones here.
+{% endcomment %}
+{% if form.errors %}
+  <ul class="fl-errors">
+    {% if section == "occurrence" %}
+      {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+    {% else %}
+      {% for field, errors in form.errors.items %}{% for error in errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+    {% endif %}
+  </ul>
+{% endif %}

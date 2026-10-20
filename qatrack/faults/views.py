@@ -5,12 +5,20 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.context_processors import PermWrapper
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max, Q
 from django.db.transaction import atomic
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, render
 from django.template.defaultfilters import truncatechars
-from django.template.loader import get_template
+from django.template.loader import get_template, render_to_string
 from django.urls import resolve, reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
@@ -41,49 +49,158 @@ from qatrack.service_log import models as sl_models
 from qatrack.units.models import Unit
 
 SECTION_FIELDS = {
-    "occurrence":  ["occurred", "unit", "modality"],
+    "occurrence": ["occurred", "unit", "modality"],
     "fault-types": ["fault_types_field"],
     "related-ses": ["related_service_events"],
     "attachments": ["attachments", "attachments_delete_ids"],
 }
 
-SECTION_PERMS = {
-    "review": "faults.can_review",
-}
+# A fault type created from the details page can be given a description before
+# the section is saved. It travels with the section form in a field named with
+# this prefix followed by the new code.
+NEW_FAULT_TYPE_DESC_PREFIX = "new_fault_type_desc-"
+
 
 def section_form_class(section):
     keep = set(SECTION_FIELDS[section])
+
     class _SectionForm(forms.FaultForm):
         def __init__(self, *a, **kw):
+            user = kw.get("user")
             super().__init__(*a, **kw)
+            # The picker only offers "Create" to people allowed to add fault
+            # types; check the same thing here for anything posted directly.
+            self.can_create_fault_types = bool(user and user.has_perm("faults.add_faulttype"))
             for name in list(self.fields):
                 if name not in keep:
                     self.fields.pop(name, None)
+
     return _SectionForm
+
+
+def section_template(section):
+    return "faults/sections/_section_%s.html" % section.replace("-", "_")
+
 
 def save_section(section, form, request):
     fault = form.save(commit=False)
     fault.modified_by = request.user
     fault.save()
-    
+
     if section == "fault-types":
         _save_fault_types(fault, form)
+        _save_new_fault_type_descriptions(form, request)
     elif section == "related-ses":
         _save_related_ses(fault, form)
     elif section == "attachments":
         _save_attachments(fault, request)
-    
+
     return fault
+
+
+def _save_new_fault_type_descriptions(form, request):
+    """Give the fault types this save created the descriptions the user typed
+    for them.
+
+    Only types created by this request qualify. A "new" code that turned out
+    to match an existing type keeps that type's description, since changing
+    an existing description needs the change-fault-type permission.
+    """
+    for fault_type in getattr(form, "created_fault_types", []):
+        description = request.POST.get(NEW_FAULT_TYPE_DESC_PREFIX + fault_type.code, "").strip()
+        if description:
+            fault_type.description = description
+            fault_type.save()
+
+
+def fault_type_row(fault_type=None, new_code=None, new_description=""):
+    """One row of the fault types table. New codes don't exist yet, so rows are
+    plain dicts rather than FaultType instances."""
+    if fault_type is not None:
+        return {
+            "code": fault_type.code,
+            "slug": fault_type.slug,
+            "description": fault_type.description,
+            "value": fault_type.code,
+            "is_new": False,
+        }
+    return {
+        "code": new_code,
+        "slug": "",
+        "description": new_description,
+        "value": forms.NEW_FAULT_TYPE_MARKER + new_code,
+        "is_new": True,
+    }
+
+
+def fault_type_rows(fault, form=None):
+    """Rows for the fault types section: what the user posted when a bound form
+    is being redisplayed, otherwise what is saved on the fault."""
+    if form is None or not form.is_bound:
+        return [fault_type_row(ft) for ft in fault.fault_types.order_by("code")]
+
+    marker = forms.NEW_FAULT_TYPE_MARKER
+    values = form.data.getlist("fault-fault_types_field")
+    existing = {
+        ft.code: ft for ft in models.FaultType.objects.filter(code__in=[v for v in values if not v.startswith(marker)])
+    }
+    rows = []
+    for value in values:
+        if value.startswith(marker):
+            code = value[len(marker):]
+            desc = form.data.get(NEW_FAULT_TYPE_DESC_PREFIX + code, "")
+            rows.append(fault_type_row(new_code=code, new_description=desc))
+        elif value in existing:
+            rows.append(fault_type_row(existing[value]))
+    return rows
+
+
+def related_service_events(fault, form=None):
+    """Service events for the related SEs section, newest first."""
+    if form is not None and form.is_bound:
+        ids = [v for v in form.data.getlist("fault-related_service_events") if v.isdigit()]
+        qs = sl_models.ServiceEvent.objects.filter(pk__in=ids)
+    else:
+        qs = fault.related_service_events.all()
+    return qs.select_related("service_status").order_by("-id")
+
+
+def section_context(fault, section, form=None, editing=False, saved=False):
+    context = {"fault": fault, "editing": editing, "saved": saved}
+    if form is not None:
+        context["form"] = form
+
+    if section == "fault-types":
+        context["fault_type_rows"] = fault_type_rows(fault, form if editing else None)
+    elif section == "related-ses":
+        context["service_events"] = related_service_events(fault, form if editing else None)
+    elif section == "attachments":
+        context["attachments"] = fault.attachment_set.all()
+    elif section == "occurrence" and editing:
+        # Lets the edit partial limit the modality choices to the chosen unit
+        # without asking the server for unit information.
+        context["unit_modalities"] = {
+            str(unit.pk): [m.pk for m in unit.modalities.all()]
+            for unit in Unit.objects.prefetch_related("modalities")
+        }
+
+    return context
+
 
 def is_htmx(request):
     return request.headers.get("HX-Request") == "true"
 
+
 class FaultSectionMixin(PermissionRequiredMixin):
     raise_exception = True
+    permission_required = "faults.change_fault"
 
-    def get_permission_required(self, request=None):
-        section = self.kwargs["section"]
-        return [SECTION_PERMS.get(section, "faults.change_fault")]
+    def dispatch(self, request, *args, **kwargs):
+        # The section name ends up in a template path, so only known sections
+        # get that far.
+        if kwargs.get("section") not in SECTION_FIELDS:
+            raise Http404
+        return super().dispatch(request, *args, **kwargs)
 
     def get_fault(self):
         qs = models.Fault.objects.select_related(
@@ -91,78 +208,41 @@ class FaultSectionMixin(PermissionRequiredMixin):
         ).prefetch_related("faultreviewinstance_set", "fault_types")
         return get_object_or_404(qs, pk=self.kwargs['pk'])
 
+    def render_section(self, fault, status=200, **kwargs):
+        section = self.kwargs["section"]
+        context = section_context(fault, section, **kwargs)
+        return render(self.request, section_template(section), context, status=status)
+
+
 class FaultSectionDetail(FaultSectionMixin, View):
+
     def get(self, request, pk, section):
-        fault = self.get_fault()
-        return render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", {
-            "fault": fault,
-            "editing": False,
-        })
+        return self.render_section(self.get_fault())
+
 
 class FaultSectionEdit(FaultSectionMixin, View):
-    def get_context_data(self, fault, form):
-        context_data = {"fault": fault, "form": form, "editing": True}
-        
-        if self.kwargs["section"] == "occurrence":
-            units_choices = []
-            for k, v in form.fields['unit'].choices:
-                if isinstance(v, list | tuple):
-                    for k2, v2 in v:
-                        units_choices.append({'id': str(k2), 'text': str(v2)})
-                else:
-                    units_choices.append({'id': str(k), 'text': str(v)})
-            context_data['units_json'] = json.dumps(units_choices)
-            modality_choices = [{'id': str(k), 'text': str(v)} for k, v in form.fields['modality'].choices]
-            context_data['modalities_json'] = json.dumps(modality_choices)
-        
-        if self.kwargs["section"] == "related-ses":
-            context_data['se_statuses'] = {
-                se.id: se.service_status.id for se in fault.related_service_events.order_by('-id')
-            }
-            context_data['se_statuses_json'] = json.dumps(context_data['se_statuses'])
-            context_data['status_tag_colours_json'] = json.dumps(sl_models.ServiceEventStatus.get_colour_dict())
-        
-        fault_json = {
-            'id': fault.id,
-            'unit': fault.unit_id if fault.unit else None,
-            'modality': fault.modality_id if fault.modality else None,
-            'occurred': fault.occurred.isoformat() if fault.occurred else None,
-            'fault_types': [ft.code for ft in fault.fault_types.all()],
-            'related_service_events': [se.id for se in fault.related_service_events.order_by('-id')],
-            'attachments': [{'id': a.id, 'name': a.label, 'url': a.attachment.url} for a in fault.attachment_set.all()]
-        }
-        context_data['fault_json'] = json.dumps(fault_json)
-        context_data['form_errors_json'] = form.errors.as_json() if form.errors else '{}'
-        
-        return context_data
 
     def get(self, request, pk, section):
         fault = self.get_fault()
-        form_class = section_form_class(section)
-        form = form_class(instance=fault, user=request.user)
-        context = self.get_context_data(fault, form)
-        return render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
+        form = section_form_class(section)(instance=fault, user=request.user)
+        return self.render_section(fault, form=form, editing=True)
 
     def post(self, request, pk, section):
         fault = self.get_fault()
-        form_class = section_form_class(section)
-        form = form_class(request.POST, request.FILES, instance=fault, user=request.user)
-        
-        if form.is_valid():
-            save_section(section, form, request)
-            fault = self.get_fault()
-            new_form = form_class(instance=fault, user=request.user)
-            context = self.get_context_data(fault, new_form)
-            context["editing"] = False
-            response = render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
-            from django.template.loader import render_to_string
-            oob_html = render_to_string("faults/sections/_last_modified_oob.html", {"fault": fault})
-            response.content += oob_html.encode('utf-8')
-            return response
-        else:
-            context = self.get_context_data(fault, form)
-            response = render(request, f"faults/sections/_section_{section.replace('-', '_')}.html", context)
-            return response
+        form = section_form_class(section)(request.POST, request.FILES, instance=fault, user=request.user)
+
+        if not form.is_valid():
+            # 422 so htmx callers (and tests) can tell a rejected save from a
+            # successful one; site_base.html lets htmx swap it in to show the errors.
+            return self.render_section(fault, status=422, form=form, editing=True)
+
+        save_section(section, form, request)
+        fault = self.get_fault()
+        response = self.render_section(fault, saved=True)
+        response.content += render_to_string(
+            "faults/sections/_last_modified_oob.html", {"fault": fault}, request=self.request,
+        ).encode("utf-8")
+        return response
 
 
 class FaultList(BaseListableView):
@@ -553,6 +633,13 @@ class DeleteFault(PermissionRequiredMixin, DeleteView):
     def get_success_url(self):
         return self.request.GET.get("next", reverse("fault_list"))
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # The confirmation page shows the fault's sections read-only.
+        for section in SECTION_FIELDS:
+            context.update(section_context(self.object, section))
+        return context
+
     @atomic
     def delete(self, request, *args, **kwargs):
         Comment.objects.for_model(models.Fault).filter(object_pk=kwargs['pk']).delete()
@@ -612,16 +699,13 @@ def _save_related_ses(fault, form):
 
 def _save_attachments(fault, request):
     for f in request.FILES.getlist('fault-attachments'):
-        try:
-            Attachment.objects.create(
-                attachment=f,
-                comment="Uploaded %s by %s" % (timezone.now(), request.user.username),
-                label=f.name,
-                fault=fault,
-                created_by=request.user
-            )
-        except Exception as e:
-            raise e
+        Attachment.objects.create(
+            attachment=f,
+            comment="Uploaded %s by %s" % (timezone.now(), request.user.username),
+            label=f.name,
+            fault=fault,
+            created_by=request.user
+        )
 
     a_ids = []
     for val in request.POST.getlist('fault-attachments_delete_ids', ''):
@@ -718,6 +802,10 @@ class FaultDetails(FaultList):
 
     template_name = 'faults/fault_details.html'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.templates['fault_types'] = get_template("faults/fault_type_chips.html")
+
     def get_queryset(self):
         fault = models.Fault.objects.prefetch_related("fault_types").get(pk=self.kwargs['pk'])
         return super().get_queryset().filter(fault_types__in=fault.fault_types.all())
@@ -731,23 +819,13 @@ class FaultDetails(FaultList):
             "faultreviewinstance_set",
             "fault_types",
         )
+        fault = get_object_or_404(qs, pk=self.kwargs['pk'])
+        context['fault'] = fault
 
-        context['fault'] = get_object_or_404(qs, pk=self.kwargs['pk'])
-
-        if models.can_review_faults(self.request.user):
-            context['review_form'] = forms.ReviewFaultForm(instance=context['fault'])
-
-        context['occurrence_form'] = section_form_class('occurrence')(instance=context['fault'])
-        context['fault_types_form'] = section_form_class('fault-types')(instance=context['fault'])
-        context['related_ses_form'] = section_form_class('related-ses')(instance=context['fault'])
-        context['attachments_form'] = section_form_class('attachments')(instance=context['fault'])
-        
-        context['status_tag_colours'] = sl_models.ServiceEventStatus.get_colour_dict()
-        context['status_tag_colours_json'] = json.dumps(context['status_tag_colours'])
-        context['se_statuses'] = {
-            se.id: se.service_status.id for se in context['fault'].related_service_events.order_by('-id')
-        }
-        context['se_statuses_json'] = json.dumps(context['se_statuses'])
+        # Every section starts read-only. Edit forms (and the widgets they need)
+        # are only fetched when someone clicks a section's pencil.
+        for section in SECTION_FIELDS:
+            context.update(section_context(fault, section))
 
         return context
 
@@ -786,12 +864,20 @@ def review_fault(request, pk):
         else:
             fault.faultreviewinstance_set.all().delete()
 
+        if is_htmx(request):
+            # The details page swaps in just the Record box (and, out of band, the
+            # status label in the page header). The changed button and status
+            # say what happened, so there's no flash message to leave behind for
+            # the next full page load.
+            fault = models.Fault.objects.select_related("created_by", "modified_by").get(pk=fault.pk)
+            return render(request, "faults/_fault_record.html", {"fault": fault, "oob_status": True})
+
         if acknowledge:
             messages.success(request, _("Successfully acknowledged %(fault)s ") % {'fault': fault})
         else:
             messages.warning(request, _("Successfully unacknowledged %(fault)s ") % {'fault': fault})
     else:  # pragma: nocover
-        messages.error(_("Sorry, something went wrong trying to review this fault. It has not been updated"))
+        messages.error(request, _("Sorry, something went wrong trying to review this fault. It has not been updated"))
 
     return HttpResponseRedirect(reverse('fault_details', kwargs={'pk': fault.pk}))
 
@@ -974,11 +1060,117 @@ def edit_fault_type_description(request, slug):
         return JsonResponse({"error": "Permission denied."}, status=403)
 
     fault_type = get_object_or_404(models.FaultType, slug=slug)
-    new_description = request.POST.get("description", "")
-    fault_type.description = new_description
+
+    # The details page posts from inside the fault types form, where every row
+    # has its own editor, so the field is named after the slug there.
+    new_description = request.POST.get("description-%s" % slug, request.POST.get("description"))
+    if new_description is None:
+        # A request with no description at all shouldn't wipe the existing one.
+        return HttpResponseBadRequest(_("No description was provided."))
+
+    fault_type.description = new_description.strip()
     fault_type.save()
+
+    if is_htmx(request):
+        return render(request, "faults/sections/_fault_type_row.html", {
+            "row": fault_type_row(fault_type),
+            "editing": True,
+        })
 
     return JsonResponse({
         "status": "success",
         "description": fault_type.description
     })
+
+
+PICKER_LIMIT = 30
+
+
+def _picker_fault(request, pk):
+    if not request.user.has_perm("faults.change_fault"):
+        raise PermissionDenied
+    return get_object_or_404(models.Fault.objects.select_related("unit"), pk=pk)
+
+
+def fault_type_picker(request, pk):
+    """Search results for the fault types picker on the details page.
+
+    Types already in the section form are left out, and a "Create" option comes
+    first when nothing matches the search exactly and the user may add types.
+    """
+    _picker_fault(request, pk)
+    q = request.GET.get("q", "").strip()
+    if len(q) < 2:
+        return HttpResponse("")
+
+    marker = forms.NEW_FAULT_TYPE_MARKER
+    selected = {v.replace(marker, "", 1).lower() for v in request.GET.getlist("fault-fault_types_field")}
+
+    matches = models.FaultType.objects.filter(Q(code__icontains=q) | Q(description__icontains=q)).order_by("code")
+    results = [ft for ft in matches[:PICKER_LIMIT + len(selected)] if ft.code.lower() not in selected][:PICKER_LIMIT]
+
+    exact = q.lower() in selected or models.FaultType.objects.filter(code__iexact=q).exists()
+    can_create = not exact and request.user.has_perm("faults.add_faulttype")
+
+    return render(request, "faults/sections/_fault_type_picker_results.html", {
+        "results": results,
+        "create_code": q if can_create else None,
+        "new_marker": marker,
+        "fault_pk": pk,
+    })
+
+
+def fault_type_picker_row(request, pk):
+    """One fault types table row for a code chosen in the picker."""
+    _picker_fault(request, pk)
+    value = request.GET.get("code", "").strip()
+    marker = forms.NEW_FAULT_TYPE_MARKER
+    code = value.replace(marker, "", 1).strip()
+    if not code:
+        return HttpResponseBadRequest(_("No fault type code was provided."))
+
+    fault_type = models.FaultType.objects.filter(code__iexact=code).first()
+    if fault_type:
+        row = fault_type_row(fault_type)
+    elif request.user.has_perm("faults.add_faulttype"):
+        row = fault_type_row(new_code=code)
+    else:
+        return HttpResponseForbidden(_("You don't have permission to create fault types."))
+
+    return render(request, "faults/sections/_fault_type_row.html", {"row": row, "editing": True})
+
+
+def _unit_service_events(fault):
+    return sl_models.ServiceEvent.objects.filter(
+        unit_service_area__unit=fault.unit,
+    ).select_related("service_status")
+
+
+def fault_se_picker(request, pk):
+    """Search results for the related service events picker: service events on
+    the fault's unit that aren't already related, newest first."""
+    fault = _picker_fault(request, pk)
+    q = request.GET.get("q", "").strip()
+    selected = [v for v in request.GET.getlist("fault-related_service_events") if v.isdigit()]
+
+    qs = _unit_service_events(fault).exclude(pk__in=selected)
+    if q:
+        search = Q(problem_description__icontains=q)
+        if q.lstrip("#").isdigit():
+            search |= Q(id__icontains=q.lstrip("#"))
+        qs = qs.filter(search)
+
+    return render(request, "faults/sections/_se_picker_results.html", {
+        "results": qs.order_by("-id")[:PICKER_LIMIT],
+        "fault_pk": pk,
+    })
+
+
+def fault_se_picker_row(request, pk):
+    """One related service events table row for a service event chosen in the picker."""
+    fault = _picker_fault(request, pk)
+    se_id = request.GET.get("se", "")
+    if not se_id.isdigit():
+        return HttpResponseBadRequest(_("No service event was provided."))
+    service_event = get_object_or_404(_unit_service_events(fault), pk=se_id)
+    return render(request, "faults/sections/_se_row.html", {"se": service_event, "editing": True})

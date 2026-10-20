@@ -19,3 +19,155 @@ dd.fault_type_description {
 #listable-table-fault_list tr th:nth-child(5) input{
   width: 400px;
 }
+
+/* ── Fault details page (all prefixed fl-) ── */
+
+.fl-page-head { margin: 0 0 15px; }
+.fl-page-head h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 400;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.fl-page-head h1 small { font-size: 14px; color: #999; }
+.fl-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: #97a0b3;
+}
+
+/* Two equal columns, then full-width rows; one column on narrow screens. */
+.fl-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .fl-layout { grid-template-columns: minmax(0, 1fr); } }
+.fl-full { grid-column: 1 / -1; min-width: 0; }
+.fl-rule { border: none; border-top: 2px solid #d2d6de; margin: 4px 0 0; width: 100%; }
+
+/* Section boxes. */
+.fl-sec .box-header > .fa { margin-right: 4px; }
+.fl-sec .box-header .label { margin-left: 6px; }
+.fl-sec .box-tools { display: flex; align-items: center; gap: 6px; top: 7px; }
+.fl-sec[data-editing="1"] { box-shadow: 0 0 0 1px #cfe0ee, 0 1px 1px rgba(0, 0, 0, .1); }
+.fl-editing-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #3c8dbc; }
+.fl-saved { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #00a65a; animation: flfade 2s ease forwards; }
+@keyframes flfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.fl-spin { display: none; color: #9aa2ae; }
+.fl-sec.htmx-request .fl-spin { display: inline-block; }
+.fl-sec.htmx-request .fl-body { opacity: .45; pointer-events: none; transition: opacity .15s; }
+.fl-errors { color: #dd4b39; margin: 0 0 8px; padding: 0; list-style: none; }
+.no-pad > .fl-errors { padding: 8px 12px 0; }
+
+.fl-layout dl.dl-horizontal { margin: 0; }
+.fl-layout dl.dl-horizontal dt { width: 130px; padding: 3px 0; color: #555; }
+.fl-layout dl.dl-horizontal dd { margin-left: 146px; padding: 3px 0; min-height: 1.5em; }
+.fl-layout dl.tight dt { width: 96px; }
+.fl-layout dl.tight dd { margin-left: 108px; }
+/* Labels wrap rather than being cut off; translations are often longer than the English. */
+.fl-layout dl.dl-horizontal dt { white-space: normal; overflow: visible; }
+.fl-meta { font-size: 12px; color: #8a929e; }
+
+/* Fault types and related service events. */
+.fl-code { font-family: Menlo, Consolas, monospace; font-size: 13px; font-weight: 700; color: #333; overflow-wrap: anywhere; }
+.fl-ft-code { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.fl-desc { color: #5a6472; font-size: 13px; margin-top: 2px; }
+.fl-desc em { color: #9aa2ae; }
+.fl-new {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #fff;
+    background: #00a65a;
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-left: 2px;
+}
+.fl-desc-actions { display: flex; gap: 6px; margin-top: 6px; }
+.fl-se-id { width: 70px; }
+.fl-se-status { width: 110px; }
+.fl-se-date { width: 100px; }
+.fl-code-chip {
+    display: inline-flex;
+    font-family: Menlo, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4a5763;
+    background: #f4f7f9;
+    border: 1px solid #dbe3e8;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin: 0 4px 2px 0;
+}
+
+/* Pickers: results open upwards from the footer search box. */
+.fl-picker { position: relative; flex: 1 1 120px; min-width: 120px; max-width: 420px; }
+.fl-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 4px);
+    z-index: 50;
+    background: #fff;
+    border: 1px solid #b7bcc4;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+    border-radius: 3px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.fl-results:empty { display: none; }
+
+/* Attachments. */
+.fl-pending { background: #eef6fb; border-color: #cfe0ee; }
+.fl-pending .fa { color: #3c8dbc; }
+.fl-missing { background: #fdf6f5; border-color: #edc9c3; color: #c0392b; }
+.fl-missing .tle-attach-name { text-decoration: line-through; }
+.fl-missing .fa { color: #c0392b; }
+.fl-removed { display: none; }
+/* Bootstrap shows every file input as a block; the dashed Browse… label stands in for it. */
+.tle-attach-add input[type="file"].fl-file-input { display: none; }
+
+/* Record box and review status. */
+.fl-rec-review {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    /* One line in English; a longer translation moves the buttons below rather than overflowing. */
+    flex-wrap: wrap;
+    margin-top: 10px;
+    border-top: 1px solid #f4f4f4;
+    padding-top: 10px;
+}
+.fl-rec-status { display: flex; align-items: baseline; gap: 10px; font-size: 13px; white-space: nowrap; }
+.fl-rec-label { font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: 11px; color: #8a929e; }
+.fl-rec-ok { color: #00a65a; font-weight: 600; }
+.fl-unrev { color: #b0761a; font-weight: 600; }
+.fl-rec-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.fl-rec-actions form { margin: 0; }
+.fl-rec-actions .btn { white-space: nowrap; }
+.fl-status-ok { border-color: #00a65a !important; }
+.fl-status-unrev { border-color: #f39c12 !important; }
+
+/* Comments and other occurrences. */
+.fl-comment-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+#box-others table thead tr:first-child th {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #8a929e;
+    border-bottom: 2px solid #d2d6de;
+}
