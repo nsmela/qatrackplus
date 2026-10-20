@@ -859,3 +859,15 @@ table ul.multiselect-container.dropdown-menu {
     background: #fff;
 }
 .tle-attach-add:hover { border-color: #3c8dbc; color: #3c8dbc; }
+
+/*
+ * Truncated table cells keep their full text in an <abbr title="..."> tooltip.
+ * Bootstrap 3 gives every abbr[title] a dotted bottom border and browsers add a
+ * dotted underline on top, which in a dense table makes the text itself hard to
+ * read. The trailing "..." already shows there is more; hovering still shows it.
+ */
+table abbr[title],
+table abbr[data-original-title] {
+    border-bottom: 0;
+    text-decoration: none;
+}
