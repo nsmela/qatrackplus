@@ -1,0 +1,14 @@
+{% load i18n %}
+<div class="fl-picker">
+  <div class="tl-search">
+    <i class="fa fa-search"></i>
+    <input type="search" name="q" autocomplete="off" data-fl-picker
+           placeholder="{% blocktrans with unit=fault.unit %}Search service events on {{ unit }}…{% endblocktrans %}"
+           hx-get="{% url 'fault_se_picker' pk=fault.pk %}"
+           hx-trigger="input changed delay:250ms, focus"
+           hx-include="closest form" hx-target="next .fl-results" hx-swap="innerHTML"
+           hx-indicator="closest .fl-picker">
+  </div>
+  <div class="fl-results"></div>
+</div>
+<a class="btn btn-default btn-sm btn-flat" href="{% url 'sl_new' %}" target="_blank"><i class="fa fa-plus"></i> {% trans "New service event" %}</a>

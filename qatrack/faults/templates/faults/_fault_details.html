@@ -1,60 +1,14 @@
-{% load i18n %}
-{% load attach_tags %}
-{% load qatrack_tags %}
-
-<style>
-  .fault-card-hover {
-    background-color: #f9f9f9;
-    transition: background-color 0.15s ease-in-out;
-  }
-  .fault-card-hover:hover {
-    background-color: #efefef !important;
-  }
-</style>
-<div class="row">
-  <div class="col-sm-6">
-    
-
-    {% include "faults/sections/_section_occurrence.html" %}
-
-    <div class="margin-bottom-15 margin-top-10" style="border-left: 4px solid #d2d6de; background-color: #f9f9f9; padding: 12px; border-radius: 0 3px 3px 0; box-shadow: 0 1px 1px rgba(0,0,0,0.05);">
-      <div class="margin-bottom-5">
-        <strong>{% trans "Created" %}:</strong> {{ fault.created_by | get_user_name }} @ {{ fault.created }}
-      </div>
-
-      <div class="margin-bottom-5" id="fault-last-modified">
-        <strong>{% trans "Last Modified"  %}:</strong> {{ fault.modified_by | get_user_name }} @ {{ fault.modified }}
-      </div>
-
-      <div class="margin-bottom-5">
-        <strong>{% trans "Reviewed" %}:</strong> 
-          {% for group, reviewed_by, reviewed, required in fault.review_details %}
-            {% if forloop.first %}<ul class="list-inline margin-bottom-0" style="display: inline; padding-left: 5px;">{% endif %}
-              <li style="padding-left: 0; padding-right: 10px;">
-                {% if group %}{{ group }}{% if required %}*{% endif %}: {% endif %}
-                {% if reviewed_by %}
-                  {{ reviewed_by | get_user_name}} @ {{ reviewed }}
-                {% else %}
-                  <em>{% trans "Unreviewed " %}</em>
-                {% endif %}
-              </li>
-            {% if forloop.last %}</ul>{% endif %}
-          {% empty %}
-            <em>{% trans "Unreviewed " %}</em>
-          {% endfor %}
-      </div>
-    </div>
-    
-    <hr/>
-    {% include "faults/sections/_section_attachments.html" %}
-    
-  </div>
-  <div class="col-sm-6">
-    {% include "faults/sections/_section_fault_types.html" %}
-    <hr/>
-    {% include "faults/sections/_section_related_ses.html" %}
-  </div>
-
+{% comment %}
+  The fault's sections in two columns. The details page and the delete
+  confirmation page both use it; pass readonly=True to leave out the editing
+  controls.
+{% endcomment %}
+<div class="fl-main">
+  {% include "faults/sections/_section_occurrence.html" %}
+  {% include "faults/_fault_record.html" %}
+  {% include "faults/sections/_section_attachments.html" %}
 </div>
-<div class="row margin-top-20">
-</div>
+<aside class="fl-side">
+  {% include "faults/sections/_section_fault_types.html" %}
+  {% include "faults/sections/_section_related_ses.html" %}
+</aside>

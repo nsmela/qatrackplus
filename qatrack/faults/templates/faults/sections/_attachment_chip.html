@@ -1,0 +1,15 @@
+{% load i18n %}
+{% if attach.file_exists %}
+  <span class="tle-attach-item" data-attach-id="{{ attach.id }}">
+    <i class="fa {% if attach.is_image %}fa-file-image-o{% else %}fa-file-o{% endif %}"></i>
+    <a class="tle-attach-name" href="{{ attach.attachment.url }}" target="_blank">{{ attach.label|default:attach.attachment.name }}</a>
+    <span class="tle-attach-size">{{ attach.attachment.size|filesizeformat }}</span>
+    {% if editing %}<button type="button" class="tle-attach-x" title="{% trans 'Remove' %}" data-fl-attach-remove>&times;</button>{% endif %}
+  </span>
+{% else %}
+  <span class="tle-attach-item fl-missing" data-attach-id="{{ attach.id }}" title="{% trans 'File missing from server' %}">
+    <i class="fa fa-exclamation-triangle"></i>
+    <span class="tle-attach-name">{{ attach.label|default:attach.attachment.name }}</span>
+    {% if editing %}<button type="button" class="tle-attach-x" title="{% trans 'Remove' %}" data-fl-attach-remove>&times;</button>{% endif %}
+  </span>
+{% endif %}

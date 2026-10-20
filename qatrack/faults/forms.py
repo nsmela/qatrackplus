@@ -141,8 +141,15 @@ class FaultForm(BetterModelForm):
         cleaned_fault_types = []
         for fault_type in fault_types:
             if fault_type and NEW_FAULT_TYPE_MARKER in fault_type:
-                fault_type = fault_type.replace(NEW_FAULT_TYPE_MARKER, "")
-                models.FaultType.objects.get_or_create(code=fault_type)
+                fault_type = fault_type.replace(NEW_FAULT_TYPE_MARKER, "").strip()
+                # Reuse a type whose code only differs by case rather than
+                # creating a near-duplicate (some databases compare case
+                # sensitively, some don't, so be explicit about it).
+                existing = models.FaultType.objects.filter(code__iexact=fault_type).first()
+                if existing:
+                    fault_type = existing.code
+                else:
+                    models.FaultType.objects.create(code=fault_type)
             cleaned_fault_types.append(fault_type)
 
         return cleaned_fault_types

@@ -1,0 +1,15 @@
+{% load i18n %}
+<table class="tl-table">
+  <thead>
+    <tr>
+      <th>{% trans "ID" %}</th>
+      <th>{% trans "Status" %}</th>
+      <th>{% trans "Date" %}</th>
+      <th>{% trans "Problem description" %}</th>
+      {% if editing %}<th></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody id="related-se-rows">
+    {% for se in service_events %}{% include "faults/sections/_se_row.html" %}{% endfor %}
+  </tbody>
+</table>

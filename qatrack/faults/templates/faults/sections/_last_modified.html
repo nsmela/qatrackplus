@@ -1,0 +1,2 @@
+{% load qatrack_tags %}
+<dd id="fault-last-modified"{% if oob %} hx-swap-oob="true"{% endif %}>{{ fault.modified_by|get_user_name }}<br><span class="fl-meta">{{ fault.modified }}</span></dd>

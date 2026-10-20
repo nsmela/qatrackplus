@@ -1,15 +1,12 @@
 {% load i18n %}
-<form id="form-fault-types" hx-post="{% url 'fault_section_edit' pk=fault.pk section='fault-types' %}" hx-target="#fault-section-fault-types"
-  hx-swap="outerHTML">
-  {% csrf_token %}
-  
-  <div>
-    {% include "_form.html" with form=form %}
-  </div>
-
-</form>
-<script>
-  if (window.initFaultTypesEdit) {
-      window.initFaultTypesEdit();
-  }
-</script>
+{% comment %}
+  Each row carries its own hidden input, so removing a row (or adding one from
+  the picker) changes what Save sends. Nothing is stored until Save, except a
+  description edit on an existing fault type, which saves straight away.
+{% endcomment %}
+<table class="tl-table">
+  <thead><tr><th>{% trans "Code / Description" %}</th><th></th></tr></thead>
+  <tbody id="fault-type-rows">
+    {% for row in fault_type_rows %}{% include "faults/sections/_fault_type_row.html" %}{% endfor %}
+  </tbody>
+</table>

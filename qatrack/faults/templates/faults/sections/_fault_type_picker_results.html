@@ -1,0 +1,25 @@
+{% load i18n %}
+{% if create_code %}
+  <button type="button" class="tl-pick-item"
+          hx-get="{% url 'fault_type_picker_row' pk=fault_pk %}?code={{ create_code|urlencode }}"
+          hx-target="#fault-type-rows" hx-swap="beforeend">
+    <span class="tl-pick-main">
+      <span class="tl-pick-name">{% blocktrans with code=create_code %}Create “{{ code }}”{% endblocktrans %}</span>
+      <span class="tl-pick-sub">{% trans "New fault type, created when you save" %}</span>
+    </span>
+    <i class="fa fa-plus-circle"></i>
+  </button>
+{% endif %}
+{% for fault_type in results %}
+  <button type="button" class="tl-pick-item"
+          hx-get="{% url 'fault_type_picker_row' pk=fault_pk %}?code={{ fault_type.code|urlencode }}"
+          hx-target="#fault-type-rows" hx-swap="beforeend">
+    <span class="tl-pick-main">
+      <span class="tl-pick-name tl-mono">{{ fault_type.code }}</span>
+      <span class="tl-pick-sub">{{ fault_type.description|default:_("No description") }}</span>
+    </span>
+    <i class="fa fa-plus-circle"></i>
+  </button>
+{% empty %}
+  {% if not create_code %}<div class="tl-pick-hint">{% trans "No matches." %}</div>{% endif %}
+{% endfor %}

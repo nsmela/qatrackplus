@@ -1,16 +1,61 @@
 {% load i18n %}
-<form id="form-occurrence" hx-post="{% url 'fault_section_edit' pk=fault.pk section='occurrence' %}"
-      hx-target="#fault-section-occurrence" hx-swap="outerHTML">
-  {% csrf_token %}
-  
-  <div class="form-horizontal">
-    {% include "_form_horizontal.html" with form=form %}
+<div class="tl-form">
+  <div class="tl-field">
+    <label for="{{ form.occurred.id_for_label }}">{% trans "Occurred" %}{% if form.occurred.field.required %} <em>*</em>{% endif %}</label>
+    {{ form.occurred }}
+    {{ form.occurred.errors }}
   </div>
-
-</form>
-
+  <div class="tl-field">
+    <label for="{{ form.unit.id_for_label }}">{% trans "Unit" %}{% if form.unit.field.required %} <em>*</em>{% endif %}</label>
+    {{ form.unit }}
+    {{ form.unit.errors }}
+  </div>
+  <div class="tl-field">
+    <label for="{{ form.modality.id_for_label }}">{% trans "Modality / Beam" %}{% if form.modality.field.required %} <em>*</em>{% endif %}</label>
+    {{ form.modality }}
+    <span class="help">{% trans "Options limited to the selected unit." %}</span>
+    {{ form.modality.errors }}
+  </div>
+</div>
+{{ unit_modalities|json_script:"fl-unit-modalities" }}
 <script>
-  if (window.initOccurrenceEdit) {
-      window.initOccurrenceEdit();
-  }
+  // Runs each time this partial is swapped in, so the widgets only exist while
+  // someone is editing.
+  require(['jquery', 'moment', 'flatpickr', 'select2'], function($, moment) {
+    var $occurred = $('#id_fault-occurred');
+    var $unit = $('#id_fault-unit');
+    var $modality = $('#id_fault-modality');
+    var unitModalities = JSON.parse(document.getElementById('fl-unit-modalities').textContent);
+
+    var parsed = moment($occurred.val(), ['YYYY-MM-DD HH:mm', siteConfig.MOMENT_DATETIME_FMT]);
+    var initial = parsed.isValid() ? parsed.toDate() : new Date();
+    $occurred.val(moment(initial).format(siteConfig.MOMENT_DATETIME_FMT));
+    $occurred.flatpickr({
+      enableTime: true,
+      time_24hr: true,
+      minuteIncrement: 1,
+      allowInput: true,
+      dateFormat: siteConfig.FLATPICKR_DATETIME_FMT,
+      defaultDate: initial
+    });
+
+    $unit.select2({width: '100%'});
+    $modality.select2({width: '100%'});
+
+    // Only offer the modalities the chosen unit has.
+    function limitModalities() {
+      var allowed = unitModalities[$unit.val()] || [];
+      $modality.find('option').each(function() {
+        var id = parseInt(this.value, 10);
+        this.disabled = !isNaN(id) && allowed.indexOf(id) < 0;
+      });
+      var current = parseInt($modality.val(), 10);
+      if (!isNaN(current) && allowed.indexOf(current) < 0) {
+        $modality.val('');
+      }
+      $modality.trigger('change.select2');
+    }
+    $unit.on('change', limitModalities);
+    limitModalities();
+  });
 </script>

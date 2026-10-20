@@ -1,0 +1,43 @@
+{% load i18n %}
+<tr>
+  <td>
+    {% if editing %}<input type="hidden" name="fault-fault_types_field" value="{{ row.value }}">{% endif %}
+    <div class="fl-ft-code">
+      {% if row.slug %}
+        <a class="fl-code" href="{% url 'fault_type_details' slug=row.slug %}" target="_blank">{{ row.code }}</a>
+      {% else %}
+        <span class="fl-code">{{ row.code }}</span>
+      {% endif %}
+      {% if row.is_new %}<span class="fl-new">{% trans "New" %}</span>{% endif %}
+    </div>
+    <div class="fl-desc" data-fl-desc-display data-empty-text="{% trans 'No description' %}">{% if row.description %}{{ row.description }}{% else %}<em>{% trans "No description" %}</em>{% endif %}</div>
+    {% if editing %}
+      <div data-fl-desc-editor hidden>
+        {% if row.is_new %}
+          {# Sent with the section's Save, which is when the new type is created. #}
+          <textarea class="tl-desc-edit" name="new_fault_type_desc-{{ row.code }}">{{ row.description }}</textarea>
+          <div class="fl-desc-actions">
+            <button type="button" class="btn btn-primary btn-sm btn-flat" data-fl-desc-keep>{% trans "Save description" %}</button>
+            <button type="button" class="btn btn-default btn-sm btn-flat" data-fl-desc-cancel>{% trans "Cancel" %}</button>
+          </div>
+        {% else %}
+          <textarea class="tl-desc-edit" name="description-{{ row.slug }}">{{ row.description }}</textarea>
+          <div class="fl-desc-actions">
+            <button type="button" class="btn btn-primary btn-sm btn-flat"
+                    hx-post="{% url 'fault_type_edit_description' slug=row.slug %}"
+                    hx-params="description-{{ row.slug }}" hx-target="closest tr" hx-swap="outerHTML">{% trans "Save description" %}</button>
+            <button type="button" class="btn btn-default btn-sm btn-flat" data-fl-desc-cancel>{% trans "Cancel" %}</button>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </td>
+  {% if editing %}
+    <td class="tl-c-act">
+      {% if row.is_new or perms.faults.change_faulttype %}
+        <button type="button" class="tl-iconbtn" title="{% trans 'Edit description' %}" data-fl-desc-edit><i class="fa fa-pencil"></i></button>
+      {% endif %}
+      <button type="button" class="tl-iconbtn danger" title="{% trans 'Remove' %}" data-fl-remove-row><i class="fa fa-trash-o"></i></button>
+    </td>
+  {% endif %}
+</tr>

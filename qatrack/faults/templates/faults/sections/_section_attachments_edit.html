@@ -1,58 +1,22 @@
 {% load i18n %}
-<form id="form-attachments" hx-post="{% url 'fault_section_edit' pk=fault.pk section='attachments' %}" hx-target="#fault-section-attachments"
-  hx-swap="outerHTML" hx-encoding="multipart/form-data">
-  {% csrf_token %}
-  
-  <div id="attachments-editor-container">
-    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
-    <style>
-      #id_fault-attachments { display: none; }
-      .attachment-card {
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 10px; margin-bottom: 8px;
-        border: 1px solid #ddd; border-radius: 4px;
-      }
-      .attachment-card.existing { border-left: 4px solid #5cb85c; }
-      .attachment-card.missing { border-left: 4px solid #dd4b39; }
-      .attachment-card.pending { border-left: 4px solid #5bc0de; }
-      .attachment-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 15px; }
-      .attachment-actions { white-space: nowrap; }
-    </style>
-
-    <!-- Existing Attachments -->
-    {% if form.instance.id %}
-      {% for attach in form.instance.attachment_set.all %}
-        <div class="attachment-card fault-card-hover {% if attach.file_exists %}existing{% else %}missing{% endif %}" id="existing-attach-{{ attach.id }}">
-          <div class="attachment-name">
-            <i class="fa fa-paperclip fa-fw text-success"></i> <strong>{% if attach.label %}{{ attach.label }}{% else %}{{ attach.attachment.name }}{% endif %}</strong>
-          </div>
-          <div class="attachment-actions">
-            {% if attach.file_exists %}
-              <a href="{{ attach.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5" title="{% trans 'Preview' %}"><i class="fa fa-eye"></i></a>
-            {% else %}
-              <span class="label label-danger margin-right-5" title="{% trans 'File missing from server' %}"><i class="fa fa-exclamation-triangle"></i> {% trans "Missing" %}</span>
-            {% endif %}
-            <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ attach.id }}" title="{% trans 'Remove' %}"><i class="fa fa-trash"></i></button>
-            <input type="checkbox" style="display:none;" name="attach-{{ attach.id }}-DELETE" class="attach-delete" value="{{ attach.id }}">
-          </div>
-        </div>
-      {% endfor %}
-    {% endif %}
-
-    <!-- Pending Attachments Container -->
-    <div id="pending-attachments-list"></div>
-
-    <!-- Browse Button -->
-    <div class="margin-top-10">
-      <label class="btn btn-default btn-sm btn-flat" title="{% trans 'Click to add attachments' %}">
-        <i class="fa fa-folder-open text-info"></i> {% trans "Browse..." %}
-        {{ form.attachments }}
-      </label>
-    </div>
-  </div>
-</form>
-<script>
-  if (window.initAttachmentsEdit) {
-      window.initAttachmentsEdit();
-  }
-</script>
+{% comment %}
+  Removing a chip only marks it; the ids go to the server on Save. New files
+  are kept on the file input and listed as pending chips until then.
+{% endcomment %}
+<input type="hidden" name="fault-attachments_delete_ids" value="" data-fl-attach-deletes>
+<div class="tle-attach" data-fl-attach>
+  {% for attach in attachments %}{% include "faults/sections/_attachment_chip.html" %}{% endfor %}
+  <div class="tle-attach" data-fl-attach-pending></div>
+  <label class="tle-attach-add">
+    <i class="fa fa-paperclip"></i> {% trans "Browse…" %}
+    <input type="file" name="fault-attachments" multiple class="fl-file-input" data-fl-attach-input>
+  </label>
+</div>
+<template data-fl-pending-template>
+  <span class="tle-attach-item fl-pending">
+    <i class="fa fa-upload"></i>
+    <span class="tle-attach-name"></span>
+    <span class="tle-attach-size">{% trans "pending" %}</span>
+    <button type="button" class="tle-attach-x" title="{% trans 'Remove' %}" data-fl-pending-remove>&times;</button>
+  </span>
+</template>

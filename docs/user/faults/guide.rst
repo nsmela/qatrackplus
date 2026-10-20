@@ -112,10 +112,20 @@ review.
 
    Select the fault you want to review
 
-On the details page you can click the **Acknowledge This Fault** button to mark
-this fault as reviewed, click the **Edit** button to edit the fault, click
-the **Delete** button to delete the fault, or view other occurrences of the
-same type of fault at the bottom of the page.
+On the details page, the **Record** box shows who logged the fault and who last
+changed it. Click **Acknowledge fault** there to mark the fault as reviewed
+(click **Unacknowledge** to undo that), or **Delete** to delete the fault.
+
+Each part of the fault (its details, fault types, related service events and
+attachments) can be edited where it is, without leaving the page. Click the
+pencil in that box's header, make your changes, and click **Save**. Nothing is
+stored until you click Save, and **Cancel** puts the box back the way it was.
+The one exception is a fault type's description: editing the description of an
+existing fault type saves it straight away, because that description is shared
+by every fault of that type.
+
+Other occurrences of the same types of fault are listed at the bottom of the
+page.
 
 .. figure:: images/fault-review.png
    :alt: Reviewing fault details

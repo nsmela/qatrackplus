@@ -1,0 +1,8 @@
+{% load i18n %}
+<span id="fault-review-status"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if fault.review_complete %}
+    <span class="label service-event-status-label fl-status-ok">{% trans "Acknowledged" %}</span>
+  {% else %}
+    <span class="label service-event-status-label fl-status-unrev">{% trans "Unreviewed" %}</span>
+  {% endif %}
+</span>

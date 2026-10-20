@@ -163,6 +163,17 @@
 
     <script src="{% static 'htmx/js/htmx.min.js' %}"></script>
     <script type="text/javascript">
+      // Views answer 422 when a form fails validation and send the form back with
+      // its errors. htmx leaves 4xx responses out of the page by default, so let
+      // these through and the errors show where the user is working.
+      document.addEventListener('htmx:beforeSwap', function(evt) {
+          if (evt.detail.xhr.status === 422) {
+              evt.detail.shouldSwap = true;
+              evt.detail.isError = false;
+          }
+      });
+    </script>
+    <script type="text/javascript">
       document.addEventListener('htmx:afterSettle', function(evt) {
           // Re-init requireJS modules that may have been lost on DOM swap
           if (typeof require !== 'undefined' && document.querySelector('.requires-legacy-faults')) {
