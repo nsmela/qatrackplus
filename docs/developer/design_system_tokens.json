@@ -1,0 +1,208 @@
+{
+  "name": "QATrack+",
+  "version": 1,
+  "meta": {
+    "source": "github",
+    "repo": "nsmela/qatrackplus",
+    "ref": "feature/htmx@ac800345",
+    "package": "qatrack",
+    "paths": {
+      "tokens": [
+        "qatrack/qatrack_core/static/adminlte/css/admin-lte.css",
+        "qatrack/qatrack_core/static/adminlte/css/skins/skin-black-dark.css",
+        "qatrack/qatrack_core/static/qatrack_core/css/custom-adminlte.css",
+        "qatrack/qatrack_core/static/qatrack_core/css/base.css",
+        "qatrack/faults/static/faults/css/faults.css",
+        "qatrack/qa/static/qa/css/qa.css"
+      ],
+      "fonts": [
+        "qatrack/qatrack_core/static/qatrack_core/css/fonts.css",
+        "qatrack/qatrack_core/static/fontawsome/fonts/fontawesome-webfont.woff2"
+      ],
+      "assets": ["qatrack/qatrack_core/static/qatrack_core/img/apple-touch-icon.png"],
+      "docs": ["AGENTS.md", "qatrack/templates/site_base.html", "qatrack/faults/templates/faults/sections/"]
+    },
+    "components": {
+      "SectionBox": "qatrack/faults/templates/faults/sections/_section_box.html",
+      "Button": "qatrack/qatrack_core/static/qatrack_core/css/custom-adminlte.css",
+      "IconButton": "qatrack/qatrack_core/static/qatrack_core/css/base.css",
+      "DataTable": "qatrack/faults/templates/faults/sections/_se_table.html",
+      "Picker": "qatrack/faults/templates/faults/sections/_fault_type_picker.html",
+      "FormField": "qatrack/qatrack_core/static/qatrack_core/css/base.css",
+      "AttachmentChip": "qatrack/faults/templates/faults/sections/_attachment_chip.html",
+      "StatusLabel": "qatrack/faults/templates/faults/_fault_review_status.html",
+      "RecordReview": "qatrack/faults/templates/faults/_fault_record.html",
+      "PageHeader": "qatrack/faults/templates/faults/fault_details.html",
+      "MainHeader": "qatrack/templates/site_base.html",
+      "DescriptionList": "qatrack/faults/templates/faults/sections/_section_occurrence_read.html"
+    },
+    "synced": "2026-10-20"
+  },
+  "color": {
+    "note": "QATrack+ has one theme. The branch defines no CSS custom properties: every value below is the literal colour its stylesheets use, named here by role. Pairs that fall under 4.5:1 are kept exactly as the code has them and flagged in their notes.",
+    "themes": [{ "id": "light", "name": "Light" }],
+    "tokens": [
+      { "name": "chrome-bg", "value": "#222d32", "usage": "Top navigation bar, sidebar and .bg-dark-gray (skin-black-dark). White text on it is 14.1:1." },
+      { "name": "chrome-bg-deep", "value": "#1e282c", "usage": "The logo block in the header, the hovered/active sidebar item and the sidebar toggle hover." },
+      { "name": "chrome-bg-header", "value": "#1a2226", "usage": "Sidebar section headers (.sidebar-menu > li.header)." },
+      { "name": "chrome-bg-raised", "value": "#323e46", "usage": "The control sidebar (right-hand user panel) background." },
+      { "name": "chrome-text", "value": "#ffffff", "usage": "Nav links and the logo on chrome-bg. Hovered nav items flip to black text on white." },
+      { "name": "chrome-text-muted", "value": "#b8c7ce", "usage": "Sidebar links on chrome-bg (8.1:1)." },
+      { "name": "chrome-text-sub", "value": "#8aa4af", "usage": "Sidebar sub-menu links on #2c3b41 (4.4:1, just under 4.5)." },
+      { "name": "page-bg", "value": "#ecf0f5", "usage": "The content area behind boxes (.content-wrapper)." },
+      { "name": "surface", "value": "#ffffff", "usage": "Boxes, dropdowns, inputs, picker results." },
+      { "name": "surface-subtle", "value": "#f4f4f4", "usage": "Default button fill, input-group add-ons, .text-display panels; also the faint row divider inside boxes." },
+      { "name": "surface-foot", "value": "#fbfcfd", "usage": "The Cancel / Save footer under a box body in edit mode (.tl-group-foot)." },
+      { "name": "surface-hover", "value": "#f5f7fa", "usage": "Hovered table rows and picker items." },
+      { "name": "surface-chip", "value": "#f6f7f9", "usage": "Attachment chips (.tle-attach-item)." },
+      { "name": "surface-code", "value": "#f4f7f9", "usage": "Fault-type code chips (.fl-code-chip)." },
+      { "name": "surface-comment", "value": "#f7f7f7", "usage": "A single comment in .box-comments." },
+      { "name": "surface-iconbtn-hover", "value": "#eceff3", "usage": "Hover fill behind a borderless icon button (.tl-iconbtn)." },
+      { "name": "surface-pending", "value": "#eef6fb", "usage": "An attachment chosen but not yet saved (.fl-pending)." },
+      { "name": "border", "value": "#d2d6de", "usage": "The default rule: inputs, .box-default top border, table header underline, label-default fill. Too light to carry meaning alone (1.5:1 on white)." },
+      { "name": "border-light", "value": "#dddddd", "usage": "Dropdowns, .text-display, .drop-shadow and the 2px button/input shadow colour." },
+      { "name": "border-chip", "value": "#e2e6ee", "usage": "Attachment chip outline and .subheading-divider." },
+      { "name": "border-code", "value": "#dbe3e8", "usage": "Fault-type code chip outline." },
+      { "name": "border-dashed", "value": "#cbd1da", "usage": "The dashed 'Browse…' attachment drop target." },
+      { "name": "border-popover", "value": "#b7bcc4", "usage": "Picker results panel that opens above a footer search." },
+      { "name": "border-editing", "value": "#cfe0ee", "usage": "The 1px ring around a section box while it is being edited; also the pending chip outline." },
+      { "name": "text", "value": "#444444", "usage": "Box titles, page titles, default button text, label-default text. 9.7:1 on surface, 8.5:1 on page-bg." },
+      { "name": "text-body", "value": "#333333", "usage": "Bootstrap body copy and the fault code (.fl-code). 12.6:1 on surface." },
+      { "name": "text-label", "value": "#555555", "usage": "Form field labels, dl terms and chip text. 7.5:1 on surface." },
+      { "name": "text-desc", "value": "#5a6472", "usage": "Descriptions under a code or row (.fl-desc). 6.0:1 on surface." },
+      { "name": "text-muted", "value": "#777777", "usage": "Bootstrap .text-muted and popovers. 4.48:1 on surface: a hair under AA." },
+      { "name": "text-meta", "value": "#8a929e", "usage": "Timestamps, table headers (.tl-table th), pick-item subtitles, .fl-rec-label. 3.1:1 on surface: fails AA for its 11–12px uses." },
+      { "name": "text-faint", "value": "#9aa2ae", "usage": "Empty states, hints, help text, idle icon buttons and spinner. 2.6:1 on surface: fails AA; use for icons only where you can." },
+      { "name": "text-crumb", "value": "#97a0b3", "usage": "Breadcrumb trail under the page title. 2.3:1 on page-bg: fails AA." },
+      { "name": "text-code-chip", "value": "#4a5763", "usage": "Text in a fault-type code chip, on surface-code (6.9:1)." },
+      { "name": "primary", "value": "#424f57", "usage": "QATrack+'s own primary: .btn-primary, .box-primary top border, active nav-stacked edge, alert-primary. White text on it is 8.4:1." },
+      { "name": "primary-hover", "value": "#323e46", "usage": "btn-primary hover, focus and border." },
+      { "name": "primary-border-hover", "value": "#212b33", "usage": "btn-primary border on hover and focus." },
+      { "name": "info", "value": "#627585", "usage": "QATrack+'s .btn-info and alert/callout-info fill. White text on it is 4.8:1." },
+      { "name": "info-hover", "value": "#4e6070", "usage": "btn-info hover and focus." },
+      { "name": "info-border", "value": "#45454e", "usage": "btn-info and alert-info border." },
+      { "name": "slate", "value": "#748e9f", "usage": ".box-info top border (the default section box) and the file icon in attachment chips. 3.2:1 on surface-chip: fine for a 3px rule or icon, not for text." },
+      { "name": "link", "value": "#3c8dbc", "usage": "Links, focus border on buttons and inputs, the 'Editing' tag, .label-primary. 3.7:1 on surface and 3.2:1 on page-bg: fails AA for body-size text." },
+      { "name": "link-hover", "value": "#72afd2", "usage": "Link hover inside .callout-custom." },
+      { "name": "status-ok", "value": "#00a65a", "usage": "QC 'OK' (.ok), success label/button/callout, 'Reviewed', the '+' in pick items, the 'New' badge, 'Saved' flash. As text on white it is 3.2:1 (fails AA); white on it is also 3.2:1." },
+      { "name": "status-ok-hover", "value": "#008d4c", "usage": "btn-success hover and border." },
+      { "name": "status-tolerance", "value": "#f39c12", "usage": "QC 'Tolerance' (.tolerance), warning label/button, unreviewed status border, the default test status colour. White on it is 2.2:1: AdminLTE's pair fails AA." },
+      { "name": "status-tolerance-hover", "value": "#e08e0b", "usage": "btn-warning hover and border." },
+      { "name": "status-action", "value": "#dd4b39", "usage": "QC 'Action' (.action), danger label/button/callout, required-field asterisk, error lists, .border-error. 4.1:1 as text or behind white text: under AA for body sizes." },
+      { "name": "status-action-hover", "value": "#d73925", "usage": "btn-danger hover and border." },
+      { "name": "status-no-tol", "value": "#00c0ef", "usage": "QC 'No Tol Set' (.no_tol), info label and callout in stock AdminLTE. White on it is 2.2:1: fails AA." },
+      { "name": "status-not-done", "value": "#b5bbc8", "usage": "QC 'Not Done' (.not_done). Black text on it (10.9:1); white fails." },
+      { "name": "unreviewed", "value": "#b0761a", "usage": "'Unreviewed' text in the Record box (.fl-unrev). 3.9:1 on surface: fails AA for its 13px use." },
+      { "name": "danger-deep", "value": "#c0392b", "usage": "Text of the ghost danger button, the missing-file chip and the chip remove × on hover. 5.4:1 on surface, 4.6:1 on danger-ghost-bg." },
+      { "name": "danger-ghost-bg", "value": "#fbe9e7", "usage": "Hover fill of .btn-danger-ghost and of a danger icon button." },
+      { "name": "danger-ghost-border", "value": "#e8c4be", "usage": "Resting border of .btn-danger-ghost." },
+      { "name": "missing-bg", "value": "#fdf6f5", "usage": "Attachment chip whose file is gone from the server (.fl-missing)." },
+      { "name": "missing-border", "value": "#edc9c3", "usage": "Outline of the missing-file chip." },
+      { "name": "comment-error", "value": "#e76167", "usage": "A comment flagged as an error (.err-comment), with white text (3.3:1: fails AA)." },
+      { "name": "chip-remove", "value": "#b6bcc6", "usage": "Resting colour of the × that removes an attachment chip." }
+    ]
+  },
+  "type": {
+    "fonts": [
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-300.woff2", "weight": "300", "style": "normal" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-regular.woff2", "weight": "400", "style": "normal" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-600.woff2", "weight": "600", "style": "normal" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-700.woff2", "weight": "700", "style": "normal" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-300italic.woff2", "weight": "300", "style": "italic" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-italic.woff2", "weight": "400", "style": "italic" },
+      { "family": "Source Sans Pro", "file": "fonts/Source-Sans-Pro-600italic.woff2", "weight": "600", "style": "italic" },
+      { "family": "FontAwesome", "file": "fonts/fontawesome-webfont.woff2", "weight": "400", "style": "normal" }
+    ],
+    "families": {
+      "sans": "\"Source Sans Pro\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "logo": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      "mono": "Menlo, Consolas, monospace",
+      "pre": "Menlo, Monaco, Consolas, \"Courier New\", monospace",
+      "icon": "FontAwesome"
+    },
+    "groups": [
+      {
+        "name": "Headings",
+        "family": "sans",
+        "styles": [
+          { "name": "logo", "family": "logo", "fontSize": "20px", "lineHeight": "50px", "fontWeight": 300, "sample": "QATrack+", "usage": "The wordmark in the header: set light, with 'QAT' and '+' in <b> (700), white on chrome-bg-deep. A site's SITE_NAME replaces it." },
+          { "name": "page-title", "fontSize": "22px", "lineHeight": 1.1, "fontWeight": 400, "sample": "Fault ID 1042", "usage": "The h1 at the top of a details page (.fl-page-head h1), in text." },
+          { "name": "box-title", "fontSize": "18px", "lineHeight": 1, "fontWeight": 400, "sample": "Occurrence", "usage": "A box's title (.box-header .box-title), in text." },
+          { "name": "subheading", "fontSize": "15px", "lineHeight": 1.42857143, "fontWeight": 600, "sample": "Calibration", "usage": "A divider heading inside a box (.subheading-divider) and the title of a .box-small." }
+        ]
+      },
+      {
+        "name": "Text",
+        "family": "sans",
+        "styles": [
+          { "name": "body", "fontSize": "14px", "lineHeight": 1.42857143, "fontWeight": 400, "sample": "The beam was interrupted at 40 MU.", "usage": "Default copy everywhere (Bootstrap 3 body), in text-body." },
+          { "name": "body-strong", "fontSize": "14px", "lineHeight": 1.42857143, "fontWeight": 600, "sample": "Modality / Beam", "usage": "Labels, table headers, dl terms and .label: QATrack+ sets all of them to 600." },
+          { "name": "compact", "fontSize": "13px", "lineHeight": 1.5, "fontWeight": 400, "sample": "No description available", "usage": "Text inside htmx edit sections: descriptions, search inputs, field labels at 600." },
+          { "name": "small", "fontSize": "12px", "lineHeight": 1.5, "fontWeight": 400, "sample": "Oct 20, 2026, 9:14 a.m.", "usage": "btn-sm, meta lines, help text (italic), breadcrumbs, field errors." }
+        ]
+      },
+      {
+        "name": "Labels",
+        "family": "sans",
+        "styles": [
+          { "name": "eyebrow", "fontSize": "11px", "lineHeight": 1.42857143, "fontWeight": 700, "letterSpacing": "0.03em", "sample": "REVIEW STATUS", "usage": "Uppercase column headers in .tl-table and the Record box's .fl-rec-label, in text-meta." },
+          { "name": "tag", "fontSize": "11px", "lineHeight": 1.42857143, "fontWeight": 700, "letterSpacing": "0.04em", "sample": "EDITING", "usage": "The uppercase 'Editing' tag in a section header, in link." },
+          { "name": "nav-header", "fontSize": "11px", "lineHeight": "18px", "fontWeight": 700, "sample": "QC LISTS", "usage": "Uppercase group headings inside nav dropdowns, #999." },
+          { "name": "badge", "fontSize": "10px", "lineHeight": 1.42857143, "fontWeight": 700, "letterSpacing": "0.04em", "sample": "NEW", "usage": "The white-on-green 'New' badge beside a fault type created in this edit." }
+        ]
+      },
+      {
+        "name": "Code",
+        "family": "mono",
+        "styles": [
+          { "name": "code", "fontSize": "13px", "lineHeight": 1.42857143, "fontWeight": 700, "sample": "MLC-INTERLOCK", "usage": "Fault-type codes in tables and picker results (.fl-code, .tl-mono)." },
+          { "name": "code-chip", "fontSize": "11px", "lineHeight": 1.42857143, "fontWeight": 700, "sample": "DOSE-1", "usage": "Fault-type codes as inline chips (.fl-code-chip)." },
+          { "name": "pre", "family": "pre", "fontSize": "12.025px", "lineHeight": "18px", "fontWeight": 400, "sample": "result = 1.002", "usage": "Pre-formatted values and procedure text (.pre), wrapping." }
+        ]
+      }
+    ]
+  },
+  "spacing": {
+    "note": "There is no spacing scale in the code: these are the steps the boxes and the htmx sections actually use.",
+    "tokens": [
+      { "name": "space-2", "value": "2px", "usage": "Gap between a pick item's name and subtitle." },
+      { "name": "space-4", "value": "4px", "usage": "Gap between picker results and between code chips; .box-small margin." },
+      { "name": "space-6", "value": "6px", "usage": "Gap between header tools, chips and description actions." },
+      { "name": "space-8", "value": "8px", "usage": "Footer button gap (.tl-group-foot), table cell vertical padding, error list margin." },
+      { "name": "space-10", "value": "10px", "usage": "Box header and box body padding; table cell horizontal padding." },
+      { "name": "space-12", "value": "12px", "usage": "Footer horizontal padding; row gap in .tl-form." },
+      { "name": "space-15", "value": "15px", "usage": "Gap under the page header; Bootstrap gutter half-width." },
+      { "name": "space-16", "value": "16px", "usage": "Gap between the two columns of section boxes (.fl-layout) and column gap in .tl-form." },
+      { "name": "space-20", "value": "20px", "usage": "Space under each box (.box margin-bottom)." }
+    ]
+  },
+  "radius": {
+    "tokens": [
+      { "name": "radius-none", "value": "0px", "usage": "QATrack+ squares boxes, alerts, form controls, dropdowns, pagination and every .btn-flat." },
+      { "name": "radius-sm", "value": "2px", "usage": "Labels, the htmx search box and the inline description editor." },
+      { "name": "radius-md", "value": "3px", "usage": "Non-flat buttons, icon buttons, chips, pick items and picker panels." }
+    ]
+  },
+  "shadow": {
+    "tokens": [
+      { "name": "shadow-box", "value": "0 1px 1px rgba(0, 0, 0, 0.1)", "usage": "Every .box." },
+      { "name": "shadow-control", "value": "2px 2px 2px #dddddd", "usage": "Buttons, button groups and enabled form controls: QATrack+'s hard offset shadow." },
+      { "name": "shadow-inline-input", "value": "2px 2px 2px #eeeeee", "usage": "The htmx search box and description editor (lighter than shadow-control)." },
+      { "name": "shadow-dropdown", "value": "2px 6px 4px rgba(53, 124, 165, 0.25)", "usage": "Dropdown menus, select2 dropdowns, popovers and .drop-shadow." },
+      { "name": "shadow-header", "value": "2px 6px 4px rgba(50, 62, 70, 0.25)", "usage": "Under the main header bar." },
+      { "name": "shadow-popover", "value": "0 8px 26px rgba(0, 0, 0, 0.18)", "usage": "Picker results that float above a section's footer." },
+      { "name": "shadow-editing", "value": "0 0 0 1px #cfe0ee, 0 1px 1px rgba(0, 0, 0, 0.1)", "usage": "A section box in edit mode (.fl-sec[data-editing=\"1\"])." }
+    ]
+  },
+  "size": {
+    "tokens": [
+      { "name": "header-height", "value": "50px", "usage": "Main header and logo height." },
+      { "name": "sidebar-width", "value": "230px", "usage": "Sidebar and full logo width." },
+      { "name": "control-height", "value": "30px", "usage": "Form controls (QATrack+ trims Bootstrap's 34px)." },
+      { "name": "iconbtn-size", "value": "24px", "usage": "Width and height of .tl-iconbtn." },
+      { "name": "box-accent", "value": "3px", "usage": "Top border that colours a .box by kind (box-info, box-primary…)." },
+      { "name": "content-max-lg", "value": "1200px", "usage": "Details pages (.max-width-lg)." },
+      { "name": "content-max-md", "value": "900px", "usage": ".max-width-md, and the breakpoint where .fl-layout drops to one column." }
+    ]
+  }
+}

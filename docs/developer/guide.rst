@@ -14,6 +14,7 @@ Developers Guide
 
    self
    schema
+   design_system
 
 Installing QATrack+ For Development
 -----------------------------------
