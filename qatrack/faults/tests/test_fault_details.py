@@ -265,3 +265,26 @@ class TestReviewFromDetailsPage(FaultDetailsTestCase):
         resp = self.client.post(reverse("fault_review", kwargs={"pk": self.fault.pk}), **HTMX)
         assert "Acknowledge fault" in resp.content.decode()
         assert not self.fault.faultreviewinstance_set.exists()
+
+
+class TestExpiredSession(FaultDetailsTestCase):
+
+    def test_htmx_request_sends_the_whole_page_to_login(self):
+        """A logged-out htmx request must not swap the login page into a section."""
+        self.client.logout()
+        page = "http://testserver" + reverse("fault_details", kwargs={"pk": self.fault.pk}) + "?tab=1"
+        resp = self.client.get(section_url(self.fault, "fault-types", edit=True), HTTP_HX_CURRENT_URL=page, **HTMX)
+        assert resp.status_code == 204
+        assert resp["HX-Redirect"] == "/accounts/login/?next=/faults/%d/%%3Ftab%%3D1" % self.fault.pk
+
+    def test_next_never_points_off_site(self):
+        self.client.logout()
+        resp = self.client.get(
+            section_url(self.fault, "fault-types"), HTTP_HX_CURRENT_URL="https://evil.example/steal", **HTMX
+        )
+        assert resp["HX-Redirect"] == "/accounts/login/?next=/steal"
+
+    def test_normal_requests_still_redirect(self):
+        self.client.logout()
+        resp = self.client.get(reverse("fault_details", kwargs={"pk": self.fault.pk}))
+        assert resp.status_code == 302

@@ -6,7 +6,8 @@
            placeholder="{% trans 'Search fault types (2+ characters)…' %}"
            hx-get="{% url 'fault_type_picker' pk=fault.pk %}"
            hx-trigger="input changed delay:250ms, focus"
-           hx-include="closest form" hx-target="next .fl-results" hx-swap="innerHTML"
+           hx-include="#fault-type-rows [name='fault-fault_types_field']"
+           hx-sync="this:replace" hx-target="next .fl-results" hx-swap="innerHTML"
            hx-indicator="closest .fl-picker">
   </div>
   <div class="fl-results"></div>

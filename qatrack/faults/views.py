@@ -135,16 +135,18 @@ def fault_type_rows(fault, form=None):
         return [fault_type_row(ft) for ft in fault.fault_types.order_by("code")]
 
     marker = forms.NEW_FAULT_TYPE_MARKER
+    values = form.data.getlist("fault-fault_types_field")
+    existing = {
+        ft.code: ft for ft in models.FaultType.objects.filter(code__in=[v for v in values if not v.startswith(marker)])
+    }
     rows = []
-    for value in form.data.getlist("fault-fault_types_field"):
+    for value in values:
         if value.startswith(marker):
             code = value[len(marker):]
             desc = form.data.get(NEW_FAULT_TYPE_DESC_PREFIX + code, "")
             rows.append(fault_type_row(new_code=code, new_description=desc))
-        else:
-            fault_type = models.FaultType.objects.filter(code__iexact=value).first()
-            if fault_type:
-                rows.append(fault_type_row(fault_type))
+        elif value in existing:
+            rows.append(fault_type_row(existing[value]))
     return rows
 
 

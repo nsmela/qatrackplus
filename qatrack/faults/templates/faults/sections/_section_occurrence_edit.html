@@ -21,7 +21,7 @@
 <script>
   // Runs each time this partial is swapped in, so the widgets only exist while
   // someone is editing.
-  require(['jquery', 'moment', 'flatpickr', 'select2'], function($, moment) {
+  require(['jquery', 'moment', 'flatpickr', 'select2'], function($, moment, flatpickr) {
     var $occurred = $('#id_fault-occurred');
     var $unit = $('#id_fault-unit');
     var $modality = $('#id_fault-modality');
@@ -30,7 +30,12 @@
     var parsed = moment($occurred.val(), ['YYYY-MM-DD HH:mm', siteConfig.MOMENT_DATETIME_FMT]);
     var initial = parsed.isValid() ? parsed.toDate() : new Date();
     $occurred.val(moment(initial).format(siteConfig.MOMENT_DATETIME_FMT));
-    $occurred.flatpickr({
+    // flatpickr adds its calendar to the end of the page, where an htmx swap of
+    // this section can't reach it; drop the one from the last time this was open.
+    if (window.flOccurredPicker) {
+      window.flOccurredPicker.destroy();
+    }
+    window.flOccurredPicker = flatpickr($occurred[0], {
       enableTime: true,
       time_24hr: true,
       minuteIncrement: 1,

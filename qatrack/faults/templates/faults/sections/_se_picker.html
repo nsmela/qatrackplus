@@ -6,7 +6,8 @@
            placeholder="{% blocktrans with unit=fault.unit %}Search service events on {{ unit }}…{% endblocktrans %}"
            hx-get="{% url 'fault_se_picker' pk=fault.pk %}"
            hx-trigger="input changed delay:250ms, focus"
-           hx-include="closest form" hx-target="next .fl-results" hx-swap="innerHTML"
+           hx-include="#related-se-rows [name='fault-related_service_events']"
+           hx-sync="this:replace" hx-target="next .fl-results" hx-swap="innerHTML"
            hx-indicator="closest .fl-picker">
   </div>
   <div class="fl-results"></div>

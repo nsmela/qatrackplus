@@ -673,13 +673,6 @@ require(['jquery', 'lodash', 'moment', 'flatpickr', 'select2', 'comments', 'sl_u
                 $attach_delete_ids.val(deletes.join(','));
             });
         }
-        
-        // Ensure HTMX swaps re-initialize the JS since RequireJS won't re-execute this module
-        document.body.addEventListener('htmx:afterSettle', function(evt) {
-            if ($("#id_fault-unit").length && !$("#id_fault-unit").hasClass("select2-hidden-accessible")) {
-                configureFaults();
-            }
-        });
-        
+
     });
 });
