@@ -36,7 +36,7 @@
       "MainHeader": "qatrack/templates/site_base.html",
       "DescriptionList": "qatrack/faults/templates/faults/sections/_section_occurrence_read.html"
     },
-    "synced": "2026-10-20"
+    "synced": "2026-10-21"
   },
   "color": {
     "note": "QATrack+ has one theme. The branch defines no CSS custom properties: every value below is the literal colour its stylesheets use, named here by role. Pairs that fall under 4.5:1 are kept exactly as the code has them and flagged in their notes.",
@@ -91,11 +91,11 @@
       { "name": "status-action", "value": "#dd4b39", "usage": "QC 'Action' (.action), danger label/button/callout, required-field asterisk, error lists, .border-error. 4.1:1 as text or behind white text: under AA for body sizes." },
       { "name": "status-action-hover", "value": "#d73925", "usage": "btn-danger hover and border." },
       { "name": "status-no-tol", "value": "#00c0ef", "usage": "QC 'No Tol Set' (.no_tol), info label and callout in stock AdminLTE. White on it is 2.2:1: fails AA." },
-      { "name": "status-not-done", "value": "#b5bbc8", "usage": "QC 'Not Done' (.not_done). Black text on it (10.9:1); white fails." },
+      { "name": "status-not-done", "value": "#b5bbc8", "usage": "QC 'Not Done' (.not_done). qa.css sets only the background, so the label text is white (1.9:1, fails AA); black text would be 10.9:1." },
       { "name": "unreviewed", "value": "#b0761a", "usage": "'Unreviewed' text in the Record box (.fl-unrev). 3.9:1 on surface: fails AA for its 13px use." },
       { "name": "danger-deep", "value": "#c0392b", "usage": "Text of the ghost danger button, the missing-file chip and the chip remove × on hover. 5.4:1 on surface, 4.6:1 on danger-ghost-bg." },
       { "name": "danger-ghost-bg", "value": "#fbe9e7", "usage": "Hover fill of .btn-danger-ghost and of a danger icon button." },
-      { "name": "danger-ghost-border", "value": "#e8c4be", "usage": "Resting border of .btn-danger-ghost." },
+      { "name": "danger-ghost-border", "value": "#e8c4be", "usage": "Declared as the resting border of .btn-danger-ghost, but never shows: .btn { border-color: transparent !important } in custom-adminlte.css wins." },
       { "name": "missing-bg", "value": "#fdf6f5", "usage": "Attachment chip whose file is gone from the server (.fl-missing)." },
       { "name": "missing-border", "value": "#edc9c3", "usage": "Outline of the missing-file chip." },
       { "name": "comment-error", "value": "#e76167", "usage": "A comment flagged as an error (.err-comment), with white text (3.3:1: fails AA)." },
@@ -127,7 +127,7 @@
         "styles": [
           { "name": "logo", "family": "logo", "fontSize": "20px", "lineHeight": "50px", "fontWeight": 300, "sample": "QATrack+", "usage": "The wordmark in the header: set light, with 'QAT' and '+' in <b> (700), white on chrome-bg-deep. A site's SITE_NAME replaces it." },
           { "name": "page-title", "fontSize": "22px", "lineHeight": 1.1, "fontWeight": 400, "sample": "Fault ID 1042", "usage": "The h1 at the top of a details page (.fl-page-head h1), in text." },
-          { "name": "box-title", "fontSize": "18px", "lineHeight": 1, "fontWeight": 400, "sample": "Occurrence", "usage": "A box's title (.box-header .box-title), in text." },
+          { "name": "box-title", "fontSize": "18px", "lineHeight": 1, "fontWeight": 500, "sample": "Fault Types", "usage": "A box's title (.box-header .box-title), in text. It is an h3, so Bootstrap gives it weight 500, which renders with the 400 face: titles never look bold." },
           { "name": "subheading", "fontSize": "15px", "lineHeight": 1.42857143, "fontWeight": 600, "sample": "Calibration", "usage": "A divider heading inside a box (.subheading-divider) and the title of a .box-small." }
         ]
       },
@@ -137,8 +137,8 @@
         "styles": [
           { "name": "body", "fontSize": "14px", "lineHeight": 1.42857143, "fontWeight": 400, "sample": "The beam was interrupted at 40 MU.", "usage": "Default copy everywhere (Bootstrap 3 body), in text-body." },
           { "name": "body-strong", "fontSize": "14px", "lineHeight": 1.42857143, "fontWeight": 600, "sample": "Modality / Beam", "usage": "Labels, table headers, dl terms and .label: QATrack+ sets all of them to 600." },
-          { "name": "compact", "fontSize": "13px", "lineHeight": 1.5, "fontWeight": 400, "sample": "No description available", "usage": "Text inside htmx edit sections: descriptions, search inputs, field labels at 600." },
-          { "name": "small", "fontSize": "12px", "lineHeight": 1.5, "fontWeight": 400, "sample": "Oct 20, 2026, 9:14 a.m.", "usage": "btn-sm, meta lines, help text (italic), breadcrumbs, field errors." }
+          { "name": "compact", "fontSize": "13px", "lineHeight": 1.42857143, "fontWeight": 400, "sample": "No description available", "usage": "Text inside htmx edit sections: descriptions, search inputs, field labels at 600. Line height is inherited from body; only .tl-desc-edit sets 1.5." },
+          { "name": "small", "fontSize": "12px", "lineHeight": 1.42857143, "fontWeight": 400, "sample": "Oct 20, 2026, 9:14 a.m.", "usage": "Meta lines, help text (italic), breadcrumbs, field errors, pick-item subtitles, line height inherited. btn-sm is also 12px but with line height 1.5." }
         ]
       },
       {
@@ -186,7 +186,7 @@
   "shadow": {
     "tokens": [
       { "name": "shadow-box", "value": "0 1px 1px rgba(0, 0, 0, 0.1)", "usage": "Every .box." },
-      { "name": "shadow-control", "value": "2px 2px 2px #dddddd", "usage": "Buttons, button groups and enabled form controls: QATrack+'s hard offset shadow." },
+      { "name": "shadow-control", "value": "2px 2px 2px #dddddd", "usage": "Every .btn, flat ones included (the rule is !important, so AdminLTE's .btn-flat cannot remove it), button groups and enabled .form-control inputs: QATrack+'s hard offset shadow." },
       { "name": "shadow-inline-input", "value": "2px 2px 2px #eeeeee", "usage": "The htmx search box and description editor (lighter than shadow-control)." },
       { "name": "shadow-dropdown", "value": "2px 6px 4px rgba(53, 124, 165, 0.25)", "usage": "Dropdown menus, select2 dropdowns, popovers and .drop-shadow." },
       { "name": "shadow-header", "value": "2px 6px 4px rgba(50, 62, 70, 0.25)", "usage": "Under the main header bar." },

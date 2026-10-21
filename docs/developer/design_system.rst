@@ -159,7 +159,8 @@ QATrack+ has one colour theme.
      - QC "No Tol Set".
    * - ``status-not-done``
      - ``#b5bbc8``
-     - QC "Not Done" (with black text).
+     - QC "Not Done". The label text is white today, which is hard to read
+       (see :ref:`dev_design_system_contrast`).
 
 The status colours carry clinical meaning, so they are never used for
 decoration, and they always appear with their word ("OK", "TOL", "ACT"). A
@@ -187,7 +188,9 @@ Type
   uppercase, with 0.03em letter spacing.
 * Codes and identifiers (fault types, for example) are 13px bold in
   ``Menlo, Consolas, monospace``.
-* Page titles are 22px and box titles 18px, both at regular weight.
+* Page titles are 22px at regular weight. Box titles are 18px ``h3``
+  elements, so Bootstrap gives them weight 500. There's no 500 font file, so
+  they render with the regular face and never look bold.
 * The header wordmark is Helvetica Neue at weight 300, with "QAT" and "+"
   bold. A site's ``SITE_NAME`` replaces it.
 
@@ -199,8 +202,9 @@ Space, shape and depth
 * Corners are square: boxes, alerts, inputs, dropdowns and ``.btn-flat``
   buttons all have no radius. Raised buttons, chips and picker items use 3px,
   and labels and inline inputs 2px.
-* Depth is a small hard shadow: ``2px 2px 2px #ddd`` under buttons and
-  inputs, ``0 1px 1px rgba(0, 0, 0, 0.1)`` under boxes.
+* Depth is a small hard shadow: ``2px 2px 2px #ddd`` under every button
+  (flat ones included) and input, ``0 1px 1px rgba(0, 0, 0, 0.1)`` under
+  boxes.
 * A box's kind is shown by its 3px top edge, not by a filled header.
 
 In-place editing with htmx
@@ -340,6 +344,10 @@ change the look of every page.
      - 3.33
      - ``.box-comment.err-comment``
      - Black text (6.30)
+   * - White on ``status-not-done`` ``#b5bbc8``
+     - 1.93
+     - ``.not_done`` (``qa.css`` sets only the background)
+     - Black text (10.91)
 
 Two things to keep in mind when working through these:
 
@@ -350,3 +358,27 @@ Two things to keep in mind when working through these:
 * Changing a status colour changes what clinical staff are used to seeing.
   Darkening slightly keeps the meaning recognisable; changing the hue would
   not.
+
+Where the CSS doesn't do what the markup intends
+------------------------------------------------
+
+Rebuilding the fault details page from this record and comparing it with the
+real stylesheets showed four places where a rule loses to another one, so the
+page doesn't look the way its templates ask for. They are recorded here as the
+page renders today:
+
+* **The ghost Delete button has no border.** ``.btn-danger-ghost`` sets
+  ``border-color: #e8c4be`` (``base.css``), but
+  ``.btn { border-color: transparent !important }`` in
+  ``custom-adminlte.css`` wins.
+* **Flat buttons still have a shadow.** AdminLTE's ``.btn.btn-flat`` removes
+  the shadow without ``!important``, so QATrack+'s
+  ``.btn { box-shadow: 2px 2px 2px #ddd !important }`` wins. Every small flat
+  button in the sections has the shadow.
+* **``no_pad`` sections are still padded.** ``_section_box.html`` adds
+  ``.no-pad`` to the box body, but no rule removes its 10px padding (only
+  ``.no-pad > .fl-errors`` is styled), so the Fault Types and Related Service
+  Events tables are inset instead of running edge to edge.
+* **Remove buttons rest red-brown on fault pages.** ``sl.css`` (loaded by
+  ``sl_base.html``) has a global ``.danger { color: #b94a48 }``, which colours
+  ``.tl-iconbtn.danger`` at rest instead of the faint grey it should have.
