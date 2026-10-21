@@ -60,7 +60,7 @@
       { "name": "surface-iconbtn-hover", "value": "#eceff3", "usage": "Hover fill behind a borderless icon button (.tl-iconbtn)." },
       { "name": "surface-pending", "value": "#eef6fb", "usage": "An attachment chosen but not yet saved (.fl-pending)." },
       { "name": "border", "value": "#d2d6de", "usage": "The default rule: inputs, .box-default top border, table header underline, label-default fill. Too light to carry meaning alone (1.5:1 on white)." },
-      { "name": "border-light", "value": "#dddddd", "usage": "Dropdowns, .text-display, .drop-shadow and the 2px button/input shadow colour." },
+      { "name": "border-light", "value": "#dddddd", "usage": ".text-display, .drop-shadow, timeline icons and the 2px button/input shadow colour. Dropdown menus use #bbb, not this." },
       { "name": "border-chip", "value": "#e2e6ee", "usage": "Attachment chip outline and .subheading-divider." },
       { "name": "border-code", "value": "#dbe3e8", "usage": "Fault-type code chip outline." },
       { "name": "border-dashed", "value": "#cbd1da", "usage": "The dashed 'Browse…' attachment drop target." },
