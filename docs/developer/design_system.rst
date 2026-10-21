@@ -14,7 +14,9 @@ clinical evidence. Clarity and calm beat decoration every time.
 
 The same values are available in machine-readable form in
 :download:`design_system_tokens.json <design_system_tokens.json>`, one entry per
-token with a note on where it is used.
+token with a note on where it is used. ``docs/developer/design_system.ai.md``
+holds everything on this page and more (component markup, sizes, htmx
+attributes) in a compressed form meant for AI coding tools rather than people.
 
 .. note::
 
@@ -114,7 +116,8 @@ QATrack+ has one colour theme.
      - ``.btn-info`` and info alerts.
    * - ``slate``
      - ``#748e9f``
-     - The top edge of a ``.box-info``, which every fault details section uses.
+     - The top edge of a ``.box-info``, which fault details sections use unless
+       they ask for another kind (the Details section is ``.box-primary``).
    * - ``link``
      - ``#3c8dbc``
      - Links, the focus border on buttons and inputs, the "Editing" tag.
@@ -235,7 +238,7 @@ Icons
 
 * Use Font Awesome 4.7 only (``<i class="fa fa-...">``), with the outline
   ``-o`` variants where they exist (``fa-trash-o``, ``fa-file-o``).
-* Section headers: ``fa-info-circle`` Occurrence, ``fa-tags`` Fault Types,
+* Section headers: ``fa-info-circle`` Details, ``fa-tags`` Fault Types,
   ``fa-wrench`` Related Service Events, ``fa-paperclip`` Attachments,
   ``fa-history`` Record, ``fa-commenting-o`` Comments.
 * Actions: ``fa-pencil`` edit, ``fa-trash-o`` remove, ``fa-check`` save,
