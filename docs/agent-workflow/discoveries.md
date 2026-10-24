@@ -109,29 +109,79 @@ Rollback prerequisites to enforce in review/CI:
 3. Batch checklist generator (collect "How to test" sections from member PRs).
 4. Guard hook from `SoignantRT/.claude/hooks` adapted to `develop`/`master`/`releases/*`.
 
-## Comparison with the source video
-Source: "Claude Codes New REVIEW.md System, What is it?" (Rob Shocks,
-https://youtu.be/bls8ZJ_INMQ). The transcript could not be fetched, so this
-compares against the video's topic and the official docs
-(https://code.claude.com/docs/en/code-review).
+## Comparison with the source material
+Video: "Claude Codes New REVIEW.md System, What is it?" (https://youtu.be/bls8ZJ_INMQ).
+Its stated main source is "How the Claude Code team does code review"
+(https://claude.dev/blog/solving-code-review-at-anthropic/, Oct 15 2026), plus the
+Code Review docs, the GA post and the security-review post. Read directly; the
+video transcript itself could not be fetched.
 
-- The video covers one piece: `REVIEW.md`, review-only instructions that
-  Claude Code Review reads from the base/default branch, never from the PR.
-  SoignantRT uses it as one layer inside a larger SDLC (intent → plan → lanes →
-  tags → rollback). The batch lane and rollback ladder above are not from the video.
-- SoignantRT's `REVIEW.md` defines "Important" (incl. "blocks a rollback"),
-  caps nits at 5, skips generated files/lockfiles, and adds lane-specific
-  checks (backport = only the original change; hotfix = smallest change).
-  `claude-review.yml` is a fallback for plans without Code Review that feeds
-  the base branch's `REVIEW.md` to `claude-code-action`.
-- QATrack+ has no `REVIEW.md`. A port would add: migration reversibility
-  (`RunPython` without `reverse_code` = Important), migrations still runnable on
-  MS SQL Server, missing/uncompiled translations, `release_notes.md` updated,
-  PR template boxes ticked, ignore `uv.lock` and compiled `.mo` files.
-- Fits the QATrack+ AI policy: Code Review is advisory (never approves or
-  blocks), and maintainers commit to not using AI as the final review.
-- Batch lane interaction: PRs into `batch/*` have the batch branch as base, so
-  Code Review would read `REVIEW.md` from the batch branch. A member PR that
-  edits `REVIEW.md` would change the rules for later PRs in the same batch.
-  Rule: `REVIEW.md` changes go straight to `develop` (`trivial` or `standard`),
-  never through a batch.
+### The post's model
+Goal: least human time per change with **no rise in reverts or incidents**
+(Claude writes ~90% of Claude Code; merged PRs doubled Jun-Sep, revert share fell >40%).
+Six layers of checks with rollback under them:
+1. Verified before a PR: tests/build/lint run, fresh-context subagent reviews the diff.
+2. AI review on every PR (parallel finders, voting verifiers; Important / Nit / Pre-existing).
+3. Security review. Open findings from 2 or 3 **block the merge** until fixed or resolved with a reason.
+4. Required CI. PR template asks "Testing", "Risk", "How to revert".
+5. Human approval scaled by risk: low = 0, medium = 1, high = 2. Tier set by a
+   classifier from the change, not the author. Sensitive paths and CI workflows
+   always need a person. Only trusted authors get light paths. Bot approval never
+   counts as a person's. The person prompting the agent is a required reviewer.
+   Approval covers one commit; new untrusted commits need re-approval.
+6. Merge queue, flags, internal use first, staged release (latest → stable).
+7. (Under all) Fast detection and rollback: flags off without deploy, reverts, on-call,
+   incident review asks which layer should have caught it.
+Reviewer improvement: past incidents/reverts become a daily eval; noise measured
+by how authors responded. Convergence: one PR ran **50+ agent review/fix rounds**
+overnight; ~59% of repeat flags were old code. Fixes: cap at 3 rounds then
+reconsider the approach, diff-only re-review, flag the bug class, no repeats.
+Result: one-round pass 65% → 78%, 5+ rounds 8.9% → 1.5%.
+
+### Mapping
+| Post layer | SoignantRT | QATrack+ today | Proposed for QATrack+ |
+| :-- | :-- | :-- | :-- |
+| 1 Verify before PR | `make verify` + `verifier` subagent required | `AGENTS.md` test commands; none required | Add a verifier subagent; paste test tail in PR |
+| 2 AI review | `REVIEW.md` + `claude-review.yml` fallback | None | Add `REVIEW.md`; `/code-review` locally (any plan) |
+| 3 Security review | `secrets.yml` only | CodeQL | `/security-review` + security-review Action; branch protection "require conversation resolution" |
+| 4 Required CI | `verify`, `lane`, `secrets` | `ci.yml` (not required on fork) | Make `ci` + `lane` required |
+| 5 Risk-based approval | Fixed N approvals + CODEOWNERS | Template: maintainer for breaking/feature/migration, else reviewer | Write the tiers down; path-based CODEOWNERS for `migrations/`, `qa/` calc engine, auth, `.github/` |
+| 6 Queue/flags/staged | Merge queue (org only), rc tags | Tags; no flags | Batch branch as manual queue; rc tag to a pilot clinic before final |
+| 7 Rollback | Rollback workflow, expand/contract | DB backup in upgrade docs | Reversible migrations CI, revert lanes (above) |
+| Incident eval | `evals/` + `agent-evals.yml` | None | Seed from past `fix` PRs and reverts |
+| Round cap | Not present | Not present | Cap 3 agent review rounds per PR, then human |
+
+### Where QATrack+ must differ
+- **Human reading.** The post calls "did a human read the code?" an imprecise
+  proxy and lets low-risk changes merge with zero humans. QATrack+ `AGENTS.md`
+  requires a human to read every line of every non-draft PR, and maintainers
+  will not use AI as the final review. So tier "low = 0 humans" is not
+  available; the floor is 1 (the author/prompter). AI review cuts *finding*
+  time, not the reading requirement. Changing that is a policy decision for
+  the upstream maintainers, not a workflow tweak.
+- **Batching vs. the post.** The post does not batch; it relies on small PRs,
+  a merge queue and flags. The batch lane fills the merge-queue role on a
+  user-owned repo and adds one combined *manual test* pass, which the post
+  replaces with internal dogfooding. Keep per-PR approval tied to its own
+  commit (post rule) — the batch PR approval does not replace member-PR review.
+- **Flags.** QATrack+ has no runtime flag system, so layer 6/7 "flag off" is
+  unavailable; rollback leans on revert + reversible migrations + DB backup.
+- **Staged release.** No "latest channel"; the analogue is an rc tag run by
+  one or two pilot clinics before the final tag.
+- **Code Review availability.** Team/Enterprise only, and not offered under
+  the HIPAA configuration or BAA. QATrack+ code holds no PHI, but any test
+  fixtures or screenshots attached to PRs must stay PHI-free (already a PR
+  template box).
+
+### REVIEW.md notes (from the docs)
+- Read from the base/default branch, never from the PR. Reviews never block or
+  approve; the check run never fails. Blocking comes from branch protection
+  requiring resolved threads.
+- `@claude review` (write access) re-runs it; Quick / Standard / Deep set per repo.
+- Batch lane interaction: PRs into `batch/*` read `REVIEW.md` from the batch
+  branch. A member PR editing `REVIEW.md` changes the rules for later PRs in the
+  batch, so `REVIEW.md` changes go straight to `develop`, never through a batch.
+- Candidate QATrack+ Important items: `RunPython` without `reverse_code`;
+  migration unsafe on MS SQL Server; changes to QC calculation/tolerance logic
+  without a test; uncompiled or missing translations; `release_notes.md` not
+  updated. Skip `uv.lock`, `.mo`, `fixtures/` bulk data.
