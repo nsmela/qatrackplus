@@ -216,7 +216,35 @@ SoignantRT mixes these; separating them keeps both tables small.
 | :-- | :-- | :-- |
 | 0 | `docs/` (not `docs/install/`), `.po`, tests-only additions | None once CI, AI and security review are clean |
 | 1 | UI, templates, reports, service log, faults, parts, notifications, i18n code | 1 human (may be the prompter) |
-| 2 | QC result logic (`qa/` calculation, tolerance, pass/fail, due dates), `migrations/`, auth/permissions, `api/` contract, `settings.py`, `deploy/`, installers, `.github/`, data export/delete | 2 humans, one a domain owner (medical physicist for QC logic) |
+| 2 | QC result logic (`qa/` calculation, tolerance, pass/fail, due dates), `migrations/`, auth/permissions, `api/` contract, `.github/`, data export/delete | 2 humans, one a domain owner (medical physicist for QC logic) |
+| 2 | **Install / upgrade / operate surface** (see below) | 2 humans, one an install owner who has run the steps on the affected platform |
+Install / upgrade / operate surface (all tier 2). A broken install or upgrade
+hits every clinic at once and is the hardest thing to roll back:
+- `deploy/**` (apache, nginx, supervisor, win `*.ps1`/WinSW, docker compose and
+  images, per-DB `local_settings.py` templates, `backup.sh`, role SQL).
+- `docs/install/**` and upgrade sections of `release_notes.md` (wrong steps = failed upgrade).
+- `qatrack/settings.py`, `local_settings*` templates, `manage.py`.
+- Dependencies: `pyproject.toml`, `uv.lock`, `requirements/`, Python/Django versions.
+- Upgrade-path management commands: `backup_site`, `migrate_accel`,
+  `convert_to_innodb`, `clearcache`, and any new one docs tell admins to run.
+- Data migrations (`RunPython`) and anything run by `migrate`/`collectstatic`.
+
+Required CI for this surface (in addition to the normal suite):
+- Fresh install per supported DB (Postgres, MS SQL Server, MySQL) and Docker
+  (`compose up` + smoke login).
+- Upgrade test: restore a seeded DB from each supported prior release
+  (`generate_sample_data` at the old tag), upgrade to the PR head, run smoke
+  tests, then confirm QC results on the golden fixtures are unchanged.
+- Backup → restore round-trip with `backup_site` and `deploy/*/backup.sh`.
+- Windows runner: PowerShell lint + install script dry-run.
+- Docs-as-tests: shell blocks in `docs/install/*upgrade*` are extracted and run
+  in the Linux/Docker jobs where possible; the rest need the install owner's
+  sign-off with pasted output.
+- Lane rule: install/upgrade changes cannot ride a `trivial` lane or a `batch`
+  with unrelated changes, so a failed upgrade maps to one revertable commit.
+- Release: the upgrade guide for the release is executed by the pilot clinics
+  during the rc soak, on their real platform, before the final tag.
+
 A second rule bumps a tier-0/1 change to 2 when the diff touches a model field,
 a calculation, or adds a dependency. Untrusted (outside) authors always +1.
 Bot approval never counts; approval is per commit and dismissed on new pushes.
