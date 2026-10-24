@@ -129,3 +129,23 @@ flowchart TD
     R4 --> E
     B1 --> E
 ```
+
+## 6. Pre-release channels and pilot testing
+
+```mermaid
+flowchart TD
+    D["develop"] -->|nightly build, optional| N["nightly<br/>throwaway test instances"]
+    D -->|feature-complete| B["vX.Y.0-beta.N<br/>early adopters, copy of their data"]
+    B -->|feature freeze| RC["vX.Y.Z-rc.N<br/>GitHub pre-release · Docker :rc"]
+    D --> RC
+    RC --> P1["Pilot: Linux + PostgreSQL"]
+    RC --> P2["Pilot: Windows + MS SQL"]
+    RC --> P3["Pilot: Docker"]
+    P1 --> S["Parallel run on restored backup<br/>run upgrade guide · compare QC results<br/>file Pre-release report"]
+    P2 --> S
+    P3 --> S
+    S --> G{"Exit criteria met?<br/>soak time · sign-off per platform<br/>no rc-blocker · upgrade guide OK"}
+    G -->|no: rc-blocker| F["Fix on develop<br/>(migrations from earlier rc frozen)"]
+    F --> RC
+    G -->|yes| M["promotion PR → main<br/>tag vX.Y.Z · stable · 'latest'"]
+```

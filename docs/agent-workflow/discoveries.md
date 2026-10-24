@@ -352,3 +352,66 @@ Never reset or force-push `main`; it would invalidate tags clinics installed fro
 Agents may open `trivial`, `standard`, `revert`, `hotfix` and `backport` PRs
 and prepare a `backmerge`. Only release managers create `promote/*` branches,
 `v*` tags, and merge into `main` or `releases/*`.
+
+## Pre-release testing by early users
+How some clinics run a version before it is promoted to `main`.
+
+### Facts from the repo (today)
+- `release.yml` publishes a GitHub Release with a source archive for **any** `v*`
+  tag, with no `prerelease` flag. Tagging `v4.2.0-rc.1` today would show up as
+  the latest release to everyone. Fix: `prerelease: ${{ contains(github.ref_name, '-') }}`
+  and `make_latest: ${{ !contains(github.ref_name, '-') }}` on `action-gh-release`.
+- The version lives in two places: `pyproject.toml` (`version = "4.0.1"`) and
+  `qatrack/settings.py` (`VERSION = "4.0.1"`). Pre-release versions need one
+  source, and PEP 440 form in `pyproject.toml` (`4.2.0rc1`) while the tag
+  uses SemVer (`v4.2.0-rc.1`). CI checks both match the tag.
+- Docker images are built locally from `deploy/docker/`, not published. Channels
+  for Docker users would need a registry (e.g. GHCR) — new infrastructure.
+
+### Channels
+| Channel | Tag | Built from | Who | Where it may run |
+| :-- | :-- | :-- | :-- | :-- |
+| nightly (optional) | none; Docker `:nightly` | `develop` head | contributors | throwaway test instances only |
+| beta | `vX.Y.0-beta.N` | `develop`, feature-complete for X.Y | early adopters | test instance with a copy of their data |
+| rc | `vX.Y.Z-rc.N` | `develop` (or `hotfix/*` head) | pilot clinics | parallel instance; production only by explicit site choice |
+| stable | `vX.Y.Z` | `main` (promotion of an rc, same tree) | everyone | production |
+All non-stable tags publish as GitHub pre-releases; "latest" always points at stable.
+Docker tags: `:nightly`, `:beta`, `:rc`, `:X.Y`, `:stable`.
+
+### How a pilot clinic tests (parallel run)
+1. Back up production (`backup_site` / `deploy/*/backup.sh`).
+2. Restore that backup onto a separate test server or Docker instance.
+3. Upgrade that copy following the release's own upgrade guide; report any step
+   that fails or is unclear (this is the test of `docs/install/`).
+4. Run the site's normal QC on the copy for the soak period, side by side with
+   production, and compare results for the same measurements.
+5. File a "Pre-release report" issue (template: version, upgrade-from version,
+   OS, DB backend, install type, upgrade guide OK?, QC results matched?,
+   problems). No PHI, no screenshots with patient or staff identifiers.
+Optional later: a `manage.py` command that recomputes stored test instances
+with the new code and lists any pass/tolerance/action status that would
+change — turns step 4 into a report.
+
+### Coverage and exit criteria
+- Each rc needs sign-off from at least one pilot per supported platform:
+  Linux + PostgreSQL, Windows + MS SQL Server, Docker, (MySQL if still supported).
+- Soak: minor release ≥ 2 weeks, patch ≥ 3 days, hotfix as short as the incident allows.
+- No open issues labelled `rc-blocker`.
+- Upgrade guide executed successfully by a pilot on each platform.
+- Release manager records the sign-offs in the promotion PR.
+
+### Rules that keep pre-release safe
+- **Migrations freeze once an rc ships.** rc.2 may add migrations but never
+  edit ones that shipped in rc.1, so an rc site upgrades cleanly to final.
+- rc → final is an in-place upgrade (same tree as the last rc). beta → rc is
+  supported; nightly → anything is not.
+- Downgrade from any pre-release = restore the pre-upgrade backup.
+- No new features after the first rc; only fixes. Features wait for the next beta.
+- Preview features alternative: ship in stable behind a runtime flag that is
+  off by default, so a site can opt in to one feature without running a whole
+  pre-release.
+
+### Feedback flow
+`rc-blocker` issue → fix on `develop` (normal lanes, usually its own PR, not a
+batch) → `rc.N+1` → pilots upgrade in place → soak restarts only for the
+areas touched (release manager decides).
