@@ -42,7 +42,7 @@ flowchart TD
 gitGraph
     commit id: "4.1 release" tag: "v4.1.0"
     branch develop
-    branch release/4.1
+    branch releases/4.1
     checkout develop
     commit id: "PR#4 trivial"
     branch batch/2026-11-03-a
@@ -62,7 +62,7 @@ gitGraph
     merge hotfix/qc-rounding id: "hotfix" tag: "v4.2.1"
     checkout develop
     merge main id: "back-merge"
-    checkout release/4.1
+    checkout releases/4.1
     cherry-pick id: "PR#5 fix" tag: "v4.1.1"
 ```
 
@@ -74,7 +74,7 @@ gitGraph
   `develop` stays red until `main` is an ancestor of it again.
 - `git revert -m 1 <Batch a>` undoes a whole batch on `develop`;
   `git revert <PR#1 squash>` undoes one member.
-- `release/4.1` starts from the `v4.1.0` tag and only takes `cherry-pick -x`
+- `releases/4.1` starts from the `v4.1.0` tag and only takes `cherry-pick -x`
   of commits already on `main`.
 
 ## 3. Which risk tier?
@@ -124,7 +124,7 @@ flowchart TD
     W -->|develop only| R1["revert PR on develop<br/>(-m 1 for a whole batch)"]
     W -->|released on main| R2["Clinics reinstall previous tag<br/>restore backup if migrations ran"]
     R2 --> R3["revert or hotfix PR into main<br/>→ patch tag → back-merge to develop"]
-    R3 --> R4["Backport to release/X.Y if needed"]
+    R3 --> R4["Backport to releases/X.Y if needed"]
     R1 --> E["Add an eval case<br/>and a REVIEW.md rule if missed"]
     R4 --> E
     B1 --> E

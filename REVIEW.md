@@ -69,7 +69,7 @@ For these paths, check that:
   promotion or back-merge PR adds no changes of its own; flag any.
 - On a hotfix PR into `main`, the same fix also reaches `develop`, through a
   back-merge or a linked PR.
-- On a backport PR (into `release/*`), the change matches the original commit,
+- On a backport PR (into `releases/*`), the change matches the original commit,
   plus conflict fixes only.
 - On a hotfix PR, the change is the smallest one that fixes the incident.
   Flag any cleanup that rides along.

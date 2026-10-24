@@ -297,7 +297,7 @@ review pipeline stay; only where things merge changes. `main` here is today's
   shared test instance after every merge. May be broken briefly; revert fast.
 - **`main`** — safe branch for users. Every commit on it is a released version
   (tagged `vX.Y.Z`). Moves only by promotion, hotfix or revert. Never force-pushed.
-- **`release/X.Y`** — patch line for an older version clinics still run, cut from
+- **`releases/X.Y`** — patch line for an older version clinics still run, cut from
   its tag on `main`. Backports only.
 - **Invariant:** everything on `main` is also on `develop` (`main` is an ancestor
   of `develop` after each back-merge). CI on `develop` fails if it is not.
@@ -312,7 +312,7 @@ review pipeline stay; only where things merge changes. `main` here is today's
 | `promotion` | `promote/vX.Y.Z` (at the rc commit) → `main` | merge commit | release manager | head is tagged `vX.Y.Z-rc.N`; soak time met; tree after merge equals the rc tree |
 | `hotfix` | `hotfix/<slug>` from `main` → `main` | squash | anyone; 2 approvals | `Incident:`; full install/upgrade CI |
 | `backmerge` | `main` → `develop` | merge commit | bot or release manager | head is `main`; no extra commits |
-| `backport` | `backport/X.Y-<slug>` → `release/X.Y` | squash | anyone | `cherry-pick -x` of commits on `main` |
+| `backport` | `backport/X.Y-<slug>` → `releases/X.Y` | squash | anyone | `cherry-pick -x` of commits on `main` |
 
 `develop` allows squash and merge commits; `lane.yml` decides which per lane.
 `main` accepts only `promotion`, `hotfix` and `revert`.
@@ -351,4 +351,4 @@ Never reset or force-push `main`; it would invalidate tags clinics installed fro
 ### Agent permissions
 Agents may open `trivial`, `standard`, `revert`, `hotfix` and `backport` PRs
 and prepare a `backmerge`. Only release managers create `promote/*` branches,
-`v*` tags, and merge into `main` or `release/*`.
+`v*` tags, and merge into `main` or `releases/*`.
