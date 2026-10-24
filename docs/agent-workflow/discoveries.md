@@ -1,6 +1,6 @@
 # Agent workflow for QATrack+ — discoveries
 
-Working notes, not policy. Tracks what we learned while evaluating whether to
+Working notes, not policy. Diagrams: [diagrams.md](diagrams.md). Tracks what we learned while evaluating whether to
 port the SoignantRT SDLC/agent workflow (`nsmela/SoignantRT`: `BRANCHING.md`,
 `CLAUDE.md`, `.github/workflows/{lane,rollback,release}.yml`,
 `scripts/check-lane.sh`) to QATrack+.
