@@ -185,3 +185,76 @@ Result: one-round pass 65% → 78%, 5+ rounds 8.9% → 1.5%.
   migration unsafe on MS SQL Server; changes to QC calculation/tolerance logic
   without a test; uncompiled or missing translations; `release_notes.md` not
   updated. Skip `uv.lock`, `.mo`, `fixtures/` bulk data.
+
+## Clean-slate proposal (ignoring current QATrack+ policy)
+Thought experiment: what QATrack+ would adopt if starting fresh. Not a
+proposal to upstream as-is; it conflicts with the `AGENTS.md` AI policy
+(zero-human tier) and the `develop`/`master` model.
+
+### Two separate axes
+- **Lane** = how a change merges (mechanics, checked by `lane.yml`).
+- **Tier** = who must approve (risk, set from the paths touched, never the author).
+SoignantRT mixes these; separating them keeps both tables small.
+
+### Branches
+- One trunk `main`; squash merges; releases are immutable tags `vX.Y.Z`, rc tags `vX.Y.Z-rc.N`.
+- `release/X.Y` only for lines clinics still run (they upgrade slowly), backports only.
+- `batch/<date>-<slug>`: optional, short-lived, merge-commit into `main`.
+
+### Lanes
+| Lane | Use | Machine-checked |
+| :-- | :-- | :-- |
+| `trivial` | Typos, copy, `.po` strings, patch bumps | Only allowed paths changed |
+| `standard` | Everything else | `Intent:` → approved plan for tier 2 |
+| `batch` | Bundle of reviewed PRs for one test pass | Head is `batch/*`; every commit is a merged member PR |
+| `revert` | Undo | Only `git revert` commits; may jump the queue |
+| `hotfix` | Clinic-reported defect affecting QC results or data | `Incident:`; smallest diff |
+| `backport` | Into `release/X.Y` | `cherry-pick -x` from `main`; `Backport-of:` |
+
+### Risk tiers (path classifier + CODEOWNERS)
+| Tier | Paths / kinds | Approval |
+| :-- | :-- | :-- |
+| 0 | `docs/` (not `docs/install/`), `.po`, tests-only additions | None once CI, AI and security review are clean |
+| 1 | UI, templates, reports, service log, faults, parts, notifications, i18n code | 1 human (may be the prompter) |
+| 2 | QC result logic (`qa/` calculation, tolerance, pass/fail, due dates), `migrations/`, auth/permissions, `api/` contract, `settings.py`, `deploy/`, installers, `.github/`, data export/delete | 2 humans, one a domain owner (medical physicist for QC logic) |
+A second rule bumps a tier-0/1 change to 2 when the diff touches a model field,
+a calculation, or adds a dependency. Untrusted (outside) authors always +1.
+Bot approval never counts; approval is per commit and dismissed on new pushes.
+
+### Review pipeline
+1. **Before PR** (agent must paste output): `ruff`, `pytest -m "not selenium"`,
+   `makemigrations --check`, `compilemessages` dry check, migrate forward → back to
+   last release leaf → forward; fresh-context verifier subagent; `/code-review`,
+   `/security-review`.
+2. **AI review** (Code Review or Action) with `REVIEW.md`; Deep for tier 2, Standard otherwise.
+3. **Security review** Action; findings block via required conversation resolution.
+4. **Required CI**: lint, tests, migrations on Postgres + MS SQL Server + MySQL, docs build.
+5. **Golden QC suite**: fixture test lists with expected calculated values and
+   pass/tol/action results. Changing an expected value is tier 2 and must be
+   called out under "Clinical impact" in the PR and release notes.
+   Agents may not edit golden files (lock like SoignantRT `make lock-tests`).
+6. **Approval by tier**, then batch or merge queue.
+7. **Round cap**: 3 agent review/fix rounds, then a human decides; diff-only re-review after round 2.
+
+### PR template fields
+`Lane`, `Tier` (CI verifies it is not lower than the classifier), `Prompted by`,
+`Testing` (pasted output), `Clinical impact` (none / changes QC results / changes
+schedules / changes data), `How to revert`, `Migration reversible: yes/no`.
+
+### Release and rollback
+- rc tag → test instance → 1-2 pilot clinics for a soak period → final tag, same artifact.
+- Release notes generated from squash commits, grouped by Clinical impact,
+  so clinics know what to re-validate.
+- Runtime flags (DB-backed, admin-toggleable) for new behaviour, so a clinic can
+  switch a feature off without downgrading.
+- Expand/contract migrations; CI proves N-1 code runs on N schema.
+- Upgrade command takes a DB backup first and records the pre-upgrade version;
+  a documented `downgrade` path = restore backup or reverse migrations to N-1 leaf.
+- Rollback ladder: flag off → revert PR (jumps queue) → patch release on `release/X.Y`
+  → clinic restores backup.
+
+### Feedback loop
+- Every revert, hotfix and clinic-reported regression becomes an eval case for
+  the reviewer; rescore when `REVIEW.md`, prompts or model change.
+- Track human approvals per PR, rounds-to-pass, revert rate, clinic-reported
+  defects per release. If revert or clinic defect rates rise, tighten tiers.
