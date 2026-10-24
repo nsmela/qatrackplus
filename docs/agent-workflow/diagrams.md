@@ -1,6 +1,7 @@
 # Agent workflow diagrams
 
 Visual companion to [discoveries.md](discoveries.md). Proposed workflow, not in use yet.
+Branch model: `develop` integrates batches; `main` is the safe branch users install from.
 
 ## 1. Life of a change
 
@@ -20,45 +21,61 @@ flowchart TD
     H -->|no, round > 3| X["Human rethinks the approach"]
     H -->|yes| I["Human approval by tier"]
     I --> J{"Lane"}
-    J -->|batch| K["Squash into batch/*"]
-    J -->|standard · trivial · revert · hotfix| L["Squash into main"]
+    J -->|standard| K["Squash into batch/*"]
+    J -->|trivial · revert · standard alone| L["Squash into develop"]
     K --> M["Combined manual test pass<br/>on a test instance"]
     M -->|a PR fails| R["Revert that PR inside the batch"]
     R --> M
-    M -->|passes| N["Batch PR: merge commit into main"]
-    N --> O["rc tag → pilot clinics soak<br/>(they run the upgrade guide)"]
-    L --> O
-    O -->|problem| P["Fix or revert on main → next rc"]
+    M -->|passes| N["Batch PR: merge commit into develop"]
+    N --> T["develop deployed to shared test instance"]
+    L --> T
+    T --> O["rc tag on develop → full matrix CI<br/>pilot clinics soak and run the upgrade guide"]
+    O -->|problem| P["Fix or revert on develop → next rc"]
     P --> O
-    O -->|clean| Q["Final tag vX.Y.Z<br/>same artifact, no rebuild"]
+    O -->|clean| Q["promotion PR: promote/vX.Y.Z → main<br/>tree must equal the rc"]
+    Q --> Z["Tag vX.Y.Z on main<br/>publish the rc artifacts unchanged"]
 ```
 
-## 2. Branches and the batch lane
+## 2. Branches: develop, main, batches, hotfix and backport
 
 ```mermaid
 gitGraph
     commit id: "4.1 release" tag: "v4.1.0"
+    branch develop
     branch release/4.1
-    checkout main
+    checkout develop
+    commit id: "PR#4 trivial"
     branch batch/2026-11-03-a
     checkout batch/2026-11-03-a
     commit id: "PR#1 squash"
     commit id: "PR#2 squash"
     commit id: "PR#3 squash"
     commit id: "revert PR#2" type: REVERSE
+    checkout develop
+    merge batch/2026-11-03-a id: "Batch a" tag: "v4.2.0-rc.1"
     checkout main
-    commit id: "PR#4 trivial"
-    merge batch/2026-11-03-a id: "Batch a" tag: "v4.2.0-rc.1 → v4.2.0"
-    commit id: "PR#5 hotfix"
+    merge develop id: "promote 4.2.0" tag: "v4.2.0"
+    branch hotfix/qc-rounding
+    checkout hotfix/qc-rounding
+    commit id: "PR#5 fix"
+    checkout main
+    merge hotfix/qc-rounding id: "hotfix" tag: "v4.2.1"
+    checkout develop
+    merge main id: "back-merge"
     checkout release/4.1
-    cherry-pick id: "PR#5 hotfix" tag: "v4.1.1"
+    cherry-pick id: "PR#5 fix" tag: "v4.1.1"
 ```
 
-- The batch merges as a merge commit, so `git revert -m 1 <Batch a>` undoes the
-  whole batch and `git revert <PR#1 squash>` undoes a single member.
-- `release/4.1` starts from the `v4.1.0` tag and only gets `cherry-pick -x` of
-  commits already on `main` (trunk first).
-- Promotion adds the final tag to the same commit as the rc; nothing is rebuilt.
+- Only `promotion`, `hotfix` and `revert` PRs reach `main`; every commit on
+  `main` carries a release tag.
+- The promotion's tree must equal the `rc` tree, so clinics get exactly what
+  the pilots tested.
+- A hotfix on `main` is back-merged into `develop` the same day; CI on
+  `develop` stays red until `main` is an ancestor of it again.
+- `git revert -m 1 <Batch a>` undoes a whole batch on `develop`;
+  `git revert <PR#1 squash>` undoes one member.
+- `release/4.1` starts from the `v4.1.0` tag and only takes `cherry-pick -x`
+  of commits already on `main`.
 
 ## 3. Which risk tier?
 
@@ -104,12 +121,11 @@ flowchart TD
     F -->|yes| F1["Admin turns flag off<br/>seconds"]
     F -->|no| W{"Where is it?"}
     W -->|unmerged batch| B1["Revert PR inside batch<br/>or close the batch"]
-    W -->|on main| R1["revert lane PR<br/>jumps the queue"]
-    W -->|released to clinics| R2["Revert on main → patch release<br/>backport to release/X.Y"]
-    R2 --> C{"Clinic can't wait<br/>for the patch?"}
-    C -->|yes| C1["Restore pre-upgrade backup<br/>reinstall previous tag"]
+    W -->|develop only| R1["revert PR on develop<br/>(-m 1 for a whole batch)"]
+    W -->|released on main| R2["Clinics reinstall previous tag<br/>restore backup if migrations ran"]
+    R2 --> R3["revert or hotfix PR into main<br/>→ patch tag → back-merge to develop"]
+    R3 --> R4["Backport to release/X.Y if needed"]
     R1 --> E["Add an eval case<br/>and a REVIEW.md rule if missed"]
-    R2 --> E
+    R4 --> E
     B1 --> E
-    C1 --> E
 ```

@@ -286,3 +286,69 @@ schedules / changes data), `How to revert`, `Migration reversible: yes/no`.
   the reviewer; rescore when `REVIEW.md`, prompts or model change.
 - Track human approvals per PR, rounds-to-pass, revert rate, clinic-reported
   defects per release. If revert or clinic defect rates rise, tighten tiers.
+
+## Revised branch model: `develop` integrates, `main` is what users run
+Replaces "one trunk `main`" in the clean-slate proposal. Lanes, tiers and the
+review pipeline stay; only where things merge changes. `main` here is today's
+`master` on the fork (rename it, or read `main` as `master` throughout).
+
+### Roles
+- **`develop`** — integration. Batches and single PRs land here. Deployed to a
+  shared test instance after every merge. May be broken briefly; revert fast.
+- **`main`** — safe branch for users. Every commit on it is a released version
+  (tagged `vX.Y.Z`). Moves only by promotion, hotfix or revert. Never force-pushed.
+- **`release/X.Y`** — patch line for an older version clinics still run, cut from
+  its tag on `main`. Backports only.
+- **Invariant:** everything on `main` is also on `develop` (`main` is an ancestor
+  of `develop` after each back-merge). CI on `develop` fails if it is not.
+
+### Lanes (from → into)
+| Lane | From → into | Merge style | Opened by | Checked |
+| :-- | :-- | :-- | :-- | :-- |
+| `trivial` | `<type>/<slug>` → `develop` | squash | anyone | allowed paths only |
+| `standard` | `<type>/<slug>` → `batch/*` (or `develop` if alone) | squash | anyone | `Intent:` for tier 2 |
+| `batch` | `batch/*` → `develop` | merge commit | human | members merged into the batch; no install-surface + unrelated mix |
+| `revert` | → `batch/*`, `develop` or `main` | squash | anyone | only `git revert` commits |
+| `promotion` | `promote/vX.Y.Z` (at the rc commit) → `main` | merge commit | release manager | head is tagged `vX.Y.Z-rc.N`; soak time met; tree after merge equals the rc tree |
+| `hotfix` | `hotfix/<slug>` from `main` → `main` | squash | anyone; 2 approvals | `Incident:`; full install/upgrade CI |
+| `backmerge` | `main` → `develop` | merge commit | bot or release manager | head is `main`; no extra commits |
+| `backport` | `backport/X.Y-<slug>` → `release/X.Y` | squash | anyone | `cherry-pick -x` of commits on `main` |
+
+`develop` allows squash and merge commits; `lane.yml` decides which per lane.
+`main` accepts only `promotion`, `hotfix` and `revert`.
+
+### Release flow
+1. Pick a green commit on `develop` after the test instance has run it.
+2. Tag `vX.Y.Z-rc.N` there. CI builds once, runs the full matrix including
+   fresh-install, upgrade-from-each-supported-release and backup/restore.
+3. Pilot clinics soak the rc and run the upgrade guide. Fixes go to `develop`;
+   tag `rc.N+1`. Don't patch a candidate.
+4. Release manager creates `promote/vX.Y.Z` at the rc commit and opens a
+   `promotion` PR into `main`. CI checks the tree equals the rc tree, so the
+   tested artifact is the shipped one.
+5. Merge, tag the merge commit `vX.Y.Z`, publish the rc's artifacts unchanged.
+6. Nothing to back-merge for a promotion (it came from `develop`).
+
+### Hotfix flow
+- If `develop` holds no unreleased work since the last promotion, fix on
+  `develop` and promote as a patch release (keeps one direction).
+- Otherwise branch `hotfix/<slug>` from `main`, PR into `main`, rc tag on the
+  hotfix branch head, short soak, promote/tag `vX.Y.Z+1`, then open the
+  `backmerge` PR `main` → `develop` the same day. The invariant check keeps
+  `develop` red until it lands.
+
+### Rollback
+| Where | How |
+| :-- | :-- |
+| Member PR in an unmerged batch | revert inside `batch/*`, retest |
+| Batch on `develop` | `git revert -m 1 <batch merge>` on `develop` |
+| One PR on `develop` | `git revert <squash>` on `develop` |
+| Released (`main`) | Clinics reinstall the previous tag (restore pre-upgrade backup if migrations ran). On `main`: `revert` or `hotfix` PR → patch release → back-merge. |
+| Re-landing reverted work | Revert the revert in a new batch on `develop` |
+
+Never reset or force-push `main`; it would invalidate tags clinics installed from.
+
+### Agent permissions
+Agents may open `trivial`, `standard`, `revert`, `hotfix` and `backport` PRs
+and prepare a `backmerge`. Only release managers create `promote/*` branches,
+`v*` tags, and merge into `main` or `release/*`.
