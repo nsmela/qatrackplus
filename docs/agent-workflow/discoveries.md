@@ -108,3 +108,30 @@ Rollback prerequisites to enforce in review/CI:
 2. Migration reversibility CI job.
 3. Batch checklist generator (collect "How to test" sections from member PRs).
 4. Guard hook from `SoignantRT/.claude/hooks` adapted to `develop`/`master`/`releases/*`.
+
+## Comparison with the source video
+Source: "Claude Codes New REVIEW.md System, What is it?" (Rob Shocks,
+https://youtu.be/bls8ZJ_INMQ). The transcript could not be fetched, so this
+compares against the video's topic and the official docs
+(https://code.claude.com/docs/en/code-review).
+
+- The video covers one piece: `REVIEW.md`, review-only instructions that
+  Claude Code Review reads from the base/default branch, never from the PR.
+  SoignantRT uses it as one layer inside a larger SDLC (intent → plan → lanes →
+  tags → rollback). The batch lane and rollback ladder above are not from the video.
+- SoignantRT's `REVIEW.md` defines "Important" (incl. "blocks a rollback"),
+  caps nits at 5, skips generated files/lockfiles, and adds lane-specific
+  checks (backport = only the original change; hotfix = smallest change).
+  `claude-review.yml` is a fallback for plans without Code Review that feeds
+  the base branch's `REVIEW.md` to `claude-code-action`.
+- QATrack+ has no `REVIEW.md`. A port would add: migration reversibility
+  (`RunPython` without `reverse_code` = Important), migrations still runnable on
+  MS SQL Server, missing/uncompiled translations, `release_notes.md` updated,
+  PR template boxes ticked, ignore `uv.lock` and compiled `.mo` files.
+- Fits the QATrack+ AI policy: Code Review is advisory (never approves or
+  blocks), and maintainers commit to not using AI as the final review.
+- Batch lane interaction: PRs into `batch/*` have the batch branch as base, so
+  Code Review would read `REVIEW.md` from the batch branch. A member PR that
+  edits `REVIEW.md` would change the rules for later PRs in the same batch.
+  Rule: `REVIEW.md` changes go straight to `develop` (`trivial` or `standard`),
+  never through a batch.
