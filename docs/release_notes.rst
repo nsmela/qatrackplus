@@ -174,7 +174,8 @@ Deployment and Upgrade Notes
   commands, ``restore-db`` and ``restore-media``, put a backup back after checking
   it and asking you to confirm (see :ref:`docker_backups`). They unpack the
   backup beside your current data and only then swap it in, so a restore that
-  fails or is stopped leaves your data as it was. The ``backup`` service can
+  fails or is stopped leaves your data as it was; while one runs, the disk needs
+  room for that second copy. The ``backup`` service can
   still only read the uploaded files; ``restore-media`` is given write access
   only while it runs. Backups made by QATrack+ 4.0.0 and 4.0.1 can be restored.
   The backup service's PostgreSQL tools are now pinned to version 16, the version

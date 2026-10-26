@@ -108,11 +108,19 @@ if grep -qxF "$PREVIOUS_DB" <<<"$existing"; then
     echo "and run restore-db again. Nothing was changed." >&2
     exit 1
 fi
+if $live_exists; then
+    live_size=$(run_sql <<<"SELECT pg_size_pretty(pg_database_size(:'live'));")
+fi
 
 echo
 echo "This permanently replaces the database \"$POSTGRES_DB\" with:"
 echo "  $backup_file"
 echo
+if $live_exists; then
+    echo "The backup is restored beside the current database, which takes $live_size,"
+    echo "so PostgreSQL needs at least that much free disk space while this runs."
+    echo
+fi
 echo "Stop QATrack+ first (docker compose stop django django-q): anyone still"
 echo "connected is disconnected, and anything saved now is lost."
 echo

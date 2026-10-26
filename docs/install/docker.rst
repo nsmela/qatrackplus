@@ -522,6 +522,30 @@ backup from an older release, ``docker compose up -d`` applies the database
 changes the current release needs. Do not restore a backup from a newer release
 into an older one.
 
+**Check the free disk space before you restore.** ``restore-db`` builds the
+restored database beside your current one, so while it runs PostgreSQL needs
+room for a second copy of QATrack+'s database. To see how big the current one
+is, replace ``POSTGRES_USER`` and ``POSTGRES_DB`` with the values in your
+``.env`` and run:
+
+.. code-block:: console
+
+    docker compose exec postgres psql -U POSTGRES_USER -d POSTGRES_DB -c "SELECT pg_size_pretty(pg_database_size(current_database()))"
+
+To see how much space is free where PostgreSQL keeps its data, look at the
+*Avail* column of:
+
+.. code-block:: console
+
+    docker compose exec postgres df -h /var/lib/postgresql/data
+
+On Linux this is the disk that holds Docker's data, usually ``/var/lib/docker``,
+so ``df -h /var/lib/docker`` on the server tells you the same. A restored
+database is often smaller than the one it replaces, but plan for at least the
+size of the current one. ``restore-media`` likewise unpacks a second copy of the
+uploaded files before it swaps them in; ``docker compose exec backup du -sh /media``
+shows how much room that needs.
+
 Delete docker data
 ~~~~~~~~~~~~~~~~~~
 
