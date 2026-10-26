@@ -25,7 +25,7 @@ Remove this file before the branch is merged.
   - Switching machines with unsaved changes asks first, the same as leaving
     the page (see the unsaved changes item below).
   - Row columns change with the mode (tests in sublists too):
-    - Base list: Test, Category, Type, Type Value. No Reference or Tolerance
+    - Base list (done): Test, Category, Type, Type Value. No Reference or Tolerance
       columns.
     - Machine: Test, Category, Type, Reference, Tolerance, taken from that
       machine's Unit Test Info. The Type Value column is replaced.
@@ -53,7 +53,7 @@ Remove this file before the branch is merged.
       what staff will see.
     - In base list mode, offer a layout-only preview (order, sublists,
       descriptions) and say there that pass/fail needs a machine selected.
-- [ ] **"Outline" checkbox on each sublist row**
+- [x] **"Outline" checkbox on each sublist row**
   - `Sublist.outline` already exists, and the perform page already draws
     each outlined sublist in its own box, headed with the sublist's name and
     description (`construct_sublist_borders`, `models.py:2922`).
@@ -79,7 +79,7 @@ Remove this file before the branch is merged.
 
 ## Behaviour fixes from the review
 
-- [ ] Reference column: "Pass = Yes" comes from `flag_when` and is wrong when
+- [x] Reference column: "Pass = Yes" comes from `flag_when` and is wrong when
       `flag_when` is True, and Tolerance is always "—". Drop the
       `flag_when` "reference" from `get_test_metadata`; columns follow the
       mode rules under "Two editing modes" above.
@@ -238,7 +238,7 @@ Remove this file before the branch is merged.
       (`#tl-details-card > div.tl-card-header > span`, i.e.
       `<span class="tl-card-id">` in `change_form.html`) and its
       `.tl-card-id` style. The ID is shown in the breadcrumbs instead.
-- [ ] Edit page: remove the bottom action bar of the Tests & Sublists card
+- [x] Edit page: remove the bottom action bar of the Tests & Sublists card
       (`//*[@id="tl-tests-card"]/div[3]`, i.e. `div.tl-bottom-actions` with
       "Add sublist", "Add test" and the drag caption).
   - Move "Add Sublist" into the card header, beside the existing "Add Test"

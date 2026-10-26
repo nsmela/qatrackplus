@@ -47,20 +47,7 @@
       <span class="tl-type-label">{{ test_meta.type_label }}</span>
     </div>
   </td>
-  <td class="tl-cell-ref">
-    {% if test_meta.reference_display and test_meta.reference_display != "—" %}
-      <span class="tl-val-text">{{ test_meta.reference_display }}</span>
-    {% else %}
-      <span class="tl-empty-dash">—</span>
-    {% endif %}
-  </td>
-  <td class="tl-cell-tol">
-    {% if test_meta.tolerance_display and test_meta.tolerance_display != "—" %}
-      <span class="tl-val-text">{{ test_meta.tolerance_display }}</span>
-    {% else %}
-      <span class="tl-empty-dash">—</span>
-    {% endif %}
-  </td>
+  {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
   <td class="tl-cell-actions">
     <a href="{{ test_meta.edit_url }}" target="_blank" class="tl-action-icon" title="{% trans "Edit Test in new tab" %}">
       <i class="fa fa-pencil" aria-hidden="true"></i>

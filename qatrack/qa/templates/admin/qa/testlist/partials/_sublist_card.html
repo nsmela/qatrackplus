@@ -5,8 +5,8 @@
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
     data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
-  <td colspan="7" class="tl-sublist-cell">
-    <div class="tl-sublist-card">
+  <td colspan="6" class="tl-sublist-cell">
+    <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}">
       {# Hidden Django formset inputs for Sublist #}
       {% if inline_admin_form %}
         {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
@@ -23,18 +23,16 @@
         <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-sublist-order-input">
-        <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
         <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
       {% else %}
         <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
         <input type="hidden" name="{{ prefix }}-{{ index }}-parent" id="id_{{ prefix }}-{{ index }}-parent" value="{{ parent_id|default:'' }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ index }}" class="tl-sublist-order-input">
-        <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" {% if sublist_meta.outline %}checked{% endif %} style="display:none;">
         <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
       {% endif %}
 
-      <div class="tl-sublist-header">
+      <div class="tl-sublist-header" data-sublist-description="{{ sublist_meta.child_description }}">
         <div class="tl-sublist-drag-handle tl-drag-handle" title="{% trans "Drag to reorder" %}">
           <i class="fa fa-bars" aria-hidden="true"></i>
         </div>
@@ -48,6 +46,11 @@
           <span class="tl-sublist-count">{{ sublist_meta.test_count }} {% if sublist_meta.test_count == 1 %}{% trans "test" %}{% else %}{% trans "tests" %}{% endif %}</span>
         </div>
         <div class="tl-sublist-actions">
+          <label class="tl-sublist-outline" for="id_{{ prefix }}-{{ index }}-outline"
+                 title="{% trans "Draws a box around this sublist's tests on the Perform QC page, with the sublist's name and description as its heading." %}">
+            <input type="checkbox" name="{{ prefix }}-{{ index }}-outline" id="id_{{ prefix }}-{{ index }}-outline" class="tl-sublist-outline-checkbox" {% if sublist_meta.outline %}checked{% endif %}>
+            {% trans "Outline on Perform QC page" %}
+          </label>
           <a href="{{ sublist_meta.edit_url }}" target="_blank" class="tl-btn-sublist" title="{% trans "Edit sublist test list on its own page" %}">
             <i class="fa fa-pencil-square-o" aria-hidden="true"></i> {% trans "Edit" %}
           </a>
@@ -77,8 +80,7 @@
                 <th class="tl-th-test">{% trans "TEST" %}</th>
                 <th class="tl-th-category">{% trans "CATEGORY" %}</th>
                 <th class="tl-th-type">{% trans "TYPE" %}</th>
-                <th class="tl-th-ref">{% trans "REFERENCE" %}</th>
-                <th class="tl-th-tol">{% trans "TOLERANCE" %}</th>
+                <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -100,24 +102,11 @@
                       <span class="tl-type-label">{{ test_meta.type_label }}</span>
                     </div>
                   </td>
-                  <td class="tl-cell-ref">
-                    {% if test_meta.reference_display and test_meta.reference_display != "—" %}
-                      <span class="tl-val-text">{{ test_meta.reference_display }}</span>
-                    {% else %}
-                      <span class="tl-empty-dash">—</span>
-                    {% endif %}
-                  </td>
-                  <td class="tl-cell-tol">
-                    {% if test_meta.tolerance_display and test_meta.tolerance_display != "—" %}
-                      <span class="tl-val-text">{{ test_meta.tolerance_display }}</span>
-                    {% else %}
-                      <span class="tl-empty-dash">—</span>
-                    {% endif %}
-                  </td>
+                  {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  <td colspan="6" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
+                  <td colspan="5" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
                 </tr>
               {% endfor %}
             </tbody>

@@ -1,0 +1,11 @@
+{% load i18n %}{# Base list "Type Value" cell: the part of a test's definition shared by every machine. #}
+<td class="tl-cell-type-value tl-col-type-value"
+    data-type-value="{{ test_meta.type_value }}"
+    data-type-value-mono="{% if test_meta.type_value_mono %}1{% else %}0{% endif %}"{% if test_meta.type_value_title %}
+    data-type-value-title="{{ test_meta.type_value_title }}"{% endif %}>
+  {% if test_meta.type_value %}
+    <span class="tl-type-value{% if test_meta.type_value_mono %} tl-mono{% endif %}"{% if test_meta.type_value_title %} title="{{ test_meta.type_value_title }}"{% endif %}>{{ test_meta.type_value }}</span>
+  {% else %}
+    <span class="tl-type-value-none">{% trans "None" %}</span>
+  {% endif %}
+</td>

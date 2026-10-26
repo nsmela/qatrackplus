@@ -1127,6 +1127,16 @@ class TestTestListAdminBuilderUI(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Configured Test Lists')
 
+    def test_change_form_add_buttons_live_in_tests_card_header(self):
+        tl = qa_utils.create_test_list()
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
+        self.assertContains(resp, 'id="tl-header-add-sublist-btn"')
+        self.assertContains(resp, 'id="tl-header-add-test-btn"')
+        self.assertNotContains(resp, 'tl-bottom-actions')
+        self.assertNotContains(resp, 'tl-add-sublist-btn')
+        self.assertNotContains(resp, 'id="tl-add-test-btn"')
+        self.assertContains(resp, 'Use Add Test or Add Sublist above to get started.')
+
     def test_change_form_renders_details_card(self):
         tl = qa_utils.create_test_list()
         resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
@@ -1378,6 +1388,130 @@ class TestTestListBuilderQuickFixes(TestCase):
         self.assertNotContains(resp, 'tl-card-id')
 
 
+class TestTestListBuilderTypeValue(TestCase):
+    """The base list builder shows a "Type Value" column (constant value,
+    choices, wraparound range or calculation) instead of per-machine
+    references and tolerances."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+
+    def _meta(self, test_type, **kwargs):
+        test = qa_utils.create_test(test_type=test_type)
+        for attr, val in kwargs.items():
+            setattr(test, attr, val)
+        test.save()
+        return qa_admin.get_test_metadata(test)
+
+    def _assert_no_old_keys(self, meta):
+        self.assertNotIn('reference_display', meta)
+        self.assertNotIn('tolerance_display', meta)
+        self.assertNotIn('Pass =', json.dumps(meta))
+
+    def test_constant_without_formatting(self):
+        meta = self._meta(qa_models.CONSTANT, constant_value=22.0)
+        self.assertEqual(meta['type_value'], '22.0')
+        self.assertEqual(meta['type_value_title'], '')
+        self.assertFalse(meta['type_value_mono'])
+        self._assert_no_old_keys(meta)
+
+    def test_constant_with_formatting(self):
+        meta = self._meta(qa_models.CONSTANT, constant_value=3.14159, formatting='%.2f')
+        self.assertEqual(meta['type_value'], '3.14')
+
+    def test_multiple_choice(self):
+        meta = self._meta(qa_models.MULTIPLE_CHOICE, choices='Pass,Fail, Not Done')
+        self.assertEqual(meta['type_value'], 'Pass, Fail, Not Done')
+        self.assertFalse(meta['type_value_mono'])
+
+    def test_wraparound(self):
+        meta = self._meta(qa_models.WRAPAROUND, wrap_low=0.0, wrap_high=360.0)
+        self.assertEqual(meta['type_value'], '0 to 360')
+        meta = self._meta(qa_models.WRAPAROUND, wrap_low=-0.5, wrap_high=359.5)
+        self.assertEqual(meta['type_value'], '-0.5 to 359.5')
+
+    def test_composite_long_multiline_calc_is_truncated(self):
+        first = 'result = ' + ' + '.join('t%d' % i for i in range(30))
+        calc = '\n\n%s\nresult = result / 2\n' % first
+        meta = self._meta(qa_models.COMPOSITE, calculation_procedure=calc)
+        self.assertTrue(meta['type_value_mono'])
+        self.assertTrue(meta['type_value'].endswith('…'))
+        self.assertLessEqual(len(meta['type_value']), qa_admin.TYPE_VALUE_MAX_CHARS)
+        self.assertTrue(first.startswith(meta['type_value'][:-1]))
+        self.assertEqual(meta['type_value_title'], calc.strip())
+
+    def test_composite_short_single_line_has_no_title(self):
+        meta = self._meta(qa_models.COMPOSITE, calculation_procedure='result = t0')
+        self.assertEqual(meta['type_value'], 'result = t0')
+        self.assertEqual(meta['type_value_title'], '')
+        self.assertTrue(meta['type_value_mono'])
+
+    def test_composite_multiline_short_first_line_has_title(self):
+        meta = self._meta(qa_models.STRING_COMPOSITE, calculation_procedure='x = 1\nresult = "a"')
+        self.assertEqual(meta['type_value'], 'x = 1')
+        self.assertEqual(meta['type_value_title'], 'x = 1\nresult = "a"')
+
+    def test_upload_with_and_without_calc(self):
+        meta = self._meta(qa_models.UPLOAD, calculation_procedure='result = len(FILE.read())')
+        self.assertEqual(meta['type_value'], 'result = len(FILE.read())')
+        self.assertTrue(meta['type_value_mono'])
+        meta = self._meta(qa_models.UPLOAD, calculation_procedure='')
+        self.assertEqual(meta['type_value'], '')
+        self.assertFalse(meta['type_value_mono'])
+
+    def test_upload_placeholder_calc_counts_as_empty(self):
+        test = qa_utils.create_test(test_type=qa_models.UPLOAD)
+        test.calculation_procedure = '%s = None' % test.slug
+        test.save()
+        self.assertEqual(qa_admin.get_test_metadata(test)['type_value'], '')
+
+    def test_simple_types_are_empty(self):
+        for test_type in (qa_models.SIMPLE, qa_models.BOOLEAN, qa_models.STRING, qa_models.DATE, qa_models.DATETIME):
+            meta = self._meta(test_type)
+            self.assertEqual(meta['type_value'], '', test_type)
+            self.assertFalse(meta['type_value_mono'])
+            self._assert_no_old_keys(meta)
+
+    def test_boolean_flag_when_does_not_leak(self):
+        for flag in (True, False, None):
+            meta = self._meta(qa_models.BOOLEAN, flag_when=flag)
+            self.assertEqual(meta['type_value'], '')
+            self._assert_no_old_keys(meta)
+
+    def test_change_form_shows_type_value_column(self):
+        tl = qa_utils.create_test_list()
+        const = qa_utils.create_test(name='tv_const', test_type=qa_models.CONSTANT, constant_value=22.0)
+        num = qa_utils.create_test(name='tv_num')
+        qa_utils.create_test_list_membership(test_list=tl, test=const, order=0)
+        qa_utils.create_test_list_membership(test_list=tl, test=num, order=1)
+        child = qa_utils.create_test_list(name='tv_child')
+        mc = qa_utils.create_test(name='tv_mc', test_type=qa_models.MULTIPLE_CHOICE, choices='a,b')
+        qa_utils.create_test_list_membership(test_list=child, test=mc, order=0)
+        qa_utils.create_sublist(parent_test_list=tl, child_test_list=child, order=2)
+
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        # main table header and sublist inner table header
+        self.assertEqual(content.count('<th class="tl-th-type-value tl-col-type-value">Type Value</th>'), 2)
+        self.assertContains(resp, 'Type Value')
+        self.assertNotContains(resp, 'REFERENCE')
+        self.assertNotContains(resp, 'TOLERANCE')
+        self.assertNotContains(resp, 'tl-th-ref')
+        self.assertNotContains(resp, 'tl-th-tol')
+        self.assertNotContains(resp, 'Pass = ')
+        self.assertContains(resp, 'data-type-value="22.0"')
+        self.assertContains(resp, '<span class="tl-type-value">22.0</span>', html=True)
+        self.assertContains(resp, '<span class="tl-type-value">a, b</span>', html=True)
+        self.assertContains(resp, '<span class="tl-type-value-none">None</span>', html=True)
+        # the sublist row spans the whole main table (drag, test, category, type, type value, actions)
+        thead = content.split('id="tl-tests-table"')[1].split('</thead>')[0]
+        main_cols = len(re.findall(r'<th\b', thead))
+        self.assertEqual(main_cols, 6)
+        self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell"' % main_cols)
+
+
 class TestTestListAdminBreadcrumbs(TestCase):
     """The Test List pages show the standard admin breadcrumbs bar as their header."""
 
@@ -1428,3 +1562,88 @@ class TestTestListAdminBreadcrumbs(TestCase):
         self.assertEqual(text, 'Home › QC › Test Lists › Add')
         self.assertContains(resp, '<title>Add Test List | QATrack+ Admin Site</title>', html=True)
         self.assertEqual(hrefs, [self.index_url, self.app_url, self.changelist_url])
+
+
+class TestTestListBuilderSublistOutline(TestCase):
+    """The builder's "Outline on Perform QC page" checkbox for Sublist.outline."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.parent = qa_utils.create_test_list(name='Parent List')
+        self.child = qa_utils.create_test_list(name='Child List')
+        qa_utils.create_test_list_membership(test_list=self.child, test=qa_utils.create_test(name='child test'))
+        self.sublist = qa_utils.create_sublist(parent_test_list=self.parent, child_test_list=self.child)
+        self.url = reverse('admin:qa_testlist_change', args=(self.parent.pk,))
+
+    def _outline_input(self, content):
+        inputs = re.findall(r'<input[^>]*name="children-0-outline"[^>]*>', content)
+        self.assertEqual(len(inputs), 1)
+        return inputs[0]
+
+    def test_change_form_renders_visible_outline_checkbox(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        tag = self._outline_input(resp.content.decode())
+        self.assertIn('type="checkbox"', tag)
+        self.assertNotIn('display:none', tag)
+        self.assertNotIn('checked', tag)
+        self.assertContains(resp, 'Outline on Perform QC page')
+        self.assertNotContains(resp, 'tl-sublist-card tl-sublist-outlined')
+
+    def test_change_form_outline_checkbox_checked(self):
+        self.sublist.outline = True
+        self.sublist.save()
+        resp = self.client.get(self.url)
+        tag = self._outline_input(resp.content.decode())
+        self.assertIn('checked', tag)
+        self.assertContains(resp, 'tl-sublist-card tl-sublist-outlined')
+
+    def _post_data(self, outline):
+        data = {
+            'name': self.parent.name,
+            'slug': 'parent-list',
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-TOTAL_FORMS': 0,
+            'testlistmembership_set-INITIAL_FORMS': 0,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+            'children-TOTAL_FORMS': 1,
+            'children-INITIAL_FORMS': 1,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'children-0-id': self.sublist.pk,
+            'children-0-parent': self.parent.pk,
+            'children-0-child': self.child.pk,
+            'children-0-order': 0,
+        }
+        if outline:
+            data['children-0-outline'] = 'on'
+        return data
+
+    def test_post_outline_on_and_off(self):
+        resp = self.client.post(self.url, data=self._post_data(outline=True))
+        self.assertEqual(resp.status_code, 302)
+        self.sublist.refresh_from_db()
+        self.assertTrue(self.sublist.outline)
+
+        resp = self.client.post(self.url, data=self._post_data(outline=False))
+        self.assertEqual(resp.status_code, 302)
+        self.sublist.refresh_from_db()
+        self.assertFalse(self.sublist.outline)
+
+    def test_add_sublist_card_has_unchecked_outline_checkbox(self):
+        url = reverse('admin:qa_testlist_add_sublist_card')
+        resp = self.client.get(url, {'child_id': self.child.pk, 'index': 0, 'parent_id': self.parent.pk})
+        self.assertEqual(resp.status_code, 200)
+        tag = self._outline_input(resp.content.decode())
+        self.assertIn('type="checkbox"', tag)
+        self.assertNotIn('display:none', tag)
+        self.assertNotIn('checked', tag)
+        self.assertNotContains(resp, 'tl-sublist-card tl-sublist-outlined')

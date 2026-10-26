@@ -291,6 +291,29 @@ step. The live description preview and test list builder are driven by htmx.
   color: #1e293b;
   margin-top: 16px;
 }
+/* Outlined sublist: mirrors the Perform QC page, which draws a 3px grey
+   rule above and below the sublist with its name (italic) as the heading */
+.tl-preview-sublist-outlined {
+  border-top: 3px solid #ccc;
+  border-bottom: 3px solid #ccc;
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding: 6px 0 0;
+}
+.tl-preview-sublist-outlined .tl-preview-sublist-header {
+  margin-top: 0;
+  font-style: italic;
+}
+.tl-preview-sublist-outlined .tl-sublist-table {
+  margin-bottom: 0 !important;
+}
+.tl-preview-sublist-desc {
+  font-size: 13px;
+  color: #333;
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-bottom: 0;
+}
 .tl-preview-mock-input {
   background: #fff;
   border: 1px solid #cbd5e1;
@@ -398,8 +421,7 @@ step. The live description preview and test list builder are driven by htmx.
 .tl-th-test { min-width: 260px; }
 .tl-th-category { width: 140px; text-align: center !important; }
 .tl-th-type { width: 150px; }
-.tl-th-ref { width: 120px; }
-.tl-th-tol { width: 120px; }
+.tl-th-type-value { width: 220px; }
 .tl-th-actions { width: 90px; text-align: right !important; }
 
 .tl-table tbody tr {
@@ -583,16 +605,27 @@ tr.tl-dragging {
   font-weight: 500;
 }
 
-.tl-val-text {
-  font-size: 13px;
-  color: #334155;
-  font-weight: 500;
+/* Base list "Type Value" column: one line, ellipsis, full text in the title tooltip */
+.tl-cell-type-value {
+  max-width: 220px;
 }
 
-.tl-empty-dash {
-  color: #cbd5e1;
-  font-weight: 600;
+.tl-type-value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
+  color: #333;
+}
+
+.tl-type-value.tl-mono {
+  font-size: 12px;
+}
+
+.tl-type-value-none {
+  font-size: 13px;
+  color: #6e7785;
 }
 
 .tl-cell-actions {
@@ -652,6 +685,27 @@ tr.tl-dragging {
 }
 .tl-sublist-row:hover .tl-sublist-card {
   box-shadow: 0 2px 5px rgba(217, 155, 38, 0.2);
+}
+/* Sublist drawn in its own box on the Perform QC page (Sublist.outline) */
+.tl-sublist-card.tl-sublist-outlined {
+  border: 2px solid #424f57;
+}
+
+.tl-sublist-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.tl-sublist-outline input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }
 
 .tl-sublist-header {
@@ -870,42 +924,6 @@ tr.tl-dragging {
   color: #94a3b8;
   font-style: italic;
   font-size: 13px;
-}
-
-/* ---- Bottom Actions ---- */
-.tl-bottom-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.tl-add-btn {
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 3px;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  transition: all 0.15s ease;
-}
-.tl-add-btn:hover {
-  border-color: #9ca3af;
-  background: #f9fafb;
-  color: #111827;
-}
-
-.tl-bottom-caption {
-  font-size: 13px;
-  color: #6b7280;
 }
 
 /* ---- Modals & Search Dialog ---- */
@@ -2075,6 +2093,15 @@ ul.messagelist li.error {
     }
   }
 
+  // Sublist "Outline on Perform QC page" checkbox: mirror its state on the
+  // card (delegated so cards added later work too)
+  document.addEventListener("change", function (e) {
+    var box = e.target.closest ? e.target.closest(".tl-sublist-outline-checkbox") : null;
+    if (!box) { return; }
+    var card = box.closest(".tl-sublist-card");
+    if (card) { card.classList.toggle("tl-sublist-outlined", box.checked); }
+  });
+
   // Global event delegation for all builder clicks
   document.addEventListener("click", function (e) {
     // Individual Sublist Expand/Collapse toggle
@@ -2106,15 +2133,15 @@ ul.messagelist li.error {
       return;
     }
 
-    // Add Test buttons
-    if (e.target.closest("#tl-header-add-test-btn, #tl-add-test-btn")) {
+    // Add Test button (card header)
+    if (e.target.closest("#tl-header-add-test-btn")) {
       e.preventDefault();
       openSearchModal("test");
       return;
     }
 
-    // Add Sublist button
-    if (e.target.closest("#tl-add-sublist-btn")) {
+    // Add Sublist button (card header)
+    if (e.target.closest("#tl-header-add-sublist-btn")) {
       e.preventDefault();
       openSearchModal("sublist");
       return;
@@ -2469,6 +2496,21 @@ ul.messagelist li.error {
     });
   }
 
+  // Build a preview "Type Value" <td> from a builder row's server-rendered cell
+  // (data attributes on .tl-cell-type-value), so the display logic stays in Python.
+  function previewTypeValueCellHtml(row) {
+    var cell = row.querySelector(".tl-cell-type-value");
+    var value = cell ? (cell.getAttribute("data-type-value") || "") : "";
+    if (!value) {
+      return '<td class="tl-cell-type-value tl-col-type-value"><span class="tl-type-value-none">' +
+        escapeHtml(gettext("None")) + '</span></td>';
+    }
+    var mono = cell.getAttribute("data-type-value-mono") === "1";
+    var title = cell.getAttribute("data-type-value-title") || "";
+    return '<td class="tl-cell-type-value tl-col-type-value"><span class="tl-type-value' + (mono ? ' tl-mono' : '') + '"' +
+      (title ? ' title="' + escapeHtml(title) + '"' : '') + '>' + escapeHtml(value) + '</span></td>';
+  }
+
   function renderLivePreview() {
     var container = document.getElementById("tl-preview-container");
     if (!container) { return; }
@@ -2531,8 +2573,7 @@ ul.messagelist li.error {
             '<th class="tl-th-test">TEST</th>' +
             '<th class="tl-th-category">CATEGORY</th>' +
             '<th class="tl-th-type">TYPE</th>' +
-            '<th class="tl-th-ref">REFERENCE</th>' +
-            '<th class="tl-th-tol">TOLERANCE</th>' +
+            '<th class="tl-th-type-value tl-col-type-value">' + escapeHtml(gettext("Type Value")) + '</th>' +
             '<th style="width:140px; text-align:right;">INPUT</th>' +
             '</tr></thead><tbody>';
           inDirectTable = true;
@@ -2548,17 +2589,12 @@ ul.messagelist li.error {
         var typeBadgeClass = typeBadge ? typeBadge.className : "tl-type-badge";
         var typeLabel = r.querySelector(".tl-type-label");
         var typeLabelText = typeLabel ? typeLabel.textContent.trim() : "";
-        var refElem = r.querySelector(".tl-cell-ref");
-        var refText = refElem ? refElem.textContent.trim() : "—";
-        var tolElem = r.querySelector(".tl-cell-tol");
-        var tolText = tolElem ? tolElem.textContent.trim() : "—";
 
         html += '<tr>' +
           '<td class="tl-cell-test"><div class="tl-test-name">' + escapeHtml(name) + '</div></td>' +
           '<td class="tl-cell-category"><span class="' + escapeHtml(catClass) + '">' + escapeHtml(cat) + '</span></td>' +
           '<td class="tl-cell-type"><div class="tl-type-pill-wrap"><span class="' + escapeHtml(typeBadgeClass) + '">' + escapeHtml(typeBadgeText) + '</span> <span class="tl-type-label">' + escapeHtml(typeLabelText) + '</span></div></td>' +
-          '<td class="tl-cell-ref"><span class="tl-val-text">' + escapeHtml(refText) + '</span></td>' +
-          '<td class="tl-cell-tol"><span class="tl-val-text">' + escapeHtml(tolText) + '</span></td>' +
+          previewTypeValueCellHtml(r) +
           '<td style="text-align:right;"><input type="text" placeholder="Value..." class="tl-preview-mock-input" disabled></td>' +
           '</tr>';
       } else if (r.classList.contains("tl-sublist-row")) {
@@ -2572,11 +2608,28 @@ ul.messagelist li.error {
         var subCountElem = r.querySelector(".tl-sublist-count");
         var subCount = subCountElem ? subCountElem.textContent.trim() : "0";
 
+        // Outlined sublists get their own box headed by name + description,
+        // like the Perform QC page draws them
+        var subOutlineBox = r.querySelector("input[name$='-outline']");
+        var subOutlined = !!(subOutlineBox && subOutlineBox.checked);
+        if (subOutlined) {
+          html += '<div class="tl-preview-sublist-outlined">';
+        }
+
         html += '<div class="tl-preview-sublist-header"><i class="fa fa-folder-o text-warning"></i> <span>' + escapeHtml(subName) + '</span> <span class="tl-sublist-count">' + escapeHtml(subCount) + '</span></div>';
+
+        if (subOutlined) {
+          var subHeaderElem = r.querySelector(".tl-sublist-header");
+          var subDesc = subHeaderElem ? (subHeaderElem.getAttribute("data-sublist-description") || "").trim() : "";
+          if (subDesc) {
+            // description is admin-authored HTML; the Perform QC page renders it as HTML too
+            html += '<div class="tl-preview-sublist-desc">' + subDesc + '</div>';
+          }
+        }
 
         var subRows = r.querySelectorAll("tbody tr.tl-sublist-test-row");
         html += '<table class="tl-table tl-sublist-table" style="border:1px solid #e2e8f0; border-top:0; margin-bottom:16px;">';
-        html += '<thead><tr><th class="tl-th-test">TEST</th><th class="tl-th-category">CATEGORY</th><th class="tl-th-type">TYPE</th><th class="tl-th-ref">REFERENCE</th><th class="tl-th-tol">TOLERANCE</th><th style="width:140px; text-align:right;">INPUT</th></tr></thead><tbody>';
+        html += '<thead><tr><th class="tl-th-test">TEST</th><th class="tl-th-category">CATEGORY</th><th class="tl-th-type">TYPE</th><th class="tl-th-type-value tl-col-type-value">' + escapeHtml(gettext("Type Value")) + '</th><th style="width:140px; text-align:right;">INPUT</th></tr></thead><tbody>';
 
         subRows.forEach(function (sr) {
           var tname = sr.querySelector(".tl-test-name") ? sr.querySelector(".tl-test-name").textContent.trim() : "";
@@ -2585,20 +2638,20 @@ ul.messagelist li.error {
           var tb = sr.querySelector(".tl-type-badge") ? sr.querySelector(".tl-type-badge").textContent.trim() : "";
           var tbClass = sr.querySelector(".tl-type-badge") ? sr.querySelector(".tl-type-badge").className : "tl-type-badge";
           var tl = sr.querySelector(".tl-type-label") ? sr.querySelector(".tl-type-label").textContent.trim() : "";
-          var tref = sr.querySelector(".tl-cell-ref") ? sr.querySelector(".tl-cell-ref").textContent.trim() : "—";
-          var ttol = sr.querySelector(".tl-cell-tol") ? sr.querySelector(".tl-cell-tol").textContent.trim() : "—";
 
           html += '<tr>' +
             '<td class="tl-cell-test"><div class="tl-test-name">' + escapeHtml(tname) + '</div></td>' +
             '<td class="tl-cell-category"><span class="' + escapeHtml(tcatClass) + '">' + escapeHtml(tcat) + '</span></td>' +
             '<td class="tl-cell-type"><div class="tl-type-pill-wrap"><span class="' + escapeHtml(tbClass) + '">' + escapeHtml(tb) + '</span> <span class="tl-type-label">' + escapeHtml(tl) + '</span></div></td>' +
-            '<td class="tl-cell-ref"><span class="tl-val-text">' + escapeHtml(tref) + '</span></td>' +
-            '<td class="tl-cell-tol"><span class="tl-val-text">' + escapeHtml(ttol) + '</span></td>' +
+            previewTypeValueCellHtml(sr) +
             '<td style="text-align:right;"><input type="text" placeholder="Value..." class="tl-preview-mock-input" disabled></td>' +
             '</tr>';
         });
 
         html += '</tbody></table>';
+        if (subOutlined) {
+          html += '</div>'; // close tl-preview-sublist-outlined
+        }
       }
     });
 
@@ -2620,7 +2673,6 @@ ul.messagelist li.error {
     var editContainers = [
       document.getElementById("tl-details-card"),
       document.getElementById("tl-tests-card"),
-      document.querySelector(".tl-bottom-actions"),
       document.getElementById("tl-attachments-card"),
       document.getElementById("tl-parents-card"),
       document.querySelector(".submit-row")

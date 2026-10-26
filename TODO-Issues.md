@@ -10,6 +10,23 @@ _None yet._
 
 ## Decisions made during implementation
 
+- **Type Value column (G):** Constant shows its value (with the test's
+  formatting if set); Multiple Choice its choices; Wraparound "low to high"
+  (no trailing ".0"); Composite, String Composite and Upload the first line
+  of the calculation in monospace, cut at 60 characters with the full text
+  as a tooltip. Upload's auto-filled `<slug> = None` placeholder counts as
+  no calculation. Long choice lists are cut the same way. Other types show
+  "None".
+
+- **Outline in the builder and preview (D):** an outlined sublist card gets a
+  2px `#424f57` border. The preview copies the Perform QC page, which draws a
+  3px grey rule above and below the sublist with its name in italics (not a
+  full box), and shows the sublist description under the name.
+
+- **Add buttons (C):** order in the Tests & Sublists header is Expand All,
+  Add Sublist, Add Test. The drag caption went with the bottom bar; the drag
+  handles keep their "Drag to reorder" tooltip.
+
 - **Test counts (A):** the Tests & Sublists badge and the page header both
   show the total number of tests, including tests inside sublists; the
   header reads "N tests · N sublists" (it said "sections").
@@ -32,6 +49,24 @@ _None yet._
   same as Django 4.2's default.
 
 ## New issues found
+
+- Live preview (`renderLivePreview`): its other column headers, "Untitled
+  Test List", "Value..." and "JavaScript logic active on perform page" are
+  hard-coded and untranslated, some with inline styles, and it inserts the
+  description as raw HTML. The preview is due to be rebuilt (task L). (G)
+
+- "Change" on an existing sublist swaps in a card built as if the sublist
+  were new: empty `children-N-id` and an unchecked outline box. The existing
+  sublist's outline setting, and its pairing with the saved row, are lost on
+  swap. Existed before this work. (D)
+
+- `qatrack/admin_media/js/m2m_drag_admin_testlist.js` (changed heavily on this
+  branch) isn't loaded by any template; the builder JS is inlined in
+  `testlist_assets.html`. It still refers to the removed bottom bar buttons.
+  Looks like a stale copy to delete. (C)
+- `.tl-header-add-btn` keeps a leftover `margin-left: auto`; `.tl-header-text-btn`
+  ("Expand all") uses 11.5px and sentence case. Covered by the design pass and
+  wording tasks. (C)
 
 - `testlist_duplicate_test` didn't set `created_by`/`modified_by`, so every
   Duplicate failed with an IntegrityError. Fixed in task A (outside its plan,

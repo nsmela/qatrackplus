@@ -160,8 +160,11 @@
         <button type="button" class="tl-header-text-btn" id="tl-toggle-all-sublists-btn" title="{% trans "Expand or collapse all sublists" %}">
           <i class="fa fa-expand" aria-hidden="true"></i> <span id="tl-toggle-all-sublists-text">{% trans "Expand all" %}</span>
         </button>
-        <button type="button" class="tl-header-add-btn" id="tl-header-add-test-btn">
-          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add test" %}
+        <button type="button" class="tl-header-add-btn" id="tl-header-add-sublist-btn" title="{% trans "Add an existing test list as a sublist" %}">
+          <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add Sublist" %}
+        </button>
+        <button type="button" class="tl-header-add-btn" id="tl-header-add-test-btn" title="{% trans "Add an existing test to this test list" %}">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Test" %}
         </button>
       </div>
     </div>
@@ -174,8 +177,7 @@
             <th class="tl-th-test">{% trans "TEST / SUBLIST" %}</th>
             <th class="tl-th-category">{% trans "CATEGORY" %}</th>
             <th class="tl-th-type">{% trans "TYPE" %}</th>
-            <th class="tl-th-ref">{% trans "REFERENCE" %}</th>
-            <th class="tl-th-tol">{% trans "TOLERANCE" %}</th>
+            <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
             <th class="tl-th-actions"></th>
           </tr>
         </thead>
@@ -206,21 +208,8 @@
         </tbody>
       </table>
       <div class="tl-empty-tests-placeholder" id="tl-empty-tests-msg" style="display:none;">
-        <p>{% trans "No tests or sublists added yet. Click 'Add test' or 'Add sublist' below to get started." %}</p>
+        <p>{% trans "No tests or sublists yet. Use Add Test or Add Sublist above to get started." %}</p>
       </div>
-    </div>
-
-    {# --- Bottom Action Bar --- #}
-    <div class="tl-bottom-actions">
-      <button type="button" class="tl-add-btn" id="tl-add-sublist-btn">
-        <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add sublist" %}
-      </button>
-      <button type="button" class="tl-add-btn" id="tl-add-test-btn">
-        <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add test" %}
-      </button>
-      <span class="tl-bottom-caption">
-        {% trans "Drag items by their handle (☰) to reorder tests and sublists in any position." %}
-      </span>
     </div>
   </div>
 

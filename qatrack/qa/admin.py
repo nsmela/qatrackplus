@@ -593,6 +593,75 @@ class TestListAdminForm(forms.ModelForm):
         return self.cleaned_data
 
 
+TYPE_VALUE_MAX_CHARS = 60
+
+
+def _truncate_type_value(text):
+    """Return (display, title) for a type value, shortening long text with "…".
+
+    `title` holds the full text whenever the display had to be shortened, so the
+    builder can show it as a tooltip; otherwise it is empty.
+    """
+    if len(text) <= TYPE_VALUE_MAX_CHARS:
+        return text, ""
+    return text[:TYPE_VALUE_MAX_CHARS - 1].rstrip() + "…", text
+
+
+def _format_type_value_number(value):
+    """Show whole numbers without a trailing ".0" (e.g. 360.0 -> "360")."""
+    value = float(value)
+    return str(int(value)) if value.is_integer() else str(value)
+
+
+def _get_test_type_value(test):
+    """Return (type_value, type_value_title, type_value_mono) for a test.
+
+    The "type value" is the part of a test's definition that belongs to the test
+    itself on every machine: a constant's value, a multiple choice test's
+    choices, a wraparound test's range, or a calculated test's procedure.
+    References and tolerances are per-machine, so they are not shown here.
+    """
+    t = test.type
+    if t == models.CONSTANT:
+        if test.constant_value is None:
+            return "", "", False
+        if test.formatting:
+            value = format_qc_value(test.constant_value, test.formatting)
+        else:
+            value = str(test.constant_value)
+        return value, "", False
+
+    if t == models.MULTIPLE_CHOICE:
+        choices = [c.strip() for c in (test.choices or "").split(",") if c.strip()]
+        display, title = _truncate_type_value(", ".join(choices))
+        return display, title, False
+
+    if t == models.WRAPAROUND:
+        if test.wrap_low is None or test.wrap_high is None:
+            return "", "", False
+        value = _("%(low)s to %(high)s") % {
+            "low": _format_type_value_number(test.wrap_low),
+            "high": _format_type_value_number(test.wrap_high),
+        }
+        return value, "", False
+
+    if t in (models.COMPOSITE, models.STRING_COMPOSITE, models.UPLOAD):
+        calc = (test.calculation_procedure or "").strip()
+        if t == models.UPLOAD and calc.replace(" ", "") == "%s=None" % test.slug:
+            # Test.clean_calculation_procedure fills this placeholder in for uploads
+            # saved without a procedure, so treat it as "no procedure".
+            calc = ""
+        if not calc:
+            return "", "", False
+        first_line = next(line.strip() for line in calc.splitlines() if line.strip())
+        display, title = _truncate_type_value(first_line)
+        if display != calc:
+            title = calc
+        return display, title, True
+
+    return "", "", False
+
+
 def get_test_metadata(test):
     """Return dictionary of serialized test metadata for builder UI rendering."""
     cat_slug = test.category.slug if test.category else "general"
@@ -615,59 +684,48 @@ def get_test_metadata(test):
         type_badge = "Y/N"
         type_label = "Boolean"
         type_class = "tl-type-yn"
-        ref_disp = "Pass = Yes" if test.flag_when is not False else "Pass = No"
     elif t in (models.SIMPLE, models.NUMERICAL):
         type_badge = "Num"
         type_label = "Numerical"
         type_class = "tl-type-num"
-        ref_disp = "—"
     elif t == models.WRAPAROUND:
         type_badge = "Num"
         type_label = "Wraparound"
         type_class = "tl-type-num"
-        ref_disp = "—"
     elif t == models.MULTIPLE_CHOICE:
         type_badge = "M/C"
         type_label = "Multiple Choice"
         type_class = "tl-type-mc"
-        ref_disp = "—"
     elif t == models.COMPOSITE:
         type_badge = "Comp"
         type_label = "Composite"
         type_class = "tl-type-comp"
-        ref_disp = "—"
     elif t == models.CONSTANT:
         type_badge = "Const"
         type_label = "Constant"
         type_class = "tl-type-const"
-        ref_disp = str(test.constant_value) if test.constant_value is not None else "—"
     elif t == models.STRING:
         type_badge = "Text"
         type_label = "String"
         type_class = "tl-type-str"
-        ref_disp = "—"
     elif t == models.STRING_COMPOSITE:
         type_badge = "JSON"
         type_label = "String Composite"
         type_class = "tl-type-scomp"
-        ref_disp = "—"
     elif t == models.UPLOAD:
         type_badge = "File"
         type_label = "File Upload"
         type_class = "tl-type-upload"
-        ref_disp = "—"
     elif t in (models.DATE, models.DATETIME):
         type_badge = "Date"
         type_label = "Date" if t == models.DATE else "Date & Time"
         type_class = "tl-type-date"
-        ref_disp = "—"
     else:
         type_badge = "Test"
         type_label = test.get_type_display()
         type_class = "tl-type-default"
-        ref_disp = "—"
 
-    tol_disp = "—"
+    type_value, type_value_title, type_value_mono = _get_test_type_value(test)
 
     return {
         "id": test.id,
@@ -682,8 +740,9 @@ def get_test_metadata(test):
         "type_badge": type_badge,
         "type_label": type_label,
         "type_class": type_class,
-        "reference_display": ref_disp,
-        "tolerance_display": tol_disp,
+        "type_value": type_value,
+        "type_value_title": type_value_title,
+        "type_value_mono": type_value_mono,
         "edit_url": reverse("admin:qa_test_change", args=[test.id]),
     }
 
@@ -697,6 +756,7 @@ def get_sublist_metadata(child, sublist_pk=None, order=0, outline=False):
         "child_id": child.id,
         "child_name": child.name,
         "child_slug": child.slug,
+        "child_description": child.description,
         "test_count": len(tests),
         "tests": tests_meta,
         "order": order,
@@ -742,7 +802,9 @@ class SublistInlineFormSet(forms.models.BaseInlineFormSet):
                     form.instance.child,
                     sublist_pk=form.instance.pk,
                     order=form.instance.order,
-                    outline=form.instance.outline,
+                    # use the bound value so a re-rendered form (after a
+                    # validation error) keeps what the user ticked
+                    outline=bool(form["outline"].value()),
                 )
             else:
                 form.sublist_meta = None
@@ -849,7 +911,7 @@ class SublistForm(forms.ModelForm):
                 child,
                 sublist_pk=self.instance.pk if self.instance else None,
                 order=self.instance.order if self.instance else 0,
-                outline=self.instance.outline if self.instance else False,
+                outline=bool(self["outline"].value()),
             ) if child else None
         return self._sublist_meta_cache
 
