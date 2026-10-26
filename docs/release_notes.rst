@@ -138,6 +138,14 @@ Deployment and Upgrade Notes
   same versions the test suite runs against. Previously ``pip`` chose versions when
   the image was built, so two builds of the same release could differ.
 
+* **Docker: add your own Python packages for calculation procedures.** List them in
+  ``deploy/docker/site-requirements/requirements.txt`` and run
+  ``docker compose build``. They are installed at versions that work with
+  QATrack+'s own, and a package that needs a different version of one of them
+  stops the build instead of changing what QATrack+ runs on. Wheel files in the
+  same folder can be installed without internet access. See
+  :ref:`docker_site_packages`.
+
 * **Docker images no longer contain your ``.env`` file, local settings or site data.**
   The ``.dockerignore`` patterns only matched files at the top of the repository, so
   the image copied in ``deploy/docker/.env`` (which holds the database password), and

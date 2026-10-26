@@ -18,6 +18,7 @@ Release notes are located at http://docs.qatrackplus.com/en/latest/release_notes
 * **Docker**: The QATrack+ application container no longer runs as root. Existing media and static files are re-owned automatically on the next `docker compose up -d`; the commands you run do not change.
 * **Docker**: `compose.override.yaml` is now `compose.dev.yaml` and is no longer applied automatically, so plain `docker compose` runs the code built into the image. Developers use `docker compose -f compose.yaml -f compose.dev.yaml` with their own ids in `.env`. QATrack+'s log files are no longer written to the checkout's `logs` folder (except with `compose.dev.yaml`).
 * **Docker**: The Docker image installs exactly the dependency versions in `uv.lock`, the same versions the test suite runs against.
+* **Docker**: Calculation procedures can use your own Python packages: list them in `deploy/docker/site-requirements/requirements.txt` and run `docker compose build`. A package that needs a different version of one of QATrack+'s dependencies stops the build instead of changing it.
 * **Docker**: Docker images no longer contain your `.env` file, local settings, uploaded files or database dumps. Rebuild any QATrack+ image you have copied to a registry or another machine.
 * **Docker**: Database dumps in `deploy/docker/backups/` and `.env` files (other than the `.env.example` templates) are now ignored by git.
 * **Docker**: Files under `deploy/docker` always check out with LF line endings, including on Windows.

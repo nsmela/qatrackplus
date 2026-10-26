@@ -46,6 +46,13 @@ decoys=(
     qatrack/static/decoy.css
     site.key
     fixtures/site_export.json
+    deploy/docker/site-requirements/.env
+)
+# A site's own Python packages (deploy/docker/site-requirements/, not tracked by
+# git) must reach the image. Created here when missing, like the decoys.
+site_files=(
+    deploy/docker/site-requirements/requirements.txt
+    deploy/docker/site-requirements/site_package-1.0-py3-none-any.whl
 )
 created=()
 created_dirs=()
@@ -57,7 +64,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for f in "${decoys[@]}"; do
+for f in "${decoys[@]}" "${site_files[@]}"; do
     if [ ! -e "$f" ]; then
         d="$(dirname "$f")"
         if [ ! -d "$d" ]; then
@@ -83,6 +90,7 @@ present=(
     fixtures/defaults/qa
     fixtures/defaults/units
     deploy/docker/django/entrypoint.sh
+    "${site_files[@]}"
 )
 # Paths that must never be in the image. deploy/docker/.env holds the database
 # password; it is not tracked, so a fresh checkout has none and it is a decoy above.

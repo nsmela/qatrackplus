@@ -385,6 +385,44 @@ To have QATrack+ start on boot run the following command:
 
     docker compose up -d
 
+.. _docker_site_packages:
+
+Adding Python packages
+~~~~~~~~~~~~~~~~~~~~~~
+
+Calculation procedures can import Python packages that QATrack+ does not
+include. QATrack+ already includes numpy, scipy, pandas, matplotlib, pydicom,
+pylinac and others; the versions it uses are in ``uv.lock`` at the top of your
+QATrack+ folder. To add another package, list it in
+``deploy/docker/site-requirements/requirements.txt``, one per line, with its
+version:
+
+.. code-block:: text
+
+    pint==0.24.4
+
+Then rebuild the image and restart:
+
+.. code-block:: console
+
+    docker compose build
+    docker compose up -d
+
+The packages are installed alongside QATrack+'s own, at versions that work with
+them. If a package needs a different version of something QATrack+ uses (Django
+or numpy, for example), ``docker compose build`` stops and names the conflict,
+and your running QATrack+ is left as it was. Choose a version of the package
+that works with QATrack+'s, or ask on the QATrack+ mailing list.
+
+On a server without internet access, download the packages' ``.whl`` files
+elsewhere, copy them into ``deploy/docker/site-requirements``, and add a line
+``--no-index`` at the top of ``requirements.txt``. The build then installs from
+those files only.
+
+``requirements.txt`` and the wheel files are yours: git ignores them, so
+``git pull`` leaves them alone, and they are installed again by every
+``docker compose build``.
+
 .. _docker_https:
 
 Serving QATrack+ over HTTPS

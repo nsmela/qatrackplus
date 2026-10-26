@@ -246,6 +246,8 @@ jobs:
           cp .env.example .env
           # A real host name, so nginx's host filtering is exercised.
           sed -i 's/^ALLOWED_HOSTS=.*/ALLOWED_HOSTS=qatrack.test/' .env
+          # A site's own package, which QATrack+ itself does not install.
+          echo "tomli-w==1.2.0" > site-requirements/requirements.txt
           docker compose build
 
       - name: Fix script permissions
@@ -309,6 +311,19 @@ jobs:
           print('django-q ran task', task, '->', value)
           assert value == 2, value
           "
+
+      - name: Verify the site's own Python packages are installed
+        working-directory: deploy/docker
+        run: |
+          set -euo pipefail
+          for service in django django-q; do
+            docker compose exec -T "$service" python -c "import tomli_w; print('$service: tomli_w', tomli_w.__version__)"
+          done
+          # Installing it changed none of QATrack+'s own versions.
+          locked=$(awk '/^name = "django"$/ {getline; print $3}' ../../uv.lock | tr -d '"')
+          running=$(docker compose exec -T django python -c "import django; print(django.__version__)")
+          echo "Django: locked $locked, running $running"
+          [ -n "$locked" ] && [ "$locked" = "$running" ]
 
       - name: Verify nginx answers only ALLOWED_HOSTS, accepts large uploads, and logs are capped
         working-directory: deploy/docker
@@ -436,6 +451,19 @@ jobs:
 
             echo "PASS: valid db dump + media archive produced"
           '
+
+      - name: Verify a site package that conflicts with QATrack+ stops the build
+        working-directory: deploy/docker
+        run: |
+          set -euo pipefail
+          echo "Django==4.1" > site-requirements/requirements.txt
+          rc=0
+          docker compose build django > "$RUNNER_TEMP/conflict.log" 2>&1 || rc=$?
+          tail -n 20 "$RUNNER_TEMP/conflict.log"
+          [ "$rc" != 0 ] || { echo "FAIL: the build accepted Django==4.1"; exit 1; }
+          grep -q "No solution found" "$RUNNER_TEMP/conflict.log"
+          # The running site is untouched.
+          docker compose exec -T django python -c "import django, tomli_w; print('still running Django', django.__version__)"
 
       - name: Tear Down
         if: always()

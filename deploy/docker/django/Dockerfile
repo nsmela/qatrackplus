@@ -23,6 +23,24 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-dev --no-install-project --extra docker --extra postgres --extra ldap
 
+# A site's own packages, from deploy/docker/site-requirements (see the README
+# there). They are installed with QATrack+'s locked versions as constraints, so
+# a package that needs a different version of one of them fails the build
+# instead of changing what QATrack+ runs on.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=deploy/docker/site-requirements,target=/tmp/site-requirements \
+    if [ -s /tmp/site-requirements/requirements.txt ]; then \
+        uv export --frozen --no-dev --no-emit-project --no-hashes \
+            --extra docker --extra postgres --extra ldap \
+            --format requirements-txt --output-file /tmp/qatrack-constraints.txt \
+        && uv pip install --python /opt/venv/bin/python \
+            --constraint /tmp/qatrack-constraints.txt \
+            --find-links /tmp/site-requirements \
+            --requirement /tmp/site-requirements/requirements.txt; \
+    fi
+
 # Runtime stage
 FROM python:3.12-slim-bookworm
 

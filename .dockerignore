@@ -19,6 +19,9 @@
 !fixtures/defaults
 !fixtures/defaults/**
 !deploy/docker/django/entrypoint.sh
+# A site's own Python packages (see the README in that folder).
+!deploy/docker/site-requirements
+!deploy/docker/site-requirements/**
 
 # Re-ignore local files that can exist inside the paths let back in above.
 # These mirror the matching entries in .gitignore.
