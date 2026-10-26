@@ -19,9 +19,9 @@
 !fixtures/defaults
 !fixtures/defaults/**
 !deploy/docker/django/entrypoint.sh
-# A site's own Python packages (see the README in that folder).
-!deploy/docker/site-requirements
-!deploy/docker/site-requirements/**
+# Not deploy/docker/site-requirements: compose.yaml passes it to the build as a
+# separate context, so a site's requirements file (which can hold a private
+# index token) and wheels are never copied into the image.
 
 # Re-ignore local files that can exist inside the paths let back in above.
 # These mirror the matching entries in .gitignore.

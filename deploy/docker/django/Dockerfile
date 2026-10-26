@@ -1,3 +1,9 @@
+# Stands in for the "site-requirements" build context when a build does not
+# give one (compose.yaml always does): an empty folder, so no site packages.
+# `docker build --build-context site-requirements=deploy/docker/site-requirements`
+# gives it without compose.
+FROM scratch AS site-requirements
+
 # Builder stage: install the locked dependencies into /opt/venv
 FROM python:3.12-slim-bookworm AS builder
 
@@ -24,17 +30,20 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project --extra docker --extra postgres --extra ldap
 
 # A site's own packages, from deploy/docker/site-requirements (see the README
-# there). They are installed with QATrack+'s locked versions as constraints, so
-# a package that needs a different version of one of them fails the build
-# instead of changing what QATrack+ runs on.
+# there). compose.yaml passes that folder in as a separate build context named
+# "site-requirements", so it is never part of the main context (see
+# .dockerignore) and nothing in it - a requirements file holding a private index
+# token, large wheel files - is copied into the image by the runtime stage.
+# Built without compose, the empty stage at the top stands in for it and no site
+# packages are installed.
+#
+# QATrack+'s own packages, exactly as installed above, are the constraints, so a
+# package that needs a different version of one of them fails the build instead
+# of changing what QATrack+ runs on.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=deploy/docker/site-requirements,target=/tmp/site-requirements \
+    --mount=type=bind,from=site-requirements,target=/tmp/site-requirements \
     if [ -s /tmp/site-requirements/requirements.txt ]; then \
-        uv export --frozen --no-dev --no-emit-project --no-hashes \
-            --extra docker --extra postgres --extra ldap \
-            --format requirements-txt --output-file /tmp/qatrack-constraints.txt \
+        uv pip freeze --python /opt/venv/bin/python > /tmp/qatrack-constraints.txt \
         && uv pip install --python /opt/venv/bin/python \
             --constraint /tmp/qatrack-constraints.txt \
             --find-links /tmp/site-requirements \
