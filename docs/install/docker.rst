@@ -25,8 +25,8 @@ Windows 10 Professional or Enterprise with Hyper-V
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The aim of this setup is to have a complete installation of QATrack+ on a
-Windows 10 Professional or Enterprise machine with the backups being scheduled
-to be periodically copied to a OneDrive directory.
+Windows 10 Professional or Enterprise machine. Backups are covered in
+:ref:`docker_backups`.
 
 Ensure Virtualisation is enabled
 ................................
@@ -467,9 +467,10 @@ night at 2 AM, into the ``deploy/docker/backups`` folder:
 * ``db_YYYYMMDD_HHMMSS.dump``, the database;
 * ``media_YYYYMMDD_HHMMSS.tar.gz``, the uploaded files.
 
-Each file is checked as it is made, and only gets its final name once it is
-complete, so an interrupted backup never looks like a finished one. Backups older
-than 7 days are deleted. To back up now, or to see the backups you have:
+Each file is read back in full as it is made, and only gets its final name once
+it is complete, so an interrupted backup never looks like a finished one. Each
+backup is kept for 7 days, then deleted. To back up now, or to see the backups
+you have:
 
 .. code-block:: console
 
@@ -502,16 +503,24 @@ same backup, and start it again:
 
     docker compose stop django django-q
     docker compose run --rm --no-deps backup restore-db db_YYYYMMDD_HHMMSS.dump
-    docker compose run --rm --no-deps backup restore-media media_YYYYMMDD_HHMMSS.tar.gz
+    docker compose run --rm --no-deps -v media-volume:/media-writable backup restore-media media_YYYYMMDD_HHMMSS.tar.gz
     docker compose up -d
 
-Each command checks the backup before it changes anything, then asks you to
+The ``backup`` service can only read the uploaded files, so that the nightly
+backup can never change them. ``-v media-volume:/media-writable`` lets
+``restore-media``, and only it, write to them while it runs.
+
+Each command checks the whole backup before it changes anything, then asks you to
 confirm: type the database name for ``restore-db``, and ``RESTORE`` for
-``restore-media``. A restore replaces everything: anything entered since that
-backup is lost. Backups made by QATrack+ 4.0.0 and 4.0.1 can be restored. When
-you restore a backup from an older release, ``docker compose up -d`` applies the
-database changes the current release needs. Do not restore a backup from a newer
-release into an older one.
+``restore-media``. Your current database and files are only replaced once the
+backup has been fully unpacked beside them, so if a restore fails, or you stop it
+with Ctrl-C, they are left as they were, and the command tells you so. A restore
+replaces everything: anything entered since that backup is lost.
+
+Backups made by QATrack+ 4.0.0 and 4.0.1 can be restored. When you restore a
+backup from an older release, ``docker compose up -d`` applies the database
+changes the current release needs. Do not restore a backup from a newer release
+into an older one.
 
 Delete docker data
 ~~~~~~~~~~~~~~~~~~

@@ -169,13 +169,18 @@ Deployment and Upgrade Notes
 
 * **Docker: backups can be restored, and an interrupted backup can't pass for a
   finished one.** The ``backup`` service now writes each file under a temporary
-  name and renames it only once it is complete and readable. It refuses to start
-  while another backup or a restore is running. Two new commands,
-  ``restore-db`` and ``restore-media``, put a backup back after checking it and
-  asking you to confirm (see :ref:`docker_backups`). Backups made by QATrack+
-  4.0.0 and 4.0.1 can be restored. The backup service's PostgreSQL tools are now
-  pinned to version 16, the version that made those backups: PostgreSQL 15's tools
-  cannot read them.
+  name, reads it back in full, and renames it only once it is complete. It
+  refuses to start while another backup or a restore is running. Two new
+  commands, ``restore-db`` and ``restore-media``, put a backup back after checking
+  it and asking you to confirm (see :ref:`docker_backups`). They unpack the
+  backup beside your current data and only then swap it in, so a restore that
+  fails or is stopped leaves your data as it was. The ``backup`` service can
+  still only read the uploaded files; ``restore-media`` is given write access
+  only while it runs. Backups made by QATrack+ 4.0.0 and 4.0.1 can be restored.
+  The backup service's PostgreSQL tools are now pinned to version 16, the version
+  that made those backups: PostgreSQL 15's tools cannot read them. The image now
+  installs just those client tools on Alpine, rather than starting from the
+  PostgreSQL server image.
 
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to
