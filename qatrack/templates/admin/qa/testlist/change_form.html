@@ -110,12 +110,28 @@
       <i class="fa fa-globe tl-scope-globe-icon" id="tl-scope-icon" aria-hidden="true"></i>
       <span class="tl-scope-info-text" id="tl-scope-info-text">{% trans "Changes apply to every machine this list is assigned to" %}</span>
     </span>
-    <a href="{% if original.pk %}{% url 'admin:qa_unittestcollection_add' %}?test_list={{ original.pk }}{% else %}#{% endif %}"
-       class="tl-btn-assign-machine"
-       id="tl-btn-assign-machine"
-       {% if not original.pk %}title="{% trans "Save the test list first to assign to machines" %}" style="opacity:0.5; pointer-events:none;"{% else %}target="_blank"{% endif %}>
-      <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Assign to machine..." %}
-    </a>
+    {% if tl_can_assign_machine %}
+      {# Opens the "Assign to Machine" dialog (testlist_assign_machine); the assignment saves on its own. #}
+      {% if original.pk and not add %}
+        <button type="button" class="tl-btn-assign-machine" id="tl-btn-assign-machine" aria-haspopup="dialog"
+                data-assign-url="{% url 'admin:qa_testlist_assign_machine' %}?test_list={{ original.pk }}"
+                data-msg-load-error="{% trans "Couldn't open the Assign to Machine dialog. Nothing was saved. Try again." %}"
+                data-msg-save-error="{% trans "Couldn't assign the machine. Nothing was saved. Try again." %}">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Assign to Machine…" %}
+        </button>
+      {% else %}
+        <button type="button" class="tl-btn-assign-machine" id="tl-btn-assign-machine" disabled aria-disabled="true"
+                title="{% trans "Save the test list first, then assign it to machines." %}">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Assign to Machine…" %}
+        </button>
+      {% endif %}
+      <span class="tl-assign-note" id="tl-assign-note" role="status" hidden>
+        <i class="fa fa-check" id="tl-assign-note-icon" aria-hidden="true"></i>
+        <span class="tl-assign-note-text" id="tl-assign-note-text"></span>
+        <button type="button" class="tl-assign-note-close" id="tl-assign-note-close"
+                title="{% trans 'Dismiss' %}" aria-label="{% trans 'Dismiss' %}">&times;</button>
+      </span>
+    {% endif %}
   </div>
   <div class="tl-control-right">
     <div class="tl-view-toggle">
@@ -139,8 +155,18 @@
   <span>{% blocktrans %}Couldn't load <span class="tl-machine-unit-name"></span>'s settings. Nothing was changed. Try again.{% endblocktrans %}</span>
 </div>
 
-{# Live Preview View Container (Toggled via Preview Tab) #}
-<div id="tl-preview-container" class="tl-preview-container" style="display:none;"></div>
+{# Live Preview View Container (Toggled via Preview Tab). With a directly assigned #}
+{# machine picked, it shows the real Perform QC page (read-only) in an iframe; #}
+{# otherwise renderLivePreview() draws a layout-only preview from the builder rows. #}
+<div id="tl-preview-container" class="tl-preview-container" style="display:none;"
+     data-can-preview-perform="{% if tl_can_preview_perform %}1{% else %}0{% endif %}"
+     data-msg-pick-machine="{% trans "Pick a machine this list is assigned to, in the Editing menu above, to see exactly what staff will see on Perform QC." %}"
+     data-msg-through="{% trans "%(unit)s gets this list through %(parent)s." %}"
+     data-msg-through-link="{% trans "Preview it from %(parent)s's page." %}"
+     data-msg-through-cycle="{% trans "Open the cycle" %}"
+     data-msg-unsaved="{% trans "You have unsaved changes. The preview shows the last saved version; save to see your changes here." %}"
+     data-msg-frame-title="{% trans "Perform QC preview" %}"></div>
+{% if original.pk %}{{ tl_preview_units|json_script:"tl-preview-units" }}{% endif %}
 {% endblock %}
 
 {% block field_sets %}

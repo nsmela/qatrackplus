@@ -29,6 +29,25 @@
   <link href="{% static "qatrack_core/css/flatpickr-custom.css" %}?v={{ VERSION }}" rel="stylesheet">
   <link href="{% static "cheekycheck/css/cheekycheck.css" %}?v={{ VERSION }}" rel="stylesheet">
 
+  {% if preview %}
+    {# Read-only preview shown inside the Test List admin: no site header or menu, and a fixed banner on top. #}
+    <style>
+      body.qa-preview .main-header,
+      body.qa-preview .main-sidebar,
+      body.qa-preview .bottom-banner,
+      body.qa-preview .qa-autosave-status { display: none !important; }
+      body.qa-preview.sidebar-mini.sidebar-collapse .content-wrapper,
+      body.qa-preview .content-wrapper { margin-left: 0 !important; padding-top: 44px; }
+      .qa-preview-banner {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 1050;
+        background: #f4f4f4; border-left: 3px solid #424f57; color: #333;
+        font-size: 14px; padding: 10px 16px; box-shadow: 0 1px 1px rgba(0,0,0,.1);
+      }
+      .qa-preview-banner .fa { color: #424f57; margin-right: 6px; }
+      .qa-preview-submit-note { color: #555; font-size: 13px; padding: 7px 0; }
+    </style>
+  {% endif %}
+
 {% endblock extra_css %}
 
 {% block extra_js %}
@@ -43,6 +62,8 @@
 {#        var status_colours_dict = {{ status_tag_colours|safe }};#}
 {#        var se_statuses = {{ se_statuses|safe }};#}
         var unit_id = {{ unit_test_collection.unit.id }};
+        // Read-only preview (Test List admin): qa.js skips autosave, uploads and the leave-page warning.
+        var qa_preview = {% if preview %}true{% else %}false{% endif %};
         {% if test_list_instance.work_completed %}
             var work_completed_initial = "{{ test_list_instance.work_completed|safe }}";
         {% else %}
@@ -85,7 +106,7 @@
     });
 {% endblock require_javascript %}
 
-{% block body_class %}sidebar-mini sidebar-collapse loading{% endblock body_class %}
+{% block body_class %}sidebar-mini sidebar-collapse loading{% if preview %} qa-preview{% endif %}{% endblock body_class %}
 
 {% block sidebar_toggle %}
     <a id="sidebar-toggle" href="#" class="sidebar-toggle pull-left" data-toggle="offcanvas" role="button">
@@ -95,9 +116,19 @@
 
 {% block body %}
 
+    {% if preview %}
+        <div class="qa-preview-banner" role="status">
+            <i class="fa fa-eye" aria-hidden="true"></i>{% trans "This is only a preview. Nothing you enter here is saved." %}
+        </div>
+    {% endif %}
+
     <div {% if not perms.qa.can_view_history %}class="max-width-md"{% endif %}>
 
+    {% if preview %}
+    <form class="nosubmit form-inline" id="qa-form" autocomplete="off" onsubmit="return false;">
+    {% else %}
     <form class="nosubmit form-inline" id="qa-form" method="POST" action="" autocomplete="off" enctype="multipart/form-data" >
+    {% endif %}
         {% csrf_token %}
 
         <div id="box-contacts" class="row" style="display: none;">
@@ -623,6 +654,11 @@
                                 <div class="row">
                                     <div class="col-sm-12 col-md-9 col-md-offset-3 col-lg-7 col-lg-offset-5">
 
+                                        {% if preview %}
+                                        <div class="qa-preview-submit-note pull-right">
+                                            {% trans "Submitting is turned off in this preview." %}
+                                        </div>
+                                        {% else %}
                                         <button id="submit-qa" type="submit" class="btn btn-primary btn-flat pull-right ping-popover">{% trans "Submit QC Results" %}</button>
 
 {#                                        <a id="toggle-gen-comment" class="btn btn-default btn-flat pull-right margin-r-5" href="#!" title="Click here to add a general comment about this set of tests">Add Comment</a>#}
@@ -644,6 +680,7 @@
                                               {{ form.initiate_service }}
                                             {% endif %}
                                         </div>
+                                        {% endif %}
 
                                     </div>
                                 </div>

@@ -1,0 +1,69 @@
+{% load i18n %}
+{# "Assign to Machine" dialog for the test list change form (TestListAdmin: testlist_assign_machine). #}
+{# The builder JS appends it to <body>, outside the change form, so none of its inputs are posted with the #}
+{# test list. Submitting creates the UnitTestCollection straight away. #}
+<div class="tl-modal-backdrop" id="tl-assign-modal">
+  <div class="tl-modal-dialog tl-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="tl-assign-title">
+    <div class="tl-modal-header">
+      <h3 class="tl-modal-title" id="tl-assign-title">
+        <i class="fa fa-cube" aria-hidden="true"></i> {% trans "Assign to Machine" %}
+      </h3>
+      <button type="button" class="tl-modal-close-btn" data-assign-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <form id="tl-assign-form" method="post" action="{% url 'admin:qa_testlist_assign_machine' %}" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="test_list" value="{{ test_list.pk }}">
+      <div class="tl-modal-body">
+        <p class="tl-modal-note">
+          {% blocktrans with name=test_list.name %}Choose a unit to perform “{{ name }}” on.{% endblocktrans %}
+          {% trans "The assignment is saved as soon as you click Assign. It doesn't wait for you to save this test list." %}
+        </p>
+
+        <div class="tl-assign-alert" id="tl-assign-alert" role="alert"{% if not form.non_field_errors %} hidden{% endif %}>
+          <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+          <span id="tl-assign-alert-text">{% for err in form.non_field_errors %}{{ err }} {% endfor %}</span>
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="{{ form.unit.id_for_label }}">{% trans "Unit" %} <em class="tl-req">*</em></label>
+          {{ form.unit }}
+          {% for err in form.unit.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="{{ form.frequency.id_for_label }}">{% trans "Frequency" %}</label>
+          {{ form.frequency }}
+          {% for err in form.frequency.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+          <span class="tl-modal-hint">{% trans "Ad Hoc lists have no schedule and are performed when needed." %}</span>
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="{{ form.assigned_to.id_for_label }}">{% trans "Assigned To" %} <em class="tl-req">*</em></label>
+          {{ form.assigned_to }}
+          {% for err in form.assigned_to.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+          <span class="tl-modal-hint">{% trans "The group that normally performs this list." %}</span>
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="{{ form.visible_to.id_for_label }}">{% trans "Visible To" %} <em class="tl-req">*</em></label>
+          {{ form.visible_to }}
+          {% for err in form.visible_to.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+          <span class="tl-modal-hint">{% trans "Groups who can see and perform this list on the unit. Hold Ctrl (Cmd on a Mac) to choose more than one." %}</span>
+        </div>
+
+        <div class="tl-modal-field tl-assign-check">
+          <label for="{{ form.active.id_for_label }}">{{ form.active }} {% trans "Active" %}</label>
+          {% for err in form.active.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+          <span class="tl-modal-hint">{% trans "Uncheck to assign it now but keep it off the unit's list until later." %}</span>
+        </div>
+      </div>
+      <div class="tl-modal-footer">
+        <button type="button" class="tl-btn-modal-cancel" data-assign-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="tl-btn-modal-save" id="tl-assign-submit">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Assign" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

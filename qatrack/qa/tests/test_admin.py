@@ -2185,6 +2185,79 @@ class TestTestListBuilderMachineMode(TestCase):
         self.assertNotIn('unit=', resp['Location'])
 
 
+class TestTestListBuilderPerformPreview(TestCase):
+    """Preview tab: data the builder JS uses to show the real Perform QC page (read-only)."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.unit = qa_utils.create_unit(name='Machine A')
+        self.other_unit = qa_utils.create_unit(name='Machine B')
+        self.cycle_unit = qa_utils.create_unit(name='Machine C')
+        self.test = qa_utils.create_test(name='Output')
+        self.tl = qa_utils.create_test_list(name='Direct List')
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.test)
+        self.utc = qa_utils.create_unit_test_collection(unit=self.unit, test_collection=self.tl)
+        self.parent = qa_utils.create_test_list(name='Parent List')
+        qa_utils.create_sublist(parent_test_list=self.parent, child_test_list=self.tl)
+        qa_utils.create_unit_test_collection(unit=self.other_unit, test_collection=self.parent, null_frequency=True)
+        self.cycle = qa_utils.create_cycle(test_lists=[self.tl], name='My Cycle')
+        qa_utils.create_unit_test_collection(unit=self.cycle_unit, test_collection=self.cycle, null_frequency=True)
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _preview_units(self, resp):
+        match = re.search(r'<script id="tl-preview-units" type="application/json">(.*?)</script>',
+                          resp.content.decode(), re.S)
+        self.assertIsNotNone(match)
+        return json.loads(match.group(1))
+
+    def test_change_form_has_preview_container_and_units(self):
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-can-preview-perform="1"')
+        self.assertContains(
+            resp,
+            'data-msg-pick-machine="Pick a machine this list is assigned to, in the Editing menu above, '
+            'to see exactly what staff will see on Perform QC."',
+        )
+        self.assertContains(resp, 'data-msg-unsaved="You have unsaved changes.')
+        units = self._preview_units(resp)
+        self.assertEqual(units[str(self.unit.pk)], {
+            'preview_url': reverse('perform_qa_preview', kwargs={'pk': self.utc.pk}),
+        })
+        self.assertEqual(units[str(self.other_unit.pk)], {
+            'via': 'Parent List',
+            'via_url': reverse('admin:qa_testlist_change', args=(self.parent.pk,)) + '?unit=%d' % self.other_unit.pk,
+            'via_cycle': False,
+        })
+        self.assertEqual(units[str(self.cycle_unit.pk)], {
+            'via': 'My Cycle',
+            'via_url': reverse('admin:qa_testlistcycle_change', args=(self.cycle.pk,)),
+            'via_cycle': True,
+        })
+
+    def test_preview_url_renders_for_admin(self):
+        units = self._preview_units(self.client.get(self.change_url))
+        resp = self.client.get(units[str(self.unit.pk)]['preview_url'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['X-Frame-Options'], 'SAMEORIGIN')
+        self.assertContains(resp, 'This is only a preview. Nothing you enter here is saved.')
+
+    def test_add_form_has_no_preview_units(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add'))
+        self.assertNotContains(resp, 'id="tl-preview-units"')
+
+    def test_no_real_preview_without_change_permission(self):
+        viewer = create_user(is_superuser=False, uname='viewer', pwd='pwd')
+        viewer.is_staff = True
+        viewer.save()
+        viewer.user_permissions.add(Permission.objects.get(codename='view_testlist'))
+        self.client.login(username='viewer', password='pwd')
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-can-preview-perform="0"')
+
+
 class TestTestListBuilderRemovedRows(TestCase):
     """Rows removed in the builder (DELETE ticked) are left out of validation
     and stay removed when the page is re-rendered after an error."""
@@ -2367,3 +2440,163 @@ class TestTestListUnsavedChangesWarning(TestCase):
     def test_changelist_has_no_dialog(self):
         resp = self.client.get(reverse('admin:qa_testlist_changelist'))
         self.assertNotContains(resp, 'id="tl-unsaved-modal"')
+
+
+class TestTestListAssignMachine(TestCase):
+    """The builder's "Assign to Machine" dialog creates a UnitTestCollection for the test list."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list(name='Throwaway List')
+        self.site = qa_utils.create_site(name='Main Site')
+        self.unit = qa_utils.create_unit(name='Linac 1', site=self.site)
+        self.inactive_unit = qa_utils.create_unit(name='Old Linac', site=self.site, active=False)
+        self.freq = qa_utils.create_frequency(name='Weekly', slug='weekly')
+        self.group = create_group(name='Therapists')
+        self.other_group = create_group(name='Physicists')
+        self.url = reverse('admin:qa_testlist_assign_machine')
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _post(self, **overrides):
+        data = {
+            'test_list': self.tl.pk,
+            'unit': self.unit.pk,
+            'frequency': self.freq.pk,
+            'assigned_to': self.group.pk,
+            'visible_to': [self.group.pk, self.other_group.pk],
+            'active': 'on',
+        }
+        data.update(overrides)
+        return self.client.post(self.url, data)
+
+    def _limited_user(self, can_assign):
+        user = _limited_testlist_user(can_add=False)
+        if can_assign:
+            user.user_permissions.add(Permission.objects.get(codename='add_unittestcollection'))
+        self.client.logout()
+        self.client.login(username='limited', password='pwd')
+        return user
+
+    def test_get_returns_dialog(self):
+        resp = self.client.get(self.url, {'test_list': self.tl.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="tl-assign-modal"')
+        self.assertContains(resp, 'role="dialog"')
+        self.assertContains(resp, 'Assign to Machine')
+        self.assertContains(resp, "It doesn't wait for you to save this test list.")
+        for name in ('unit', 'frequency', 'assigned_to', 'visible_to', 'active'):
+            self.assertContains(resp, 'name="%s"' % name)
+        # active units only, grouped by site; Ad Hoc is the empty frequency
+        self.assertContains(resp, '<optgroup label="Main Site">')
+        self.assertContains(resp, 'Linac 1')
+        self.assertNotContains(resp, 'Old Linac')
+        self.assertContains(resp, '<option value="" selected>Ad Hoc</option>')
+        # the test list is fixed by the view, never a dialog field
+        self.assertNotContains(resp, 'name="content_type"')
+        self.assertNotContains(resp, 'name="object_id"')
+
+    def test_get_without_permission_forbidden(self):
+        self._limited_user(can_assign=False)
+        resp = self.client.get(self.url, {'test_list': self.tl.pk})
+        self.assertEqual(resp.status_code, 403)
+        resp = self._post()
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(qa_models.UnitTestCollection.objects.exists())
+
+    def test_get_with_permission_only(self):
+        self._limited_user(can_assign=True)
+        resp = self.client.get(self.url, {'test_list': self.tl.pk})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_unknown_test_list_404(self):
+        self.assertEqual(self.client.get(self.url, {'test_list': 999999}).status_code, 404)
+        self.assertEqual(self.client.get(self.url, {'test_list': 'x'}).status_code, 404)
+
+    def test_post_creates_assignment(self):
+        resp = self._post()
+        self.assertEqual(resp.status_code, 200)
+        utc = qa_models.UnitTestCollection.objects.get()
+        self.assertEqual(utc.tests_object, self.tl)
+        self.assertEqual(utc.unit, self.unit)
+        self.assertEqual(utc.frequency, self.freq)
+        self.assertEqual(utc.assigned_to, self.group)
+        self.assertEqual(set(utc.visible_to.all()), {self.group, self.other_group})
+        self.assertTrue(utc.active)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['unit_id'], self.unit.pk)
+        self.assertEqual(data['unit_name'], 'Linac 1')
+        self.assertEqual(data['label'], 'Linac 1 (Weekly)')
+        self.assertEqual(data['message'], 'Assigned to Linac 1 (Weekly).')
+        self.assertEqual(data['utc_url'], reverse('admin:qa_unittestcollection_change', args=[utc.pk]))
+        self.assertTrue(data['show_in_scope'])
+        # the builder's Preview tab can show the new assignment without a reload
+        self.assertEqual(data['preview_url'], reverse('perform_qa_preview', kwargs={'pk': utc.pk}))
+        # the label matches the change form's Editing dropdown option
+        direct, _ = qa_admin.get_testlist_scope_units(self.tl)
+        self.assertEqual(direct[0]['label'], data['label'])
+        # and it's in the admin history like an assignment made on the admin page
+        from django.contrib.admin.models import ADDITION, LogEntry
+        self.assertTrue(LogEntry.objects.filter(object_id=str(utc.pk), action_flag=ADDITION).exists())
+
+    def test_post_ad_hoc_inactive(self):
+        resp = self._post(frequency='', active='')
+        self.assertEqual(resp.status_code, 200)
+        utc = qa_models.UnitTestCollection.objects.get()
+        self.assertIsNone(utc.frequency)
+        self.assertFalse(utc.active)
+        self.assertEqual(resp.json()['label'], 'Linac 1 (Ad Hoc)')
+
+    def test_post_ignores_posted_test_collection(self):
+        other = qa_utils.create_test_list(name='Other List')
+        resp = self._post(object_id=other.pk)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(qa_models.UnitTestCollection.objects.get().object_id, self.tl.pk)
+
+    def test_post_duplicate_returns_422(self):
+        self.assertEqual(self._post().status_code, 200)
+        resp = self._post()
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, 'id="tl-assign-modal"', status_code=422)
+        self.assertContains(resp, 'already assigned to this unit at this frequency', status_code=422)
+        self.assertEqual(qa_models.UnitTestCollection.objects.count(), 1)
+
+    def test_post_missing_required_returns_422(self):
+        resp = self._post(unit='', assigned_to='', visible_to=[])
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, 'tl-assign-error', status_code=422)
+        self.assertFalse(qa_models.UnitTestCollection.objects.exists())
+
+    def test_post_inactive_unit_rejected(self):
+        resp = self._post(unit=self.inactive_unit.pk)
+        self.assertEqual(resp.status_code, 422)
+        self.assertFalse(qa_models.UnitTestCollection.objects.exists())
+
+    def _assign_button(self, resp):
+        return re.search(r'<button[^>]*id="tl-btn-assign-machine"[^>]*>', resp.content.decode())
+
+    def test_change_form_button(self):
+        resp = self.client.get(self.change_url)
+        btn = self._assign_button(resp)
+        self.assertIsNotNone(btn)
+        self.assertIn('type="button"', btn.group(0))
+        self.assertIn('data-assign-url="%s?test_list=%s"' % (self.url, self.tl.pk), btn.group(0))
+        self.assertNotIn('disabled', btn.group(0))
+        self.assertNotContains(resp, 'qa/unittestcollection/add/?test_list=')
+
+    def test_add_form_button_disabled(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add'))
+        btn = self._assign_button(resp)
+        self.assertIsNotNone(btn)
+        self.assertIn('disabled', btn.group(0))
+        self.assertIn('aria-disabled="true"', btn.group(0))
+        self.assertIn('title="Save the test list first, then assign it to machines."', btn.group(0))
+        self.assertNotIn('data-assign-url', btn.group(0))
+        self.assertNotIn('style=', btn.group(0))
+
+    def test_change_form_button_hidden_without_permission(self):
+        self._limited_user(can_assign=False)
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'id="tl-btn-assign-machine"')

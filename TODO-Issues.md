@@ -10,6 +10,33 @@ _None yet._
 
 ## Decisions made during implementation
 
+- **Perform QC preview (L):**
+  - With a machine picked that the list is assigned to directly, Preview
+    shows the real Perform QC page in a frame, read-only. It has a banner;
+    submit, autosave and upload are off; POST is refused. It needs
+    `change_testlist`.
+  - Composite calculations still call the server, which only calculates
+    (except procedures using `UTILS.write_file`, which create an orphan
+    attachment, the same as on Perform QC).
+  - It ignores the assignment's visible-to groups and active flag.
+  - It shows the last saved version, with a note when the builder has
+    unsaved changes.
+  - Base list mode and "through" units get the layout preview with a note;
+    through units link to the parent list.
+  - Changes the real Perform QC template (`testlistinstance_form.html`) and
+    `qa.js` behind a `preview` flag; the normal page is unchanged (tested).
+
+- **Assign to Machine dialog (K):**
+  - Creates the assignment straight away, and says so.
+  - Uses the Unit Test Collection admin form's rules, limited to unit,
+    frequency, assigned to, visible to and active.
+  - Active units only, grouped by site. "Ad Hoc" = no frequency.
+  - Two Ad Hoc assignments to the same unit are allowed, as on the admin
+    page.
+  - The duplicate error is reworded in plain language.
+  - Writes an admin history entry like the admin page does.
+  - The new unit is added to the Editing dropdown without a reload.
+
 - **Unsaved changes (I):**
   - "Changed" means the form's posted values differ from when the page
     loaded, which covers field edits, added/removed/reordered rows, outline
@@ -105,6 +132,18 @@ _None yet._
   same as Django 4.2's default.
 
 ## New issues found
+
+- Perform QC (existing): Yes/No references show as "1"/"0" in the
+  Reference column (same root as the Unit Test Info admin issue above). (L)
+- `PerformQA.set_unit_test_infos` passes an already-formatted "Do not
+  treat…" string to `_()`, so it can't be translated. (L)
+- New translatable strings (including one in `qa.js`, djangojs domain) need
+  `makemessages`/`compilemessages` before release. (L)
+
+- The Assign success note makes the Editing bar wrap at 1440px until it
+  fades, pushing Editor/Preview to a second line. (K)
+- A generic click handler hides any clicked `.tl-modal-backdrop` directly,
+  bypassing each dialog's own close logic. Harmless today. (K)
 
 - Save As in browsers without `requestSubmit` falls back to `form.submit()`,
   which skips the submit event, so the browser's leave prompt would show.

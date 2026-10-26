@@ -25,8 +25,10 @@ from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.generic import CreateView, TemplateView, View
 from django_comments.models import Comment
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -1421,6 +1423,37 @@ class PerformQA(PermissionRequiredMixin, CreateView):
     @register.filter
     def visible_utc(user, unit_test_collection):
         return unit_test_collection.visible_to.all().intersection(user.groups.all()).exists()
+
+
+@method_decorator(xframe_options_sameorigin, name="dispatch")
+class PerformQAPreview(PerformQA):
+    """Read-only preview of the Perform QC page for one :model:`qa.UnitTestCollection`.
+
+    Used by the Test List admin's Preview tab (shown in an iframe), so list
+    authors can see exactly what staff will see when they perform the list.
+    It renders the same template and context as :view:`qa.perform.PerformQA`
+    plus ``preview=True``, which turns off submitting, autosave and uploads.
+    Only GET is allowed: nothing is ever saved from this view.
+    """
+
+    # It's an admin authoring tool, so it follows test list editing rights
+    # rather than the right to perform QC.
+    permission_required = "qa.change_testlist"
+    http_method_names = ["get", "head", "options"]
+
+    def set_unit_test_collection(self):
+        """Any assignment can be previewed, whichever groups it's visible to and
+        even while inactive: visibility only decides whose lists it shows up in,
+        and nothing can be performed from the preview."""
+        self.unit_test_col = get_object_or_404(
+            models.UnitTestCollection.objects.select_related("unit", "frequency", "last_instance"),
+            pk=self.kwargs["pk"],
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["preview"] = True
+        return context
 
 
 class EditTestListInstance(PermissionRequiredMixin, BaseEditTestListInstance):

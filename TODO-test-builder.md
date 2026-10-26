@@ -8,7 +8,7 @@ Remove this file before the branch is merged.
 
 ## Features
 
-- [ ] **Dialog for "Assign to machine…"**
+- [x] **Dialog for "Assign to machine…"**
   - Replace the link that opens the Unit Test Collection add page in a new tab
     with a dialog on this page: unit, frequency, assigned to, visible to, and
     whether it is active.
@@ -38,7 +38,7 @@ Remove this file before the branch is merged.
     hide the dropdown or disable the machine options.
   - Settle where machine-mode edits are saved (Unit Test Infos) and how they
     relate to the change history for references and tolerances.
-- [ ] **Preview that matches the real Perform QC page**
+- [x] **Preview that matches the real Perform QC page**
   - Render the actual perform template and widgets, not a mock-up: Yes/No
     buttons, multiple-choice selects, file upload, composite tests calculated
     live, tolerance highlighting.

@@ -703,7 +703,15 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
             self.comment_box.val(self.NOT_PERFORMED);
         };
 
-        if (test_info.test.type == 'upload') {
+        if (test_info.test.type == 'upload' && window.qa_preview) {
+            // Read-only preview (Test List admin): uploading would store the file on
+            // the server, so the Upload button is turned off with a short note.
+            var preview_upload_msg = gettext("Uploading is turned off in this preview.");
+            $('#upload-button-' + test_info.test.id)
+                .addClass("disabled")
+                .attr({"aria-disabled": "true", "title": preview_upload_msg})
+                .after($('<span class="help-block qa-preview-upload-note"></span>').text(preview_upload_msg));
+        } else if (test_info.test.type == 'upload') {
             self.dropzone = new Dropzone('#upload-button-' + test_info.test.id, {
 
                 url: QAURLs.UPLOAD_URL,
@@ -1139,8 +1147,9 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
 
         this.autosave_ = function(){
 
-            /* don't autosave until initialization done */
-            if (window.init_task_count > 0){
+            /* don't autosave until initialization done, and never in the
+             * read-only preview shown in the Test List admin */
+            if (window.init_task_count > 0 || window.qa_preview){
                 return;
             }
 
@@ -1413,6 +1422,10 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
         //a qa session
 
         $(window).bind("beforeunload", function(){
+            if (window.qa_preview){
+                // nothing is ever saved from the preview, so leaving loses nothing
+                return;
+            }
             var non_read_only_tis = _.filter(tli.test_instances, function(ti){
                 var tt = ti.test_info.test.type;
                 return QAUtils.READ_ONLY_TEST_TYPES.indexOf(tt) < 0;

@@ -6,9 +6,11 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
+from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.admin.options import IS_POPUP_VAR
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import NON_FIELD_ERRORS
 from django.db.models import Count, Prefetch, Q
 from django.http import (
     Http404,
@@ -1412,7 +1414,40 @@ def _scope_utc_info(utc, via=None):
         "active": utc.active,
         "utc_url": reverse("admin:qa_unittestcollection_change", args=[utc.pk]),
         "via": via,
+        "utc_id": utc.pk,
     }
+
+
+def get_testlist_preview_units(direct, through):
+    """What the builder's Preview tab can show for each unit in the Editing dropdown.
+
+    Keyed by unit id (as a string, for JSON). A unit the test list is assigned to
+    directly gets ``preview_url``: the read-only Perform QC page for that
+    assignment (its first one, if there are several frequencies). A unit that
+    gets the list through a parent test list or a cycle gets ``via`` (that
+    parent's name), ``via_url`` (its admin page, opened on the same unit) and
+    ``via_cycle``; the builder shows the layout-only preview for those.
+    """
+    units = {}
+    for entry in direct:
+        units[str(entry["unit_id"])] = {
+            "preview_url": reverse("perform_qa_preview", kwargs={"pk": entry["utc_id"]}),
+        }
+    if not through:
+        return units
+    utcs = models.UnitTestCollection.objects.in_bulk([entry["utc_id"] for entry in through])
+    tl_ct = ContentType.objects.get_for_model(models.TestList)
+    for entry in through:
+        utc = utcs.get(entry["utc_id"])
+        if utc is None:
+            continue
+        is_cycle = utc.content_type_id != tl_ct.pk
+        url_name = "admin:qa_testlistcycle_change" if is_cycle else "admin:qa_testlist_change"
+        via_url = reverse(url_name, args=[utc.object_id])
+        if not is_cycle:
+            via_url += "?unit=%d" % utc.unit_id
+        units[str(entry["unit_id"])] = {"via": entry["via"], "via_url": via_url, "via_cycle": is_cycle}
+    return units
 
 
 def get_testlist_scope_units(test_list):
@@ -1542,6 +1577,71 @@ def testlist_machine_values(request):
                 break
 
     return JsonResponse({"unit": unit_info, "tests": tests})
+
+
+def testlist_assign_machine(request):
+    """The builder's "Assign to Machine" dialog: assign this test list to a unit.
+
+    GET ``test_list=<id>`` returns the dialog. POST validates it with
+    ``TestListAssignMachineForm`` (the UnitTestCollection admin's rules, with the
+    test list fixed) and creates the UnitTestCollection straight away, whether or
+    not the test list itself is saved afterwards. Success returns JSON for the
+    Editing dropdown; validation errors return the dialog again with status 422.
+    """
+    if not request.user.has_perm("qa.add_unittestcollection"):
+        return HttpResponseForbidden(_("You don't have permission to assign test lists to units. Nothing was saved."))
+
+    raw_id = request.POST.get("test_list") if request.method == "POST" else request.GET.get("test_list")
+    try:
+        test_list = models.TestList.objects.get(pk=int(raw_id or ""))
+    except (ValueError, TypeError, models.TestList.DoesNotExist):
+        raise Http404(_("Test list not found"))
+
+    tl_ct = ContentType.objects.get_for_model(models.TestList)
+    status = 200
+    if request.method == "POST":
+        data = request.POST.copy()
+        # The dialog never posts these: the assignment is always for this test list.
+        data["content_type"] = tl_ct.pk
+        data["object_id"] = test_list.pk
+        form = TestListAssignMachineForm(data)
+        if form.is_valid():
+            utc = form.save()
+            LogEntry.objects.log_action(
+                user_id=request.user.pk,
+                content_type_id=ContentType.objects.get_for_model(utc).pk,
+                object_id=utc.pk,
+                object_repr=str(utc),
+                action_flag=ADDITION,
+                change_message=[{"added": {}}],
+            )
+            direct, through = get_testlist_scope_units(test_list)
+            entry = next((e for e in direct if e["unit_id"] == utc.unit_id), None)
+            freq = utc.frequency.name if utc.frequency_id else _("Ad Hoc")
+            assignment = _("%(unit)s (%(frequency)s)") % {"unit": utc.unit.name, "frequency": freq}
+            return JsonResponse({
+                "ok": True,
+                "unit_id": utc.unit_id,
+                "unit_name": utc.unit.name,
+                # the Editing dropdown's option text (lists every frequency for the unit)
+                "label": entry["label"] if entry else assignment,
+                "utc_url": reverse("admin:qa_unittestcollection_change", args=[utc.pk]),
+                "message": _("Assigned to %(label)s.") % {"label": assignment},
+                # the dropdown only lists machines for users who can open machine mode
+                "show_in_scope": can_view_machine_values(request.user),
+                # the builder's Preview tab (same assignment get_testlist_preview_units picks)
+                "preview_url": reverse(
+                    "perform_qa_preview", kwargs={"pk": entry["utc_id"] if entry else utc.pk},
+                ),
+            })
+        status = 422
+    else:
+        form = TestListAssignMachineForm(initial={"active": True})
+
+    return render(request, "admin/qa/testlist/partials/_assign_machine_modal.html", {
+        "form": form,
+        "test_list": test_list,
+    }, status=status)
 
 
 # What the Save As dialog accepts for a new test list's slug.
@@ -1693,6 +1793,7 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             source = self._save_as_source(request)
             context["tl_saveas_source_pk"] = source.pk if source else ""
         context["tl_saveas_retry"] = save_as_retry
+        context["tl_can_assign_machine"] = request.user.has_perm("qa.add_unittestcollection")
         return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
     def response_add(self, request, obj, post_url_continue=None):
@@ -1770,6 +1871,11 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 self.admin_site.admin_view(testlist_machine_values),
                 name='qa_testlist_machine_values',
             ),
+            path(
+                'assign-machine/',
+                self.admin_site.admin_view(testlist_assign_machine),
+                name='qa_testlist_assign_machine',
+            ),
         ]
         return custom_urls + urls
 
@@ -1787,6 +1893,9 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         extra_context['tl_scope_direct_units'] = direct
         extra_context['tl_scope_through_units'] = through
         extra_context['tl_can_view_machine_values'] = can_view_machine_values(request.user)
+        # Preview tab: the real Perform QC page (read-only) for directly assigned units
+        extra_context['tl_can_preview_perform'] = request.user.has_perm('qa.change_testlist')
+        extra_context['tl_preview_units'] = get_testlist_preview_units(direct, through)
         return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
 
     def response_change(self, request, obj):
@@ -2240,6 +2349,50 @@ class UnitTestCollectionForm(forms.ModelForm):
         unit = self.cleaned_data.get('unit')
         if unit:
             return Unit.objects.get(pk=unit)
+
+
+def _active_unit_choices():
+    """Active units for a select, in ``<optgroup>``s by site when any unit has a site."""
+    units = list(Unit.objects.filter(active=True).select_related("site").order_by("site__name", settings.ORDER_UNITS_BY))
+    if not any(u.site_id for u in units):
+        return [("", "---------")] + [(u.pk, u.name) for u in units]
+    groups = {}
+    for u in units:
+        groups.setdefault(u.site.name if u.site_id else _("Other"), []).append((u.pk, u.name))
+    return [("", "---------")] + list(groups.items())
+
+
+class TestListAssignMachineForm(UnitTestCollectionForm):
+    """The test list builder's "Assign to Machine" dialog.
+
+    The UnitTestCollection admin form's rules, limited to the fields the dialog
+    shows. The view always sets content_type and object_id to the test list being
+    edited; they stay in the form so the unique unit/frequency/test list check runs.
+    """
+
+    class Meta:
+        model = models.UnitTestCollection
+        fields = ("unit", "frequency", "assigned_to", "visible_to", "active", "content_type", "object_id")
+        widgets = {"content_type": forms.HiddenInput, "object_id": forms.HiddenInput}
+        error_messages = {
+            NON_FIELD_ERRORS: {
+                "unique_together": _l(
+                    "This test list is already assigned to this unit at this frequency. "
+                    "Choose a different unit or frequency."
+                ),
+            },
+        }
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("auto_id", "tl-assign-%s")  # don't clash with the change form's id_* inputs
+        super().__init__(*args, **kwargs)
+        for name in ("unit", "frequency", "assigned_to", "visible_to"):
+            self.fields[name].widget.attrs["class"] = "tl-modal-input"
+        self.fields["visible_to"].widget.attrs["size"] = 5
+        self.fields["unit"].choices = _active_unit_choices()
+        self.fields["frequency"].empty_label = _("Ad Hoc")
+        self.fields["assigned_to"].queryset = self.fields["assigned_to"].queryset.order_by("name")
+        self.fields["visible_to"].queryset = self.fields["visible_to"].queryset.order_by("name")
 
 
 class UnitTestCollectionAdmin(BaseQATrackAdmin):

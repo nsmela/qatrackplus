@@ -237,6 +237,111 @@ button.tl-top-btn-save:hover {
   background: #f0f7ff;
   text-decoration: none;
 }
+
+/* ---- Assign to Machine dialog ---- */
+button.tl-btn-assign-machine {
+  font-family: var(--tl-font);
+}
+.tl-btn-assign-machine:disabled,
+.tl-btn-assign-machine:disabled:hover {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+  color: #64748b;
+  background: #fff;
+}
+.tl-assign-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #00a65a;
+  border-radius: 2px;
+  padding: 2px 4px 2px 8px;
+  transition: opacity 0.4s ease;
+}
+.tl-assign-note[hidden] {
+  display: none;
+}
+.tl-assign-note .fa {
+  color: #00a65a;
+}
+.tl-assign-note.tl-assign-note-error {
+  border-left-color: #dd4b39;
+}
+.tl-assign-note.tl-assign-note-error .fa {
+  color: #c0392b;
+}
+.tl-assign-note.tl-assign-note-fading {
+  opacity: 0;
+}
+.tl-assign-note-close {
+  background: transparent;
+  border: 0;
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 1;
+  color: #6e7785;
+  cursor: pointer;
+}
+.tl-assign-note-close:hover {
+  color: #333;
+}
+.tl-assign-dialog {
+  max-width: 480px;
+}
+.tl-assign-dialog form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+.tl-assign-dialog select.tl-modal-input {
+  height: auto;
+  min-height: 32px;
+  background: #fff;
+  color: #333;
+  font-family: var(--tl-font);
+}
+.tl-assign-dialog select.tl-modal-input:focus {
+  border-color: #3c8dbc;
+  outline: none;
+}
+.tl-assign-check label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tl-assign-error {
+  font-size: 12px;
+  color: #c0392b;
+}
+.tl-assign-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #333;
+  background: #fbe9e7;
+  border: 1px solid #e8c4be;
+  border-left: 3px solid #dd4b39;
+}
+.tl-assign-alert[hidden] {
+  display: none;
+}
+.tl-assign-alert .fa {
+  color: #c0392b;
+  margin-top: 2px;
+}
+.tl-assign-dialog .tl-btn-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .tl-control-right {
   display: flex;
   align-items: center;
@@ -388,6 +493,35 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   font-family: var(--tl-font);
   color: var(--tl-text);
   margin-bottom: 24px;
+}
+/* Notes above the preview: which preview this is, unsaved changes */
+.tl-preview-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f4f4f4;
+  border-left: 3px solid #424f57;
+  font-size: 13px;
+  color: #333;
+}
+.tl-preview-note .fa {
+  color: #424f57;
+  margin-top: 2px;
+}
+.tl-preview-note a {
+  color: #3c8dbc;
+}
+/* The real Perform QC page (read-only), with its own scroll */
+.tl-preview-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 160px);
+  min-height: 600px;
+  border: 1px solid #d2d6de;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
 }
 .tl-preview-banner {
   background: #eff6ff;
@@ -2509,6 +2643,202 @@ ul.messagelist li.error {
     }
   });
 
+  // ---- Assign to Machine dialog ----
+  // Loads the dialog from TestListAdmin's assign-machine endpoint and appends it
+  // to <body>, outside the change form, so its inputs are never posted with the
+  // test list and the unsaved-changes check never sees them. Clicking Assign
+  // saves the assignment (a UnitTestCollection) with its own request, straight away.
+  var assignState = { busy: false, noteTimer: null };
+
+  function assignOpener() { return document.getElementById("tl-btn-assign-machine"); }
+  function assignModal() { return document.getElementById("tl-assign-modal"); }
+
+  function hideAssignNote() {
+    var note = document.getElementById("tl-assign-note");
+    clearTimeout(assignState.noteTimer);
+    if (note) {
+      note.hidden = true;
+      note.classList.remove("tl-assign-note-fading");
+    }
+  }
+
+  // A short note beside the dropdown. Success notes fade after a few seconds;
+  // errors stay until dismissed.
+  function showAssignNote(msg, isError) {
+    var note = document.getElementById("tl-assign-note");
+    var text = document.getElementById("tl-assign-note-text");
+    var icon = document.getElementById("tl-assign-note-icon");
+    if (!note || !text) { return; }
+    clearTimeout(assignState.noteTimer);
+    text.textContent = msg;
+    if (icon) { icon.className = "fa " + (isError ? "fa-exclamation-circle" : "fa-check"); }
+    note.classList.toggle("tl-assign-note-error", !!isError);
+    note.classList.remove("tl-assign-note-fading");
+    note.hidden = false;
+    if (!isError) {
+      assignState.noteTimer = setTimeout(function () {
+        note.classList.add("tl-assign-note-fading");
+        assignState.noteTimer = setTimeout(hideAssignNote, 400);
+      }, 6000);
+    }
+  }
+
+  // Put (or re-put) the dialog's HTML in its container on <body> and focus the
+  // first field, or the first field with an error.
+  function mountAssignDialog(html) {
+    var container = document.getElementById("tl-assign-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "tl-assign-container";
+      document.body.appendChild(container);
+    }
+    container.innerHTML = html;
+    var modal = assignModal();
+    if (!modal) { return; }
+    var errField = modal.querySelector(".tl-assign-error");
+    var target = (errField && errField.closest(".tl-modal-field").querySelector("select, input")) ||
+      modal.querySelector(".tl-modal-input");
+    if (target) { target.focus(); }
+  }
+
+  function openAssignDialog() {
+    var opener = assignOpener();
+    if (!opener || opener.disabled || assignModal()) { return; }
+    hideAssignNote();
+    fetch(opener.getAttribute("data-assign-url"), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.text();
+      })
+      .then(mountAssignDialog)
+      .catch(function () {
+        showAssignNote(opener.getAttribute("data-msg-load-error") ||
+          gettext("Couldn't open the Assign to Machine dialog. Nothing was saved. Try again."), true);
+      });
+  }
+
+  function closeAssignDialog() {
+    var container = document.getElementById("tl-assign-container");
+    if (!container || !assignModal()) { return; }
+    container.innerHTML = "";
+    assignState.busy = false;
+    var opener = assignOpener();
+    if (opener) { opener.focus(); }
+  }
+
+  function setAssignSubmitting(on) {
+    var btn = document.getElementById("tl-assign-submit");
+    if (!btn) { return; }
+    btn.disabled = on;
+    btn.innerHTML = on
+      ? '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> ' + escapeHtml(gettext("Assigning…"))
+      : '<i class="fa fa-plus" aria-hidden="true"></i> ' + escapeHtml(gettext("Assign"));
+  }
+
+  // Add the newly assigned unit to the Editing dropdown's direct options, in
+  // name order, moving it out of "Through other test lists" if it was there.
+  // The current selection stays as it was.
+  function addAssignedScopeOption(data) {
+    var select = document.getElementById("tl-machine-scope-select");
+    if (!select || !data.show_in_scope) { return; }
+    var current = select.value;
+    var id = String(data.unit_id);
+    // Preview tab: it's now a direct assignment, so the real Perform QC page can be shown
+    if (data.preview_url) { getPreviewUnits()[id] = { preview_url: data.preview_url }; }
+    var opt = Array.prototype.filter.call(select.options, function (o) { return o.value === id; })[0];
+    if (!opt) {
+      opt = document.createElement("option");
+      opt.value = id;
+    }
+    opt.setAttribute("data-unit-name", data.unit_name);
+    opt.textContent = data.label;
+    if (opt.parentNode !== select) {
+      var group = opt.parentNode;
+      if (group) {
+        group.removeChild(opt);
+        if (!group.children.length) { group.parentNode.removeChild(group); }
+      }
+      var before = Array.prototype.filter.call(select.children, function (el) {
+        if (el.tagName === "OPTGROUP") { return true; }
+        return el.value !== "base" && el.textContent.trim().localeCompare(data.label) > 0;
+      })[0];
+      select.insertBefore(opt, before || null);
+    }
+    select.value = current;
+    // Shown right now (it was listed "through" another list): refresh its details.
+    if (current === id && scopeState.unitId === id) { applyScope(select); }
+  }
+
+  function submitAssign(form) {
+    if (assignState.busy) { return; }
+    assignState.busy = true;
+    setAssignSubmitting(true);
+    var opener = assignOpener();
+    fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (res.status === 422) {
+          return res.text().then(function (html) {
+            assignState.busy = false;
+            mountAssignDialog(html);
+          });
+        }
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.json().then(function (data) {
+          if (!data || !data.ok) { throw new Error("bad response"); }
+          closeAssignDialog();
+          addAssignedScopeOption(data);
+          showAssignNote(data.message, false);
+        });
+      })
+      .catch(function () {
+        assignState.busy = false;
+        setAssignSubmitting(false);
+        var alert = document.getElementById("tl-assign-alert");
+        var alertText = document.getElementById("tl-assign-alert-text");
+        if (alert && alertText) {
+          alertText.textContent = (opener && opener.getAttribute("data-msg-save-error")) ||
+            gettext("Couldn't assign the machine. Nothing was saved. Try again.");
+          alert.hidden = false;
+        }
+      });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) { return; }
+    if (e.target.closest("#tl-btn-assign-machine")) {
+      e.preventDefault();
+      openAssignDialog();
+    } else if (e.target.closest("#tl-assign-modal [data-assign-close]") || e.target.id === "tl-assign-modal") {
+      e.preventDefault();
+      closeAssignDialog();
+    } else if (e.target.closest("#tl-assign-note-close")) {
+      e.preventDefault();
+      hideAssignNote();
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "tl-assign-form") {
+      e.preventDefault();
+      submitAssign(e.target);
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && assignModal()) {
+      e.preventDefault();
+      closeAssignDialog();
+    }
+  });
+
   // ---- Save As… dialog ----
   // Copies the dialog's name and slug into the main form, adds the hidden
   // _saveasnew/_saveas_source inputs and submits the change form, so Django
@@ -3002,6 +3332,7 @@ ul.messagelist li.error {
     lockSharedSettings(false);
     setScopeInfo(null);
     setScopeUrl(null);
+    refreshPreviewIfOpen();
   }
 
   function applyScope(select) {
@@ -3031,6 +3362,7 @@ ul.messagelist li.error {
         lockSharedSettings(true);
         setScopeInfo(data.unit || {});
         setScopeUrl(unitId);
+        refreshPreviewIfOpen();
       })
       .catch(function () {
         if (reqId !== scopeState.request) { return; }
@@ -3113,7 +3445,8 @@ ul.messagelist li.error {
       (title ? ' title="' + escapeHtml(title) + '"' : '') + '>' + escapeHtml(value) + '</span></td>';
   }
 
-  function renderLivePreview() {
+  // Layout-only preview built from the builder rows; noteHtml goes above it.
+  function renderLivePreview(noteHtml) {
     var container = document.getElementById("tl-preview-container");
     if (!container) { return; }
 
@@ -3264,7 +3597,73 @@ ul.messagelist li.error {
 
     html += '</div>'; // close tl-preview-card
 
-    container.innerHTML = html;
+    container.innerHTML = (noteHtml || "") + html;
+  }
+
+  // ---- Preview of the real Perform QC page ----
+  // With a machine picked that this list is assigned to directly, the Preview tab
+  // shows that assignment's Perform QC page, read-only (PerformQAPreview), in an
+  // iframe. It shows the last saved version of the list. Otherwise it falls back
+  // to the layout-only preview above, with a note saying how to get the real one.
+  var previewUnits = null;
+
+  function getPreviewUnits() {
+    if (previewUnits === null) {
+      previewUnits = {};
+      var el = document.getElementById("tl-preview-units");
+      if (el) {
+        try { previewUnits = JSON.parse(el.textContent) || {}; } catch (err) { previewUnits = {}; }
+      }
+    }
+    return previewUnits;
+  }
+
+  function previewMsg(key) {
+    var container = document.getElementById("tl-preview-container");
+    return container ? (container.getAttribute("data-msg-" + key) || "") : "";
+  }
+
+  function previewNoteHtml(icon, innerHtml) {
+    return '<div class="tl-preview-note" role="status"><i class="fa ' + icon + '" aria-hidden="true"></i>' +
+      '<span>' + innerHtml + '</span></div>';
+  }
+
+  function renderPreview() {
+    var container = document.getElementById("tl-preview-container");
+    if (!container) { return; }
+    var canPreview = container.getAttribute("data-can-preview-perform") === "1";
+    var unitId = document.body.classList.contains("tl-mode-machine") ? scopeState.unitId : null;
+    var info = unitId ? getPreviewUnits()[unitId] : null;
+
+    if (canPreview && info && info.preview_url) {
+      var html = "";
+      if (hasUnsavedChanges()) {
+        html += previewNoteHtml("fa-exclamation-circle", escapeHtml(previewMsg("unsaved")));
+      }
+      // a new iframe each time, so opening the tab always reloads the page
+      html += '<iframe class="tl-preview-frame" src="' + escapeHtml(info.preview_url) + '"' +
+        ' title="' + escapeHtml(previewMsg("frame-title")) + '"></iframe>';
+      container.innerHTML = html;
+      return;
+    }
+
+    var note = "";
+    if (info && info.via) {
+      var unitName = scopeState.unitName || "";
+      note = escapeHtml(interpolate(previewMsg("through"), { unit: unitName, parent: info.via }, true));
+      var linkText = info.via_cycle ? previewMsg("through-cycle")
+        : interpolate(previewMsg("through-link"), { parent: info.via }, true);
+      note += ' <a href="' + escapeHtml(info.via_url) + '">' + escapeHtml(linkText) + '</a>';
+    } else if (canPreview) {
+      note = escapeHtml(previewMsg("pick-machine"));
+    }
+    renderLivePreview(note ? previewNoteHtml("fa-info-circle", note) : "");
+  }
+
+  // Called when the Editing scope changes, so an open Preview tab follows it.
+  function refreshPreviewIfOpen() {
+    var container = document.getElementById("tl-preview-container");
+    if (container && container.style.display === "block") { renderPreview(); }
   }
 
   function initViewTabs() {
@@ -3290,13 +3689,14 @@ ul.messagelist li.error {
         });
         if (previewContainer) {
           previewContainer.style.display = "block";
-          renderLivePreview();
+          renderPreview();
         }
       } else {
         previewBtn.classList.remove("active");
         editorBtn.classList.add("active");
         if (previewContainer) {
           previewContainer.style.display = "none";
+          previewContainer.innerHTML = ""; // unloads the Perform QC preview iframe
         }
         editContainers.forEach(function (el) {
           if (el) { el.style.display = ""; }

@@ -78,6 +78,7 @@ urlpatterns = [
     url(r"^session/edit/(?P<pk>\d+)/$", perform.EditTestListInstance.as_view(), name="edit_tli"),
     url(r"^unit/$", perform.ChooseUnit.as_view(), name="choose_unit"),
     url(r"^utc/perform(?:/(?P<pk>\d+))?/$", perform.PerformQA.as_view(), name="perform_qa"),
+    url(r"^utc/perform/(?P<pk>\d+)/preview/$", perform.PerformQAPreview.as_view(), name="perform_qa_preview"),
     url(r"^site/(?P<site>[/\w-]+?)/$", perform.SiteList.as_view(), name="qa_by_site"),
     url(
         r"^unit/(?P<unit_number>[/\d]+)/frequency/(?P<frequency>[/\w-]+?)/$",
