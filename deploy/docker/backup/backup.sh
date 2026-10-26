@@ -17,7 +17,24 @@ LOCK_FILE="$BACKUP_DIR/.qatrackplus-backup-restore.lock"
 # QATrack+'s records, and nothing in QATrack+ deletes one.
 RETENTION_DAYS=7
 
+# The backups hold everything in QATrack+, password hashes included, so only root
+# may read them: everything this script creates is mode 600. Set here, before any
+# file is created, so it holds however the script is started (cron, or docker
+# exec, which can start it with umask 000).
+umask 077
+
 mkdir -p "$BACKUP_DIR"
+
+# Make every backup in /backups readable by root only, including those made by
+# earlier releases, which anyone on the server could read (mode 644, or 666). A
+# folder that cannot hold Unix permissions (a Windows or network share) may
+# refuse; a backup matters more than its permissions, so that is only a warning.
+restrict_backups() {
+    find "$BACKUP_DIR" -maxdepth 1 -type f \
+        \( -name "db_*.dump" -o -name "media_*.tar.gz" -o -name "${LOCK_FILE##*/}" \) \
+        ! -perm 600 -exec chmod 600 {} + ||
+        echo "Warning: could not make every backup in $BACKUP_DIR readable by root only." >&2
+}
 
 # One backup or restore at a time: a restore must not run while a backup reads
 # the database, and the nightly backup must not start during a restore.
@@ -26,6 +43,8 @@ if ! flock --nonblock 9; then
     echo "Another backup or restore is already running." >&2
     exit 1
 fi
+
+restrict_backups
 
 DATE=$(date +%Y%m%d_%H%M%S)
 dump_file="$BACKUP_DIR/db_$DATE.dump"
@@ -72,6 +91,7 @@ mv "$media_file.tmp" "$media_file"
 echo "Uploaded files saved to $media_file"
 
 trap - EXIT
+restrict_backups
 
 # find counts age in whole days, rounded down: -mtime +N matches files at least
 # N+1 days old, so +$((RETENTION_DAYS - 1)) deletes those RETENTION_DAYS days old.

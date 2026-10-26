@@ -14,6 +14,10 @@ POSTGRES_HOST="postgres"
 # QATrack+'s: PostgreSQL cannot do those to the database a connection is using.
 MAINTENANCE_DB="postgres"
 
+# The only file this writes is the lock file in /backups; keep it root's, like
+# the backups (see backup).
+umask 077
+
 if [ "$#" -ne 1 ]; then
     echo "Usage: restore-db db_YYYYMMDD_HHMMSS.dump" >&2
     echo "The backups are listed by: docker compose exec backup ls -lh /backups" >&2

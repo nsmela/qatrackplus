@@ -17,6 +17,11 @@ BACKUP_DIR="/backups"
 TARGET_DIR="/media"
 LOCK_FILE="$BACKUP_DIR/.qatrackplus-backup-restore.lock"
 
+# The lock file, and the staging folder that holds the unpacked uploaded files
+# until they are swapped in, are root's alone. The restored files keep the owner
+# and mode stored in the backup, whatever the umask (see the tar command below).
+umask 077
+
 if [ "$#" -ne 1 ]; then
     echo "Usage: restore-media media_YYYYMMDD_HHMMSS.tar.gz" >&2
     echo "The backups are listed by: docker compose exec backup ls -lh /backups" >&2
@@ -124,9 +129,12 @@ if ! grep -Eq '^media/?$' "$staging/archive.list" \
 fi
 mkdir "$staging/extracted" "$staging/previous"
 # A backup made before backup left out restore-media's staging folders may hold
-# one; it is not part of the uploaded files.
+# one; it is not part of the uploaded files. --same-permissions and --same-owner
+# (tar's defaults when run as root, given here so nothing depends on that) give
+# each file the mode and owner it had when it was backed up, not the umask above,
+# so QATrack+ (uid 1000) can read and write them again.
 tar --extract --gzip --file="$backup_file" --directory="$staging/extracted" \
-    --anchored --exclude='media/.restore.*'
+    --same-permissions --same-owner --anchored --exclude='media/.restore.*'
 
 echo
 echo "This permanently replaces every uploaded file in QATrack+ with:"

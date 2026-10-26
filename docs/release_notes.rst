@@ -170,7 +170,9 @@ Deployment and Upgrade Notes
 * **Docker: backups can be restored, and an interrupted backup can't pass for a
   finished one.** The ``backup`` service now writes each file under a temporary
   name, reads it back in full, and renames it only once it is complete. It
-  refuses to start while another backup or a restore is running. Two new
+  refuses to start while another backup or a restore is running. Backups are
+  now readable only by root on the server, and the first backup after the
+  upgrade does the same to older ones, so copy them with ``sudo``. Two new
   commands, ``restore-db`` and ``restore-media``, put a backup back after checking
   it and asking you to confirm (see :ref:`docker_backups`). They unpack the
   backup beside your current data and only then swap it in, so a restore that

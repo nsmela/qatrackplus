@@ -476,11 +476,26 @@ jobs:
             python manage.py createsuperuser --noinput --username ci-restored --email restored@example.com
           $dc exec -T django sh -c 'mkdir -p qatrack/media/uploads && echo "restore me" > qatrack/media/uploads/ci-restored.txt'
 
-          # The command the nightly cron job runs.
-          $dc exec -T backup backup
+          # The command the nightly cron job runs, under the loosest umask docker
+          # exec can start it with (000), beside backups left by an earlier
+          # release that anyone on the server can read.
+          $dc exec -T backup sh -c 'umask 000 && echo old > /backups/db_ci_old.dump && echo old > /backups/media_ci_old.tar.gz'
+          $dc exec -T backup sh -c 'umask 000 && exec backup'
+          # Every backup, old or new, and the lock file, is root's alone on the
+          # host: the runner's own user cannot read them.
+          only_root_reads() {
+            local f
+            for f in "$@"; do
+              [ "$(stat -c %a:%u "backups/$f")" = 600:0 ] || { echo "FAIL: $f is $(stat -c %a:%U "backups/$f")"; exit 1; }
+              if cat "backups/$f" >/dev/null 2>&1; then echo "FAIL: the runner can read $f"; exit 1; fi
+            done
+          }
+          only_root_reads db_ci_old.dump media_ci_old.tar.gz .qatrackplus-backup-restore.lock
+          $dc exec -T backup rm /backups/db_ci_old.dump /backups/media_ci_old.tar.gz
           dump=$($dc exec -T backup sh -c 'cd /backups && ls -1t db_*.dump | head -1')
           media=$($dc exec -T backup sh -c 'cd /backups && ls -1t media_*.tar.gz | head -1')
           echo "backups: $dump $media"
+          only_root_reads "$dump" "$media"
 
           # While something holds the lock, a backup or restore is refused. The
           # holder signals once it has the lock, and lets go when told to.
@@ -711,6 +726,15 @@ jobs:
           [ "$($dc exec -T django cat qatrack/media/uploads/ci-upgrade.txt)" = "written by 4.0.1" ]
           [ "$($dc exec -T django stat -c %u qatrack/media/uploads/ci-upgrade.txt)" = 1000 ]
           echo "PASS: a 4.0.1 backup restored with this release's tools"
+
+          # Backups made before the upgrade (copied in above, readable by anyone)
+          # are made readable by root only by the next backup.
+          [ "$(stat -c %a "backups/$dump")" != 600 ]
+          $dc exec -T backup backup
+          for f in "backups/$dump" "backups/$media"; do
+            [ "$(stat -c %a:%u "$f")" = 600:0 ] || { echo "FAIL: $f is $(stat -c %a:%U "$f")"; exit 1; }
+          done
+          echo "PASS: backups from before the upgrade are now readable by root only"
 
       - name: Tear Down
         if: always()

@@ -489,6 +489,15 @@ QATrack+, so a disk failure, or ransomware, that takes the server takes these
 backups too. Have your IT department's backup system copy that folder to another
 machine every day.
 
+**Only root can read the backups.** They hold all of your clinic's QATrack+
+records and uploaded files, and everyone's (hashed) passwords, so each backup
+file is readable by root alone (mode 600) on the server. Each backup also does
+the same to any backups made by earlier releases, which other users could read. To
+copy them, use ``sudo`` (for example ``sudo cp`` or ``sudo rsync``), or have the
+copy job run as root, and keep the copies just as private. If the folder is on a
+drive that cannot hold Linux permissions, such as a Windows share, ``backup``
+prints a warning but still makes the backup.
+
 .. note::
 
     Uploaded files are part of QATrack+'s records: an attachment belongs to the

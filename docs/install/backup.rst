@@ -53,7 +53,8 @@ Backups in Docker
 
 The Docker deployment's ``backup`` service backs up the database and uploaded
 files every night, and comes with ``restore-db`` and ``restore-media`` commands to
-put a backup back. :ref:`docker_backups` explains how to use them.
+put a backup back. :ref:`docker_backups` explains how to use them. Its backups
+can only be read by root on the server, so copy them off it with ``sudo``.
 
 ``deploy/docker/backup/backup.sh`` reads the database connection from the
 environment rather than hard-coding it:
