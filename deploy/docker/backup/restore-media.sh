@@ -1,22 +1,20 @@
 #!/bin/bash
 # Replace QATrack+'s uploaded files with a backup from /backups:
 #   docker compose stop django django-q
-#   docker compose run --rm --no-deps -v media-volume:/media-writable backup \
-#       restore-media media_YYYYMMDD_HHMMSS.tar.gz
+#   docker compose run --rm restore-media media_YYYYMMDD_HHMMSS.tar.gz
 #   docker compose up -d
 #
-# The backup service mounts the uploaded files read-only at /media, since the
-# nightly backup only reads them. -v mounts the same volume again, writable, for
-# this one command.
+# The restore-media service (compose.yaml) runs this with the media volume
+# mounted writable at /media. The long-running backup service mounts it
+# read-only, so the nightly backup can never change the uploaded files, and
+# this refuses to run there.
 #
 # Based on the restore script by @leducvin in qatrackplus#866.
 set -euo pipefail
 
 BACKUP_DIR="/backups"
-# The media volume, as the backup service mounts it (read-only).
-MEDIA_DIR="/media"
-# The same volume, mounted writable for this command by docker compose run -v.
-TARGET_DIR="/media-writable"
+# The media volume, mounted writable by the restore-media service.
+TARGET_DIR="/media"
 LOCK_FILE="$BACKUP_DIR/.qatrackplus-backup-restore.lock"
 
 if [ "$#" -ne 1 ]; then
@@ -43,13 +41,13 @@ if [ ! -f "$backup_file" ]; then
     echo "No such backup: $backup_file" >&2
     exit 1
 fi
-# TARGET_DIR must be the very volume the backup service backs up, not a new,
-# empty one made by a mistyped volume name: the same volume mounted twice has the
-# same device and inode at both mount points.
-if [ ! -d "$TARGET_DIR" ] || [ ! -w "$TARGET_DIR" ] \
-    || [ "$(stat -c '%d:%i' "$TARGET_DIR")" != "$(stat -c '%d:%i' "$MEDIA_DIR")" ]; then
-    echo "The uploaded files are not mounted writable at $TARGET_DIR. Run restore-media with" >&2
-    echo "  docker compose run --rm --no-deps -v media-volume:$TARGET_DIR backup restore-media $backup_name" >&2
+# TARGET_DIR must be the media volume, mounted writable. Run in the backup
+# service it is read-only; run with no volume at all, it is just the image's empty
+# folder, and restored files would vanish with the container.
+if ! awk -v dir="$TARGET_DIR" '$2 == dir { found = 1 } END { exit !found }' /proc/mounts \
+    || [ ! -d "$TARGET_DIR" ] || [ ! -w "$TARGET_DIR" ]; then
+    echo "The uploaded files are not mounted writable at $TARGET_DIR. Restore them with" >&2
+    echo "  docker compose run --rm restore-media $backup_name" >&2
     exit 1
 fi
 

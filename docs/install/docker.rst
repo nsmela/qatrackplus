@@ -503,12 +503,14 @@ same backup, and start it again:
 
     docker compose stop django django-q
     docker compose run --rm --no-deps backup restore-db db_YYYYMMDD_HHMMSS.dump
-    docker compose run --rm --no-deps -v media-volume:/media-writable backup restore-media media_YYYYMMDD_HHMMSS.tar.gz
+    docker compose run --rm restore-media media_YYYYMMDD_HHMMSS.tar.gz
     docker compose up -d
 
 The ``backup`` service can only read the uploaded files, so that the nightly
-backup can never change them. ``-v media-volume:/media-writable`` lets
-``restore-media``, and only it, write to them while it runs.
+backup can never change them. ``restore-media`` is a separate service, set up in
+``compose.yaml``, that can write to them; it only runs when you ask for it, and
+``docker compose up`` never starts it. It uses the same image as ``backup``, so
+it is updated whenever ``backup`` is rebuilt.
 
 Each command checks the whole backup before it changes anything, then asks you to
 confirm: type the database name for ``restore-db``, and ``RESTORE`` for
