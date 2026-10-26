@@ -251,6 +251,11 @@ Remove this file before the branch is merged.
     the drag handle's tooltip ("Drag to reorder"), which it already has.
   - Update the empty-state text, which says "Click 'Add test' or 'Add
     sublist' below".
+- [ ] Edit page: the "History" button is missing. `change_form.html`
+      empties `{% block object-tools %}`, which removes Django's History link
+      (`admin:qa_testlist_history`). Bring it back in the top right group
+      (edit page only, not when adding), styled like the other secondary
+      buttons.
 - [ ] Edit page: give the Duplicate dialog fields styles (`.tl-modal-field`,
       `.tl-modal-input` and `.tl-modal-hint` are missing).
 - [ ] Edit page: move Parent Memberships below Tests & Sublists.
