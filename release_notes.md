@@ -4,7 +4,7 @@ Release notes are located at http://docs.qatrackplus.com/en/latest/release_notes
 
 ## v4.0.2
 
-* **Docker**: Docker Compose 2.17 and Docker Engine 23.0 are now required. Check with `docker compose version` before your first `git pull` to 4.0.2: older Compose refuses to read the new `compose.yaml` (*Additional property additional_contexts is not allowed*), so no `docker compose` command works until Docker is updated.
+* **Docker**: Docker Compose 2.17 and Docker Engine 23.0 are now required. Check with `docker compose version` before your first `git pull` to 4.0.2: with an older Compose, the commands that build or create containers (`up`, `build`, `run` and others) stop with *Additional property additional_contexts is not allowed*. Running containers keep running, but 4.0.2 can't be built or started until Docker is updated.
 * **Docker**: `deploy/docker/.env` is no longer tracked by git, because it holds your database password. Before your first `git pull` to 4.0.2, copy your `.env` aside and back as described in the Docker upgrade guide; later pulls leave it alone.
 * **Docker**: QATrack+'s settings (email, time zone, HTTPS, sessions, QC display options, ADFS, Active Directory / LDAP and more) can now be set in `deploy/docker/.env`; `.env.example` documents each one. The image now includes LDAP support.
 * **Docker**: The secret key is now kept in a volume, or taken from `SECRET_KEY` in `.env`, so rebuilds never sign users out. 4.0.0 and 4.0.1 kept it in `deploy/docker/user-data/secret_key.txt`: copy it into `.env` before the first start of 4.0.2, as the Docker upgrade guide shows, or every user is signed out once.

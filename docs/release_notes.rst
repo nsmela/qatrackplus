@@ -91,9 +91,11 @@ Deployment and Upgrade Notes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * **Docker: Docker Compose 2.17 and Docker Engine 23.0 are now the minimum. Check
-  before you pull.** Older Compose releases refuse to read the new ``compose.yaml``,
-  so every ``docker compose`` command (not only builds) stops with *Additional
-  property additional_contexts is not allowed* until Docker is updated. See
+  before you pull.** With an older Compose, the commands that build or create
+  containers (``up``, ``build``, ``run`` and others) stop with *Additional property
+  additional_contexts is not allowed*. Running containers keep running, but 4.0.2
+  can't be built or started, and containers removed with ``docker compose down``
+  can't be created again, until Docker is updated. See
   :ref:`docker_upgrade_check_compose`.
 
 * **Docker: ``deploy/docker/.env`` is no longer tracked by git. Set your copy aside

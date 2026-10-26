@@ -41,14 +41,19 @@ From 4.0.2, QATrack+ needs **Docker Compose 2.17 or newer** and **Docker Engine
     docker compose version
     docker version --format '{{.Server.Version}}'
 
-This matters more than a failed build would suggest. An older Compose refuses to read
-the new ``compose.yaml`` at all, so after the pull *every* ``docker compose`` command
-stops, including ``up``, ``config`` and ``restore-media``, and your site can't be
-restarted until Compose is updated. The error looks like this:
+With an older Compose, once you have pulled, every command that builds or creates
+containers stops: ``up``, ``build``, ``run`` (so ``restore-media`` too), ``create``
+and ``pull``, as well as ``config``. The error looks like this:
 
 .. code-block:: text
 
     services.django.build Additional property additional_contexts is not allowed
+
+Your current containers aren't affected: they keep running, and ``ps``, ``logs``,
+``exec``, ``stop``, ``start`` and ``restart`` still work. But you can't build or
+start 4.0.2 until Docker is updated, and if you run ``docker compose down`` in the
+meantime, ``up`` can't create the containers again, so your site stays down until
+then.
 
 If either version is too old, update Docker first (on Ubuntu, through Docker's ``apt``
 repository, which updates the Engine and the ``docker-compose-plugin`` package

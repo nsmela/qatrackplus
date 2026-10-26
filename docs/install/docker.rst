@@ -30,12 +30,18 @@ Whichever system you use, QATrack+ needs:
 
 * **Docker Compose 2.17 or newer.** QATrack+'s ``compose.yaml`` passes your
   :ref:`own Python packages <docker_site_packages>` to the build in a way older
-  Compose releases don't understand. They refuse to read the file at all, so
-  *every* ``docker compose`` command stops, not just builds, with:
+  Compose releases don't understand. With one of them, the commands that build
+  or create containers (``up``, ``build``, ``run``, ``create`` and ``pull``), as
+  well as ``config``, stop with:
 
   .. code-block:: text
 
       services.django.build Additional property additional_contexts is not allowed
+
+  Containers that are already running carry on, and ``ps``, ``logs``, ``exec``,
+  ``stop``, ``start`` and ``restart`` still work on them. What you can't do is
+  build or start a new release, or create containers again after
+  ``docker compose down``, until Docker is updated.
 
 * **Docker Engine 23.0 or newer.** The image build relies on BuildKit features
   that Docker Engine 20.10 and earlier don't include.
@@ -538,19 +544,34 @@ You can also single press `Ctrl + C` within the server terminal that you ran
 Update server
 ~~~~~~~~~~~~~
 
-To update the server from github run:
+Before you update, check that your Docker still meets
+:ref:`the minimum versions <docker_minimum_versions>` (Compose 2.17, Engine
+23.0). An older Compose can't build or start the new release, so if you find out
+first, your site keeps running while you update Docker:
 
 .. code-block:: console
 
-    docker compose stop
+    docker compose version
+    docker version --format '{{.Server.Version}}'
+
+Then get the new code and build it. Your site keeps running while you do this:
+
+.. code-block:: console
+
     git pull
+    docker compose build
 
-Once any files have changed in the qatrackplus directory you need to run the following:
+Once the build has finished without errors, swap the running containers for the
+new ones:
 
 .. code-block:: console
 
-    docker compose build
-    docker compose up
+    docker compose up -d
+
+There's no need to stop the site first: ``up -d`` replaces each container that
+has changed, so QATrack+ is only unavailable while they restart. If the build
+stops with an error instead, nothing has been stopped and your site carries on
+running the version it had before.
 
 .. _docker_backups:
 
