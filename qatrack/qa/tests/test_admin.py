@@ -1498,17 +1498,21 @@ class TestTestListBuilderTypeValue(TestCase):
         self.assertContains(resp, 'Type Value')
         self.assertNotContains(resp, 'REFERENCE')
         self.assertNotContains(resp, 'TOLERANCE')
-        self.assertNotContains(resp, 'tl-th-ref')
-        self.assertNotContains(resp, 'tl-th-tol')
+        # Reference / Tolerance columns exist only for machine mode, and are
+        # empty and hidden (CSS) on the base list
+        self.assertEqual(content.count('<th class="tl-th-ref tl-col-ref">Reference</th>'), 2)
+        self.assertEqual(content.count('<th class="tl-th-tol tl-col-tol">Tolerance</th>'), 2)
+        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref"></td>'), 3)
         self.assertNotContains(resp, 'Pass = ')
         self.assertContains(resp, 'data-type-value="22.0"')
         self.assertContains(resp, '<span class="tl-type-value">22.0</span>', html=True)
         self.assertContains(resp, '<span class="tl-type-value">a, b</span>', html=True)
         self.assertContains(resp, '<span class="tl-type-value-none">None</span>', html=True)
-        # the sublist row spans the whole main table (drag, test, category, type, type value, actions)
+        # the sublist row spans the whole main table (drag, test, category, type,
+        # type value, machine-mode reference and tolerance, actions)
         thead = content.split('id="tl-tests-table"')[1].split('</thead>')[0]
         main_cols = len(re.findall(r'<th\b', thead))
-        self.assertEqual(main_cols, 6)
+        self.assertEqual(main_cols, 8)
         self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell"' % main_cols)
 
 
@@ -1647,3 +1651,486 @@ class TestTestListBuilderSublistOutline(TestCase):
         self.assertNotIn('display:none', tag)
         self.assertNotIn('checked', tag)
         self.assertNotContains(resp, 'tl-sublist-card tl-sublist-outlined')
+
+
+def _limited_testlist_user(can_add):
+    """A staff (non-superuser) user who can view/change test lists, and add them only if `can_add`."""
+    user = create_user(is_superuser=False, uname='limited', pwd='pwd')
+    codenames = [
+        'view_testlist', 'change_testlist',
+        'view_testlistmembership', 'add_testlistmembership', 'change_testlistmembership',
+        'delete_testlistmembership',
+        'view_sublist', 'add_sublist', 'change_sublist', 'delete_sublist',
+    ]
+    if can_add:
+        codenames.append('add_testlist')
+    user.user_permissions.add(*Permission.objects.filter(content_type__app_label='qa', codename__in=codenames))
+    return user
+
+
+class TestTestListSaveButtons(TestCase):
+    """The change form's one save button group in the title row."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list(name='Daily QC')
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def test_edit_page_buttons(self):
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        history_url = reverse('admin:qa_testlist_history', args=(self.tl.pk,))
+        delete_url = reverse('admin:qa_testlist_delete', args=(self.tl.pk,))
+        self.assertContains(resp, 'href="%s"' % history_url)
+        self.assertContains(resp, 'fa-history')
+        self.assertContains(resp, 'href="%s"' % delete_url)
+        self.assertContains(resp, 'id="tl-delete-btn"')
+        self.assertContains(resp, 'href="%s"' % reverse('admin:qa_testlist_changelist'))
+        self.assertContains(resp, 'id="tl-saveas-open-btn"')
+        self.assertContains(resp, 'Save As…')
+        self.assertContains(resp, 'id="tl-saveas-modal"')
+        self.assertContains(resp, 'data-slug-available-url="%s"' % reverse('admin:qa_testlist_slug_available'))
+        self.assertContains(resp, 'name="_continue"', count=1)
+        self.assertContains(resp, 'name="_save"', count=1)
+        self.assertNotContains(resp, 'name="_saveasnew"')
+        self.assertNotContains(resp, 'class="submit-row"')
+
+    def test_add_page_buttons(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'fa-history')
+        self.assertNotContains(resp, 'id="tl-delete-btn"')
+        self.assertNotContains(resp, 'id="tl-saveas-open-btn"')
+        self.assertNotContains(resp, 'id="tl-saveas-modal"')
+        self.assertContains(resp, 'href="%s"' % reverse('admin:qa_testlist_changelist'))
+        self.assertContains(resp, 'name="_continue"', count=1)
+        self.assertContains(resp, 'name="_save"', count=1)
+        self.assertNotContains(resp, 'class="submit-row"')
+
+    def test_save_as_is_off(self):
+        self.assertFalse(qa_admin.TestListAdmin.save_as)
+
+    def test_no_save_as_without_add_permission(self):
+        _limited_testlist_user(can_add=False)
+        self.client.login(username='limited', password='pwd')
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'id="tl-saveas-open-btn"')
+        self.assertNotContains(resp, 'id="tl-saveas-modal"')
+        self.assertNotContains(resp, 'id="tl-delete-btn"')
+        self.assertContains(resp, 'name="_save"')
+
+    def test_save_as_shown_with_add_permission(self):
+        _limited_testlist_user(can_add=True)
+        self.client.login(username='limited', password='pwd')
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, 'id="tl-saveas-open-btn"')
+
+    def test_view_only_user_has_no_save_buttons(self):
+        user = create_user(is_superuser=False, uname='viewer', pwd='pwd')
+        user.user_permissions.add(*Permission.objects.filter(content_type__app_label='qa', codename='view_testlist'))
+        self.client.login(username='viewer', password='pwd')
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'name="_save"')
+        self.assertNotContains(resp, 'name="_continue"')
+        self.assertNotContains(resp, 'id="tl-saveas-open-btn"')
+
+
+class TestTestListSaveAs(TestCase):
+    """Save As… posts the change form with _saveasnew to create a copy."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list(name='Daily Linac QC')
+        self.t1 = qa_utils.create_test(name='first test')
+        self.t2 = qa_utils.create_test(name='second test')
+        self.m1 = qa_utils.create_test_list_membership(test_list=self.tl, test=self.t1, order=0)
+        self.m2 = qa_utils.create_test_list_membership(test_list=self.tl, test=self.t2, order=1)
+        self.child = qa_utils.create_test_list(name='Imaging Checks')
+        qa_utils.create_test_list_membership(test_list=self.child, test=qa_utils.create_test(name='child test'))
+        self.sublist = qa_utils.create_sublist(parent_test_list=self.tl, child_test_list=self.child, order=2)
+        self.sublist.outline = True
+        self.sublist.save()
+        self.utc = qa_utils.create_unit_test_collection(test_collection=self.tl)
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+        self.orig_slug = self.tl.slug
+
+    def _post_data(self, name='Daily Linac QC (Copy)', slug='daily-linac-qc-copy', saveas=True, attachment=None):
+        """A full change-form POST, as the builder page sends it (with the
+        tests swapped round, as if reordered without saving)."""
+        data = {
+            'name': name,
+            'slug': slug,
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'testlistmembership_set-TOTAL_FORMS': 2,
+            'testlistmembership_set-INITIAL_FORMS': 2,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-0-id': self.m1.pk,
+            'testlistmembership_set-0-test_list': self.tl.pk,
+            'testlistmembership_set-0-test': self.t1.pk,
+            'testlistmembership_set-0-order': 1,
+            'testlistmembership_set-1-id': self.m2.pk,
+            'testlistmembership_set-1-test_list': self.tl.pk,
+            'testlistmembership_set-1-test': self.t2.pk,
+            'testlistmembership_set-1-order': 0,
+            'children-TOTAL_FORMS': 1,
+            'children-INITIAL_FORMS': 1,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'children-0-id': self.sublist.pk,
+            'children-0-parent': self.tl.pk,
+            'children-0-child': self.child.pk,
+            'children-0-order': 2,
+            'children-0-outline': 'on',
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+        }
+        if attachment is not None:
+            data.update({
+                'attachment_set-TOTAL_FORMS': 1,
+                'attachment_set-INITIAL_FORMS': 1,
+                'attachment_set-0-id': attachment.pk,
+                'attachment_set-0-testlist': self.tl.pk,
+                'attachment_set-0-comment': 'a comment',
+            })
+        if saveas:
+            data['_saveasnew'] = '1'
+            data['_saveas_source'] = self.tl.pk
+        return data
+
+    def _assert_original_unchanged(self):
+        self.tl.refresh_from_db()
+        self.assertEqual(self.tl.name, 'Daily Linac QC')
+        self.assertEqual(self.tl.slug, self.orig_slug)
+        self.assertEqual(
+            list(self.tl.testlistmembership_set.order_by('order').values_list('test_id', 'order')),
+            [(self.t1.pk, 0), (self.t2.pk, 1)],
+        )
+        self.assertEqual(list(self.tl.children.values_list('child_id', 'order', 'outline')), [(self.child.pk, 2, True)])
+        self.assertEqual(self.tl.utcs.count(), 1)
+
+    def test_save_as_creates_copy(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from qatrack.attachments.models import Attachment
+        att = Attachment.objects.create(
+            testlist=self.tl,
+            attachment=SimpleUploadedFile('notes.txt', b'hello'),
+            created_by=create_user(uname='attacher'),
+        )
+        try:
+            resp = self.client.post(self.change_url, data=self._post_data(attachment=att))
+        finally:
+            att.attachment.delete(save=False)
+
+        new = qa_models.TestList.objects.get(slug='daily-linac-qc-copy')
+        self.assertNotEqual(new.pk, self.tl.pk)
+        self.assertEqual(new.name, 'Daily Linac QC (Copy)')
+        self.assertRedirects(resp, reverse('admin:qa_testlist_change', args=(new.pk,)), fetch_redirect_response=False)
+
+        # tests in their posted (unsaved) order, and the sublist with its order and outline
+        self.assertEqual(
+            list(new.testlistmembership_set.order_by('order').values_list('test_id', 'order')),
+            [(self.t2.pk, 0), (self.t1.pk, 1)],
+        )
+        self.assertEqual(list(new.children.values_list('child_id', 'order', 'outline')), [(self.child.pk, 2, True)])
+
+        # attachments and machine assignments stay with the original
+        self.assertFalse(Attachment.objects.filter(testlist=new).exists())
+        self.assertEqual(Attachment.objects.filter(testlist=self.tl).count(), 1)
+        self.assertEqual(new.utcs.count(), 0)
+        self.assertEqual(qa_models.UnitTestCollection.objects.count(), 1)
+
+        self._assert_original_unchanged()
+
+        msgs = [str(m) for m in get_messages(resp.wsgi_request)]
+        self.assertEqual(msgs, ['Created “Daily Linac QC (Copy)” as a copy of “Daily Linac QC”.'])
+
+    def test_save_as_validation_error_rerenders_as_add_page(self):
+        resp = self.client.post(self.change_url, data=self._post_data(slug=self.orig_slug))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(qa_models.TestList.objects.filter(name='Daily Linac QC (Copy)').count(), 0)
+        self.assertTrue(resp.context['add'])
+        self.assertContains(resp, '<title>Add Test List')
+        self.assertContains(resp, '&rsaquo; Add')
+        # saving again must still create a copy, never change the original
+        self.assertContains(resp, '<input type="hidden" name="_saveasnew" value="1">', html=False)
+        self.assertContains(resp, 'name="_saveas_source" value="%d"' % self.tl.pk)
+        self.assertNotContains(resp, 'id="tl-saveas-open-btn"')
+        self.assertNotContains(resp, 'id="tl-attachments-card"')
+        self.assertContains(resp, 'name="_save"')
+        # the rows come back from the posted data, so nothing is lost
+        self.assertContains(resp, 'data-test-id="%d"' % self.t1.pk)
+        self.assertContains(resp, 'data-test-id="%d"' % self.t2.pk)
+        self.assertContains(resp, 'name="children-0-child"')
+        self._assert_original_unchanged()
+
+        # fixing the slug and saving again creates the copy
+        resp = self.client.post(self.change_url, data=self._post_data(slug='fixed-slug'))
+        new = qa_models.TestList.objects.get(slug='fixed-slug')
+        self.assertRedirects(resp, reverse('admin:qa_testlist_change', args=(new.pk,)), fetch_redirect_response=False)
+        self._assert_original_unchanged()
+
+    def test_save_as_leaves_out_removed_rows(self):
+        data = self._post_data(slug=self.orig_slug)
+        data['testlistmembership_set-1-DELETE'] = 'on'
+        resp = self.client.post(self.change_url, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-test-id="%d"' % self.t1.pk)
+        self.assertNotContains(resp, 'data-test-id="%d"' % self.t2.pk)
+
+        data['slug'] = 'without-second'
+        self.client.post(self.change_url, data=data)
+        new = qa_models.TestList.objects.get(slug='without-second')
+        self.assertEqual(list(new.testlistmembership_set.values_list('test_id', flat=True)), [self.t1.pk])
+        self._assert_original_unchanged()
+
+    def test_normal_save_still_renders_attachments(self):
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, 'id="tl-attachments-card"')
+
+    def test_save_as_refused_without_add_permission(self):
+        _limited_testlist_user(can_add=False)
+        self.client.login(username='limited', password='pwd')
+        resp = self.client.post(self.change_url, data=self._post_data())
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(qa_models.TestList.objects.filter(slug='daily-linac-qc-copy').exists())
+        self._assert_original_unchanged()
+
+    def test_save_as_allowed_with_add_permission(self):
+        _limited_testlist_user(can_add=True)
+        self.client.login(username='limited', password='pwd')
+        self.client.post(self.change_url, data=self._post_data())
+        self.assertTrue(qa_models.TestList.objects.filter(slug='daily-linac-qc-copy').exists())
+        self._assert_original_unchanged()
+
+
+class TestTestListSlugAvailable(TestCase):
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.url = reverse('admin:qa_testlist_slug_available')
+        self.tl = qa_utils.create_test_list(name='Daily Linac QC')
+        self.tl.slug = 'daily-linac-qc'
+        self.tl.save()
+
+    def test_available(self):
+        resp = self.client.get(self.url, {'slug': 'brand-new_slug-2'})
+        self.assertEqual(resp.json(), {'available': True, 'valid': True})
+
+    def test_taken_with_suggestion(self):
+        other = qa_utils.create_test_list(name='Copy 2')
+        other.slug = 'daily-linac-qc-2'
+        other.save()
+        resp = self.client.get(self.url, {'slug': 'daily-linac-qc'})
+        self.assertEqual(resp.json(), {'available': False, 'valid': True, 'suggestion': 'daily-linac-qc-3'})
+
+    def test_invalid(self):
+        for slug in ['', 'Has-Capitals', 'has spaces', 'semi;colon', 'x' * 256]:
+            resp = self.client.get(self.url, {'slug': slug})
+            self.assertEqual(resp.json(), {'available': False, 'valid': False}, slug)
+
+    def test_staff_only(self):
+        self.client.logout()
+        create_user(is_staff=False, is_superuser=False, uname='nonstaff', pwd='pwd')
+        self.client.login(username='nonstaff', password='pwd')
+        resp = self.client.get(self.url, {'slug': 'anything'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('admin:login'), resp['Location'])
+
+
+class TestTestListBuilderMachineMode(TestCase):
+    """The builder's "Editing" dropdown: base list vs. one machine's references and tolerances."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.unit = qa_utils.create_unit(name='Machine A')
+        self.other_unit = qa_utils.create_unit(name='Machine B')
+        self.group = create_group(name='Physicists')
+
+        self.num_test = qa_utils.create_test(name='Output')
+        self.bool_test = qa_utils.create_test(name='Door', test_type=qa_models.BOOLEAN)
+        self.mc_test = qa_utils.create_test(name='Choice', test_type=qa_models.MULTIPLE_CHOICE, choices='a,b,c')
+        self.unset_test = qa_utils.create_test(name='Unassigned')
+
+        self.tl = qa_utils.create_test_list(name='Direct List')
+        for i, t in enumerate([self.num_test, self.bool_test, self.mc_test]):
+            qa_utils.create_test_list_membership(test_list=self.tl, test=t, order=i)
+        self.freq = qa_utils.create_frequency(name='Daily', slug='daily')
+        self.utc = qa_utils.create_unit_test_collection(
+            unit=self.unit, frequency=self.freq, test_collection=self.tl, assigned_to=self.group,
+        )
+
+        # Assigning the list creates a UnitTestInfo per test; give them values
+        self.num_uti = qa_models.UnitTestInfo.objects.get(unit=self.unit, test=self.num_test)
+        self.num_uti.reference = qa_utils.create_reference(value=100)
+        self.num_uti.tolerance = qa_utils.create_tolerance(act_low=-3, tol_low=-2, tol_high=2, act_high=3)
+        self.num_uti.save()
+        self.bool_uti = qa_models.UnitTestInfo.objects.get(unit=self.unit, test=self.bool_test)
+        # references saved from the UnitTestInfo form keep the numerical type
+        self.bool_uti.reference = qa_utils.create_reference(value=1)
+        self.bool_uti.save()
+        self.mc_uti = qa_models.UnitTestInfo.objects.get(unit=self.unit, test=self.mc_test)
+        self.mc_uti.tolerance = qa_utils.create_tolerance(
+            tol_type=qa_models.MULTIPLE_CHOICE, mc_pass_choices='a,b', mc_tol_choices='c',
+        )
+        self.mc_uti.save()
+
+        self.url = reverse('admin:qa_testlist_machine_values')
+
+    def _get(self, unit_id, tests, **extra):
+        params = {'unit': unit_id, 'tests': ','.join(str(t) for t in tests)}
+        params.update(extra)
+        return self.client.get(self.url, params)
+
+    def test_values_for_unit(self):
+        resp = self._get(
+            self.unit.pk, [self.num_test.pk, self.bool_test.pk, self.mc_test.pk, 'bad', 999999],
+            test_list=self.tl.pk,
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        tests = data['tests']
+
+        num = tests[str(self.num_test.pk)]
+        self.assertEqual(num['reference'], '100')
+        self.assertEqual(num['tolerance'], str(self.num_uti.tolerance))
+        self.assertIn('Absolute', num['tolerance'])
+        self.assertEqual(num['uti_url'], reverse('admin:qa_unittestinfo_change', args=[self.num_uti.pk]))
+
+        self.assertEqual(tests[str(self.bool_test.pk)]['reference'], 'Yes')
+        self.assertIsNone(tests[str(self.bool_test.pk)]['tolerance'])
+
+        mc = tests[str(self.mc_test.pk)]
+        self.assertIsNone(mc['reference'])
+        self.assertIn('a:b', mc['tolerance'])
+
+        # bad ids ignored; a valid id with no UnitTestInfo comes back as null
+        self.assertNotIn('bad', tests)
+        self.assertIsNone(tests['999999'])
+
+        unit = data['unit']
+        self.assertEqual(unit['name'], 'Machine A')
+        self.assertEqual(unit['frequency'], 'Daily')
+        self.assertEqual(unit['assigned_to'], 'Physicists')
+        self.assertTrue(unit['active'])
+        self.assertIsNone(unit['via'])
+        self.assertEqual(unit['utc_url'], reverse('admin:qa_unittestcollection_change', args=[self.utc.pk]))
+
+    def test_test_without_unit_test_info_is_null(self):
+        resp = self._get(self.unit.pk, [self.unset_test.pk])
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.json()['tests'][str(self.unset_test.pk)])
+
+    def test_unknown_unit_404(self):
+        self.assertEqual(self._get(999999, [self.num_test.pk]).status_code, 404)
+        self.assertEqual(self._get('nope', [self.num_test.pk]).status_code, 404)
+
+    def test_permission_required(self):
+        staff = create_user(is_superuser=False, uname='staff', pwd='pwd')
+        self.client.login(username='staff', password='pwd')
+        self.assertEqual(self._get(self.unit.pk, [self.num_test.pk]).status_code, 403)
+
+        uti_ct = ContentType.objects.get_for_model(qa_models.UnitTestInfo)
+        staff.user_permissions.add(Permission.objects.get(content_type=uti_ct, codename='view_unittestinfo'))
+        self.assertEqual(self._get(self.unit.pk, [self.num_test.pk]).status_code, 200)
+
+    def test_change_form_dropdown_direct_and_through(self):
+        # "Direct List" is a sublist of a parent assigned to Machine B, so Machine B
+        # performs it too; Machine A has it directly and is only listed once.
+        parent = qa_utils.create_test_list(name='Parent List')
+        qa_utils.create_sublist(parent_test_list=parent, child_test_list=self.tl)
+        qa_utils.create_unit_test_collection(unit=self.other_unit, test_collection=parent, null_frequency=True)
+        qa_utils.create_unit_test_collection(unit=self.unit, test_collection=parent, null_frequency=True)
+
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(self.tl.pk,)))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        select = re.search(r'<select id="tl-machine-scope-select".*?</select>', content, re.S).group(0)
+        self.assertIn('Base list — all machines', select)
+        self.assertIn('>Machine A (Daily)</option>', select)
+        self.assertIn('<optgroup label="Through other test lists">', select)
+        self.assertIn('>Machine B (via Parent List)</option>', select)
+        self.assertEqual(select.count('value="%d"' % self.unit.pk), 1)
+        direct, through = select.split('<optgroup')
+        self.assertIn('Machine A', direct)
+        self.assertIn('Machine B', through)
+
+        # rows carry the (hidden until machine mode) Reference / Tolerance cells
+        self.assertContains(resp, '<th class="tl-th-ref tl-col-ref">')
+        self.assertContains(resp, '<th class="tl-th-tol tl-col-tol">')
+        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref">'), 3)
+        self.assertEqual(content.count('<td class="tl-cell-tol tl-col-tol">'), 3)
+        self.assertContains(resp, reverse('admin:qa_testlist_machine_values'))
+
+    def test_through_endpoint_info_and_cycle(self):
+        cycle = qa_utils.create_cycle(test_lists=[self.tl], name='My Cycle')
+        qa_utils.create_unit_test_collection(unit=self.other_unit, test_collection=cycle, null_frequency=True)
+        direct, through = qa_admin.get_testlist_scope_units(self.tl)
+        self.assertEqual([d['unit_id'] for d in direct], [self.unit.pk])
+        self.assertEqual([t['unit_id'] for t in through], [self.other_unit.pk])
+        self.assertEqual(through[0]['label'], 'Machine B (via My Cycle)')
+
+        resp = self._get(self.other_unit.pk, [self.num_test.pk], test_list=self.tl.pk)
+        unit = resp.json()['unit']
+        self.assertEqual(unit['via'], 'My Cycle')
+        self.assertEqual(unit['frequency'], 'Ad Hoc')
+
+    def test_sublist_rows_have_machine_cells(self):
+        parent = qa_utils.create_test_list(name='Parent List')
+        qa_utils.create_sublist(parent_test_list=parent, child_test_list=self.tl)
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(parent.pk,)))
+        content = resp.content.decode()
+        self.assertIn('class="tl-sublist-test-row" data-test-id="%d"' % self.num_test.pk, content)
+        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref">'), 3)
+        self.assertIn('colspan="8" class="tl-sublist-cell"', content)
+        # no assignments: only the base list option
+        select = re.search(r'<select id="tl-machine-scope-select".*?</select>', content, re.S).group(0)
+        self.assertNotIn('<optgroup', select)
+
+    def test_save_and_continue_keeps_unit(self):
+        data = {
+            'name': self.tl.name,
+            'slug': 'direct-list',
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'tl_scope_unit': str(self.unit.pk),
+            '_continue': 'Save and continue editing',
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+            'children-TOTAL_FORMS': 0,
+            'children-INITIAL_FORMS': 0,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-TOTAL_FORMS': 3,
+            'testlistmembership_set-INITIAL_FORMS': 3,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+        }
+        for i, tlm in enumerate(qa_models.TestListMembership.objects.filter(test_list=self.tl).order_by('order')):
+            data['testlistmembership_set-%d-id' % i] = tlm.pk
+            data['testlistmembership_set-%d-test_list' % i] = self.tl.pk
+            data['testlistmembership_set-%d-test' % i] = tlm.test_id
+            data['testlistmembership_set-%d-order' % i] = i
+        url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+        resp = self.client.post(url, data)
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp['Location'].endswith('unit=%d' % self.unit.pk))
+
+        data['tl_scope_unit'] = 'base'
+        resp = self.client.post(url, data)
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn('unit=', resp['Location'])

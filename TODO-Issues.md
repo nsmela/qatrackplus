@@ -10,6 +10,35 @@ _None yet._
 
 ## Decisions made during implementation
 
+- **One save button group (F):** it's in the title row and Django's bottom
+  bar is gone. Edit page: History · Delete · Cancel · Save As… · Save and
+  Continue Editing · Save. Add page: Cancel · Save and Continue Editing ·
+  Save. "Save Test List" is now "Save". Delete is ghost style.
+- **Save As (F):**
+  - Checks the slug as you type and suggests a free one (`-2`, `-3`, …).
+  - If the copy fails validation, the page comes back as an add page for the
+    copy, never touching the original.
+  - The copy always opens in Base list mode.
+
+- **Machine mode (J):**
+  - Picking a unit in the Editing dropdown shows that unit's references and
+    tolerances (direct tests and sublist tests) in place of Type Value.
+  - They're read-only in the builder. A pencil on each row opens that
+    unit's existing Unit Test Info admin page in a new tab, which already
+    handles reference/tolerance history and review.
+  - Shared settings are locked in machine mode: details become read-only and
+    add/remove/reorder/outline controls are hidden. A banner explains how to
+    get back to the base list.
+  - The dropdown lists direct assignments first, then a "Through other test
+    lists" group for units that get this list through a parent list or a
+    cycle. Each unit appears once.
+  - The chosen unit is kept in the URL (`?unit=`) and survives Save and
+    Continue Editing.
+  - Needs `view_unittestinfo` or `change_unittestinfo`; without either, only
+    "Base list" is offered.
+  - Tolerances display as the Unit Test Info admin shows them, e.g.
+    "Percent(-3.00%, -2.00%, 2.00%, 3.00%)". Yes/No references read Yes/No.
+
 - **Type Value column (G):** Constant shows its value (with the test's
   formatting if set); Multiple Choice its choices; Wraparound "low to high"
   (no trailing ".0"); Composite, String Composite and Upload the first line
@@ -49,6 +78,35 @@ _None yet._
   same as Django 4.2's default.
 
 ## New issues found
+
+- **Builder validation bugs (being fixed next, task P):**
+  - `TestListAdminForm.clean` counts every posted test and sublist,
+    including rows marked for removal, so removing a duplicate test in the
+    builder and saving still fails with "duplicated macro names". (F)
+  - After a validation error, an existing row that was removed in the
+    builder comes back as not removed, because the DELETE checkbox always
+    renders unchecked. (F)
+  - Fixed in task F: unsaved rows used to disappear when the page came back
+    after a validation error. (F)
+- `TestListMembershipInlineFormSet.__init__` filters by an unsaved TestList
+  on the add page, raising Django's `RemovedInDjango50Warning`. (F)
+
+- Possible follow-up: edit references and tolerances inline in machine
+  mode, instead of through the Unit Test Info page. (J)
+- `UnitTestInfoForm.save` (`qa/admin.py` ~line 212) stores Yes/No references
+  with the default numerical type, so the Unit Test Info admin list shows
+  "1"/"0" instead of Yes/No. Existed before this work. (J)
+- The tolerance format ("Percent(-3.00%, …)", "M.C.(OK=a:b, …)") reads like
+  code; clinical staff may want plainer wording. (J)
+- Narrow screens: at 800px the builder table scrolls sideways inside its
+  card, so Type Value / Reference / Tolerance are off-screen until scrolled.
+  (J)
+- The builder lets you add a sublist containing a test that's already a
+  direct test (or in another sublist). Saving then fails with "test macro
+  names are duplicated". Better to warn when adding. (J, found via seed data)
+- `makemigrations --dry-run` lists pending migrations for faults, parts,
+  units, attachments, qa, reports and service_log at the commit this work
+  started from. Unrelated to the builder; worth checking on `develop`.
 
 - Live preview (`renderLivePreview`): its other column headers, "Untitled
   Test List", "Value..." and "JavaScript logic active on perform page" are

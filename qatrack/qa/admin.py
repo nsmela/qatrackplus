@@ -6,11 +6,17 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
+from django.contrib.admin.options import IS_POPUP_VAR
+from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Prefetch, Q
 from django.http import (
+    Http404,
     HttpResponse,
     HttpResponseBadRequest,
     HttpResponseForbidden,
+    HttpResponseRedirect,
+    JsonResponse,
 )
 from django.shortcuts import get_object_or_404, render
 from django.template import loader
@@ -778,10 +784,12 @@ class TestListMembershipInlineFormSet(forms.models.BaseInlineFormSet):
         super().__init__(*args, **kwargs)
 
         for form in self.forms:
+            # Rows that aren't saved yet (new rows, or every row of a Save As
+            # copy) work out their test from the posted data instead (see
+            # TestListMembershipForm.test_meta), so they survive a re-render
+            # after a validation error.
             if getattr(form.instance, "test_id", None):
                 form.test_meta = get_test_metadata(form.instance.test)
-            else:
-                form.test_meta = None
 
 
 class SublistInlineFormSet(forms.models.BaseInlineFormSet):
@@ -806,8 +814,7 @@ class SublistInlineFormSet(forms.models.BaseInlineFormSet):
                     # validation error) keeps what the user ticked
                     outline=bool(form["outline"].value()),
                 )
-            else:
-                form.sublist_meta = None
+            # otherwise SublistForm.sublist_meta works it out from the posted data
 
     def clean(self):
         """Make sure there are no duplicated slugs in a TestList"""
@@ -849,6 +856,11 @@ def macro_name(obj):
     return obj.test.slug
 
 
+def _unsaved_and_deleted(form):
+    """True for a posted builder row that isn't in the database and was marked for removal."""
+    return form.is_bound and not form.instance.pk and bool(form.data.get(form.add_prefix("DELETE")))
+
+
 class TestListMembershipForm(forms.ModelForm):
 
     model = models.TestListMembership
@@ -867,7 +879,10 @@ class TestListMembershipForm(forms.ModelForm):
     def test_meta(self):
         if not hasattr(self, "_test_meta_cache"):
             test = None
-            if getattr(self.instance, "test_id", None):
+            if _unsaved_and_deleted(self):
+                # a new row removed before saving: don't bring it back on a re-render
+                pass
+            elif getattr(self.instance, "test_id", None):
                 test = self.instance.test
             elif self.is_bound and self.data.get(self.add_prefix("test")):
                 try:
@@ -900,7 +915,10 @@ class SublistForm(forms.ModelForm):
     def sublist_meta(self):
         if not hasattr(self, "_sublist_meta_cache"):
             child = None
-            if getattr(self.instance, "child_id", None):
+            if _unsaved_and_deleted(self):
+                # a new sublist removed before saving: don't bring it back on a re-render
+                pass
+            elif getattr(self.instance, "child_id", None):
                 child = self.instance.child
             elif self.is_bound and self.data.get(self.add_prefix("child")):
                 try:
@@ -1359,6 +1377,179 @@ def testlist_duplicate_test(request):
     })
 
 
+def _scope_utc_info(utc, via=None):
+    """Assignment details for one unit in the builder's Editing dropdown."""
+    return {
+        "frequency": utc.frequency.name if utc.frequency_id else _("Ad Hoc"),
+        "assigned_to": utc.assigned_to.name if utc.assigned_to_id else "",
+        "active": utc.active,
+        "utc_url": reverse("admin:qa_unittestcollection_change", args=[utc.pk]),
+        "via": via,
+    }
+
+
+def get_testlist_scope_units(test_list):
+    """Return ``(direct, through)``: the units a test list is performed on.
+
+    ``direct`` holds units the test list itself is assigned to. ``through`` holds
+    units that get it through another assignment: a parent test list that uses it
+    as a sublist, or a test list cycle that contains it (or one of those parents).
+    Each unit appears once, direct assignments first, because the builder's
+    machine mode shows per-unit values (UnitTestInfo is per unit and test).
+    """
+    direct, through = [], []
+    if test_list is None or not test_list.pk:
+        return direct, through
+
+    tl_ct = ContentType.objects.get_for_model(models.TestList)
+    cycle_ct = ContentType.objects.get_for_model(models.TestListCycle)
+    utcs = models.UnitTestCollection.objects.select_related(
+        "unit", "frequency", "assigned_to",
+    ).order_by("unit__name", "pk")
+
+    by_unit = {}
+    for utc in utcs.filter(content_type=tl_ct, object_id=test_list.pk):
+        if utc.unit_id in by_unit:
+            entry = by_unit[utc.unit_id]
+            freq = utc.frequency.name if utc.frequency_id else _("Ad Hoc")
+            if freq not in entry["frequencies"]:
+                entry["frequencies"].append(freq)
+            continue
+        entry = {"unit_id": utc.unit_id, "unit_name": utc.unit.name, "via": None}
+        entry.update(_scope_utc_info(utc))
+        entry["frequencies"] = [entry["frequency"]]
+        by_unit[utc.unit_id] = entry
+        direct.append(entry)
+    for entry in direct:
+        entry["frequency"] = ", ".join(entry.pop("frequencies"))
+        entry["label"] = _("%(unit)s (%(frequency)s)") % {"unit": entry["unit_name"], "frequency": entry["frequency"]}
+
+    parent_ids = list(models.Sublist.objects.filter(child=test_list).values_list("parent_id", flat=True))
+    cycle_ids = list(
+        models.TestListCycleMembership.objects.filter(
+            test_list_id__in=[test_list.pk] + parent_ids,
+        ).values_list("cycle_id", flat=True)
+    )
+    through_q = Q(content_type=tl_ct, object_id__in=parent_ids) | Q(content_type=cycle_ct, object_id__in=cycle_ids)
+    for utc in utcs.filter(through_q):
+        if utc.unit_id in by_unit:
+            continue
+        # UnitTestCollection.name is the assigned test list's (or cycle's) name
+        entry = {"unit_id": utc.unit_id, "unit_name": utc.unit.name}
+        entry.update(_scope_utc_info(utc, via=utc.name))
+        entry["label"] = _("%(unit)s (via %(name)s)") % {"unit": entry["unit_name"], "name": utc.name}
+        by_unit[utc.unit_id] = entry
+        through.append(entry)
+
+    return direct, through
+
+
+def _machine_reference_display(test, reference):
+    """Reference as the UnitTestInfo admin shows it, with Yes/No for Boolean tests.
+
+    References saved from the UnitTestInfo form keep the default numerical type
+    even for Boolean tests, so read the test's type rather than the reference's.
+    """
+    if reference is None or reference.value is None:
+        return None
+    if test.is_boolean():
+        return _("Yes") if int(reference.value) == 1 else _("No")
+    return reference.value_display()
+
+
+def can_view_machine_values(user):
+    """Machine mode shows UnitTestInfo values, so it needs view (or change) access to them."""
+    return user.has_perm("qa.view_unittestinfo") or user.has_perm("qa.change_unittestinfo")
+
+
+def testlist_machine_values(request):
+    """JSON for the builder's machine mode: one unit's reference and tolerance per test.
+
+    GET ``unit=<id>``, ``tests=<comma separated test ids>`` and optionally
+    ``test_list=<id>`` (for the unit's assignment details). Tests the unit has no
+    UnitTestInfo for come back as ``null``. Read-only; changes are made on the
+    UnitTestInfo admin page each entry links to.
+    """
+    if not can_view_machine_values(request.user):
+        return HttpResponseForbidden(_("You don't have permission to view references and tolerances."))
+
+    try:
+        unit = Unit.objects.get(pk=int(request.GET.get("unit", "")))
+    except (ValueError, TypeError, Unit.DoesNotExist):
+        raise Http404(_("Unit not found"))
+
+    test_ids = []
+    for raw in (request.GET.get("tests") or "").split(","):
+        raw = raw.strip()
+        if raw.isdigit() and int(raw) not in test_ids:
+            test_ids.append(int(raw))
+
+    tests = {str(tid): None for tid in test_ids}
+    utis = models.UnitTestInfo.objects.filter(unit=unit, test_id__in=test_ids).select_related(
+        "test", "reference", "tolerance",
+    )
+    for uti in utis:
+        tests[str(uti.test_id)] = {
+            "reference": _machine_reference_display(uti.test, uti.reference),
+            "tolerance": str(uti.tolerance) if uti.tolerance_id else None,
+            "uti_url": reverse("admin:qa_unittestinfo_change", args=[uti.pk]),
+        }
+
+    unit_info = {
+        "id": unit.pk,
+        "name": unit.name,
+        "frequency": None,
+        "assigned_to": None,
+        "active": None,
+        "utc_url": None,
+        "via": None,
+    }
+    test_list_id = request.GET.get("test_list", "")
+    if test_list_id.isdigit():
+        test_list = models.TestList.objects.filter(pk=int(test_list_id)).first()
+        direct, through = get_testlist_scope_units(test_list)
+        for entry in direct + through:
+            if entry["unit_id"] == unit.pk:
+                for key in ("frequency", "assigned_to", "active", "utc_url", "via"):
+                    unit_info[key] = entry[key]
+                break
+
+    return JsonResponse({"unit": unit_info, "tests": tests})
+
+
+# What the Save As dialog accepts for a new test list's slug.
+TESTLIST_SLUG_RE = re.compile(r"^[a-z0-9_-]+$")
+
+
+def _next_free_testlist_slug(slug):
+    """Return `slug` with -2, -3… appended: the first variant no test list uses yet."""
+    max_len = models.TestList._meta.get_field("slug").max_length
+    taken = set(models.TestList.objects.filter(slug__startswith=slug[:max_len - 12]).values_list("slug", flat=True))
+    n = 2
+    while True:
+        suffix = "-%d" % n
+        candidate = slug[:max_len - len(suffix)] + suffix
+        if candidate not in taken:
+            return candidate
+        n += 1
+
+
+def testlist_slug_available(request):
+    """Tell the Save As dialog whether a slug is free for a new test list.
+
+    Returns JSON ``{"available": bool, "valid": bool}``. When the slug is valid but
+    already taken, ``suggestion`` holds the first free -2, -3… variant. Staff-only
+    (the URL is wrapped in admin_view); it only reads slugs, never saves anything.
+    """
+    slug = (request.GET.get("slug") or "").strip()
+    max_len = models.TestList._meta.get_field("slug").max_length
+    if not TESTLIST_SLUG_RE.match(slug) or len(slug) > max_len:
+        return JsonResponse({"available": False, "valid": False})
+    if not models.TestList.objects.filter(slug=slug).exists():
+        return JsonResponse({"available": True, "valid": True})
+    return JsonResponse({"available": False, "valid": True, "suggestion": _next_free_testlist_slug(slug)})
+
+
 class TestListAttachmentInline(get_attachment_inline("testlist")):
     # one spare blank row; admin's "Add another" adds more when it's used
     extra = 1
@@ -1405,7 +1596,10 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     form = TestListAdminForm
     inlines = [TestListMembershipInline, SublistInline, TestListAttachmentInline]
-    save_as = True
+    # The builder has its own "Save As…" dialog in the title row, so Django's
+    # "Save as new" submit button is turned off. A POST with "_saveasnew" still
+    # creates a copy (Django handles that regardless of this flag).
+    save_as = False
 
     fieldsets = [
         (
@@ -1438,9 +1632,67 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             "htmx/js/htmx.min.js",
         )
 
+    @staticmethod
+    def _is_save_as_new(request):
+        return request.method == "POST" and "_saveasnew" in request.POST
+
+    @staticmethod
+    def _save_as_source(request):
+        """The test list a "Save As…" copy was made from (or None)."""
+        try:
+            return models.TestList.objects.get(pk=int(request.POST.get("_saveas_source", "")))
+        except (ValueError, TypeError, models.TestList.DoesNotExist):
+            return None
+
+    def get_inlines(self, request, obj):
+        inlines = super().get_inlines(request, obj)
+        if self._is_save_as_new(request):
+            # Save As copies the tests and sublists only. Attachments stay with
+            # the original, and leaving the inline out also stops the posted
+            # attachment rows (which point at the original's files) from failing
+            # validation.
+            inlines = [inline for inline in inlines if not issubclass(inline, TestListAttachmentInline)]
+        return inlines
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        save_as_retry = self._is_save_as_new(request)
+        if save_as_retry:
+            # A Save As that failed validation: Django re-renders it as a change
+            # page with no object. It's really a new test list, so show it as the
+            # add page, and keep posting "_saveasnew" so saving again creates the
+            # copy rather than changing the original.
+            add, change = True, False
+            context["title"] = _("Add %s") % self.opts.verbose_name
+            source = self._save_as_source(request)
+            context["tl_saveas_source_pk"] = source.pk if source else ""
+        context["tl_saveas_retry"] = save_as_retry
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if not self._is_save_as_new(request) or IS_POPUP_VAR in request.POST:
+            return super().response_add(request, obj, post_url_continue)
+
+        source = self._save_as_source(request)
+        if source:
+            msg = format_html(_("Created “{new}” as a copy of “{source}”."), new=obj.name, source=source.name)
+        else:
+            msg = format_html(_("Created “{new}”."), new=obj.name)
+        self.message_user(request, msg, messages.SUCCESS)
+
+        if not self.has_view_or_change_permission(request, obj):
+            return self.response_post_save_add(request, obj)
+        url = reverse("admin:qa_testlist_change", args=(obj.pk,), current_app=self.admin_site.name)
+        url = add_preserved_filters({"preserved_filters": self.get_preserved_filters(request), "opts": self.opts}, url)
+        return HttpResponseRedirect(url)
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
+            path(
+                'slug-available/',
+                self.admin_site.admin_view(testlist_slug_available),
+                name='qa_testlist_slug_available',
+            ),
             path(
                 'export-testpack/',
                 self.admin_site.admin_view(admin_views.ExportTestPack.as_view()),
@@ -1486,6 +1738,11 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 self.admin_site.admin_view(testlist_duplicate_test),
                 name='qa_testlist_duplicate_test',
             ),
+            path(
+                'machine-values/',
+                self.admin_site.admin_view(testlist_machine_values),
+                name='qa_testlist_machine_values',
+            ),
         ]
         return custom_urls + urls
 
@@ -1494,6 +1751,26 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         extra_context['export_testpack_url'] = reverse('admin:qa_export_testpack')
         extra_context['import_testpack_url'] = reverse('admin:qa_import_testpack')
         return super().changelist_view(request, extra_context=extra_context)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        # Units for the builder's "Editing" dropdown (base list vs. one machine)
+        extra_context = extra_context or {}
+        test_list = self.get_object(request, options.unquote(object_id))
+        direct, through = get_testlist_scope_units(test_list)
+        extra_context['tl_scope_direct_units'] = direct
+        extra_context['tl_scope_through_units'] = through
+        extra_context['tl_can_view_machine_values'] = can_view_machine_values(request.user)
+        return super().change_view(request, object_id, form_url=form_url, extra_context=extra_context)
+
+    def response_change(self, request, obj):
+        # "Save and continue editing" redirects to request.path, which drops the
+        # builder's ?unit=<id>; put it back so the page reopens on the same machine.
+        response = super().response_change(request, obj)
+        unit = request.POST.get('tl_scope_unit', '')
+        if '_continue' in request.POST and unit.isdigit() and response.status_code == 302:
+            location = response['Location']
+            response['Location'] = '%s%sunit=%s' % (location, '&' if '?' in location else '?', unit)
+        return response
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)

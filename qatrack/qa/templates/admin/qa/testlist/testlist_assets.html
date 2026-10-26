@@ -54,55 +54,81 @@ step. The live description preview and test list builder are driven by htmx.
   font-weight: 400;
   color: #8c939d;
 }
+/* The page's one save button group (Django's bottom submit row is removed).
+   Left to right: History, Delete, Cancel, Save As…, Save and Continue Editing, Save. */
 .tl-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
+/* a.tl-top-btn / button.tl-top-btn outrank the admin's link and button colours */
+a.tl-top-btn,
+button.tl-top-btn,
 .tl-top-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.4;
-  padding: 4px 14px;
+  padding: 4px 12px;
+  margin: 0;
   border-radius: 3px;
   cursor: pointer;
   text-decoration: none;
+  text-transform: none;
+  letter-spacing: normal;
   white-space: nowrap;
   font-family: var(--tl-font);
   height: 30px;
   box-sizing: border-box;
-  transition: all 0.15s ease;
+  box-shadow: 2px 2px 2px #ddd;
+  transition: background-color 0.15s ease;
 }
-.tl-top-btn-cancel {
-  background: #fff;
-  border: 1px solid #d2d6de;
-  color: #555;
-  font-weight: 400;
-  box-shadow: none;
+a.tl-top-btn:focus-visible,
+button.tl-top-btn:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
-.tl-top-btn-cancel:hover {
+a.tl-top-btn-secondary,
+button.tl-top-btn-secondary {
   background: #f4f4f4;
-  border-color: #c0c4cc;
-  color: #333;
+  border: 1px solid #d2d6de;
+  color: #444;
+}
+a.tl-top-btn-secondary:hover,
+a.tl-top-btn-secondary:focus,
+button.tl-top-btn-secondary:hover {
+  background: #e7e7e7;
+  border-color: #d2d6de;
+  color: #444;
   text-decoration: none;
 }
-.tl-top-btn-save {
+/* Delete: ghost style, so it doesn't compete with Save */
+a.tl-top-btn-delete {
+  background: #fff;
+  border: 1px solid #e8c4be;
+  color: #c0392b;
+}
+a.tl-top-btn-delete:hover,
+a.tl-top-btn-delete:focus {
+  background: #fbe9e7;
+  border-color: #e8c4be;
+  color: #c0392b;
+  text-decoration: none;
+}
+button.tl-top-btn-save {
   background: #424f57;
-  border: 1px solid #323e46;
+  border: 1px solid #424f57;
   color: #fff;
   font-weight: 600;
-  box-shadow: none;
 }
-.tl-top-btn-save:hover {
+button.tl-top-btn-save:hover {
   background: #323e46;
-  border-color: #262f35;
+  border-color: #323e46;
   color: #fff;
-}
-.tl-top-btn-save i.fa {
-  font-size: 13px;
 }
 
 /* ---- Top Control Card / Toolbar ---- */
@@ -229,6 +255,112 @@ step. The live description preview and test list builder are driven by htmx.
 }
 .tl-view-tab:last-child {
   border-left: 1px solid #d2d6de;
+}
+
+/* Editing scope: the base list, or one machine's references & tolerances.
+   initScopeSelect() puts .tl-mode-machine on <body> while a machine is shown. */
+.tl-scope-info,
+.tl-scope-globe-icon {
+  color: #6e7785;
+}
+.tl-scope-info-text a {
+  color: #3c8dbc;
+}
+.tl-scope-sep {
+  color: #6e7785;
+}
+.tl-scope-status {
+  font-weight: 600;
+  color: #555;
+}
+.tl-machine-banner,
+.tl-machine-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: -10px 0 18px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #424f57;
+  font-family: var(--tl-font);
+  font-size: 13px;
+  color: #333;
+}
+.tl-machine-banner .fa {
+  color: #424f57;
+  margin-top: 2px;
+}
+.tl-machine-error {
+  border-left-color: #c0392b;
+}
+.tl-machine-error .fa {
+  color: #c0392b;
+  margin-top: 2px;
+}
+.tl-machine-banner[hidden],
+.tl-machine-error[hidden] {
+  display: none;
+}
+
+/* Reference / Tolerance columns replace Type Value in machine mode */
+.tl-col-ref,
+.tl-col-tol {
+  display: none;
+}
+body.tl-mode-machine .tl-col-ref,
+body.tl-mode-machine .tl-col-tol {
+  display: table-cell;
+}
+body.tl-mode-machine .tl-col-type-value {
+  display: none;
+}
+.tl-th-ref { width: 150px; }
+.tl-th-tol { width: 260px; }
+.tl-machine-value {
+  font-size: 13px;
+  color: #333;
+  overflow-wrap: anywhere;
+}
+.tl-machine-none {
+  font-size: 13px;
+  color: #6e7785;
+}
+.tl-machine-edit {
+  margin-left: 6px;
+  padding: 2px 4px;
+  color: #3c8dbc;
+  font-size: 13px;
+  text-decoration: none;
+}
+.tl-machine-edit:hover,
+.tl-machine-edit:focus {
+  color: #323e46;
+  text-decoration: none;
+}
+
+/* Shared settings are locked in machine mode: only that machine's values are shown */
+body.tl-mode-machine #tl-tests-card .tl-drag-handle,
+body.tl-mode-machine #tl-header-add-test-btn,
+body.tl-mode-machine #tl-header-add-sublist-btn,
+body.tl-mode-machine #tl-tests-card .tl-cell-actions > *,
+body.tl-mode-machine #tl-tests-card .tl-btn-change-sublist,
+body.tl-mode-machine #tl-tests-card .tl-btn-remove-sublist,
+body.tl-mode-machine #tl-tests-card .tl-sublist-outline,
+body.tl-mode-machine #tl-tests-card .tl-add-desc-btn,
+body.tl-mode-machine #tl-attachments-card .tl-browse-wrap,
+body.tl-mode-machine #tl-attachments-card .btn-delete-existing,
+body.tl-mode-machine #tl-attachments-card .btn-remove-pending {
+  display: none !important;
+}
+body.tl-mode-machine #tl-tests-card .tl-test-desc {
+  pointer-events: none;
+}
+body.tl-mode-machine #tl-details-card input[readonly],
+body.tl-mode-machine #tl-details-card textarea[readonly] {
+  background: #f4f4f4;
+  color: #555;
+  cursor: default;
 }
 
 /* ---- Live Preview Container ---- */
@@ -1030,6 +1162,30 @@ input[type="text"].tl-modal-input:focus {
   color: #6e7785;
 }
 
+/* Save As… dialog */
+.tl-saveas-dialog {
+  max-width: 500px;
+}
+.tl-saveas-error {
+  font-size: 12px;
+  color: #c0392b;
+}
+.tl-saveas-error[hidden] {
+  display: none;
+}
+.tl-modal-input.tl-input-invalid,
+input[type="text"].tl-modal-input.tl-input-invalid {
+  border-color: #c0392b;
+}
+.tl-saveas-not-copied {
+  display: block;
+  margin: 4px 0 0;
+}
+.tl-saveas-dialog .tl-btn-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .tl-modal-textarea {
   width: 100%;
   box-sizing: border-box;
@@ -1472,70 +1628,6 @@ input[type="text"].tl-search-input:focus,
 }
 .tl-no-parents-hint > .fa {
   color: #94a3b8;
-}
-
-/* ---- Submit Row / Save Actions Bar ---- */
-.submit-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 16px;
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.04);
-  margin: 24px 0 0;
-  border-radius: 0;
-}
-.submit-row input[type="submit"] {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 3px;
-  cursor: pointer;
-  height: auto;
-  line-height: 1.4;
-  margin: 0;
-  transition: all 0.15s ease;
-}
-.submit-row input[name="_save"] {
-  background: var(--tl-primary);
-  border: 1px solid var(--tl-primary-2);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-}
-.submit-row input[name="_save"]:hover {
-  background: var(--tl-primary-2);
-}
-.submit-row input[name="_continue"], .submit-row input[name="_addanother"] {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-}
-.submit-row input[name="_continue"]:hover, .submit-row input[name="_addanother"]:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-.submit-row .deletelink, .submit-row .deletelink-box a {
-  background: #fff;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: 3px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: auto;
-  transition: all 0.15s ease;
-}
-.submit-row .deletelink:hover, .submit-row .deletelink-box a:hover {
-  background: #fef2f2;
-  border-color: #f87171;
-  color: #b91c1c;
 }
 
 /* ---- Messages List ---- */
@@ -2352,6 +2444,230 @@ ul.messagelist li.error {
     }
   });
 
+  // ---- Save As… dialog ----
+  // Copies the dialog's name and slug into the main form, adds the hidden
+  // _saveasnew/_saveas_source inputs and submits the change form, so Django
+  // creates a new test list from everything on the page (unsaved edits included).
+  var SAVEAS_SLUG_FORMAT = /^[a-z0-9_-]+$/;
+  var saveAsCheckSeq = 0;
+  var saveAsCheckTimer = null;
+  var saveAsSlugOk = false;
+
+  function saveAsEls() {
+    var modal = document.getElementById("tl-saveas-modal");
+    if (!modal) { return null; }
+    return {
+      modal: modal,
+      name: document.getElementById("tl-saveas-name"),
+      nameError: document.getElementById("tl-saveas-name-error"),
+      slug: document.getElementById("tl-saveas-slug"),
+      slugError: document.getElementById("tl-saveas-slug-error"),
+      submit: document.getElementById("tl-saveas-submit"),
+      url: modal.getAttribute("data-slug-available-url") || "",
+      sourceId: modal.getAttribute("data-source-id") || ""
+    };
+  }
+
+  function setSaveAsError(input, errorEl, msg) {
+    if (!input || !errorEl) { return; }
+    errorEl.textContent = msg || "";
+    errorEl.hidden = !msg;
+    input.classList.toggle("tl-input-invalid", !!msg);
+    if (msg) {
+      input.setAttribute("aria-invalid", "true");
+    } else {
+      input.removeAttribute("aria-invalid");
+    }
+  }
+
+  function updateSaveAsSubmit(els) {
+    els.submit.disabled = !saveAsSlugOk || !els.name.value.trim();
+  }
+
+  // Check the slug's format, then ask the server whether it's free. With
+  // adoptSuggestion (used for the prefill), a taken slug is swapped for the
+  // first free -2, -3… variant instead of showing an error.
+  function checkSaveAsSlug(adoptSuggestion) {
+    var els = saveAsEls();
+    if (!els) { return Promise.resolve(false); }
+    var seq = ++saveAsCheckSeq;
+    var slug = els.slug.value.trim();
+    saveAsSlugOk = false;
+    if (!slug) {
+      setSaveAsError(els.slug, els.slugError, gettext("Enter a slug for the new test list."));
+      updateSaveAsSubmit(els);
+      return Promise.resolve(false);
+    }
+    if (!SAVEAS_SLUG_FORMAT.test(slug)) {
+      setSaveAsError(els.slug, els.slugError, gettext("Use only lowercase letters, numbers, hyphens and underscores."));
+      updateSaveAsSubmit(els);
+      return Promise.resolve(false);
+    }
+    setSaveAsError(els.slug, els.slugError, "");
+    updateSaveAsSubmit(els);
+    var sep = els.url.indexOf("?") === -1 ? "?" : "&";
+    return fetch(els.url + sep + "slug=" + encodeURIComponent(slug), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.json();
+      })
+      .then(function (data) {
+        if (seq !== saveAsCheckSeq) { return false; }
+        if (data.available) {
+          saveAsSlugOk = true;
+        } else if (adoptSuggestion && data.suggestion) {
+          els.slug.value = data.suggestion;
+          saveAsSlugOk = true;
+        } else if (data.valid === false) {
+          setSaveAsError(els.slug, els.slugError, gettext("Use only lowercase letters, numbers, hyphens and underscores."));
+        } else {
+          setSaveAsError(els.slug, els.slugError, gettext("Another test list already uses this slug. Choose a different one."));
+        }
+        updateSaveAsSubmit(els);
+        return saveAsSlugOk;
+      })
+      .catch(function () {
+        if (seq !== saveAsCheckSeq) { return false; }
+        setSaveAsError(els.slug, els.slugError,
+          gettext("Couldn't check whether this slug is free. Check your connection, then edit the slug to try again."));
+        updateSaveAsSubmit(els);
+        return false;
+      });
+  }
+
+  function openSaveAsDialog() {
+    var els = saveAsEls();
+    if (!els) { return; }
+    var mainName = document.getElementById("id_name");
+    var mainSlug = document.getElementById("id_slug");
+    var curName = mainName ? mainName.value.trim() : "";
+    var curSlug = mainSlug ? mainSlug.value.trim().toLowerCase() : "";
+    if (!curSlug) {
+      curSlug = curName.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    }
+    els.name.value = curName ? interpolate(gettext("%(name)s (Copy)"), { name: curName }, true) : "";
+    els.slug.value = curSlug ? curSlug + "-copy" : "copy";
+    setSaveAsError(els.name, els.nameError, "");
+    setSaveAsError(els.slug, els.slugError, "");
+    els.submit.innerHTML = '<i class="fa fa-files-o" aria-hidden="true"></i> ' + escapeHtml(gettext("Save As New Test List"));
+    els.modal.hidden = false;
+    els.name.focus();
+    els.name.select();
+    checkSaveAsSlug(true);
+  }
+
+  function closeSaveAsDialog() {
+    var els = saveAsEls();
+    if (!els || els.modal.hidden) { return; }
+    saveAsCheckSeq++;
+    els.modal.hidden = true;
+    var opener = document.getElementById("tl-saveas-open-btn");
+    if (opener) { opener.focus(); }
+  }
+
+  function submitSaveAs() {
+    var els = saveAsEls();
+    if (!els || els.submit.disabled) { return; }
+    var name = els.name.value.trim();
+    if (!name) {
+      setSaveAsError(els.name, els.nameError, gettext("Enter a name for the new test list."));
+      els.name.focus();
+      return;
+    }
+    els.submit.disabled = true;
+    checkSaveAsSlug(false).then(function (ok) {
+      if (!ok) { els.slug.focus(); return; }
+      var form = els.modal.closest("form");
+      var mainName = document.getElementById("id_name");
+      var mainSlug = document.getElementById("id_slug");
+      if (!form || !mainName || !mainSlug) { return; }
+      // Remember what the original's fields held, so a page restored from the
+      // back/forward cache doesn't keep the copy's name and slug (see pageshow).
+      if (!form.hasAttribute("data-tl-saveas-orig-name")) {
+        form.setAttribute("data-tl-saveas-orig-name", mainName.value);
+        form.setAttribute("data-tl-saveas-orig-slug", mainSlug.value);
+      }
+      mainName.value = name;
+      mainSlug.value = els.slug.value.trim();
+      form.querySelectorAll("input[data-tl-saveas]").forEach(function (el) { el.remove(); });
+      [["_saveasnew", "1"], ["_saveas_source", els.sourceId]].forEach(function (pair) {
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = pair[0];
+        input.value = pair[1];
+        input.setAttribute("data-tl-saveas", "");
+        form.appendChild(input);
+      });
+      els.submit.disabled = true;
+      els.submit.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> ' + escapeHtml(gettext("Saving…"));
+      if (form.requestSubmit) {
+        form.requestSubmit();  // fires the submit listeners (e.g. syncOrder)
+      } else {
+        syncOrder();
+        form.submit();
+      }
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) { return; }
+    if (e.target.closest("#tl-saveas-open-btn")) {
+      e.preventDefault();
+      openSaveAsDialog();
+    } else if (e.target.closest("[data-saveas-close]")) {
+      e.preventDefault();
+      closeSaveAsDialog();
+    } else if (e.target.closest("#tl-saveas-submit")) {
+      e.preventDefault();
+      submitSaveAs();
+    }
+  });
+
+  document.addEventListener("input", function (e) {
+    var els = saveAsEls();
+    if (!els) { return; }
+    if (e.target === els.name) {
+      if (els.name.value.trim()) { setSaveAsError(els.name, els.nameError, ""); }
+      updateSaveAsSubmit(els);
+    } else if (e.target === els.slug) {
+      saveAsSlugOk = false;
+      updateSaveAsSubmit(els);
+      clearTimeout(saveAsCheckTimer);
+      saveAsCheckTimer = setTimeout(function () { checkSaveAsSlug(false); }, 300);
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var els = saveAsEls();
+    if (!els || els.modal.hidden) { return; }
+    if (e.key === "Escape") {
+      closeSaveAsDialog();
+    } else if (e.key === "Enter" && (e.target === els.name || e.target === els.slug)) {
+      // the dialog sits inside the main form: stop Enter submitting it as a plain save
+      e.preventDefault();
+      submitSaveAs();
+    }
+  });
+
+  // Back/forward cache: undo a Save As that was already submitted from this page.
+  window.addEventListener("pageshow", function (e) {
+    if (!e.persisted) { return; }
+    var els = saveAsEls();
+    var form = els ? els.modal.closest("form") : null;
+    if (!form) { return; }
+    form.querySelectorAll("input[data-tl-saveas]").forEach(function (el) { el.remove(); });
+    if (form.hasAttribute("data-tl-saveas-orig-name")) {
+      document.getElementById("id_name").value = form.getAttribute("data-tl-saveas-orig-name");
+      document.getElementById("id_slug").value = form.getAttribute("data-tl-saveas-orig-slug");
+      form.removeAttribute("data-tl-saveas-orig-name");
+      form.removeAttribute("data-tl-saveas-orig-slug");
+    }
+    els.modal.hidden = true;
+  });
+
   function escapeHtml(text) {
     if (!text) { return ""; }
     return String(text)
@@ -2479,21 +2795,233 @@ ul.messagelist li.error {
     updateAttachmentCounts();
   }
 
-  function initScopeSelect() {
-    var select = document.getElementById("tl-machine-scope-select");
-    var hintText = document.getElementById("tl-scope-info-text");
-    if (!select || !hintText) { return; }
+  // ---- Editing scope: base list vs. one machine ----
+  // Machine mode shows one unit's references and tolerances (its UnitTestInfo
+  // for each test, read-only, with a pencil to its admin page) and locks the
+  // shared settings. The body class .tl-mode-machine drives the CSS.
+  var scopeState = { unitId: null, unitName: "", request: 0 };
 
-    select.addEventListener("change", function () {
-      var val = this.value;
-      if (val === "base") {
-        hintText.textContent = "Changes apply to every assigned machine";
-      } else {
-        var opt = this.options[this.selectedIndex];
-        var text = opt ? opt.textContent.trim() : "";
-        hintText.textContent = "Viewing machine scope for " + text;
+  function scopeMsg(key) {
+    var card = document.getElementById("tl-control-card");
+    return card ? (card.getAttribute("data-msg-" + key) || "") : "";
+  }
+
+  function scopeTestIds(root) {
+    var ids = [];
+    (root || document).querySelectorAll("tr.tl-test-row[data-test-id], tr.tl-sublist-test-row[data-test-id]")
+      .forEach(function (r) {
+        var id = r.getAttribute("data-test-id");
+        if (id && ids.indexOf(id) === -1) { ids.push(id); }
+      });
+    if (root && root.matches && root.matches("tr.tl-test-row[data-test-id]")) {
+      var own = root.getAttribute("data-test-id");
+      if (own && ids.indexOf(own) === -1) { ids.push(own); }
+    }
+    return ids;
+  }
+
+  function fetchMachineValues(unitId, ids) {
+    var card = document.getElementById("tl-control-card");
+    var url = card.getAttribute("data-machine-values-url") +
+      "?unit=" + encodeURIComponent(unitId) +
+      "&tests=" + encodeURIComponent(ids.join(",")) +
+      "&test_list=" + encodeURIComponent(card.getAttribute("data-test-list-id") || "");
+    return fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (res) {
+        if (!res.ok) { throw new Error("HTTP " + res.status); }
+        return res.json();
+      });
+  }
+
+  function machineValueHtml(value) {
+    if (value === null || value === undefined || value === "") {
+      return '<span class="tl-machine-none">' + escapeHtml(scopeMsg("not-set")) + '</span>';
+    }
+    return '<span class="tl-machine-value">' + escapeHtml(value) + '</span>';
+  }
+
+  function fillMachineCells(tests, root) {
+    var rows = (root || document).querySelectorAll("tr.tl-test-row[data-test-id], tr.tl-sublist-test-row[data-test-id]");
+    var list = Array.prototype.slice.call(rows);
+    if (root && root.matches && root.matches("tr.tl-test-row[data-test-id]")) { list.push(root); }
+    list.forEach(function (r) {
+      var id = r.getAttribute("data-test-id");
+      if (!Object.prototype.hasOwnProperty.call(tests, id)) { return; }
+      var info = tests[id];
+      // only this row's own cells, not those of a nested table
+      var refCell = null, tolCell = null;
+      Array.prototype.forEach.call(r.children, function (td) {
+        if (td.classList.contains("tl-col-ref")) { refCell = td; }
+        if (td.classList.contains("tl-col-tol")) { tolCell = td; }
+      });
+      if (!refCell || !tolCell) { return; }
+      refCell.innerHTML = machineValueHtml(info ? info.reference : null);
+      var tolHtml = machineValueHtml(info ? info.tolerance : null);
+      if (info && info.uti_url) {
+        var label = interpolate(scopeMsg("edit-uti"), { unit: scopeState.unitName }, true);
+        tolHtml += '<a href="' + escapeHtml(info.uti_url) + '" target="_blank" rel="noopener" class="tl-machine-edit"' +
+          ' title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
+          '<i class="fa fa-pencil" aria-hidden="true"></i></a>';
+      }
+      tolCell.innerHTML = tolHtml;
+    });
+  }
+
+  function clearMachineCells() {
+    document.querySelectorAll("#tl-tests-card td.tl-col-ref, #tl-tests-card td.tl-col-tol").forEach(function (td) {
+      td.innerHTML = "";
+    });
+  }
+
+  function setScopeInfo(unit) {
+    var text = document.getElementById("tl-scope-info-text");
+    var icon = document.getElementById("tl-scope-icon");
+    if (!text) { return; }
+    if (icon) { icon.className = (unit ? "fa fa-cube" : "fa fa-globe") + " tl-scope-globe-icon"; }
+    if (!unit) {
+      text.textContent = scopeMsg("base");
+      return;
+    }
+    if (unit === "loading") {
+      text.textContent = scopeMsg("loading");
+      return;
+    }
+    var parts = [];
+    if (!unit.utc_url) {
+      parts.push(escapeHtml(scopeMsg("not-assigned")));
+    } else {
+      if (unit.frequency) { parts.push(escapeHtml(unit.frequency)); }
+      if (unit.via) {
+        parts.push(escapeHtml(interpolate(scopeMsg("assigned-through"), { name: unit.via }, true)));
+      } else if (unit.assigned_to) {
+        parts.push(escapeHtml(interpolate(scopeMsg("assigned-to"), { group: unit.assigned_to }, true)));
+      }
+      parts.push('<span class="tl-scope-status">' +
+        escapeHtml(scopeMsg(unit.active ? "active" : "inactive")) + '</span>');
+      parts.push('<a href="' + escapeHtml(unit.utc_url) + '" target="_blank" rel="noopener">' +
+        escapeHtml(scopeMsg("edit-assignment")) + '</a>');
+    }
+    text.innerHTML = parts.join(' <span class="tl-scope-sep" aria-hidden="true">&middot;</span> ');
+  }
+
+  // Details inputs are made readonly (not disabled: disabled inputs aren't
+  // submitted, which would break Save).
+  function lockSharedSettings(lock) {
+    document.querySelectorAll("#tl-details-card input, #tl-details-card textarea").forEach(function (el) {
+      if (el.type === "hidden" || el.type === "checkbox" || el.type === "file") { return; }
+      if (lock) {
+        if (!el.readOnly) { el.readOnly = true; el.setAttribute("data-tl-machine-readonly", "1"); }
+      } else if (el.getAttribute("data-tl-machine-readonly")) {
+        el.readOnly = false;
+        el.removeAttribute("data-tl-machine-readonly");
       }
     });
+  }
+
+  function setScopeUrl(unitId) {
+    if (!window.history || !window.history.replaceState) { return; }
+    try {
+      var url = new URL(window.location.href);
+      if (unitId) { url.searchParams.set("unit", unitId); } else { url.searchParams.delete("unit"); }
+      window.history.replaceState(window.history.state, "", url.toString());
+    } catch (err) {}
+  }
+
+  function setBaseMode() {
+    scopeState.unitId = null;
+    scopeState.unitName = "";
+    document.body.classList.remove("tl-mode-machine");
+    var banner = document.getElementById("tl-machine-banner");
+    if (banner) { banner.hidden = true; }
+    clearMachineCells();
+    lockSharedSettings(false);
+    setScopeInfo(null);
+    setScopeUrl(null);
+  }
+
+  function applyScope(select) {
+    var errorBox = document.getElementById("tl-machine-error");
+    var banner = document.getElementById("tl-machine-banner");
+    if (errorBox) { errorBox.hidden = true; }
+    var unitId = select.value;
+    var reqId = ++scopeState.request;
+    if (!unitId || unitId === "base") {
+      setBaseMode();
+      return;
+    }
+    var opt = select.options[select.selectedIndex];
+    var unitName = (opt && opt.getAttribute("data-unit-name")) || (opt ? opt.textContent.trim() : "");
+    setScopeInfo("loading");
+    fetchMachineValues(unitId, scopeTestIds())
+      .then(function (data) {
+        if (reqId !== scopeState.request) { return; }
+        scopeState.unitId = unitId;
+        scopeState.unitName = (data.unit && data.unit.name) || unitName;
+        fillMachineCells(data.tests || {});
+        document.querySelectorAll(".tl-machine-banner .tl-machine-unit-name").forEach(function (el) {
+          el.textContent = scopeState.unitName;
+        });
+        if (banner) { banner.hidden = false; }
+        document.body.classList.add("tl-mode-machine");
+        lockSharedSettings(true);
+        setScopeInfo(data.unit || {});
+        setScopeUrl(unitId);
+      })
+      .catch(function () {
+        if (reqId !== scopeState.request) { return; }
+        select.value = "base";
+        setBaseMode();
+        if (errorBox) {
+          errorBox.querySelectorAll(".tl-machine-unit-name").forEach(function (el) { el.textContent = unitName; });
+          errorBox.hidden = false;
+        }
+      });
+  }
+
+  // Rows or sublists added while a machine is shown get that machine's values too.
+  function observeScopeRows() {
+    var tbody = document.getElementById("tl-tests-tbody");
+    if (!tbody || !window.MutationObserver) { return; }
+    new MutationObserver(function (mutations) {
+      if (!scopeState.unitId) { return; }
+      var unitId = scopeState.unitId;
+      mutations.forEach(function (m) {
+        Array.prototype.forEach.call(m.addedNodes, function (node) {
+          if (node.nodeType !== 1) { return; }
+          var ids = scopeTestIds(node);
+          if (!ids.length) { return; }
+          fetchMachineValues(unitId, ids)
+            .then(function (data) {
+              if (scopeState.unitId === unitId) { fillMachineCells(data.tests || {}, node); }
+            })
+            .catch(function () {});
+        });
+      });
+    }).observe(tbody, { childList: true });
+  }
+
+  function initScopeSelect() {
+    var select = document.getElementById("tl-machine-scope-select");
+    if (!select || select.hasAttribute("data-tl-init")) { return; }
+    select.setAttribute("data-tl-init", "1");
+
+    select.addEventListener("change", function () { applyScope(select); });
+    observeScopeRows();
+
+    // Reopen on the machine in the URL (?unit=<id>), e.g. after a reload or
+    // "Save and continue editing".
+    var unitParam = null;
+    try { unitParam = new URLSearchParams(window.location.search).get("unit"); } catch (err) {}
+    var match = unitParam && Array.prototype.filter.call(select.options, function (o) {
+      return o.value === unitParam && o.value !== "base";
+    })[0];
+    if (match) {
+      select.value = unitParam;
+      applyScope(select);
+    } else {
+      select.value = "base";
+      if (unitParam) { setScopeUrl(null); }
+    }
   }
 
   // Build a preview "Type Value" <td> from a builder row's server-rendered cell
@@ -2674,8 +3202,7 @@ ul.messagelist li.error {
       document.getElementById("tl-details-card"),
       document.getElementById("tl-tests-card"),
       document.getElementById("tl-attachments-card"),
-      document.getElementById("tl-parents-card"),
-      document.querySelector(".submit-row")
+      document.getElementById("tl-parents-card")
     ];
 
     if (!editorBtn || !previewBtn) { return; }

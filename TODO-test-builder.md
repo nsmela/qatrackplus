@@ -16,7 +16,7 @@ Remove this file before the branch is merged.
     in the button's tooltip or in the dialog.
   - When the dialog saves, add the new machine to the scope dropdown without
     reloading the page.
-- [ ] **Two editing modes: base list and a single machine**
+- [x] **Two editing modes: base list and a single machine**
   - Base list mode: the settings every machine shares (name, description,
     tests, sublists, attachments). No per-machine values are shown.
   - Machine mode: picking a machine in the scope dropdown loads that machine's
@@ -124,7 +124,7 @@ Remove this file before the branch is merged.
       1.5px borders).
 - [ ] Card titles at 18px and not bold. Table headers at .03em letter spacing
       with 8/10 cell padding. No half-pixel font sizes.
-- [ ] Save buttons: the top right group ("Cancel", "Save Test List") and
+- [x] Save buttons: the top right group ("Cancel", "Save Test List") and
       Django's bottom bar ("SAVE", "Save as new", "Save and continue
       editing", "Delete") don't match.
   - Either keep one group, or keep two that are identical: same buttons,
@@ -135,7 +135,7 @@ Remove this file before the branch is merged.
     Django's "Save as new" goes away.
   - Each group has one primary button (Save). Delete is ghost-style rather
     than solid red, and labels are Title Case, not uppercase.
-- [ ] "Save As…" in the top right group (edit page only): copies the
+- [x] "Save As…" in the top right group (edit page only): copies the
       current test list into a new one.
   - Opens a dialog asking for the new name and slug, prefilled like the
     Duplicate Test dialog ("Daily Linac QC (Copy)", `daily-linac-qc-copy`).
@@ -251,7 +251,7 @@ Remove this file before the branch is merged.
     the drag handle's tooltip ("Drag to reorder"), which it already has.
   - Update the empty-state text, which says "Click 'Add test' or 'Add
     sublist' below".
-- [ ] Edit page: the "History" button is missing. `change_form.html`
+- [x] Edit page: the "History" button is missing. `change_form.html`
       empties `{% block object-tools %}`, which removes Django's History link
       (`admin:qa_testlist_history`). Bring it back in the top right group
       (edit page only, not when adding), styled like the other secondary

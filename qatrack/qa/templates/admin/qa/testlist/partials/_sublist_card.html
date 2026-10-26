@@ -5,7 +5,7 @@
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
     data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
-  <td colspan="6" class="tl-sublist-cell">
+  <td colspan="8" class="tl-sublist-cell">{# every column of the builder table, including the machine-mode ones #}
     <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}">
       {# Hidden Django formset inputs for Sublist #}
       {% if inline_admin_form %}
@@ -81,11 +81,13 @@
                 <th class="tl-th-category">{% trans "CATEGORY" %}</th>
                 <th class="tl-th-type">{% trans "TYPE" %}</th>
                 <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
+                <th class="tl-th-ref tl-col-ref">{% trans "Reference" %}</th>
+                <th class="tl-th-tol tl-col-tol">{% trans "Tolerance" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for test_meta in sublist_meta.tests %}
-                <tr class="tl-sublist-test-row">
+                <tr class="tl-sublist-test-row" data-test-id="{{ test_meta.id }}">
                   <td class="tl-cell-lock">
                     <i class="fa fa-lock tl-lock-icon" title="{% trans "Read-only test in sublist" %}" aria-hidden="true"></i>
                     <i class="fa fa-caret-right tl-caret-icon" aria-hidden="true"></i>
@@ -103,10 +105,11 @@
                     </div>
                   </td>
                   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
+                  {% include "admin/qa/testlist/partials/_machine_cells.html" %}
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  <td colspan="5" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
+                  <td colspan="7" class="tl-empty-sublist-msg">{% trans "This sublist does not contain any tests yet." %}</td>
                 </tr>
               {% endfor %}
             </tbody>

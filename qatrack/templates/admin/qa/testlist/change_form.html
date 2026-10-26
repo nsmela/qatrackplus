@@ -35,35 +35,80 @@
     </h1>
     <span class="tl-header-counts" id="tl-header-counts"></span>
   </div>
+  {# The page's only save button group: Django's bottom submit row is removed (see submit_buttons_bottom below). #}
   <div class="tl-header-actions">
-    <a href="{% url 'admin:qa_testlist_changelist' %}" class="tl-top-btn tl-top-btn-cancel">
+    {% if change and original.pk %}
+      <a href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}" class="tl-top-btn tl-top-btn-secondary" id="tl-history-btn">
+        <i class="fa fa-history" aria-hidden="true"></i> {% trans "History" %}
+      </a>
+      {% if has_delete_permission %}
+        <a href="{% url opts|admin_urlname:'delete' original.pk|admin_urlquote %}" class="tl-top-btn tl-top-btn-delete" id="tl-delete-btn">
+          <i class="fa fa-trash-o" aria-hidden="true"></i> {% trans "Delete" %}
+        </a>
+      {% endif %}
+    {% endif %}
+    <a href="{% url opts|admin_urlname:'changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="tl-cancel-btn">
       {% trans "Cancel" %}
     </a>
-    <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save">
-      <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save Test List" %}
-    </button>
+    {% if change and original.pk and has_add_permission and not tl_saveas_retry %}
+      <button type="button" class="tl-top-btn tl-top-btn-secondary" id="tl-saveas-open-btn" aria-haspopup="dialog">
+        <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save As…" %}
+      </button>
+    {% endif %}
+    {% if add and has_add_permission or change and has_change_permission %}
+      <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary">
+        {% trans "Save and Continue Editing" %}
+      </button>
+      <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save">
+        <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save" %}
+      </button>
+    {% endif %}
   </div>
+  {% if tl_saveas_retry %}
+    {# A Save As that failed validation: saving again must still create the copy, never change the original. #}
+    <input type="hidden" name="_saveasnew" value="1">
+    <input type="hidden" name="_saveas_source" value="{{ tl_saveas_source_pk }}">
+  {% endif %}
 </div>
 
-{# Top Control Bar #}
-<div class="tl-control-card" id="tl-control-card">
+{# Top Control Bar: "Editing" scope — the base list, or one machine's references & tolerances #}
+<div class="tl-control-card" id="tl-control-card"
+     data-machine-values-url="{% url 'admin:qa_testlist_machine_values' %}"
+     data-test-list-id="{{ original.pk|default:'' }}"
+     data-msg-base="{% trans "Changes apply to every machine this list is assigned to" %}"
+     data-msg-loading="{% trans "Loading…" %}"
+     data-msg-not-set="{% trans "Not set" %}"
+     data-msg-edit-uti="{% trans "Edit reference and tolerance for %(unit)s" %}"
+     data-msg-assigned-to="{% trans "Assigned to %(group)s" %}"
+     data-msg-assigned-through="{% trans "Assigned through %(name)s" %}"
+     data-msg-active="{% trans "Active" %}"
+     data-msg-inactive="{% trans "Inactive" %}"
+     data-msg-not-assigned="{% trans "Not assigned to this list" %}"
+     data-msg-edit-assignment="{% trans "Edit assignment" %}">
   <div class="tl-control-left">
-    <span class="tl-control-label">{% trans "EDITING" %}</span>
+    <span class="tl-control-label">{% trans "Editing" %}</span>
     <div class="tl-scope-select-wrap">
-      <select id="tl-machine-scope-select" class="tl-scope-select" aria-label="{% trans "Machine scope" %}">
+      {# name= so "Save and continue editing" can reopen on the same machine (TestListAdmin.response_change) #}
+      <select id="tl-machine-scope-select" name="tl_scope_unit" class="tl-scope-select" autocomplete="off"
+              aria-label="{% trans "Editing scope" %}">
         <option value="base" selected>{% trans "Base list — all machines" %}</option>
-        {% if original.pk %}
-          {% for utc in original.utcs.all %}
-            <option value="{{ utc.unit.pk }}" data-url="{% url 'admin:qa_unittestinfo_changelist' %}?unit={{ utc.unit.pk }}">
-              {{ utc.unit.name }}{% if utc.frequency %} ({{ utc.frequency.name }}){% endif %}
-            </option>
+        {% if tl_can_view_machine_values %}
+          {% for scope in tl_scope_direct_units %}
+            <option value="{{ scope.unit_id }}" data-unit-name="{{ scope.unit_name }}">{{ scope.label }}</option>
           {% endfor %}
+          {% if tl_scope_through_units %}
+            <optgroup label="{% trans "Through other test lists" %}">
+              {% for scope in tl_scope_through_units %}
+                <option value="{{ scope.unit_id }}" data-unit-name="{{ scope.unit_name }}">{{ scope.label }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
         {% endif %}
       </select>
     </div>
-    <span class="tl-scope-info" id="tl-scope-info">
-      <i class="fa fa-globe tl-scope-globe-icon" aria-hidden="true"></i>
-      <span class="tl-scope-info-text" id="tl-scope-info-text">{% trans "Changes apply to every assigned machine" %}</span>
+    <span class="tl-scope-info" id="tl-scope-info" aria-live="polite">
+      <i class="fa fa-globe tl-scope-globe-icon" id="tl-scope-icon" aria-hidden="true"></i>
+      <span class="tl-scope-info-text" id="tl-scope-info-text">{% trans "Changes apply to every machine this list is assigned to" %}</span>
     </span>
     <a href="{% if original.pk %}{% url 'admin:qa_unittestcollection_add' %}?test_list={{ original.pk }}{% else %}#{% endif %}"
        class="tl-btn-assign-machine"
@@ -82,6 +127,16 @@
       </button>
     </div>
   </div>
+</div>
+
+{# Machine mode banner and load error (filled in by initScopeSelect) #}
+<div class="tl-machine-banner" id="tl-machine-banner" role="status" hidden>
+  <i class="fa fa-cube" aria-hidden="true"></i>
+  <span>{% blocktrans %}Viewing <strong class="tl-machine-unit-name"></strong>. References and tolerances below are for <strong class="tl-machine-unit-name"></strong> only; use the pencil to change them. Switch to Base list to change tests, sublists or details.{% endblocktrans %}</span>
+</div>
+<div class="tl-machine-error" id="tl-machine-error" role="alert" hidden>
+  <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+  <span>{% blocktrans %}Couldn't load <span class="tl-machine-unit-name"></span>'s settings. Nothing was changed. Try again.{% endblocktrans %}</span>
 </div>
 
 {# Live Preview View Container (Toggled via Preview Tab) #}
@@ -178,6 +233,8 @@
             <th class="tl-th-category">{% trans "CATEGORY" %}</th>
             <th class="tl-th-type">{% trans "TYPE" %}</th>
             <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
+            <th class="tl-th-ref tl-col-ref">{% trans "Reference" %}</th>
+            <th class="tl-th-tol tl-col-tol">{% trans "Tolerance" %}</th>
             <th class="tl-th-actions"></th>
           </tr>
         </thead>
@@ -373,4 +430,13 @@
   </div>
 
 {% endblock %}
+
+{% block after_related_objects %}
+  {% if change and original.pk and has_add_permission and not tl_saveas_retry %}
+    {% include "admin/qa/testlist/partials/_save_as_modal.html" %}
+  {% endif %}
+{% endblock %}
+
+{# One save button group, in the title row at the top (.tl-header-actions), so Django's bottom submit row isn't shown. #}
+{% block submit_buttons_bottom %}{% endblock %}
 

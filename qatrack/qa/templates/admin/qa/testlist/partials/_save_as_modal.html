@@ -1,0 +1,49 @@
+{% load i18n %}
+{# Save As… dialog for the test list change form. #}
+{# Its inputs have no name attributes, so nothing here is posted with the main form: #}
+{# on submit, the JS copies the values into the main form's name/slug fields, adds the #}
+{# hidden _saveasnew / _saveas_source inputs and submits the change form. #}
+<div class="tl-modal-backdrop" id="tl-saveas-modal" hidden
+     data-slug-available-url="{% url 'admin:qa_testlist_slug_available' %}"
+     data-source-id="{{ original.pk }}">
+  <div class="tl-modal-dialog tl-saveas-dialog" role="dialog" aria-modal="true" aria-labelledby="tl-saveas-title">
+    <div class="tl-modal-header">
+      <h3 class="tl-modal-title" id="tl-saveas-title">
+        <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save As New Test List" %}
+      </h3>
+      <button type="button" class="tl-modal-close-btn" data-saveas-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <div class="tl-modal-body">
+      <p class="tl-modal-note">
+        {% trans "The copy includes your unsaved changes. The original test list stays as it was last saved." %}
+      </p>
+
+      <div class="tl-modal-field">
+        <label for="tl-saveas-name">{% trans "New Name" %} <em class="tl-req">*</em></label>
+        <input type="text" id="tl-saveas-name" class="tl-modal-input" autocomplete="off" maxlength="255"
+               required aria-describedby="tl-saveas-name-error">
+        <span class="tl-saveas-error" id="tl-saveas-name-error" hidden></span>
+      </div>
+
+      <div class="tl-modal-field">
+        <label for="tl-saveas-slug">{% trans "Slug" %} <em class="tl-req">*</em></label>
+        <input type="text" id="tl-saveas-slug" class="tl-modal-input" autocomplete="off" maxlength="255"
+               required aria-describedby="tl-saveas-slug-error tl-saveas-slug-hint">
+        <span class="tl-saveas-error" id="tl-saveas-slug-error" role="alert" hidden></span>
+        <span class="tl-modal-hint" id="tl-saveas-slug-hint">{% trans "A short unique name used in links. Lowercase letters, numbers, hyphens and underscores only." %}</span>
+      </div>
+
+      <p class="tl-modal-hint tl-saveas-not-copied">
+        <i class="fa fa-info-circle" aria-hidden="true"></i>
+        {% trans "Attachments and machine assignments aren't copied." %}
+      </p>
+    </div>
+    <div class="tl-modal-footer">
+      <button type="button" class="tl-btn-modal-cancel" data-saveas-close>{% trans "Cancel" %}</button>
+      <button type="button" class="tl-btn-modal-save" id="tl-saveas-submit">
+        <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save As New Test List" %}
+      </button>
+    </div>
+  </div>
+</div>
