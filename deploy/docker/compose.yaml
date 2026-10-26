@@ -155,9 +155,9 @@ services:
         condition: service_healthy
     volumes:
       - ./backups:/backups
-      # Writable so restore-media can put uploaded files back; the nightly
-      # backup only reads it.
-      - media-volume:/media
+      # Read-only: the nightly backup only reads the uploaded files. restore-media
+      # mounts the volume again, writable, only while it runs.
+      - media-volume:/media:ro
     healthcheck:
       # crond, which runs the nightly backup, is running.
       test: [ "CMD", "pgrep", "crond" ]
