@@ -409,14 +409,36 @@ or numpy, for example), ``docker compose build`` stops and names the conflict,
 and your running QATrack+ is left as it was. Choose a version of the package
 that works with QATrack+'s, or ask on the QATrack+ mailing list.
 
-On a server without internet access, download the packages' ``.whl`` files
-elsewhere, copy them into ``deploy/docker/site-requirements``, and add a line
-``--no-index`` at the top of ``requirements.txt``. The build then installs from
-those files only.
+``requirements.txt`` and any wheel files beside it are yours: git ignores them,
+so ``git pull`` leaves them alone.
+Docker remembers the installed packages between builds and only installs them
+again when something in ``deploy/docker/site-requirements`` or QATrack+'s own
+dependencies changes. Packages that yours depend on, and that QATrack+ doesn't
+already include, are picked when they are installed, so a later rebuild can get
+newer versions of them. If you need every rebuild to be identical, pin those in
+``requirements.txt`` too, or use wheel files as below. To install everything
+afresh, run ``docker compose build --no-cache django``.
 
-``requirements.txt`` and the wheel files are yours: git ignores them, so
-``git pull`` leaves them alone, and they are installed again by every
-``docker compose build``.
+On a server without internet access, use wheel (``.whl``) files. They must suit
+the image rather than the computer you download them on: Linux, CPython 3.12 and
+the server's processor (``x86_64`` on most servers; ``aarch64`` on ARM). On any
+computer with internet access and Python, pip can fetch the right ones, along
+with everything they depend on:
+
+.. code-block:: console
+
+    pip download --only-binary=:all: --python-version 3.12 --implementation cp --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 -d site-wheels pint==0.24.4
+
+Copy everything in ``site-wheels`` into ``deploy/docker/site-requirements`` (any
+copies of packages QATrack+ already has do no harm), and add a line
+``--no-index`` at the top of ``requirements.txt`` so your packages come only from
+those files. If pip finds no wheel for a package, it needs building from source;
+ask on the mailing list.
+
+The rest of the build still needs the internet, to download the Python base
+image and QATrack+'s own packages. Build the image once while the server is
+connected, so Docker has those steps saved; or build it on a connected computer
+and move the finished image with ``docker save`` and ``docker load``.
 
 .. _docker_https:
 
