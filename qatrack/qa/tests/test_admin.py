@@ -1568,6 +1568,55 @@ class TestTestListAdminBreadcrumbs(TestCase):
         self.assertEqual(hrefs, [self.index_url, self.app_url, self.changelist_url])
 
 
+class TestAdminPinnedHeader(TestCase):
+    """base_site.html wraps the admin header and breadcrumbs in one sticky .qa-admin-top box."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+
+    def _top_html(self, resp):
+        """Return the markup between the pinned wrapper's start and the page body (div.main)."""
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertEqual(content.count('id="qa-admin-top"'), 1)
+        start = content.index('<div class="qa-admin-top" id="qa-admin-top">')
+        end = content.index('<div class="main" id="main">')
+        self.assertLess(start, end)
+        return content, content[start:end]
+
+    def test_index_has_wrapper_and_header(self):
+        content, top = self._top_html(self.client.get(reverse('admin:index')))
+        self.assertIn('id="header"', top)
+        self.assertIn('QATrack+ administration', top)
+        # the dashboard has no breadcrumb trail
+        self.assertNotIn('class="breadcrumbs"', content)
+        self.assertIn('.qa-admin-top {', content)
+        self.assertIn('--qa-admin-top-h', content)
+
+    def test_testlist_change_breadcrumbs_inside_wrapper(self):
+        tl = qa_utils.create_test_list()
+        content, top = self._top_html(self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,))))
+        self.assertEqual(content.count('class="breadcrumbs"'), 1)
+        self.assertIn('<nav aria-label="Breadcrumbs">', top)
+        self.assertIn('class="breadcrumbs"', top)
+        self.assertIn('Edit', top)
+        # the title row is pinned below the wrapper
+        self.assertIn('class="tl-header-bar"', content)
+        self.assertGreater(content.index('class="tl-header-bar"'), content.index('<div class="main" id="main">'))
+
+    def test_ordinary_changelist_breadcrumbs_inside_wrapper(self):
+        content, top = self._top_html(self.client.get(reverse('admin:qa_test_changelist')))
+        self.assertEqual(content.count('class="breadcrumbs"'), 1)
+        self.assertIn('class="breadcrumbs"', top)
+
+    def test_popup_has_no_wrapper(self):
+        resp = self.client.get(reverse('admin:qa_frequency_add') + '?_popup=1')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'id="qa-admin-top"')
+        self.assertNotContains(resp, 'class="breadcrumbs"')
+
+
 class TestTestListBuilderSublistOutline(TestCase):
     """The builder's "Outline on Perform QC page" checkbox for Sublist.outline."""
 
@@ -2134,3 +2183,187 @@ class TestTestListBuilderMachineMode(TestCase):
         resp = self.client.post(url, data)
         self.assertEqual(resp.status_code, 302)
         self.assertNotIn('unit=', resp['Location'])
+
+
+class TestTestListBuilderRemovedRows(TestCase):
+    """Rows removed in the builder (DELETE ticked) are left out of validation
+    and stay removed when the page is re-rendered after an error."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list(name='Throwaway QC')
+        self.dup = qa_utils.create_test(name='kv_mv_coincidence')
+        self.other = qa_utils.create_test(name='other test')
+        self.m_dup = qa_utils.create_test_list_membership(test_list=self.tl, test=self.dup, order=0)
+        self.m_other = qa_utils.create_test_list_membership(test_list=self.tl, test=self.other, order=1)
+        self.child = qa_utils.create_test_list(name='Imaging Checks')
+        qa_utils.create_test_list_membership(test_list=self.child, test=self.dup)
+        self.sublist = qa_utils.create_sublist(parent_test_list=self.tl, child_test_list=self.child, order=2)
+        self.url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _post_data(self, name='Throwaway QC', delete_dup=None, delete_sublist=None):
+        data = {
+            'name': name,
+            'slug': 'throwaway-qc',
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'testlistmembership_set-TOTAL_FORMS': 2,
+            'testlistmembership_set-INITIAL_FORMS': 2,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-0-id': self.m_dup.pk,
+            'testlistmembership_set-0-test_list': self.tl.pk,
+            'testlistmembership_set-0-test': self.dup.pk,
+            'testlistmembership_set-0-order': 0,
+            'testlistmembership_set-1-id': self.m_other.pk,
+            'testlistmembership_set-1-test_list': self.tl.pk,
+            'testlistmembership_set-1-test': self.other.pk,
+            'testlistmembership_set-1-order': 1,
+            'children-TOTAL_FORMS': 1,
+            'children-INITIAL_FORMS': 1,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'children-0-id': self.sublist.pk,
+            'children-0-parent': self.tl.pk,
+            'children-0-child': self.child.pk,
+            'children-0-order': 2,
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+        }
+        if delete_dup is not None:
+            data['testlistmembership_set-0-DELETE'] = delete_dup
+        if delete_sublist is not None:
+            data['children-0-DELETE'] = delete_sublist
+        return data
+
+    def _row(self, content, row_id):
+        """Return the opening <tr ...> tag of a builder row."""
+        match = re.search(r'<tr class="tl-member-item[^>]*id="%s"[^>]*>' % row_id, content)
+        self.assertIsNotNone(match, row_id)
+        return match.group(0)
+
+    def _delete_box(self, content, prefix):
+        match = re.search(r'<input type="checkbox" name="%s-DELETE"[^>]*>' % prefix, content)
+        self.assertIsNotNone(match, prefix)
+        return match.group(0)
+
+    def test_duplicate_still_rejected(self):
+        resp = self.client.post(self.url, self._post_data())
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'duplicated')
+        self.assertTrue(self.tl.testlistmembership_set.filter(pk=self.m_dup.pk).exists())
+
+    def test_unticked_delete_value_still_counts(self):
+        resp = self.client.post(self.url, self._post_data(delete_dup='false'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'duplicated')
+
+    def test_removed_direct_test_not_counted(self):
+        for value in ('on', 'true', '1'):
+            with self.subTest(value=value):
+                if not qa_models.TestListMembership.objects.filter(pk=self.m_dup.pk).exists():
+                    # put the direct test back after the previous round removed it
+                    self.m_dup = qa_utils.create_test_list_membership(test_list=self.tl, test=self.dup, order=0)
+                resp = self.client.post(self.url, self._post_data(delete_dup=value))
+                self.assertEqual(resp.status_code, 302)
+                self.assertFalse(qa_models.TestListMembership.objects.filter(pk=self.m_dup.pk).exists())
+                self.assertEqual(list(self.tl.testlistmembership_set.values_list('test_id', flat=True)), [self.other.pk])
+
+    def test_removed_sublist_not_counted(self):
+        resp = self.client.post(self.url, self._post_data(delete_sublist='on'))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(self.tl.children.exists())
+        self.assertEqual(self.tl.testlistmembership_set.count(), 2)
+
+    def test_removed_rows_stay_removed_after_error(self):
+        resp = self.client.post(self.url, self._post_data(name='', delete_dup='on', delete_sublist='on'))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertNotIn('duplicated', content)
+
+        self.assertIn('checked', self._delete_box(content, 'testlistmembership_set-0'))
+        self.assertIn('display: none', self._row(content, 'testlistmembership_set-0'))
+
+        self.assertNotIn('checked', self._delete_box(content, 'testlistmembership_set-1'))
+        self.assertNotIn('display: none', self._row(content, 'testlistmembership_set-1'))
+
+        self.assertIn('checked', self._delete_box(content, 'children-0'))
+        card = re.search(r'<div class="tl-sublist-card[^>]*>', content).group(0)
+        self.assertIn('display: none', card)
+
+        # nothing was saved
+        self.assertEqual(self.tl.testlistmembership_set.count(), 2)
+        self.assertTrue(self.tl.children.exists())
+
+    def test_rows_not_removed_render_normally(self):
+        resp = self.client.post(self.url, self._post_data(name='', delete_dup='false'))
+        content = resp.content.decode()
+        self.assertNotIn('checked', self._delete_box(content, 'testlistmembership_set-0'))
+        self.assertNotIn('display: none', self._row(content, 'testlistmembership_set-0'))
+        card = re.search(r'<div class="tl-sublist-card[^>]*>', content).group(0)
+        self.assertNotIn('display: none', card)
+
+    def test_add_page_no_unsaved_instance_warning(self):
+        import warnings
+
+        from django.utils.deprecation import RemovedInDjango50Warning
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', RemovedInDjango50Warning)
+            resp = self.client.get(reverse('admin:qa_testlist_add'))
+            self.assertEqual(resp.status_code, 200)
+            resp = self.client.post(reverse('admin:qa_testlist_add'), {
+                'name': '',
+                'slug': '',
+                'testlistmembership_set-TOTAL_FORMS': 0,
+                'testlistmembership_set-INITIAL_FORMS': 0,
+                'children-TOTAL_FORMS': 0,
+                'children-INITIAL_FORMS': 0,
+                'attachment_set-TOTAL_FORMS': 0,
+                'attachment_set-INITIAL_FORMS': 0,
+            })
+            self.assertEqual(resp.status_code, 200)
+
+
+class TestTestListUnsavedChangesWarning(TestCase):
+    """The change form carries the "Unsaved changes" dialog and the JS that opens it."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.tl = qa_utils.create_test_list(name='Daily QC')
+
+    def _assert_dialog(self, resp):
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        modal = re.search(r'<div class="tl-modal-backdrop" id="tl-unsaved-modal"[^>]*>', content)
+        self.assertIsNotNone(modal)
+        self.assertIn('hidden', modal.group(0))
+        self.assertIn('data-msg-switch="', modal.group(0))
+        dialog = re.search(r'<div class="tl-modal-dialog tl-unsaved-dialog"[^>]*>', content)
+        self.assertIsNotNone(dialog)
+        self.assertIn('role="dialog"', dialog.group(0))
+        self.assertIn('aria-modal="true"', dialog.group(0))
+        self.assertIn('aria-labelledby="tl-unsaved-title"', dialog.group(0))
+        self.assertContains(resp, 'id="tl-unsaved-title"')
+        self.assertContains(resp, 'id="tl-unsaved-stay"')
+        self.assertContains(resp, 'id="tl-unsaved-leave"')
+        self.assertContains(resp, 'Stay on This Page')
+        self.assertContains(resp, 'Leave Without Saving')
+        # the builder JS that watches the form and opens the dialog
+        self.assertContains(resp, 'function initUnsavedChanges()')
+        self.assertContains(resp, 'beforeunload')
+
+    def test_change_page_has_dialog(self):
+        self._assert_dialog(self.client.get(reverse('admin:qa_testlist_change', args=(self.tl.pk,))))
+
+    def test_add_page_has_dialog(self):
+        self._assert_dialog(self.client.get(reverse('admin:qa_testlist_add')))
+
+    def test_changelist_has_no_dialog(self):
+        resp = self.client.get(reverse('admin:qa_testlist_changelist'))
+        self.assertNotContains(resp, 'id="tl-unsaved-modal"')

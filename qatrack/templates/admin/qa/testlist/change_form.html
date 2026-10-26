@@ -435,6 +435,7 @@
   {% if change and original.pk and has_add_permission and not tl_saveas_retry %}
     {% include "admin/qa/testlist/partials/_save_as_modal.html" %}
   {% endif %}
+  {% include "admin/qa/testlist/partials/_unsaved_changes_modal.html" %}
 {% endblock %}
 
 {# One save button group, in the title row at the top (.tl-header-actions), so Django's bottom submit row isn't shown. #}

@@ -10,6 +10,33 @@ _None yet._
 
 ## Decisions made during implementation
 
+- **Unsaved changes (I):**
+  - "Changed" means the form's posted values differ from when the page
+    loaded, which covers field edits, added/removed/reordered rows, outline
+    checkboxes and attachments. Adding then removing an attachment counts as
+    unchanged.
+  - After a failed save the page starts as changed.
+  - In-page dialog ("Stay on This Page" / "Leave Without Saving") for
+    same-tab links: Cancel, breadcrumbs, History, Delete, header and sidebar
+    links. The browser's own prompt covers reload, close and back.
+  - New-tab links and the Editor/Preview switch don't prompt, since nothing
+    is lost.
+  - Switching the machine dropdown with changes asks first. Switching
+    reloads the page at that unit and drops the changes; Stay puts the
+    dropdown back.
+
+- **Sticky admin header (H):**
+  - The admin header and breadcrumbs are wrapped in one pinned block on every
+    admin page (`base_site.html`). A small script measures its height into
+    `--qa-admin-top-h`, the one CSS custom property added, because the height
+    varies (49–158px).
+  - Unpinned below 768px wide or 600px tall.
+  - The Test List title row and its buttons pin under it, except below 1024px
+    wide or 700px tall, where both together would take over a quarter of the
+    screen.
+  - Django's `#container` `height:100%` was overridden; it made the header
+    unpin about a screen down on long pages.
+
 - **One save button group (F):** it's in the title row and Django's bottom
   bar is gone. Edit page: History · Delete · Cancel · Save As… · Save and
   Continue Editing · Save. Add page: Cancel · Save and Continue Editing ·
@@ -79,7 +106,33 @@ _None yet._
 
 ## New issues found
 
-- **Builder validation bugs (being fixed next, task P):**
+- Save As in browsers without `requestSubmit` falls back to `form.submit()`,
+  which skips the submit event, so the browser's leave prompt would show.
+  Old browsers only. (I)
+- "Assign to machine…" on the add page is disabled with an inline style and
+  `href="#"`; the assign dialog task (K) replaces it. (I)
+
+- Dark admin theme: the "Edit Test List" title (`.tl-header-title`, `#333`)
+  is nearly invisible. Existed before; for the design pass. (H)
+- Below 1024px wide, admin pages in general scroll sideways. Not builder
+  specific. (H)
+- `/admin/password_change/` logs 404s and RequireJS errors for
+  `zxcvbn`/`password_strength`. Unrelated. (H)
+- Test List list page: the filter card (~860px) is taller than a 900px
+  window, so the page scrolls a little and the top of the results card goes
+  under the pinned header. Shortening or internally scrolling the filter card
+  would fix it. (H)
+
+- `RemovedInDjango50Warning` (filtering by an unsaved instance) still comes
+  from `TestForm.clean` (`qa/admin.py` ~1894) and `qa/signals.py:177`
+  (`on_test_save`), plus test helpers. Not builder code. (P)
+- The "duplicated macro names" error lists slugs after " :: " with bare
+  commas; terse for clinical staff. (P)
+- A user without delete permission on the inlines can mark a row removed in
+  the builder; validation now ignores that row but the formset won't delete
+  it. Edge case, not handled. (P)
+
+- **Builder validation bugs (fixed in task P):**
   - `TestListAdminForm.clean` counts every posted test and sublist,
     including rows marked for removal, so removing a duplicate test in the
     builder and saving still fails with "duplicated macro names". (F)

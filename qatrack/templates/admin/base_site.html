@@ -23,12 +23,56 @@
     display: none !important;
 }
 
-/* Fix the Django admin navigation sidebar height */
+/* Pinned admin header: the "QATrack+ administration" bar and the breadcrumbs
+   are wrapped in .qa-admin-top (see the header block below) and stay at the
+   top of the window while the page scrolls. Its height changes with the window
+   width (wrapping user links / long breadcrumb trails), so a small script below
+   measures it into --qa-admin-top-h; the nav sidebar, anchor jumps and the
+   Test List title row use it to sit just below the pinned bar.
+   z-index: above page content, the nav sidebar (15) and its toggle (20), below
+   Django's calendar/select2 popups (1051+) and the builder's dialogs (9999). */
+.qa-admin-top {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--body-bg);
+    box-shadow: 0 2px 4px rgba(50, 62, 70, .25);
+}
+/* Django sets #container to height: 100% and lets long pages overflow it; a
+   sticky child only stays pinned within its parent's box, so let the container
+   grow with the page instead. */
+#container {
+    height: auto;
+    min-height: 100%;
+}
+.qa-admin-top > nav:not(:has(*)) {
+    display: none;
+}
+html {
+    scroll-padding-top: calc(var(--qa-admin-top-h, 90px) + 12px);
+}
+
+/* Fix the Django admin navigation sidebar height; keep it below the pinned header */
 #nav-sidebar {
-    max-height: calc(100vh - 100px) !important; /* Constrain to viewport height */
+    max-height: calc(100vh - var(--qa-admin-top-h, 90px) - 16px) !important; /* Constrain to viewport height */
     overflow-y: auto !important; /* Enable internal scrolling */
     position: sticky !important;
-    top: 20px !important;
+    top: calc(var(--qa-admin-top-h, 90px) + 8px) !important;
+}
+
+/* Short or narrow windows: the header (which wraps onto several lines on small
+   screens) would take too much of the screen, so let it scroll away as usual. */
+@media (max-width: 767px), (max-height: 600px) {
+    .qa-admin-top {
+        position: static;
+    }
+    html {
+        scroll-padding-top: 0;
+    }
+    #nav-sidebar {
+        top: 8px !important;
+        max-height: calc(100vh - 16px) !important;
+    }
 }
 
 /* Ensure the navigation sidebar modules are scrollable */
@@ -58,6 +102,48 @@
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+{#
+Pinned header: wrap Django's header and the breadcrumbs in one sticky box.
+The breadcrumbs block is rendered here instead of in nav-breadcrumbs (emptied
+below), so templates that override "breadcrumbs" still fill it in. Popups
+never render the header block, so they have no pinned bar.
+#}
+{% block header %}
+<div class="qa-admin-top" id="qa-admin-top">
+    {{ block.super }}
+    <nav aria-label="{% translate 'Breadcrumbs' %}">
+        {% block breadcrumbs %}
+            {% if has_permission %}
+            <div class="breadcrumbs">
+                <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+                {% if title %} &rsaquo; {{ title }}{% endif %}
+            </div>
+            {% endif %}
+        {% endblock %}
+    </nav>
+</div>
+<script>
+(function () {
+    // Publish the pinned header's height for the CSS in extrastyle above
+    // (0 when a narrow/short window lets the header scroll away).
+    var top = document.getElementById("qa-admin-top");
+    if (!top) { return; }
+    var root = document.documentElement;
+    function measure() {
+        var pinned = window.getComputedStyle(top).position === "sticky";
+        var height = pinned ? Math.round(top.getBoundingClientRect().height) : 0;
+        root.style.setProperty("--qa-admin-top-h", height + "px");
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    if (window.ResizeObserver) {
+        new ResizeObserver(measure).observe(top);
+    }
+})();
+</script>
+{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
 
 {% block content %}{% endblock %}
 

@@ -62,7 +62,7 @@ Remove this file before the branch is merged.
     e.g. "Outline on Perform QC page".
   - Show the outline in the builder and in the preview, so the setting is
     visible without opening Perform QC.
-- [ ] **Warn about unsaved changes when leaving the page**
+- [x] **Warn about unsaved changes when leaving the page**
   - Track whether anything has changed: form fields, adding, removing or
     reordering tests and sublists, and attachments added or marked for
     removal.
@@ -206,7 +206,7 @@ Remove this file before the branch is merged.
     `{% url 'admin:qa_testlist_changelist' %}`, and take "QC" from
     `opts.app_config.verbose_name`, so they stay translated and work under a
     sub-path.
-- [ ] Sticky header across all of admin: when scrolling, keep the admin
+- [x] Sticky header across all of admin: when scrolling, keep the admin
       header (`#header`) and the breadcrumbs bar pinned to the top on every
       admin page, not only the Test List pages.
   - Put it in `qatrack/templates/admin/base_site.html` (its `extrastyle`

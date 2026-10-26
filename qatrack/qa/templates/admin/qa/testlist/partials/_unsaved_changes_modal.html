@@ -1,0 +1,26 @@
+{% load i18n %}
+{# "Unsaved changes" dialog for the test list change form, shown by the builder JS #}
+{# (Unsaved changes section of testlist_assets.html) before a same-tab link or a #}
+{# machine switch would drop edits that haven't been saved. The message and the #}
+{# leave button's label are filled in from the data-* strings below. #}
+<div class="tl-modal-backdrop" id="tl-unsaved-modal" hidden
+     data-msg-leave="{% trans "You have changes that haven't been saved. Leave this page and lose them?" %}"
+     data-label-leave="{% trans "Leave Without Saving" %}"
+     data-msg-switch="{% trans "You have changes that haven't been saved. Switch to %(label)s and lose them?" %}"
+     data-label-switch="{% trans "Switch Without Saving" %}">
+  <div class="tl-modal-dialog tl-unsaved-dialog" role="dialog" aria-modal="true"
+       aria-labelledby="tl-unsaved-title" aria-describedby="tl-unsaved-message">
+    <div class="tl-modal-header">
+      <h3 class="tl-modal-title" id="tl-unsaved-title">
+        <i class="fa fa-exclamation-circle" aria-hidden="true"></i> {% trans "Unsaved Changes" %}
+      </h3>
+    </div>
+    <div class="tl-modal-body">
+      <p class="tl-unsaved-message" id="tl-unsaved-message">{% trans "You have changes that haven't been saved. Leave this page and lose them?" %}</p>
+    </div>
+    <div class="tl-modal-footer">
+      <button type="button" class="tl-btn-unsaved-stay" id="tl-unsaved-stay">{% trans "Stay on This Page" %}</button>
+      <button type="button" class="tl-btn-unsaved-leave" id="tl-unsaved-leave">{% trans "Leave Without Saving" %}</button>
+    </div>
+  </div>
+</div>

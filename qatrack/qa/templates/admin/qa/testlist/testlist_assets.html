@@ -34,6 +34,26 @@ step. The live description preview and test list builder are driven by htmx.
   margin: 0 0 12px;
   font-family: var(--tl-font);
 }
+/* The title row stays pinned just below the admin header (base_site.html measures
+   its height into --qa-admin-top-h); the scope bar below it scrolls away.
+   Solid page-coloured background so rows don't show through; z-index below the
+   admin header (1000) and the builder dialogs (9999). */
+.tl-header-bar {
+  position: sticky;
+  top: var(--qa-admin-top-h, 90px);
+  z-index: 900;
+  padding: 10px 0;
+  background: var(--body-bg);
+  box-shadow: 0 1px 0 var(--hairline-color);
+}
+/* Keep anchor jumps / focused fields clear of the pinned title row too. */
+html:has(.tl-header-bar) { scroll-padding-top: calc(var(--qa-admin-top-h, 90px) + 72px); }
+/* At 1024px and below the admin header is taller and the buttons wrap, so the
+   two pinned rows would cover over a quarter of the window: let this one scroll. */
+@media (max-width: 1024px), (max-height: 700px) {
+  .tl-header-bar { position: static; padding: 0; box-shadow: none; }
+  html:has(.tl-header-bar) { scroll-padding-top: calc(var(--qa-admin-top-h, 90px) + 12px); }
+}
 .tl-header-left {
   display: flex;
   align-items: baseline;
@@ -1401,6 +1421,51 @@ input[type="text"].tl-search-input:focus,
   background: #2b78a9;
 }
 
+/* ---- Unsaved Changes Dialog ---- */
+.tl-unsaved-dialog {
+  max-width: 460px;
+  border-radius: 0;
+}
+.tl-unsaved-dialog .tl-modal-title {
+  color: #444;
+}
+.tl-unsaved-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+}
+.tl-btn-unsaved-stay,
+.tl-btn-unsaved-leave {
+  border-radius: 3px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 2px 2px 2px #ddd;
+  cursor: pointer;
+}
+.tl-btn-unsaved-stay {
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
+  color: #444;
+}
+.tl-btn-unsaved-stay:hover {
+  background: #e7e7e7;
+}
+.tl-btn-unsaved-leave {
+  background: #fff;
+  border: 1px solid #e8c4be;
+  color: #c0392b;
+}
+.tl-btn-unsaved-leave:hover {
+  background: #fbe9e7;
+}
+.tl-btn-unsaved-stay:focus-visible,
+.tl-btn-unsaved-leave:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
+
 /* ---- Attachments Card (Matching Fault Logs Edit Mode) ---- */
 .tl-attachments-card {
   background: #fff;
@@ -1735,7 +1800,7 @@ ul.messagelist li.error {
 .paginator { box-sizing:border-box; width:100%; padding:10px 12px; font-size:13px; color:var(--tl-muted); border-top:1px solid var(--tl-line-soft); background:#fff; }
 .paginator a:link, .paginator a:visited { color:var(--tl-blue); background:transparent; }
 .paginator .this-page { font-weight:700; color:#444; }
-#changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:16px; width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
+#changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:calc(var(--qa-admin-top-h, 0px) + 16px); width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
 #changelist-filter h2 { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:600; color:#444; margin:0; padding:10px 12px; border-bottom:1px solid var(--tl-line-soft); background:#fff; text-transform:none; }
 #changelist-filter h2::before { font-family:FontAwesome; content:"\f0b0"; font-size:14px; color:#555; }
 #changelist-filter #changelist-filter-clear { margin:0; padding:8px 12px 0; background:transparent; border:0; }
@@ -3005,7 +3070,16 @@ ul.messagelist li.error {
     if (!select || select.hasAttribute("data-tl-init")) { return; }
     select.setAttribute("data-tl-init", "1");
 
-    select.addEventListener("change", function () { applyScope(select); });
+    select.addEventListener("change", function () {
+      // Unsaved changes: switching machines with unsaved edits asks first (see beforeScopeChange).
+      var opt = select.options[select.selectedIndex];
+      var label = opt ? opt.textContent.trim() : "";
+      if (!beforeScopeChange(select.value, label, function () {
+        select.value = scopeState.unitId || "base";
+        select.focus();
+      })) { return; }
+      applyScope(select);
+    });
     observeScopeRows();
 
     // Reopen on the machine in the URL (?unit=<id>), e.g. after a reload or
@@ -3241,6 +3315,225 @@ ul.messagelist li.error {
     });
   }
 
+  // ---- Unsaved changes ----
+  // Warns before leaving the edit page with changes that haven't been saved.
+  // "Changed" means the main form's values differ from a snapshot taken once the
+  // builder has set the page up (row sorting, syncOrder). The builder keeps every
+  // edit in form inputs (hidden order and DELETE inputs, the inputs of added rows,
+  // attachment file inputs and DELETE boxes), so comparing the serialised form
+  // covers field edits, added/removed/reordered tests and sublists, outline
+  // checkboxes and attachments. Switching Editor/Preview and links that open in a
+  // new tab don't leave the page, so they never ask.
+  var unsaved = {
+    form: null, snapshot: null, forceChanged: false, allowLeave: false,
+    submitEvent: null, open: false, onLeave: null, onStay: null
+  };
+  // The scope dropdown only changes what's shown, and TOTAL_FORMS only counts
+  // rows (an added-then-removed attachment shouldn't count as a change).
+  var UNSAVED_SKIP_NAMES = { csrfmiddlewaretoken: true, tl_scope_unit: true };
+
+  function unsavedMainForm() {
+    var card = document.getElementById("tl-tests-card") || document.getElementById("tl-details-card");
+    return card ? card.closest("form") : null;
+  }
+
+  // Sorted name=value pairs, like FormData, but leaving out the inputs of the
+  // builder's dialogs (duplicate test, description, Save As), which sit inside
+  // the main form without being part of the test list.
+  function serialiseUnsavedForm(form) {
+    var pairs = [];
+    Array.prototype.forEach.call(form.elements, function (el) {
+      var name = el.name;
+      if (!name || el.disabled || UNSAVED_SKIP_NAMES[name] || /-TOTAL_FORMS$/.test(name)) { return; }
+      if (el.closest(".tl-modal-backdrop, #tl-modal-container")) { return; }
+      var type = (el.type || "").toLowerCase();
+      if (type === "submit" || type === "button" || type === "reset" || type === "image") { return; }
+      if ((type === "checkbox" || type === "radio") && !el.checked) { return; }
+      if (type === "file") {
+        Array.prototype.forEach.call(el.files || [], function (f) {
+          pairs.push(name + "=" + f.name + ":" + f.size);
+        });
+        return;
+      }
+      if (el.tagName === "SELECT") {
+        Array.prototype.forEach.call(el.options, function (o) {
+          if (o.selected) { pairs.push(name + "=" + o.value); }
+        });
+        return;
+      }
+      pairs.push(name + "=" + el.value);
+    });
+    pairs.sort();
+    return pairs.join("\n");
+  }
+
+  function hasUnsavedChanges() {
+    if (!unsaved.form || unsaved.snapshot === null) { return false; }
+    return unsaved.forceChanged || serialiseUnsavedForm(unsaved.form) !== unsaved.snapshot;
+  }
+
+  function unsavedEls() {
+    var modal = document.getElementById("tl-unsaved-modal");
+    if (!modal) { return null; }
+    return {
+      modal: modal,
+      message: document.getElementById("tl-unsaved-message"),
+      stay: document.getElementById("tl-unsaved-stay"),
+      leave: document.getElementById("tl-unsaved-leave")
+    };
+  }
+
+  function unsavedMsg(key, fallback) {
+    var els = unsavedEls();
+    return (els && els.modal.getAttribute("data-" + key)) || gettext(fallback);
+  }
+
+  function leaveWithoutPrompt(url) {
+    unsaved.allowLeave = true;
+    window.location.href = url;
+  }
+
+  // opts: message, leaveLabel, onLeave, onStay
+  function openUnsavedDialog(opts) {
+    var els = unsavedEls();
+    if (!els) {
+      if (window.confirm(opts.message)) { opts.onLeave(); } else if (opts.onStay) { opts.onStay(); }
+      return;
+    }
+    els.message.textContent = opts.message;
+    els.leave.textContent = opts.leaveLabel;
+    unsaved.onLeave = opts.onLeave;
+    unsaved.onStay = opts.onStay || null;
+    unsaved.open = true;
+    els.modal.hidden = false;
+    els.stay.focus();
+  }
+
+  function closeUnsavedDialog(leave) {
+    if (!unsaved.open) { return; }
+    var els = unsavedEls();
+    var callback = leave ? unsaved.onLeave : unsaved.onStay;
+    unsaved.open = false;
+    unsaved.onLeave = null;
+    unsaved.onStay = null;
+    if (els) { els.modal.hidden = true; }
+    if (callback) { callback(); }
+  }
+
+  // Called by initScopeSelect before switching machines. Machine mode shows saved
+  // values and locks shared settings, so with unsaved changes it's treated like
+  // leaving: ask, then reload at the chosen scope (dropping the changes), or put
+  // the dropdown back. Returns false when the switch must wait for the answer.
+  function beforeScopeChange(newValue, label, revert) {
+    if (!hasUnsavedChanges()) { return true; }
+    openUnsavedDialog({
+      message: interpolate(
+        unsavedMsg("msg-switch", "You have changes that haven't been saved. Switch to %(label)s and lose them?"),
+        { label: label }, true),
+      leaveLabel: unsavedMsg("label-switch", "Switch Without Saving"),
+      onStay: revert,
+      onLeave: function () {
+        var url = new URL(window.location.href);
+        if (newValue && newValue !== "base") {
+          url.searchParams.set("unit", newValue);
+        } else {
+          url.searchParams.delete("unit");
+        }
+        leaveWithoutPrompt(url.toString());
+      }
+    });
+    return false;
+  }
+
+  function initUnsavedChanges() {
+    var form = unsavedMainForm();
+    if (!form || unsaved.form) { return; }
+    unsaved.form = form;
+    unsaved.snapshot = serialiseUnsavedForm(form);
+    // Re-rendered after a failed save: the user's edits still aren't saved.
+    unsaved.forceChanged = !!document.querySelector(".errornote, .errorlist");
+  }
+
+  // Closing the tab, reloading, typing a URL, browser back: the browser's own prompt.
+  window.addEventListener("beforeunload", function (e) {
+    if (unsaved.allowLeave) { return; }
+    // A real save of the main form (one nothing cancelled) never asks.
+    if (unsaved.submitEvent && !unsaved.submitEvent.defaultPrevented) { return; }
+    if (!hasUnsavedChanges()) { return; }
+    e.preventDefault();
+    e.returnValue = "";
+    return "";
+  });
+
+  // Capture phase, so this sees every submit of the main form (Save, Save and
+  // Continue Editing, Save As…); beforeunload checks defaultPrevented later, so a
+  // submit some handler cancels re-arms the warning.
+  document.addEventListener("submit", function (e) {
+    if (unsaved.form && e.target === unsaved.form) { unsaved.submitEvent = e; }
+  }, true);
+
+  // Same-tab links that leave the page (Cancel, breadcrumbs, History, Delete,
+  // header and sidebar links): ask in our own dialog.
+  document.addEventListener("click", function (e) {
+    if (e.defaultPrevented || !unsaved.form || !e.target.closest) { return; }
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) { return; }
+    var link = e.target.closest("a[href]");
+    if (!link) { return; }
+    var target = (link.getAttribute("target") || "").toLowerCase();
+    if (target && target !== "_self") { return; }
+    if (link.hasAttribute("download")) { return; }
+    var href = (link.getAttribute("href") || "").trim();
+    if (!href || href.charAt(0) === "#" || /^javascript:/i.test(href)) { return; }
+    if (link.closest(".tl-modal-backdrop, #tl-modal-container")) { return; }
+    if (!hasUnsavedChanges()) { return; }
+    e.preventDefault();
+    openUnsavedDialog({
+      message: unsavedMsg("msg-leave", "You have changes that haven't been saved. Leave this page and lose them?"),
+      leaveLabel: unsavedMsg("label-leave", "Leave Without Saving"),
+      onStay: function () { link.focus(); },
+      onLeave: function () { leaveWithoutPrompt(link.href); }
+    });
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!unsaved.open || !e.target.closest) { return; }
+    var els = unsavedEls();
+    if (!els) { return; }
+    if (e.target === els.modal || e.target.closest("#tl-unsaved-stay")) {
+      e.preventDefault();
+      closeUnsavedDialog(false);
+    } else if (e.target.closest("#tl-unsaved-leave")) {
+      e.preventDefault();
+      closeUnsavedDialog(true);
+    }
+  });
+
+  // Esc = Stay; Tab stays on the dialog's two buttons. Enter activates the
+  // focused button natively.
+  document.addEventListener("keydown", function (e) {
+    if (!unsaved.open) { return; }
+    var els = unsavedEls();
+    if (!els) { return; }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeUnsavedDialog(false);
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      var buttons = [els.stay, els.leave];
+      var i = buttons.indexOf(document.activeElement);
+      var next = e.shiftKey ? (i <= 0 ? buttons.length - 1 : i - 1) : (i === buttons.length - 1 ? 0 : i + 1);
+      buttons[next].focus();
+    }
+  });
+
+  // Back/forward cache: the page is live again, so arm the warning again.
+  window.addEventListener("pageshow", function (e) {
+    if (!e.persisted) { return; }
+    unsaved.allowLeave = false;
+    unsaved.submitEvent = null;
+    closeUnsavedDialog(false);
+  });
+
   // HTMX afterSwap re-init
   document.addEventListener("htmx:afterSwap", function () {
     initSortables();
@@ -3263,6 +3556,7 @@ ul.messagelist li.error {
     initAttachmentsSection();
     initScopeSelect();
     initViewTabs();
+    initUnsavedChanges();  // last: snapshot the form once the builder has set it up
   });
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
@@ -3278,6 +3572,7 @@ ul.messagelist li.error {
       initAttachmentsSection();
       initScopeSelect();
       initViewTabs();
+      initUnsavedChanges();
     }, 20);
   }
 })();

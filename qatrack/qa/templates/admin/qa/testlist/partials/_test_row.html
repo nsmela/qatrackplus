@@ -4,7 +4,9 @@
     data-test-id="{{ test_meta.id }}"
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
-    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
+    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}"
+    {# a row the user removed before a failed save: hidden exactly as the Remove button leaves it #}
+    {% if inline_admin_form.form.DELETE.value %}style="opacity: 0; display: none;"{% endif %}>
   <td class="tl-cell-drag">
     <i class="fa fa-bars tl-drag-handle" title="{% trans "Drag to reorder" %}" aria-hidden="true"></i>
     {# Django formset hidden inputs #}
@@ -23,7 +25,7 @@
       <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
       <input type="hidden" name="{{ prefix }}-{{ index }}-test" id="id_{{ prefix }}-{{ index }}-test" value="{{ test_meta.id }}">
       <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-order-input">
-      <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
+      <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;"{% if inline_admin_form.form.DELETE.value %} checked{% endif %}>
     {% else %}
       <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
       <input type="hidden" name="{{ prefix }}-{{ index }}-test_list" id="id_{{ prefix }}-{{ index }}-test_list" value="{{ test_list_id|default:'' }}">

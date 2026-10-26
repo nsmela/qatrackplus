@@ -560,6 +560,18 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
         return False
 
 
+def _posted_delete(data, form_prefix):
+    """True when the posted `<form_prefix>-DELETE` box is ticked.
+
+    Reads the value the same way a formset's DELETE field does (a checkbox
+    cleaned by a BooleanField), so "on", "true", "1" count as ticked and
+    "false" / missing do not.
+    """
+    name = "%s-DELETE" % form_prefix
+    value = forms.CheckboxInput().value_from_datadict(data, {}, name)
+    return forms.BooleanField(required=False).to_python(value)
+
+
 class TestListAdminForm(forms.ModelForm):
     """Form for handling validation of TestList creation/editing"""
 
@@ -572,13 +584,26 @@ class TestListAdminForm(forms.ModelForm):
             )
         return slug
 
+    def _posted_ids(self, prefix, field):
+        """Return the ids posted in `<prefix>-<n>-<field>`, leaving out rows marked for removal.
+
+        A row the user removed in the builder is still posted (with its DELETE
+        box ticked) so Django can delete it; it must not count towards the
+        duplicate-name and maximum-size checks.
+        """
+        pattern = re.compile(r"^%s-(\d+)-%s$" % (re.escape(prefix), re.escape(field)))
+        ids = []
+        for key, value in self.data.items():
+            match = pattern.match(key)
+            if match and value and not _posted_delete(self.data, "%s-%s" % (prefix, match.group(1))):
+                ids.append(value)
+        return ids
+
     def clean(self):
-        retest = re.compile(r"^testlistmembership_set-\d+-test$")
-        test_ids = [x[1] for x in self.data.items() if retest.findall(x[0]) and x[1]]
+        test_ids = self._posted_ids("testlistmembership_set", "test")
         slugs = list(models.Test.objects.filter(id__in=test_ids).values_list("slug", flat=True))
 
-        rechild = re.compile(r"^children-\d+-child$")
-        child_ids = [x[1] for x in self.data.items() if rechild.findall(x[0]) and x[1]]
+        child_ids = self._posted_ids("children", "child")
         for tl in models.TestList.objects.filter(id__in=child_ids):
             slugs.extend(tl.all_tests().values_list("slug", flat=True))
 
@@ -775,8 +800,9 @@ class TestListMembershipInlineFormSet(forms.models.BaseInlineFormSet):
 
     def __init__(self, *args, **kwargs):
         instance = kwargs.get("instance")
-        if instance is None:
+        if instance is None or instance.pk is None:
             # When creating a new TestList, there are no existing memberships
+            # (and filtering by an unsaved instance is deprecated in Django)
             qs = kwargs["queryset"].none()
         else:
             qs = kwargs["queryset"].filter(test_list=instance).select_related("test", "test__category")
@@ -796,8 +822,9 @@ class SublistInlineFormSet(forms.models.BaseInlineFormSet):
 
     def __init__(self, *args, **kwargs):
         instance = kwargs.get("instance")
-        if instance is None:
+        if instance is None or instance.pk is None:
             # When creating a new TestList, there are no existing sublists
+            # (and filtering by an unsaved instance is deprecated in Django)
             qs = kwargs["queryset"].none()
         else:
             qs = kwargs["queryset"].filter(parent=instance).select_related("child")
@@ -858,7 +885,7 @@ def macro_name(obj):
 
 def _unsaved_and_deleted(form):
     """True for a posted builder row that isn't in the database and was marked for removal."""
-    return form.is_bound and not form.instance.pk and bool(form.data.get(form.add_prefix("DELETE")))
+    return form.is_bound and not form.instance.pk and _posted_delete(form.data, form.prefix)
 
 
 class TestListMembershipForm(forms.ModelForm):
