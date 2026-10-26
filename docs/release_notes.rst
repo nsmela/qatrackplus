@@ -154,6 +154,37 @@ Deployment and Upgrade Notes
   that took longer than Docker allowed, so ``docker compose up`` gave up and never
   started nginx. ``django`` now has up to 10 minutes.
 
+* **Docker: links in emails and reports point to your site.** Django's site
+  record starts as ``example.com``, and QATrack+ builds the links in its emails and
+  reports from it, so on Docker they pointed to ``http://example.com/...`` unless an
+  administrator changed the record. Now that scheduled emails are sent, QATrack+
+  fills the record in on start: from ``SITE_DOMAIN`` and ``SITE_NAME`` in ``.env``
+  if set (every start), otherwise once from the first host name in
+  ``ALLOWED_HOSTS`` while the record is still ``example.com``. A domain and name
+  you have already set in the admin are kept, unless ``SITE_DOMAIN`` or
+  ``SITE_NAME`` is set in ``.env``: those replace them on every start. So if you
+  manage them in the admin, leave both commented out when you compare your
+  ``.env`` with ``.env.example``. ``SITE_NAME`` sets the name shown at the top of
+  each page.
+
+* **Docker: backups can be restored, and an interrupted backup can't pass for a
+  finished one.** The ``backup`` service now writes each file under a temporary
+  name, reads it back in full, and renames it only once it is complete. It
+  refuses to start while another backup or a restore is running. Backups are
+  now readable only by root on the server, and the first backup after the
+  upgrade does the same to older ones, so copy them with ``sudo``. Two new
+  commands, ``restore-db`` and ``restore-media``, put a backup back after checking
+  it and asking you to confirm (see :ref:`docker_backups`). They unpack the
+  backup beside your current data and only then swap it in, so a restore that
+  fails or is stopped leaves your data as it was; while one runs, the disk needs
+  room for that second copy. The ``backup`` service can still only read the
+  uploaded files; ``restore-media`` runs as its own service, which can write to
+  them, and only when you ask for it. Backups made by QATrack+ 4.0.0 and 4.0.1
+  can be restored. The backup service's PostgreSQL tools are now pinned to
+  version 16, the version that made those backups: PostgreSQL 15's tools cannot
+  read them. The image now installs just those client tools on Alpine, rather
+  than starting from the PostgreSQL server image.
+
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to
   each container and starts again empty when the container is recreated, for
