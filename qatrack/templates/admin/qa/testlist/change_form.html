@@ -412,10 +412,13 @@
 
             <!-- Browse Button (Matching Fault Logs) -->
             <div class="tl-browse-wrap margin-top-10">
-              <label class="btn btn-default btn-sm btn-flat tl-browse-btn" title="{% trans 'Choose files to attach' %}">
+              {# A real button, so it can be reached and pressed from the keyboard; it opens the hidden file input. #}
+              <button type="button" class="btn btn-default btn-sm btn-flat tl-browse-btn" id="tl-browse-btn"
+                      aria-controls="id_tl-new-attachments" title="{% trans 'Choose files to attach' %}">
                 <i class="fa fa-folder-open text-info" aria-hidden="true"></i> {% trans "Browse…" %}
-                <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple style="display:none;">
-              </label>
+              </button>
+              <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple hidden tabindex="-1"
+                     aria-label="{% trans 'Choose files to attach' %}">
             </div>
           </div>
         </div>
@@ -429,7 +432,26 @@
     {% endif %}
   {% endfor %}
 
-  {# Modal container for dynamic HTMX modals #}
+{% endblock %}
+
+{% block after_related_objects %}
+  {% if change and original.pk and has_add_permission and not tl_saveas_retry %}
+    {% include "admin/qa/testlist/partials/_save_as_modal.html" %}
+  {% endif %}
+  {% include "admin/qa/testlist/partials/_unsaved_changes_modal.html" %}
+{% endblock %}
+
+{# One save button group, in the title row at the top (.tl-header-actions), so Django's bottom submit row isn't shown. #}
+{% block submit_buttons_bottom %}{% endblock %}
+
+{% block content %}
+{{ block.super }}
+{# The builder's own dialogs go here, AFTER the change form closes: the Duplicate Test and #}
+{# Description dialogs have forms of their own, and a form nested in the change form would be #}
+{# dropped by the browser, so their buttons would save the whole test list instead. Keeping the #}
+{# search box out of the form also stops Enter in it from submitting the test list. #}
+<div id="tl-dialogs-outside-form">
+  {# Modal container for dynamic HTMX modals (Duplicate Test, Description) #}
   <div id="tl-modal-container"></div>
 
   {# Search / Selection Modal for Tests and Sublists #}
@@ -459,16 +481,6 @@
       </div>
     </div>
   </div>
-
+</div>
 {% endblock %}
-
-{% block after_related_objects %}
-  {% if change and original.pk and has_add_permission and not tl_saveas_retry %}
-    {% include "admin/qa/testlist/partials/_save_as_modal.html" %}
-  {% endif %}
-  {% include "admin/qa/testlist/partials/_unsaved_changes_modal.html" %}
-{% endblock %}
-
-{# One save button group, in the title row at the top (.tl-header-actions), so Django's bottom submit row isn't shown. #}
-{% block submit_buttons_bottom %}{% endblock %}
 

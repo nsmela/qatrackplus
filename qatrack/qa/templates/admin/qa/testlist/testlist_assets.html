@@ -793,6 +793,21 @@ tr.tl-dragging {
 .tl-test-desc:hover {
   color: var(--tl-blue);
 }
+/* The editable description is a <button> (keyboard access): drop the browser's button look. */
+button.tl-test-desc {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+}
+button.tl-test-desc:focus-visible,
+.tl-add-desc-btn:focus-visible,
+.tl-browse-btn:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 2px;
+}
 .tl-test-desc.tl-test-desc-readonly,
 .tl-test-desc.tl-test-desc-readonly:hover {
   cursor: default;
@@ -2016,6 +2031,7 @@ ul.messagelist li.error {
     "Couldn't create the test. Nothing was saved. Try again.": "{{ _("Couldn't create the test. Nothing was saved. Try again.")|escapejs }}",
     "Couldn't load the list. Close this dialog and try again.": "{{ _("Couldn't load the list. Close this dialog and try again.")|escapejs }}",
     "Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.": "{{ _("Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.")|escapejs }}",
+    "Couldn't save the description. Nothing was saved. Try again.": "{{ _("Couldn't save the description. Nothing was saved. Try again.")|escapejs }}",
     "Create & Add Test": "{{ _('Create & Add Test')|escapejs }}",
     "Creating…": "{{ _('Creating…')|escapejs }}",
     "Enter a name for the new test list.": "{{ _('Enter a name for the new test list.')|escapejs }}",
@@ -2218,6 +2234,7 @@ ul.messagelist li.error {
     activeSwapCard = swapCard || null;
     var modal = document.getElementById("tl-search-modal");
     if (!modal) { return; }
+    if (modal.hidden) { builderDialogFocus.searchOpener = document.activeElement; }
 
     var title = document.getElementById("tl-search-title-text");
     var input = document.getElementById("tl-search-input");
@@ -2523,8 +2540,7 @@ ul.messagelist li.error {
       var testId = testItem.getAttribute("data-test-id") || (row && row.getAttribute("data-test-id"));
       if (testId) {
         addTestRow(testId);
-        var modal = document.getElementById("tl-search-modal");
-        if (modal) { modal.hidden = true; }
+        closeSearchModal();
       }
       return;
     }
@@ -2537,8 +2553,7 @@ ul.messagelist li.error {
       var childId = sublistItem.getAttribute("data-child-id") || (sRow && sRow.getAttribute("data-child-id"));
       if (childId) {
         addSublistCard(childId);
-        var sModal = document.getElementById("tl-search-modal");
-        if (sModal) { sModal.hidden = true; }
+        closeSearchModal();
       }
       return;
     }
@@ -2597,6 +2612,7 @@ ul.messagelist li.error {
           fetch(builderUrl("duplicate-test") + "?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
             .then(function(res) { return res.text(); })
             .then(function(html) {
+              builderDialogFocus.containerOpener = dupBtn;
               modalContainer.innerHTML = html;
               var dInput = document.getElementById("id_dup_name");
               if (dInput) { dInput.focus(); dInput.select(); }
@@ -2611,16 +2627,22 @@ ul.messagelist li.error {
 
     // Modal close buttons
     if (e.target.matches("[data-search-close]") || e.target.closest("[data-search-close]")) {
-      var sModalClose = document.getElementById("tl-search-modal");
-      if (sModalClose) { sModalClose.hidden = true; }
+      closeSearchModal();
     }
     if (e.target.matches("[data-modal-close]") || e.target.closest("[data-modal-close]")) {
-      var dModalClose = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop") || e.target.closest(".tl-modal-backdrop");
-      if (dModalClose) { dModalClose.remove(); }
+      if (!closeContainerDialog()) {
+        var dModalClose = e.target.closest(".tl-modal-backdrop");
+        if (dModalClose) { dModalClose.remove(); }
+      }
     }
     if (e.target.classList && e.target.classList.contains("tl-modal-backdrop")) {
-      e.target.hidden = true;
-      if (e.target.id === "tl-desc-modal-backdrop" || e.target.id === "tl-duplicate-modal-backdrop") { e.target.remove(); }
+      if (e.target.id === "tl-search-modal") {
+        closeSearchModal();
+      } else if (e.target.id === "tl-desc-modal-backdrop" || e.target.id === "tl-duplicate-modal-backdrop") {
+        closeContainerDialog();
+      } else {
+        e.target.hidden = true;
+      }
     }
   });
 
@@ -2672,6 +2694,7 @@ ul.messagelist li.error {
               tbody.appendChild(newRow);
             }
             newRow.style.animation = "tl-pulse-highlight 1.5s ease";
+            if (window.htmx) { htmx.process(newRow); }  // its description button uses hx-get
           }
         }
         var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
@@ -2682,8 +2705,7 @@ ul.messagelist li.error {
         initSortables();
         syncOrder();
         updateCounts();
-        var modalBackdrop = document.getElementById("tl-duplicate-modal-backdrop");
-        if (modalBackdrop) { modalBackdrop.remove(); }
+        closeContainerDialog();
       })
       .catch(function(err) {
         // a network failure (TypeError) has the browser's own English message
@@ -2708,13 +2730,123 @@ ul.messagelist li.error {
     }
   });
 
-  // Close modals on Esc
+  // ---- Builder dialog focus (search, Duplicate Test, Description) ----
+  // Like the Save As, Assign and Unsaved dialogs: the first field gets focus on
+  // open, Tab stays inside the dialog, Esc closes it, and focus goes back to the
+  // control that opened it. The search dialog and #tl-modal-container sit after
+  // the change form (see change_form.html), never inside it.
+  var builderDialogFocus = { searchOpener: null, containerOpener: null, containerWrapId: null };
+
+  function focusIfThere(el) {
+    if (el && el.isConnected && typeof el.focus === "function") {
+      el.focus();
+      return document.activeElement === el;
+    }
+    return false;
+  }
+
+  function closeSearchModal() {
+    var modal = document.getElementById("tl-search-modal");
+    if (!modal || modal.hidden) { return; }
+    modal.hidden = true;
+    var opener = builderDialogFocus.searchOpener;
+    builderDialogFocus.searchOpener = null;
+    focusIfThere(opener);
+  }
+
+  // Closes the Duplicate Test or Description dialog; false if neither was open.
+  function closeContainerDialog() {
+    var container = document.getElementById("tl-modal-container");
+    var backdrop = container && container.querySelector(".tl-modal-backdrop");
+    if (!backdrop) { return false; }
+    container.innerHTML = "";
+    var opener = builderDialogFocus.containerOpener;
+    var wrap = builderDialogFocus.containerWrapId ? document.getElementById(builderDialogFocus.containerWrapId) : null;
+    builderDialogFocus.containerOpener = null;
+    builderDialogFocus.containerWrapId = null;
+    // A saved description replaces its cell, so fall back to the new button there.
+    if (!focusIfThere(opener) && wrap) { focusIfThere(wrap.querySelector("button")); }
+    return true;
+  }
+
+  // Description dialog (htmx): remember its opener, and don't open it in machine
+  // mode (the cell can't be clicked there, but a keyboard press would still fire).
+  document.addEventListener("htmx:beforeRequest", function (e) {
+    var elt = e.detail && e.detail.elt;
+    if (!elt || !elt.matches || !elt.matches(".tl-test-desc, .tl-add-desc-btn")) { return; }
+    if (document.body.classList.contains("tl-mode-machine")) {
+      e.preventDefault();
+      return;
+    }
+    var wrap = elt.closest(".tl-test-desc-wrap");
+    builderDialogFocus.containerOpener = elt;
+    builderDialogFocus.containerWrapId = wrap ? wrap.id : null;
+  });
+
+  document.addEventListener("htmx:afterSwap", function (e) {
+    if (!e.detail || !e.detail.target || e.detail.target.id !== "tl-modal-container") { return; }
+    var textarea = document.getElementById("tl-modal-desc-input");
+    if (textarea) { textarea.focus(); }
+  });
+
+  // Description saved: the cell was swapped in place; close the dialog. On an
+  // error, say so in the dialog (htmx doesn't swap error responses).
+  document.addEventListener("htmx:afterRequest", function (e) {
+    var elt = e.detail && e.detail.elt;
+    if (!elt || !elt.matches || !elt.matches("form[data-modal-form]")) { return; }
+    if (e.detail.successful) {
+      closeContainerDialog();
+      return;
+    }
+    var errorBox = document.getElementById("tl-desc-error-msg");
+    var xhr = e.detail.xhr;
+    var text = xhr && xhr.status ? (xhr.responseText || "") : "";
+    var msg = text && !/^\s*</.test(text) ? text : gettext("Couldn't save the description. Nothing was saved. Try again.");
+    if (errorBox) {
+      errorBox.textContent = msg;
+      errorBox.hidden = false;
+    }
+  });
+
+  // Enter in the search box only searches; it must never submit anything.
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target && e.target.id === "tl-search-input") { e.preventDefault(); }
+  });
+
+  // Close on Esc
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       var sModalEsc = document.getElementById("tl-search-modal");
-      if (sModalEsc && !sModalEsc.hidden) { sModalEsc.hidden = true; }
-      var dModalEsc = document.getElementById("tl-desc-modal-backdrop") || document.getElementById("tl-duplicate-modal-backdrop");
-      if (dModalEsc) { dModalEsc.remove(); }
+      if (sModalEsc && !sModalEsc.hidden) { closeSearchModal(); }
+      closeContainerDialog();
+    }
+  });
+
+  // Keep Tab inside the open builder dialog (the Unsaved dialog handles its own).
+  var DIALOG_FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]):not([type='hidden'])," +
+    " select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab" || e.defaultPrevented) { return; }
+    if (document.querySelector("#tl-unsaved-modal:not([hidden])")) { return; }
+    var open = document.querySelectorAll(".tl-modal-backdrop:not([hidden])");
+    var modal = open.length ? open[open.length - 1] : null;
+    if (!modal) { return; }
+    var items = Array.prototype.filter.call(modal.querySelectorAll(DIALOG_FOCUSABLE), function (el) {
+      return el.getClientRects().length > 0;
+    });
+    if (!items.length) { e.preventDefault(); return; }
+    var first = items[0];
+    var last = items[items.length - 1];
+    var active = document.activeElement;
+    if (!modal.contains(active)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    } else if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
     }
   });
 
@@ -3158,6 +3290,16 @@ ul.messagelist li.error {
     var totalFormsInput = document.getElementById("id_" + prefix + "-TOTAL_FORMS");
     var pendingList = document.getElementById("pending-attachments-list");
     var formsetInputsContainer = document.getElementById("new-attachments-formset-inputs");
+
+    // Browse… is a real button (keyboard access); it opens the hidden file input.
+    var browseBtn = document.getElementById("tl-browse-btn");
+    if (browseBtn && !browseBtn.hasAttribute("data-tl-init")) {
+      browseBtn.setAttribute("data-tl-init", "");
+      browseBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        fileInput.click();
+      });
+    }
 
     function updateAttachmentCounts() {
       var existingVisible = document.querySelectorAll("#existing-attachments-list .attachment-card:not([style*='display: none'])").length;
@@ -3826,8 +3968,9 @@ ul.messagelist li.error {
   }
 
   // Sorted name=value pairs, like FormData, but leaving out the inputs of the
-  // builder's dialogs (duplicate test, description, Save As), which sit inside
-  // the main form without being part of the test list.
+  // builder's dialogs that sit inside the main form without being part of the
+  // test list (Save As). The Duplicate Test, Description and search dialogs are
+  // rendered after the form, so they're never in form.elements at all.
   function serialiseUnsavedForm(form) {
     var pairs = [];
     Array.prototype.forEach.call(form.elements, function (el) {

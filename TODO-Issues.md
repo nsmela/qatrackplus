@@ -144,7 +144,13 @@ _None yet._
 
 ## New issues found
 
-- **Serious, existed before this work:** `#tl-modal-container` is inside the
+- `qatrack/templates/admin/change_form.html` uses `{{ opts.module_name }}`,
+  which doesn't exist in Django 4, so every admin change form gets
+  `id="_form"`. (Q)
+- After "Change" on a sublist, the new card replaces the old one, so focus
+  can't return to the button that opened the dialog. (Q)
+
+- **Serious, existed before this work (fixed in task Q):** `#tl-modal-container` is inside the
   main change form, so the browser drops the nested `<form>` in the
   Duplicate and Description dialogs. "Create & Add Test" (and probably
   "Save Description") submits and saves the whole test list instead. Being

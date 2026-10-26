@@ -8,16 +8,17 @@
     </div>
   {% endif %}
 {% elif test_meta.description %}
-  <div class="tl-test-desc"
-       hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
-       hx-target="#tl-modal-container"
-       hx-trigger="click"
-       title="{% trans "Click to edit description" %}">
+  {# A button, so the description can be opened from the keyboard (Enter or Space) as well as by clicking. #}
+  <button type="button" class="tl-test-desc" aria-haspopup="dialog"
+          hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
+          hx-target="#tl-modal-container"
+          hx-trigger="click"
+          title="{% trans "Click to edit description" %}">
     <i class="fa fa-align-left" aria-hidden="true"></i>
     <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
-  </div>
+  </button>
 {% else %}
-  <button type="button" class="tl-add-desc-btn"
+  <button type="button" class="tl-add-desc-btn" aria-haspopup="dialog"
           hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
           hx-target="#tl-modal-container"
           hx-trigger="click">

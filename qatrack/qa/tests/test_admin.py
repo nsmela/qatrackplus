@@ -2743,3 +2743,84 @@ class TestTestListBuilderWordingAndAccessibility(TestCase):
             resp.content.decode(),
             'A test named “Output Constancy 6X” already exists. Choose a different name. No test was created.',
         )
+
+
+class TestTestListBuilderDialogsOutsideForm(TestCase):
+    """The Duplicate Test and Description dialogs have forms of their own. Inside the
+    change form the browser would drop them, so their buttons saved the whole test
+    list; they (and the search dialog) must be rendered after the change form."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.test = qa_utils.create_test(name='Output Constancy 6X')
+        self.test.description = 'Measure output'
+        self.test.save()
+        self.tl = qa_utils.create_test_list(name='Daily QC')
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.test)
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _change_form(self):
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def test_dialog_containers_after_main_form(self):
+        content = self._change_form()
+        main = re.search(r'<form [^>]*method="post"[^>]*_form"', content)
+        self.assertIsNotNone(main)
+        main_close = content.index('</form>', main.end())
+        # the first </form> after the change form opens is its own: nothing nested closed it early
+        self.assertGreater(main_close, content.index('id="tl-tests-card"'))
+        self.assertGreater(main_close, content.index('id="tl-attachments-card"'))
+        inside = content[main.end():main_close]
+        self.assertNotIn('<form', inside)
+        self.assertNotIn('id="tl-modal-container"', inside)
+        self.assertNotIn('id="tl-search-modal"', inside)
+        self.assertNotIn('id="tl-search-input"', inside)
+        self.assertGreater(content.index('id="tl-modal-container"'), main_close)
+        self.assertGreater(content.index('id="tl-search-modal"'), main_close)
+        self.assertEqual(content.count('id="tl-modal-container"'), 1)
+        self.assertEqual(content.count('id="tl-search-modal"'), 1)
+
+    def test_dialog_forms_are_standalone(self):
+        dup = self.client.get(reverse('admin:qa_testlist_duplicate_test'), {'test_id': self.test.pk}).content.decode()
+        self.assertIn('<form id="tl-duplicate-test-form"', dup)
+        desc = self.client.get(
+            reverse('admin:qa_testlist_test_desc_modal'), {'test_id': self.test.pk, 'index': 0},
+        ).content.decode()
+        self.assertIn('hx-target="#tl-desc-wrap-%s-0"' % self.test.pk, desc)
+        self.assertIn('id="tl-desc-error-msg"', desc)
+
+    def test_duplicate_and_description_leave_test_list_alone(self):
+        before = qa_models.TestList.objects.get(pk=self.tl.pk)
+        resp = self.client.post(reverse('admin:qa_testlist_duplicate_test'), {
+            'source_test_id': self.test.pk, 'new_name': 'Output Constancy 6X (Copy)', 'test_list_id': self.tl.pk,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(qa_models.Test.objects.filter(name='Output Constancy 6X (Copy)').exists())
+        url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%s&index=0' % self.test.pk
+        resp = self.client.post(url, {'description': 'New words'})
+        self.assertEqual(resp.status_code, 200)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'New words')
+        after = qa_models.TestList.objects.get(pk=self.tl.pk)
+        self.assertEqual(after.modified, before.modified)
+        self.assertEqual(list(after.tests.all()), [self.test])
+
+    def test_description_cell_is_a_button(self):
+        content = self._change_form()
+        match = re.search(r'<button type="button" class="tl-test-desc"[^>]*>', content)
+        self.assertIsNotNone(match)
+        self.assertIn('hx-target="#tl-modal-container"', match.group(0))
+        self.assertNotIn('<div class="tl-test-desc"', content)
+
+    def test_browse_is_a_keyboard_button(self):
+        content = self._change_form()
+        match = re.search(r'<button type="button" class="[^"]*tl-browse-btn"[^>]*>', content)
+        self.assertIsNotNone(match)
+        self.assertIn('id="tl-browse-btn"', match.group(0))
+        file_input = re.search(r'<input type="file" id="id_tl-new-attachments"[^>]*>', content)
+        self.assertIsNotNone(file_input)
+        self.assertIn('tabindex="-1"', file_input.group(0))
+        self.assertNotIn('<label class="btn btn-default btn-sm btn-flat tl-browse-btn"', content)
