@@ -9,7 +9,7 @@ import io
 import os
 import sys
 import tempfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from unittest import mock
 
 from django.core.exceptions import ImproperlyConfigured
@@ -223,9 +223,12 @@ class TestSecretKeyNotice(DockerSettingsTestCase):
     def test_generated_key_names_its_file_and_how_to_keep_it(self):
         key = self.apply()['SECRET_KEY']
         notice = self.notice()
-        self.assertIn(str(self.key_file), notice)
+        self.assertIn(self.key_file.as_posix(), notice)
         self.assertIn('backup', notice)
-        self.assertIn('>> .env', notice)
+        self.assertIn(
+            f'printf \'\\nSECRET_KEY=%s\\n\' "$(docker compose exec -T django cat {self.key_file.as_posix()})" >> .env',
+            notice,
+        )
         self.assertNotIn(key, notice)
 
     def test_key_read_back_from_the_file_is_never_shown(self):
@@ -244,6 +247,16 @@ class TestSecretKeyNotice(DockerSettingsTestCase):
         notice = docker_settings.secret_key_notice({})
         self.assertIn(docker_settings.DEFAULT_SECRET_KEY_FILE, notice)
         self.assertIn('user-data-volume', notice)
+        self.assertIn(f'cat {docker_settings.DEFAULT_SECRET_KEY_FILE})', notice)
+
+    def test_default_file_keeps_forward_slashes_on_windows(self):
+        # On Windows, Path renders /usr/src/... with backslashes; the file is in
+        # the Linux container, so the notice must not.
+        with mock.patch.object(docker_settings, 'Path', PureWindowsPath):
+            notice = docker_settings.secret_key_notice({})
+        self.assertIn(docker_settings.DEFAULT_SECRET_KEY_FILE, notice)
+        self.assertIn('user-data-volume', notice)
+        self.assertNotIn('\\usr', notice)
 
     def test_notice_does_not_create_the_file(self):
         self.notice()

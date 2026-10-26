@@ -137,7 +137,10 @@ def secret_key_notice(environ=os.environ):
     path = secret_key_file(Env(environ))
     if path is None:
         return None
-    where = f'{path}, in the user-data-volume Docker volume' if str(path) == DEFAULT_SECRET_KEY_FILE else str(path)
+    # The file is inside the Linux container, so show it with forward slashes
+    # whatever system this runs on (the tests also run on Windows).
+    path = path.as_posix()
+    where = f'{path}, in the user-data-volume Docker volume' if path == DEFAULT_SECRET_KEY_FILE else path
     return (
         'NOTICE: SECRET_KEY is not set in .env, so QATrack+ is using the secret key it generated '
         f'and saved in {where}.\n'
@@ -145,7 +148,7 @@ def secret_key_notice(environ=os.environ):
         'without it, everyone is signed out and password-reset links already sent stop working.\n'
         'To keep the key with your settings, copy it into .env by running this in deploy/docker, '
         'then `docker compose up -d`:\n'
-        f'    echo "SECRET_KEY=$(docker compose exec -T django cat {path})" >> .env\n'
+        f'    printf \'\\nSECRET_KEY=%s\\n\' "$(docker compose exec -T django cat {path})" >> .env\n'
         'Keep .env as private as your database password. '
         'See "Keeping the secret key safe" in the Docker installation guide.'
     )

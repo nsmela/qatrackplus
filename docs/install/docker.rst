@@ -444,7 +444,7 @@ apply it:
 
 .. code-block:: console
 
-    echo "SECRET_KEY=$(docker compose exec -T django cat deploy/docker/user-data/secret_key.txt)" >> .env
+    printf '\nSECRET_KEY=%s\n' "$(docker compose exec -T django cat deploy/docker/user-data/secret_key.txt)" >> .env
     docker compose up -d
 
 The key is the same one, so nobody is signed out, and the notice no longer

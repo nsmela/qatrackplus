@@ -40,12 +40,13 @@ python manage.py collectstatic --noinput
 # user-data volume, which the nightly backup does not include. Say so once per
 # start, here rather than in the settings, which every process imports. The
 # notice names the file and never shows the key; with SECRET_KEY set it is empty.
+# It is only information, so a failure here must not stop QATrack+ starting.
 python -c '
 from qatrack.docker_settings import secret_key_notice
 notice = secret_key_notice()
 if notice:
     print(notice)
-'
+' || echo "Could not check where the secret key is kept." >&2
 
 echo "Starting Gunicorn..."
 exec gunicorn qatrack.wsgi:application -w 2 -b 0.0.0.0:8000
