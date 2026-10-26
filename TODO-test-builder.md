@@ -155,13 +155,13 @@ Remove this file before the branch is merged.
     (`_saveasnew`) from the submit row CSS.
 - [ ] Rename `tl-` classes that clash with the shared blocks in `base.css`
       (`.tl-table`, `.tl-form`, `.tl-field`, `.tl-search`).
-- [ ] Translate the strings set in JavaScript and the type labels in
+- [x] Translate the strings set in JavaScript and the type labels in
       `get_test_metadata`. Write the "EDITING", "TEST / SUBLIST" and "SUBLIST"
       `{% trans %}` strings in normal case and uppercase them with CSS.
-- [ ] Title Case buttons ("Add Test", "Add Sublist"); use "…" instead of "...".
-- [ ] Fix the search placeholder: there are no tags; the search covers name,
+- [x] Title Case buttons ("Add Test", "Add Sublist"); use "…" instead of "...".
+- [x] Fix the search placeholder: there are no tags; the search covers name,
       description, slug and sublist names.
-- [ ] Icon-only buttons need an `aria-label`. Use `fa-trash-o` for removing a
+- [x] Icon-only buttons need an `aria-label`. Use `fa-trash-o` for removing a
       sublist.
 
 ## Layout and CSS bugs

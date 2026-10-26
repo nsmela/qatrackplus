@@ -10,6 +10,17 @@ _None yet._
 
 ## Decisions made during implementation
 
+- **JS translations (M):** `makemessages -d djangojs` doesn't scan `<script>`
+  blocks in `.html` templates, so the builder's JS strings live in a
+  `TL_STRINGS` table rendered by the template (translated with
+  `{% trans %}`) that `gettext` checks first. New JS strings must be added
+  there.
+- **Wording (M):**
+  - The duplicate-tests error names the tests ("Output Constancy 6X (t0)")
+    and says what to do; the too-many-tests error likewise.
+  - Type badges are translated with context "test type badge".
+  - Row action titles are now "Edit Test in a New Tab" and "Remove Test".
+
 - **Perform QC preview (L):**
   - With a machine picked that the list is assigned to directly, Preview
     shows the real Perform QC page in a frame, read-only. It has a banner;
@@ -132,6 +143,21 @@ _None yet._
   same as Django 4.2's default.
 
 ## New issues found
+
+- **Serious, existed before this work:** `#tl-modal-container` is inside the
+  main change form, so the browser drops the nested `<form>` in the
+  Duplicate and Description dialogs. "Create & Add Test" (and probably
+  "Save Description") submits and saves the whole test list instead. Being
+  fixed next (task Q). (M)
+- `TestListAdmin.actions` lists `export_test_lists`, which isn't defined
+  anywhere, so the action is dead. (M)
+- `base_site.html:172`: "Submitting..." is untranslated and uses "...". (M)
+- Keyboard access: the attachments Browse button (a `<label>` around a hidden
+  input) and the clickable description text can't be reached by keyboard;
+  the search, Duplicate and Description dialogs don't trap or return focus.
+  Being fixed next (task Q). (M)
+- Translations: run `makemessages -l fr -l fr_CA -l es` and `compilemessages`
+  before release; many new strings. (M)
 
 - Perform QC (existing): Yes/No references show as "1"/"0" in the
   Reference column (same root as the Unit Test Info admin issue above). (L)

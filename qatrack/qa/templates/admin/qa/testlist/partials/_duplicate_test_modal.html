@@ -1,11 +1,12 @@
 {% load i18n %}
 <div class="tl-modal-backdrop" id="tl-duplicate-modal-backdrop">
-  <div class="tl-modal-dialog tl-duplicate-modal">
+  <div class="tl-modal-dialog tl-duplicate-modal" role="dialog" aria-modal="true" aria-labelledby="tl-duplicate-title">
     <div class="tl-modal-header">
-      <h3 class="tl-modal-title">
+      <h3 class="tl-modal-title" id="tl-duplicate-title">
         <i class="fa fa-clone" aria-hidden="true"></i> {% trans "Duplicate Test" %}
       </h3>
-      <button type="button" class="tl-modal-close-btn" data-modal-close aria-label="Close">&times;</button>
+      <button type="button" class="tl-modal-close-btn" data-modal-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
     </div>
     <form id="tl-duplicate-test-form" method="post" action="{% url 'admin:qa_testlist_duplicate_test' %}">
       {% csrf_token %}
@@ -13,20 +14,20 @@
       <input type="hidden" name="index" value="{{ index }}">
       <div class="tl-modal-body">
         <div class="tl-dup-info-banner">
-          <i class="fa fa-info-circle"></i>
+          <i class="fa fa-info-circle" aria-hidden="true"></i>
           <div>
             <strong>{% trans "Duplicating:" %}</strong> {{ source.name }}
             <div class="tl-dup-details">
               <span class="tl-cat-pill {{ source_meta.category_class }}">{{ source_meta.category_name }}</span>
-              <span class="tl-type-badge {{ source_meta.type_class }}">{{ source_meta.type_badge }}</span>
-              {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator"></i> {% trans "Calculation copied" %}</span>{% endif %}
+              <span class="tl-type-badge {{ source_meta.type_class }}" title="{{ source_meta.type_label }}">{{ source_meta.type_badge }}</span>
+              {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator" aria-hidden="true"></i> {% trans "Calculation copied" %}</span>{% endif %}
             </div>
-            <p class="tl-dup-note">{% trans "A new test will be created copying the type, category, calculation, and all unit reference/tolerance values." %}
-              {% trans "The new test is created as soon as you click the button below, even if you don't save this test list." %}</p>
+            <p class="tl-dup-note">{% trans "The new test copies this test's type, category, calculation, and its references and tolerances on every unit." %}
+              {% trans "It's created as soon as you click Create & Add Test, even if you don't save this test list." %}</p>
           </div>
         </div>
 
-        <div id="tl-dup-error-msg" class="tl-dup-error-banner" style="display:none;"></div>
+        <div id="tl-dup-error-msg" class="tl-dup-error-banner" role="alert" style="display:none;"></div>
 
         <div class="tl-modal-field">
           <label for="id_dup_name">{% trans "New Test Name" %} <em class="tl-req">*</em></label>
@@ -36,7 +37,7 @@
         <div class="tl-modal-field">
           <label for="id_dup_slug">{% trans "Macro Name (Slug)" %}</label>
           <input type="text" id="id_dup_slug" name="new_slug" value="{{ suggested_slug }}" class="tl-modal-input" autocomplete="off">
-          <span class="tl-modal-hint">{% trans "Used in composite calculations. Leave blank to auto-generate from name." %}</span>
+          <span class="tl-modal-hint">{% trans "Used in composite calculations. Leave blank to make one from the name." %}</span>
         </div>
       </div>
       <div class="tl-modal-footer">

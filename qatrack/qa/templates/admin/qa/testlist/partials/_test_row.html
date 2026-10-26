@@ -52,16 +52,24 @@
   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
   {% include "admin/qa/testlist/partials/_machine_cells.html" %}
   <td class="tl-cell-actions">
-    <a href="{{ test_meta.edit_url }}" target="_blank" class="tl-action-icon" title="{% trans "Edit Test in new tab" %}">
+    {% with test_name=test_meta.display_name|default:test_meta.name %}
+    <a href="{{ test_meta.edit_url }}" target="_blank" class="tl-action-icon"
+       title="{% trans "Edit Test in a New Tab" %}"
+       aria-label="{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}">
       <i class="fa fa-pencil" aria-hidden="true"></i>
     </a>
     {% if perms.qa.add_test %}
-    <button type="button" class="tl-action-icon tl-duplicate-test-btn" data-test-id="{{ test_meta.id }}" title="{% trans "Duplicate Test" %}">
+    <button type="button" class="tl-action-icon tl-duplicate-test-btn" data-test-id="{{ test_meta.id }}"
+            title="{% trans "Duplicate Test" %}"
+            aria-label="{% blocktrans with name=test_name %}Duplicate {{ name }}{% endblocktrans %}" aria-haspopup="dialog">
       <i class="fa fa-clone" aria-hidden="true"></i>
     </button>
     {% endif %}
-    <button type="button" class="tl-action-icon tl-delete-test-btn" title="{% trans "Remove Test from list" %}">
+    <button type="button" class="tl-action-icon tl-delete-test-btn"
+            title="{% trans "Remove Test" %}"
+            aria-label="{% blocktrans with name=test_name %}Remove {{ name }} from this test list{% endblocktrans %}">
       <i class="fa fa-trash-o" aria-hidden="true"></i>
     </button>
+    {% endwith %}
   </td>
 </tr>

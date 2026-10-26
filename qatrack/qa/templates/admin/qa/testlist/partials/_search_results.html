@@ -19,8 +19,9 @@
         </div>
         <div class="tl-search-item-right">
           <span class="tl-cat-pill {{ t.category_class }}">{{ t.category_name }}</span>
-          <span class="tl-type-badge {{ t.type_class }}">{{ t.type_badge }}</span>
-          <button type="button" class="tl-btn-select-test" data-test-id="{{ t.id }}">
+          <span class="tl-type-badge {{ t.type_class }}" title="{{ t.type_label }}">{{ t.type_badge }}</span>
+          <button type="button" class="tl-btn-select-test" data-test-id="{{ t.id }}"
+                  aria-label="{% blocktrans with name=t.name %}Add {{ name }}{% endblocktrans %}">
             <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add" %}
           </button>
         </div>
@@ -28,7 +29,7 @@
     {% empty %}
       <div class="tl-search-no-results">
         {% if query %}
-          {% blocktrans with q=query %}No tests found matching "{{ q }}".{% endblocktrans %}
+          {% blocktrans with q=query %}No tests found matching “{{ q }}”.{% endblocktrans %}
         {% else %}
           {% trans "No tests available." %}
         {% endif %}
@@ -47,8 +48,9 @@
           </div>
         </div>
         <div class="tl-search-item-right">
-          <span class="tl-count-badge">{{ s.test_count }} {% trans "tests" %}</span>
-          <button type="button" class="tl-btn-select-sublist" data-child-id="{{ s.id }}">
+          <span class="tl-count-badge">{% blocktrans count counter=s.test_count %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}</span>
+          <button type="button" class="tl-btn-select-sublist" data-child-id="{{ s.id }}"
+                  aria-label="{% blocktrans with name=s.name %}Select {{ name }}{% endblocktrans %}">
             <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Select" %}
           </button>
         </div>
@@ -56,7 +58,7 @@
     {% empty %}
       <div class="tl-search-no-results">
         {% if query %}
-          {% blocktrans with q=query %}No sublists found matching "{{ q }}".{% endblocktrans %}
+          {% blocktrans with q=query %}No test lists found matching “{{ q }}”.{% endblocktrans %}
         {% else %}
           {% trans "No other test lists available." %}
         {% endif %}

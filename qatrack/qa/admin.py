@@ -31,6 +31,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import Truncator, slugify
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import pgettext
 from django_mptt_admin.admin import DjangoMpttAdmin
 from dynamic_raw_id.admin import DynamicRawIDMixin
 from dynamic_raw_id.widgets import DynamicRawIDWidget
@@ -603,24 +604,34 @@ class TestListAdminForm(forms.ModelForm):
 
     def clean(self):
         test_ids = self._posted_ids("testlistmembership_set", "test")
-        slugs = list(models.Test.objects.filter(id__in=test_ids).values_list("slug", flat=True))
+        # (macro name, test name) for every test, direct or through a sublist
+        tests = list(models.Test.objects.filter(id__in=test_ids).values_list("slug", "name"))
 
         child_ids = self._posted_ids("children", "child")
         for tl in models.TestList.objects.filter(id__in=child_ids):
-            slugs.extend(tl.all_tests().values_list("slug", flat=True))
+            tests.extend(tl.all_tests().values_list("slug", "name"))
 
-        if len(slugs) > settings.MAX_TESTS_PER_TESTLIST:
-            msg = _("This test list has {test_count} tests but the maximum number allowed is {max_tests}.").format(
-                test_count=len(slugs), max_tests=settings.MAX_TESTS_PER_TESTLIST
-            )
+        if len(tests) > settings.MAX_TESTS_PER_TESTLIST:
+            msg = _(
+                "This test list has %(test_count)d tests, counting the tests in its sublists. "
+                "A test list can have at most %(max_tests)d. Remove some tests or sublists, then save again."
+            ) % {"test_count": len(tests), "max_tests": settings.MAX_TESTS_PER_TESTLIST}
             raise forms.ValidationError(msg)
 
-        duplicates = list(set([sn for sn in slugs if slugs.count(sn) > 1]))
+        slugs = [slug for slug, name in tests]
+        duplicates = []
+        for slug, name in tests:
+            if slugs.count(slug) > 1 and (slug, name) not in duplicates:
+                duplicates.append((slug, name))
         if duplicates:
-            msg = _(
-                "The following test macro names are duplicated (either in this test list or one of its sublists) :: "
+            names = ", ".join(
+                _("%(test_name)s (%(macro_name)s)") % {"test_name": name, "macro_name": slug}
+                for slug, name in duplicates
             )
-            msg += ",".join(duplicates)
+            msg = _(
+                "These tests appear more than once in this test list, directly or through a sublist: "
+                "%(tests)s. Remove the extra copies, then save again."
+            ) % {"tests": names}
             raise forms.ValidationError(msg)
 
         return self.cleaned_data
@@ -698,9 +709,10 @@ def _get_test_type_value(test):
 def get_test_metadata(test):
     """Return dictionary of serialized test metadata for builder UI rendering."""
     cat_slug = test.category.slug if test.category else "general"
-    cat_name = test.category.name if test.category else "General"
+    cat_name = test.category.name if test.category else _("General")
 
-    cat_lower = (cat_name or "").lower()
+    # colour from the category's own (untranslated) name
+    cat_lower = (test.category.name if test.category else "").lower()
     if "safety" in cat_lower:
         cat_class = "tl-cat-safety"
     elif "dosimetry" in cat_lower:
@@ -712,49 +724,51 @@ def get_test_metadata(test):
     else:
         cat_class = "tl-cat-general"
 
+    # Badges are short type abbreviations shown in the builder; the context
+    # tells translators to keep them short.
     t = test.type
     if t == models.BOOLEAN:
-        type_badge = "Y/N"
-        type_label = "Boolean"
+        type_badge = pgettext("test type badge", "Y/N")
+        type_label = _("Boolean")
         type_class = "tl-type-yn"
     elif t in (models.SIMPLE, models.NUMERICAL):
-        type_badge = "Num"
-        type_label = "Numerical"
+        type_badge = pgettext("test type badge", "Num")
+        type_label = _("Numerical")
         type_class = "tl-type-num"
     elif t == models.WRAPAROUND:
-        type_badge = "Num"
-        type_label = "Wraparound"
+        type_badge = pgettext("test type badge", "Num")
+        type_label = _("Wraparound")
         type_class = "tl-type-num"
     elif t == models.MULTIPLE_CHOICE:
-        type_badge = "M/C"
-        type_label = "Multiple Choice"
+        type_badge = pgettext("test type badge", "M/C")
+        type_label = _("Multiple Choice")
         type_class = "tl-type-mc"
     elif t == models.COMPOSITE:
-        type_badge = "Comp"
-        type_label = "Composite"
+        type_badge = pgettext("test type badge", "Comp")
+        type_label = _("Composite")
         type_class = "tl-type-comp"
     elif t == models.CONSTANT:
-        type_badge = "Const"
-        type_label = "Constant"
+        type_badge = pgettext("test type badge", "Const")
+        type_label = _("Constant")
         type_class = "tl-type-const"
     elif t == models.STRING:
-        type_badge = "Text"
-        type_label = "String"
+        type_badge = pgettext("test type badge", "Text")
+        type_label = _("String")
         type_class = "tl-type-str"
     elif t == models.STRING_COMPOSITE:
-        type_badge = "JSON"
-        type_label = "String Composite"
+        type_badge = pgettext("test type badge", "JSON")
+        type_label = _("String Composite")
         type_class = "tl-type-scomp"
     elif t == models.UPLOAD:
-        type_badge = "File"
-        type_label = "File Upload"
+        type_badge = pgettext("test type badge", "File")
+        type_label = _("File Upload")
         type_class = "tl-type-upload"
     elif t in (models.DATE, models.DATETIME):
-        type_badge = "Date"
-        type_label = "Date" if t == models.DATE else "Date & Time"
+        type_badge = pgettext("test type badge", "Date")
+        type_label = _("Date") if t == models.DATE else _("Date & Time")
         type_class = "tl-type-date"
     else:
-        type_badge = "Test"
+        type_badge = pgettext("test type badge", "Test")
         type_label = test.get_type_display()
         type_class = "tl-type-default"
 
@@ -1202,9 +1216,9 @@ def testlist_description_preview(request):
     """
     text = (request.POST.get("description") or request.GET.get("description") or "").strip()
     if not text:
-        html = (
-            '<span class="tl-htmlpreview-empty">Nothing to preview — '
-            'write a description to see how the markup renders.</span>'
+        html = format_html(
+            '<span class="tl-htmlpreview-empty">{}</span>',
+            _("Nothing to preview yet. Write a description to see how it will look."),
         )
     else:
         html = text
@@ -1327,7 +1341,7 @@ def testlist_duplicate_test(request):
 
     if request.method == "GET":
         index = request.GET.get("index", "0")
-        suggested_name = f"{source.name} (Copy)"
+        suggested_name = _("%(name)s (Copy)") % {"name": source.name}
         suggested_slug = slugify(suggested_name)[:128]
         return render(request, "admin/qa/testlist/partials/_duplicate_test_modal.html", {
             "source": source,
@@ -1340,7 +1354,7 @@ def testlist_duplicate_test(request):
     # POST: create new Test
     new_name = request.POST.get("new_name", "").strip()
     if not new_name:
-        return HttpResponseBadRequest("A name is required for the new test.")
+        return HttpResponseBadRequest(_("Enter a name for the new test. No test was created."))
 
     new_slug = request.POST.get("new_slug", "").strip()
     if not new_slug:
@@ -1355,7 +1369,13 @@ def testlist_duplicate_test(request):
 
     # Ensure unique name
     if models.Test.objects.filter(name=new_name).exists():
-        return HttpResponseBadRequest(f"A test with name '{new_name}' already exists.")
+        return HttpResponseBadRequest(
+            _("A test named “%(name)s” already exists. Choose a different name. No test was created.") % {
+                "name": new_name,
+            },
+            # shown with textContent by the builder; plain text so the name is never parsed as HTML
+            content_type="text/plain; charset=utf-8",
+        )
 
     new_test = models.Test.objects.create(
         name=new_name,
@@ -1961,9 +1981,16 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             if utc.unit_id not in seen:
                 seen.add(utc.unit_id)
                 unit_names.append(utc.unit.name)
+        if unit_names:
+            label = _("Assigned to: %(units)s") % {"units": ", ".join(unit_names)}
+        else:
+            label = _("Not assigned to any unit")
+        # the tooltip names the units; screen readers read the same text after the count
         return format_html(
-            '<span class="tl-cell-units" title="{}"><i class="fa fa-cube"></i> {}</span>',
-            ", ".join(unit_names), len(unit_names),
+            '<span class="tl-cell-units" title="{}">'
+            '<i class="fa fa-cube" aria-hidden="true"></i> {}'
+            '<span class="tl-visually-hidden"> ({})</span></span>',
+            label, len(unit_names), label,
         )
 
     @admin.display(description=_l("Modified"), ordering="modified")
@@ -1981,9 +2008,11 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
     @admin.display(description="")
     def col_edit(self, obj):
         url = reverse("admin:qa_testlist_change", args=(obj.pk,))
+        label = _("Edit %(name)s") % {"name": obj.name}
         return format_html(
-            '<a class="tl-editlink" href="{}" title="{}"><i class="fa fa-pencil"></i></a>',
-            url, _("Edit"),
+            '<a class="tl-editlink" href="{}" title="{}" aria-label="{}">'
+            '<i class="fa fa-pencil" aria-hidden="true"></i></a>',
+            url, label, label,
         )
 
 

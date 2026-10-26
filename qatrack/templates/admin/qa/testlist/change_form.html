@@ -160,7 +160,8 @@
 {# otherwise renderLivePreview() draws a layout-only preview from the builder rows. #}
 <div id="tl-preview-container" class="tl-preview-container" style="display:none;"
      data-can-preview-perform="{% if tl_can_preview_perform %}1{% else %}0{% endif %}"
-     data-msg-pick-machine="{% trans "Pick a machine this list is assigned to, in the Editing menu above, to see exactly what staff will see on Perform QC." %}"
+     data-msg-layout="{% trans "Layout preview: the order, sublists and descriptions of this test list. Nothing you enter here is saved." %}"
+     data-msg-pick-machine="{% trans "Layout preview: the order, sublists and descriptions of this test list. Pick a machine in the Editing menu to see the full Perform QC page. Nothing you enter here is saved." %}"
      data-msg-through="{% trans "%(unit)s gets this list through %(parent)s." %}"
      data-msg-through-link="{% trans "Preview it from %(parent)s's page." %}"
      data-msg-through-cycle="{% trans "Open the cycle" %}"
@@ -215,7 +216,7 @@
       <div class="tl-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_javascript">{% trans "JavaScript" %}</label>
-          <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "runs on the perform page" %}</span>
+          <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "runs on the Perform QC page" %}</span>
         </span>
         {{ adminform.form.javascript.errors }}
         {{ adminform.form.javascript }}
@@ -239,7 +240,7 @@
       <span class="tl-count-badge" id="tl-tests-count">0</span>
       <div class="tl-card-header-actions">
         <button type="button" class="tl-header-text-btn" id="tl-toggle-all-sublists-btn" title="{% trans "Expand or collapse all sublists" %}">
-          <i class="fa fa-expand" aria-hidden="true"></i> <span id="tl-toggle-all-sublists-text">{% trans "Expand all" %}</span>
+          <i class="fa fa-expand" aria-hidden="true"></i> <span id="tl-toggle-all-sublists-text">{% trans "Expand All" %}</span>
         </button>
         <button type="button" class="tl-header-add-btn" id="tl-header-add-sublist-btn" title="{% trans "Add an existing test list as a sublist" %}">
           <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add Sublist" %}
@@ -254,14 +255,14 @@
       <table class="tl-table tl-tests-table" id="tl-tests-table">
         <thead>
           <tr>
-            <th class="tl-th-drag"></th>
-            <th class="tl-th-test">{% trans "TEST / SUBLIST" %}</th>
-            <th class="tl-th-category">{% trans "CATEGORY" %}</th>
-            <th class="tl-th-type">{% trans "TYPE" %}</th>
+            <th class="tl-th-drag"><span class="tl-visually-hidden">{% trans "Order" %}</span></th>
+            <th class="tl-th-test">{% trans "Test / Sublist" %}</th>
+            <th class="tl-th-category">{% trans "Category" %}</th>
+            <th class="tl-th-type">{% trans "Type" %}</th>
             <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
             <th class="tl-th-ref tl-col-ref">{% trans "Reference" %}</th>
             <th class="tl-th-tol tl-col-tol">{% trans "Tolerance" %}</th>
-            <th class="tl-th-actions"></th>
+            <th class="tl-th-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
           </tr>
         </thead>
         <tbody id="tl-tests-tbody" class="tl-sortable-tbody">
@@ -331,7 +332,7 @@
         <div class="tl-card-body">
           <p class="tl-no-parents-hint">
             <i class="fa fa-info-circle" aria-hidden="true"></i>
-            {% trans "This Test List is standalone and is not currently used as a sublist in any other Test Lists." %}
+            {% trans "This test list isn't used as a sublist in any other test list." %}
           </p>
         </div>
       </div>
@@ -372,22 +373,25 @@
                     {% endspaceless %}
                     <input type="checkbox" name="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" id="id_{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" class="attach-delete" style="display:none;">
 
+                    {% firstof inline_admin_form.original.label inline_admin_form.original.attachment.name as attach_name %}
                     <div class="attachment-name">
-                      <i class="fa fa-paperclip fa-fw text-success"></i>
-                      <strong>{% if inline_admin_form.original.label %}{{ inline_admin_form.original.label }}{% else %}{{ inline_admin_form.original.attachment.name }}{% endif %}</strong>
+                      <i class="fa fa-paperclip fa-fw text-success" aria-hidden="true"></i>
+                      <strong>{{ attach_name }}</strong>
                       {% if inline_admin_form.original.comment %}
-                        <span class="tl-attach-comment-tag"><i class="fa fa-comment-o"></i> {{ inline_admin_form.original.comment }}</span>
+                        <span class="tl-attach-comment-tag"><i class="fa fa-comment-o" aria-hidden="true"></i> {{ inline_admin_form.original.comment }}</span>
                       {% endif %}
                     </div>
 
                     <div class="attachment-actions">
                       {% if inline_admin_form.original.attachment.url %}
-                        <a href="{{ inline_admin_form.original.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5" title="{% trans 'Preview' %}">
-                          <i class="fa fa-eye"></i>
+                        <a href="{{ inline_admin_form.original.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5"
+                           title="{% trans 'Preview' %}" aria-label="{% blocktrans with name=attach_name %}Preview {{ name }}{% endblocktrans %}">
+                          <i class="fa fa-eye" aria-hidden="true"></i>
                         </a>
                       {% endif %}
-                      <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}" title="{% trans 'Remove' %}">
-                        <i class="fa fa-trash"></i>
+                      <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}"
+                              title="{% trans 'Remove' %}" aria-label="{% blocktrans with name=attach_name %}Remove {{ name }}{% endblocktrans %}">
+                        <i class="fa fa-trash-o" aria-hidden="true"></i>
                       </button>
                     </div>
                   </div>
@@ -403,13 +407,13 @@
 
             <!-- Empty Placeholder -->
             <div class="tl-empty-attachments-msg" id="tl-empty-attachments-msg" {% if inline_admin_formset.formset.initial_form_count > 0 %}style="display:none;"{% endif %}>
-              <i class="fa fa-paperclip text-muted"></i> {% trans "No attachments added yet. Click 'Browse...' to attach files." %}
+              <i class="fa fa-paperclip text-muted" aria-hidden="true"></i> {% trans "No attachments yet. Use Browse… to attach files." %}
             </div>
 
             <!-- Browse Button (Matching Fault Logs) -->
             <div class="tl-browse-wrap margin-top-10">
-              <label class="btn btn-default btn-sm btn-flat tl-browse-btn" title="{% trans 'Click to add attachments' %}">
-                <i class="fa fa-folder-open text-info"></i> {% trans "Browse..." %}
+              <label class="btn btn-default btn-sm btn-flat tl-browse-btn" title="{% trans 'Choose files to attach' %}">
+                <i class="fa fa-folder-open text-info" aria-hidden="true"></i> {% trans "Browse…" %}
                 <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple style="display:none;">
               </label>
             </div>
@@ -430,18 +434,19 @@
 
   {# Search / Selection Modal for Tests and Sublists #}
   <div class="tl-modal-backdrop" id="tl-search-modal" hidden>
-    <div class="tl-modal-dialog tl-search-dialog">
+    <div class="tl-modal-dialog tl-search-dialog" role="dialog" aria-modal="true" aria-labelledby="tl-search-modal-title">
       <div class="tl-modal-header">
         <h3 class="tl-modal-title" id="tl-search-modal-title">
-          <i class="fa fa-search" aria-hidden="true"></i> <span id="tl-search-title-text">{% trans "Select Test" %}</span>
+          <i class="fa fa-search" aria-hidden="true"></i> <span id="tl-search-title-text">{% trans "Select Test to Add" %}</span>
         </h3>
-        <button type="button" class="tl-modal-close-btn" data-search-close aria-label="Close">&times;</button>
+        <button type="button" class="tl-modal-close-btn" data-search-close
+                title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
       </div>
       <div class="tl-modal-body">
         <div class="tl-search-input-wrap">
           <i class="fa fa-search tl-search-input-icon" aria-hidden="true"></i>
           <input type="text" id="tl-search-input" class="tl-search-input"
-                 placeholder="{% trans "Type to filter..." %}"
+                 placeholder="{% trans "Type to filter…" %}" aria-labelledby="tl-search-modal-title"
                  autocomplete="off"
                  hx-get="{% url 'admin:qa_testlist_search_tests' %}"
                  hx-trigger="keyup changed delay:150ms"
@@ -449,7 +454,7 @@
                  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
         </div>
         <div id="tl-search-results-box" class="tl-search-results-container">
-          <div class="tl-search-initial-hint">{% trans "Start typing to search, or pick from recent items." %}</div>
+          <div class="tl-search-initial-hint">{% trans "Start typing to search, or pick from the list." %}</div>
         </div>
       </div>
     </div>

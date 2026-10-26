@@ -606,7 +606,7 @@ class TestTestListAdmin(TestCase):
         data = self.data
         form = modelform_factory(qa_models.TestList, form=qa_admin.TestListAdminForm, exclude=['tests'])(data=data)
         assert not form.is_valid()
-        assert any("the maximum number allowed is 0" in err for err in form.errors['__all__'])
+        assert any("A test list can have at most 0." in err for err in form.errors['__all__'])
 
     def test_duplicate_macros(self):
         data = self.data
@@ -1380,7 +1380,7 @@ class TestTestListBuilderQuickFixes(TestCase):
         self._login('super')
         resp = self.client.get(self.change_url)
         self.assertContains(resp, 'tl-parents-empty-card')
-        self.assertContains(resp, 'is standalone')
+        self.assertContains(resp, "This test list isn't used as a sublist in any other test list.")
 
     def test_details_card_has_no_id_label(self):
         self._login('super')
@@ -2215,11 +2215,18 @@ class TestTestListBuilderPerformPreview(TestCase):
         resp = self.client.get(self.change_url)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'data-can-preview-perform="1"')
+        # one message for the layout preview's banner, with or without the pick-a-machine hint
         self.assertContains(
             resp,
-            'data-msg-pick-machine="Pick a machine this list is assigned to, in the Editing menu above, '
-            'to see exactly what staff will see on Perform QC."',
+            'data-msg-pick-machine="Layout preview: the order, sublists and descriptions of this test list. '
+            'Pick a machine in the Editing menu to see the full Perform QC page. Nothing you enter here is saved."',
         )
+        self.assertContains(
+            resp,
+            'data-msg-layout="Layout preview: the order, sublists and descriptions of this test list. '
+            'Nothing you enter here is saved."',
+        )
+        self.assertNotContains(resp, 'a rough layout of this test list')
         self.assertContains(resp, 'data-msg-unsaved="You have unsaved changes.')
         units = self._preview_units(resp)
         self.assertEqual(units[str(self.unit.pk)], {
@@ -2327,13 +2334,23 @@ class TestTestListBuilderRemovedRows(TestCase):
     def test_duplicate_still_rejected(self):
         resp = self.client.post(self.url, self._post_data())
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'duplicated')
+        self.assertContains(resp, 'appear more than once')
         self.assertTrue(self.tl.testlistmembership_set.filter(pk=self.m_dup.pk).exists())
+
+    def test_duplicate_error_names_the_tests(self):
+        """Plain language, with each test's name and its macro name in brackets."""
+        resp = self.client.post(self.url, self._post_data())
+        self.assertContains(
+            resp,
+            'These tests appear more than once in this test list, directly or through a sublist: '
+            '%s (%s). Remove the extra copies, then save again.' % (self.dup.name, self.dup.slug),
+        )
+        self.assertNotContains(resp, 'sublists) ::')
 
     def test_unticked_delete_value_still_counts(self):
         resp = self.client.post(self.url, self._post_data(delete_dup='false'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'duplicated')
+        self.assertContains(resp, 'appear more than once')
 
     def test_removed_direct_test_not_counted(self):
         for value in ('on', 'true', '1'):
@@ -2356,7 +2373,7 @@ class TestTestListBuilderRemovedRows(TestCase):
         resp = self.client.post(self.url, self._post_data(name='', delete_dup='on', delete_sublist='on'))
         self.assertEqual(resp.status_code, 200)
         content = resp.content.decode()
-        self.assertNotIn('duplicated', content)
+        self.assertNotIn('appear more than once', content)
 
         self.assertIn('checked', self._delete_box(content, 'testlistmembership_set-0'))
         self.assertIn('display: none', self._row(content, 'testlistmembership_set-0'))
@@ -2600,3 +2617,129 @@ class TestTestListAssignMachine(TestCase):
         resp = self.client.get(self.change_url)
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'id="tl-btn-assign-machine"')
+
+
+class TestTestListBuilderWordingAndAccessibility(TestCase):
+    """Builder wording (translated, Title Case buttons, "…" not "...") and
+    accessible names on icon-only buttons and dialogs."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.test = qa_utils.create_test(name='Output Constancy 6X')
+        self.tl = qa_utils.create_test_list(name='Daily QC')
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.test)
+        self.child = qa_utils.create_test_list(name='Imaging Checks')
+        qa_utils.create_test_list_membership(test_list=self.child, test=qa_utils.create_test(name='kV/MV Coincidence'))
+        qa_utils.create_sublist(parent_test_list=self.tl, child_test_list=self.child)
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _change_form(self):
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def _tag(self, content, pattern):
+        match = re.search(pattern, content)
+        self.assertIsNotNone(match, pattern)
+        return match.group(0)
+
+    def test_row_action_buttons_have_title_and_aria_label(self):
+        content = self._change_form()
+        edit = self._tag(content, r'<a href="[^"]*" target="_blank" class="tl-action-icon"[^>]*>')
+        self.assertIn('title="Edit Test in a New Tab"', edit)
+        self.assertIn('aria-label="Edit Output Constancy 6X (opens in a new tab)"', edit)
+        dup = self._tag(content, r'<button type="button" class="tl-action-icon tl-duplicate-test-btn"[^>]*>')
+        self.assertIn('title="Duplicate Test"', dup)
+        self.assertIn('aria-label="Duplicate Output Constancy 6X"', dup)
+        remove = self._tag(content, r'<button type="button" class="tl-action-icon tl-delete-test-btn"[^>]*>')
+        self.assertIn('title="Remove Test"', remove)
+        self.assertIn('aria-label="Remove Output Constancy 6X from this test list"', remove)
+
+    def test_sublist_toggle_and_remove(self):
+        content = self._change_form()
+        toggle = self._tag(content, r'<button type="button" class="tl-sublist-toggle-btn"[^>]*>')
+        self.assertIn('aria-expanded="false"', toggle)
+        self.assertIn('aria-label="Show or hide the tests in Imaging Checks"', toggle)
+        self.assertIn('title="Show or Hide Tests"', toggle)
+        remove = self._tag(content, r'<button type="button" class="tl-btn-sublist tl-btn-remove-sublist"[^>]*>\s*<i[^>]*>')
+        self.assertIn('fa-trash-o', remove)
+        self.assertNotIn('fa-times', remove)
+        self.assertIn('<span class="tl-sublist-badge">Sublist</span>', content)
+        self.assertIn('<span class="tl-sublist-count">1 test</span>', content)
+
+    def test_no_capitalised_or_three_dot_strings(self):
+        # base_site.html's admin-wide double-submit guard ("Submitting...") isn't part of the builder
+        content = self._change_form().replace('"Submitting..."', '')
+        self.assertNotIn('...', content)
+        for old in ('TEST / SUBLIST', '>TEST<', '>CATEGORY<', '>TYPE<', '>SUBLIST<', '>INPUT<'):
+            self.assertNotIn(old, content)
+        self.assertIn('>Test / Sublist</th>', content)
+        self.assertIn('>Expand All<', content)
+        self.assertIn('Browse…', content)
+        self.assertIn('Search name, slug, description or sublist…', content)
+        self.assertNotIn('slug or tags', content)
+
+    def test_js_strings_translated_at_render(self):
+        content = self._change_form()
+        # TL_STRINGS is filled in by the template engine: no template syntax is left behind
+        self.assertIn('"Select Test to Add": "Select Test to Add"', content)
+        self.assertIn('"Create & Add Test": "Create \\u0026 Add Test"', content)
+        # placeholders keep a single % (interpolate() needs %(name)s)
+        self.assertIn('"%(size)s KB": "%(size)s KB"', content)
+        self.assertIn('"Preview %(name)s": "Preview %(name)s"', content)
+        self.assertNotIn('%%', content)
+        self.assertNotIn("{{ _(", content)
+
+    def test_dialogs_are_labelled(self):
+        content = self._change_form()
+        search = self._tag(content, r'<div class="tl-modal-dialog tl-search-dialog"[^>]*>')
+        for attr in ('role="dialog"', 'aria-modal="true"', 'aria-labelledby="tl-search-modal-title"'):
+            self.assertIn(attr, search)
+        close = self._tag(content, r'<button type="button" class="tl-modal-close-btn" data-search-close[^>]*>')
+        self.assertIn('aria-label="Close"', close)
+        self.assertIn('title="Close"', close)
+
+        dup = self.client.get(reverse('admin:qa_testlist_duplicate_test'), {'test_id': self.test.pk}).content.decode()
+        dialog = self._tag(dup, r'<div class="tl-modal-dialog tl-duplicate-modal"[^>]*>')
+        self.assertIn('role="dialog"', dialog)
+        self.assertIn('aria-labelledby="tl-duplicate-title"', dialog)
+        self.assertIn('id="tl-duplicate-title"', dup)
+
+        desc = self.client.get(
+            reverse('admin:qa_testlist_test_desc_modal'), {'test_id': self.test.pk, 'index': 0},
+        ).content.decode()
+        dialog = self._tag(desc, r'<div class="tl-modal-dialog"[^>]*>')
+        self.assertIn('role="dialog"', dialog)
+        self.assertIn('aria-labelledby="tl-desc-title"', dialog)
+
+    def test_changelist_icons_have_accessible_names(self):
+        unit = qa_utils.create_unit(name='Linac 1')
+        qa_utils.create_unit_test_collection(unit=unit, test_collection=self.tl)
+        ma = qa_admin.TestListAdmin(qa_models.TestList, AdminSite())
+        obj = ma.get_queryset(RequestFactory().get('/')).get(pk=self.tl.pk)
+        edit = ma.col_edit(obj)
+        self.assertIn('title="Edit Daily QC"', edit)
+        self.assertIn('aria-label="Edit Daily QC"', edit)
+        self.assertIn('aria-hidden="true"', edit)
+        units = ma.col_units(obj)
+        self.assertIn('title="Assigned to: Linac 1"', units)
+        self.assertIn('<span class="tl-visually-hidden"> (Assigned to: Linac 1)</span>', units)
+
+    def test_metadata_labels(self):
+        meta = qa_admin.get_test_metadata(self.test)
+        self.assertEqual((meta['type_badge'], meta['type_label']), ('Num', 'Numerical'))
+        boolean = qa_utils.create_test(name='Door Interlock', test_type=qa_models.BOOLEAN)
+        meta = qa_admin.get_test_metadata(boolean)
+        self.assertEqual((meta['type_badge'], meta['type_label']), ('Y/N', 'Boolean'))
+
+    def test_duplicate_name_taken_error_is_plain_text(self):
+        resp = self.client.post(reverse('admin:qa_testlist_duplicate_test'), {
+            'source_test_id': self.test.pk, 'new_name': 'Output Constancy 6X',
+        })
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(resp['Content-Type'].startswith('text/plain'))
+        self.assertEqual(
+            resp.content.decode(),
+            'A test named “Output Constancy 6X” already exists. Choose a different name. No test was created.',
+        )

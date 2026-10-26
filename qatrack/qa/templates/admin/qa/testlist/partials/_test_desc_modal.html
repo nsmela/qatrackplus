@@ -1,9 +1,10 @@
 {% load i18n static %}
 <div class="tl-modal-backdrop" id="tl-desc-modal-backdrop">
-  <div class="tl-modal-dialog">
+  <div class="tl-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tl-desc-title">
     <div class="tl-modal-header">
-      <h3 class="tl-modal-title"><i class="fa fa-align-left" aria-hidden="true"></i> {% blocktrans with name=test.name %}Description for {{ name }}{% endblocktrans %}</h3>
-      <button type="button" class="tl-modal-close-btn" data-modal-close aria-label="Close">&times;</button>
+      <h3 class="tl-modal-title" id="tl-desc-title"><i class="fa fa-align-left" aria-hidden="true"></i> {% blocktrans with name=test.name %}Description for {{ name }}{% endblocktrans %}</h3>
+      <button type="button" class="tl-modal-close-btn" data-modal-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
     </div>
     <form hx-post="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test.id }}&index={{ index }}"
           hx-target="#tl-desc-wrap-{{ test.id }}-{{ index }}"
