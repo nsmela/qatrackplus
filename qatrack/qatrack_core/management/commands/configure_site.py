@@ -2,11 +2,11 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.management.base import BaseCommand
 
+# Names the containers use to reach QATrack+ themselves; never what users type.
+from qatrack.docker_settings import INTERNAL_HOSTS
+
 # The Site record Django creates when the sites app is first migrated.
 DJANGO_DEFAULT = 'example.com'
-
-# Names the containers use to reach QATrack+ themselves; never what users type.
-INTERNAL_HOSTS = {'localhost', '127.0.0.1'}
 
 
 def first_public_host(hosts):
@@ -66,5 +66,4 @@ class Command(BaseCommand):
 
         if changed:
             site.save(update_fields=changed)
-            Site.objects.clear_cache()
             self.stdout.write("Site %s set: domain %s, name %s" % (' and '.join(changed), site.domain, site.name))

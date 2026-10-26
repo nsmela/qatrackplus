@@ -30,7 +30,8 @@ class TestConfigureSite(TestCase):
     def run_command(self, **options):
         out = StringIO()
         call_command('configure_site', stdout=out, **options)
-        Site.objects.clear_cache()
+        # Saving a Site clears Django's cache of the current one, so this reads
+        # what the command saved.
         return Site.objects.get_current(), out.getvalue()
 
     @override_settings(ALLOWED_HOSTS=['qatrack.myclinic.ca', 'localhost', '127.0.0.1'], SITE_NAME='QATrack+')
