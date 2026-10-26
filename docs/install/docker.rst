@@ -346,8 +346,7 @@ once, then start with the development overlay:
 
 .. code-block:: console
 
-    echo "QATRACK_UID=$(id -u)" >> .env
-    echo "QATRACK_GID=$(id -g)" >> .env
+    printf '\nQATRACK_UID=%s\nQATRACK_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
     docker compose -f compose.yaml -f compose.dev.yaml up -d --build
 
 Use the same ``-f compose.yaml -f compose.dev.yaml`` on every ``docker compose``

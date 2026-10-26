@@ -114,7 +114,7 @@ To keep the key, copy it into ``.env`` before you start 4.0.2 for the first time
 .. code-block:: bash
 
     cd ~/web/qatrackplus
-    echo "SECRET_KEY=$(cat deploy/docker/user-data/secret_key.txt)" >> deploy/docker/.env
+    printf '\nSECRET_KEY=%s\n' "$(cat deploy/docker/user-data/secret_key.txt)" >> deploy/docker/.env
 
 If that file does not exist, there is no key to carry over; skip this step.
 QATrack+ then generates a key and keeps it in a Docker volume that the nightly

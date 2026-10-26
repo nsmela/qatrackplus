@@ -672,7 +672,7 @@ jobs:
         run: |
           cp .env.example .env
           # The upgrade guide's optional step: keep 4.0.1's secret key.
-          echo "SECRET_KEY=$(cat "$GITHUB_WORKSPACE/../base/deploy/docker/user-data/secret_key.txt")" >> .env
+          printf '\nSECRET_KEY=%s\n' "$(cat "$GITHUB_WORKSPACE/../base/deploy/docker/user-data/secret_key.txt")" >> .env
           docker compose up -d --build --wait --wait-timeout 300
 
       - name: Container logs
@@ -772,8 +772,7 @@ jobs:
         working-directory: deploy/docker
         run: |
           cp .env.example .env
-          echo "QATRACK_UID=$(id -u)" >> .env
-          echo "QATRACK_GID=$(id -g)" >> .env
+          printf '\nQATRACK_UID=%s\nQATRACK_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
           echo "runner uid=$(id -u) gid=$(id -g)"
           docker compose -f compose.yaml -f compose.dev.yaml up -d --build --wait --wait-timeout 300
 
