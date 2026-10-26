@@ -150,18 +150,18 @@ _None yet._
 - After "Change" on a sublist, the new card replaces the old one, so focus
   can't return to the button that opened the dialog. (Q)
 
-- **Serious, existed before this work (fixed in task Q):** `#tl-modal-container` is inside the
-  main change form, so the browser drops the nested `<form>` in the
-  Duplicate and Description dialogs. "Create & Add Test" (and probably
-  "Save Description") submits and saves the whole test list instead. Being
-  fixed next (task Q). (M)
+- **Serious, existed before this work; fixed in task Q:**
+  `#tl-modal-container` was inside the main change form, so the browser
+  dropped the nested `<form>` in the Duplicate and Description dialogs.
+  "Create & Add Test" and "Save Description" submitted and saved the whole
+  test list instead. (M)
 - `TestListAdmin.actions` lists `export_test_lists`, which isn't defined
   anywhere, so the action is dead. (M)
 - `base_site.html:172`: "Submitting..." is untranslated and uses "...". (M)
 - Keyboard access: the attachments Browse button (a `<label>` around a hidden
   input) and the clickable description text can't be reached by keyboard;
-  the search, Duplicate and Description dialogs don't trap or return focus.
-  Being fixed next (task Q). (M)
+  the search, Duplicate and Description dialogs didn't trap or return focus.
+  Fixed in task Q. (M)
 - Translations: run `makemessages -l fr -l fr_CA -l es` and `compilemessages`
   before release; many new strings. (M)
 
