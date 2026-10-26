@@ -21,6 +21,39 @@ predates QATrack+ 4.0. Depending on which system you are using there are
 different ways to install the required dependencies. Follow the section that
 applies to your specific machine.
 
+.. _docker_minimum_versions:
+
+Minimum Docker versions
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Whichever system you use, QATrack+ needs:
+
+* **Docker Compose 2.17 or newer.** QATrack+'s ``compose.yaml`` passes your
+  :ref:`own Python packages <docker_site_packages>` to the build in a way older
+  Compose releases don't understand. They refuse to read the file at all, so
+  *every* ``docker compose`` command stops, not just builds, with:
+
+  .. code-block:: text
+
+      services.django.build Additional property additional_contexts is not allowed
+
+* **Docker Engine 23.0 or newer.** The image build relies on BuildKit features
+  that Docker Engine 20.10 and earlier don't include.
+
+Check what you have with:
+
+.. code-block:: console
+
+    docker compose version
+    docker version --format '{{.Server.Version}}'
+
+The first prints the Compose version (for example ``Docker Compose version
+v2.27.0``) and the second the Engine version. If either is too old, update
+Docker by following Docker's own instructions linked below (on Ubuntu, Docker's
+``apt`` repository updates both the Engine and the ``docker-compose-plugin``
+package), or update Docker Desktop on Windows. Docker's current releases are
+well above both minimums.
+
 Windows 10 Professional or Enterprise with Hyper-V
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -129,11 +162,14 @@ Docker's instructions for your distribution:
 * `Install Docker Engine on Ubuntu <https://docs.docker.com/engine/install/ubuntu/>`__
 * `Other Linux distributions <https://docs.docker.com/engine/install/>`__
 
-Check that Compose is available with:
+Check that Compose is available, and that both meet
+:ref:`the minimum versions <docker_minimum_versions>` (Compose 2.17, Engine
+23.0), with:
 
 .. code-block:: console
 
     docker compose version
+    docker version --format '{{.Server.Version}}'
 
 Make docker work without sudo on Linux
 ......................................

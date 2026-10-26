@@ -27,6 +27,34 @@ patches is in the next section.
 
 .. include:: _upgrade_4_0_before.rst
 
+.. _docker_upgrade_check_compose:
+
+Before you pull: check your Docker Compose version
+--------------------------------------------------
+
+From 4.0.2, QATrack+ needs **Docker Compose 2.17 or newer** and **Docker Engine
+23.0 or newer** (see :ref:`docker_minimum_versions` for why). Check both *before*
+``git pull``:
+
+.. code-block:: bash
+
+    docker compose version
+    docker version --format '{{.Server.Version}}'
+
+This matters more than a failed build would suggest. An older Compose refuses to read
+the new ``compose.yaml`` at all, so after the pull *every* ``docker compose`` command
+stops, including ``up``, ``config`` and ``restore-media``, and your site can't be
+restarted until Compose is updated. The error looks like this:
+
+.. code-block:: text
+
+    services.django.build Additional property additional_contexts is not allowed
+
+If either version is too old, update Docker first (on Ubuntu, through Docker's ``apt``
+repository, which updates the Engine and the ``docker-compose-plugin`` package
+together), then carry on with the upgrade. If you have already pulled and see that
+error, updating Docker is the fix too: nothing else needs undoing.
+
 .. _docker_upgrade_env_untracked:
 
 Upgrading from 4.0.0 or 4.0.1: keep your ``.env``

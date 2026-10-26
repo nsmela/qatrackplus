@@ -90,6 +90,12 @@ Other Changes
 Deployment and Upgrade Notes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+* **Docker: Docker Compose 2.17 and Docker Engine 23.0 are now the minimum. Check
+  before you pull.** Older Compose releases refuse to read the new ``compose.yaml``,
+  so every ``docker compose`` command (not only builds) stops with *Additional
+  property additional_contexts is not allowed* until Docker is updated. See
+  :ref:`docker_upgrade_check_compose`.
+
 * **Docker: ``deploy/docker/.env`` is no longer tracked by git. Set your copy aside
   before you pull.** It holds the database password, so it no longer belongs in the
   repository. Every Docker site has edited it, so on the first pull to 4.0.2
