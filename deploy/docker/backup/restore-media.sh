@@ -84,8 +84,9 @@ on_exit() {
             echo "The restore did not finish. The uploaded files were put back as they were." >&2
         else
             echo "The restore did not finish, and the uploaded files could not all be put back." >&2
-            echo "The files from before the restore are in $staging/previous (the media volume's" >&2
-            echo "${staging#"$TARGET_DIR"/}/previous folder). Ask for help before running restore-media again." >&2
+            echo "The ones not put back are still in $staging/previous (the media volume's" >&2
+            echo "${staging#"$TARGET_DIR"/}/previous folder), which has been kept. Move everything in it back" >&2
+            echo "into the media volume by hand before you start QATrack+ or run restore-media again." >&2
             exit "$status"
         fi
     fi
@@ -99,12 +100,14 @@ trap 'exit 143' TERM
 
 # Move every entry directly inside $1 into $2, dot-files included. .restore.*
 # folders (this restore's staging folder, or one left by a restore that was
-# killed outright) are never moved.
+# killed outright) are never moved. Stops at the first move that fails and
+# returns non-zero: put_back runs inside an "if", where set -e does not apply,
+# so the failure has to be returned by hand.
 move_entries() {
     local entry
     find "$1" -mindepth 1 -maxdepth 1 ! -name '.restore.*' -print0 |
         while IFS= read -r -d '' entry; do
-            mv -- "$entry" "$2/"
+            mv -- "$entry" "$2/" || return 1
         done
 }
 
