@@ -4,9 +4,12 @@
 # (1.15) in file header"). Version 16 tools back up and restore the postgres
 # service's version 15 server. Never move this below the newest pg_dump that
 # has made a site's backups; move it up with the postgres service.
-FROM postgres:16-alpine
+#
+# Only the client tools are installed, not the PostgreSQL server. compose.yaml
+# runs this image with "init: true", so crond does not run as process 1.
+FROM alpine:3.22
 
-RUN apk add --no-cache bash tar dcron dos2unix flock
+RUN apk add --no-cache postgresql16-client bash tar dcron dos2unix flock
 
 COPY backup.sh /usr/local/bin/backup
 COPY restore-db.sh /usr/local/bin/restore-db
