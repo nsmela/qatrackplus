@@ -30,9 +30,9 @@ class TestConfigureSite(TestCase):
     def run_command(self, **options):
         out = StringIO()
         call_command('configure_site', stdout=out, **options)
-        # Saving a Site clears Django's cache of the current one, so this reads
-        # what the command saved.
-        return Site.objects.get_current(), out.getvalue()
+        # Read the database, not get_current(): that caches the object the
+        # command edits, so it would show changes the command never saved.
+        return Site.objects.get(pk=self.site.pk), out.getvalue()
 
     @override_settings(ALLOWED_HOSTS=['qatrack.myclinic.ca', 'localhost', '127.0.0.1'], SITE_NAME='QATrack+')
     def test_default_record_filled_from_allowed_hosts(self):
