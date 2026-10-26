@@ -2,8 +2,7 @@ from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.management.base import BaseCommand
 
-# Names the containers use to reach QATrack+ themselves; never what users type.
-from qatrack.docker_settings import INTERNAL_HOSTS
+from qatrack.qatrack_core.hosts import LOOPBACK_HOSTS
 
 # The Site record Django creates when the sites app is first migrated.
 DJANGO_DEFAULT = 'example.com'
@@ -16,7 +15,7 @@ def first_public_host(hosts):
     can be a link target.
     """
     for host in hosts:
-        if host and host != '*' and not host.startswith('.') and host not in INTERNAL_HOSTS:
+        if host and host != '*' and not host.startswith('.') and host not in LOOPBACK_HOSTS:
             return host
     return None
 

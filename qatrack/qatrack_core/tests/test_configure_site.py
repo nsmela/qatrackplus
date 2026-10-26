@@ -1,4 +1,6 @@
 """manage.py configure_site sets the Site record QATrack+ builds email and report links from."""
+import subprocess
+import sys
 from io import StringIO
 
 from django.contrib.sites.models import Site
@@ -6,6 +8,18 @@ from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from qatrack.qatrack_core.management.commands.configure_site import first_public_host
+
+
+class TestHostsModule(SimpleTestCase):
+
+    def test_imports_without_django(self):
+        # qatrack/settings.py loads qatrack_core.hosts (through docker_settings)
+        # before Django is set up, so it must not import Django itself.
+        code = (
+            "import sys; import qatrack.qatrack_core.hosts; "
+            "sys.exit(any(m == 'django' or m.startswith('django.') for m in sys.modules))"
+        )
+        self.assertEqual(subprocess.run([sys.executable, '-c', code]).returncode, 0)
 
 
 class TestFirstPublicHost(SimpleTestCase):
