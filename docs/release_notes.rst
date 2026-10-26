@@ -85,6 +85,16 @@ Deployment and Upgrade Notes
   that took longer than Docker allowed, so ``docker compose up`` gave up and never
   started nginx. ``django`` now has up to 10 minutes.
 
+* **Docker: backups can be restored, and an interrupted backup can't pass for a
+  finished one.** The ``backup`` service now writes each file under a temporary
+  name and renames it only once it is complete and readable. It refuses to start
+  while another backup or a restore is running. Two new commands,
+  ``restore-db`` and ``restore-media``, put a backup back after checking it and
+  asking you to confirm (see :ref:`docker_backups`). Backups made by QATrack+
+  4.0.0 and 4.0.1 can be restored. The backup service's PostgreSQL tools are now
+  pinned to version 16, the version that made those backups: PostgreSQL 15's tools
+  cannot read them.
+
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to
   each container and starts again empty when the container is recreated, for

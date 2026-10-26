@@ -411,31 +411,47 @@ jobs:
           echo "other.test over HTTPS: curl exit $rc"
           [ "$rc" = 35 ]
 
-      - name: Verify backup produces a valid dump
+      - name: Verify backup and restore
+        # Back up, lose a user and an uploaded file, then restore both the way
+        # the docs say.
         working-directory: deploy/docker
         run: |
           set -euo pipefail
-          docker compose exec -T backup sh -eu -c '
-            rm -f /backups/db_*.dump /backups/media_*.tar.gz 2>/dev/null || true
+          dc="docker compose"
+          $dc exec -T -e DJANGO_SUPERUSER_PASSWORD=ci-password-123 django \
+            python manage.py createsuperuser --noinput --username restoreme --email restoreme@example.com
+          $dc exec -T django sh -c 'mkdir -p qatrack/media/uploads && echo "restore me" > qatrack/media/uploads/ci-restore.txt'
 
-            # Run the backup exactly as the nightly cron job does.
-            bash /backup.sh
+          # The command the nightly cron job runs.
+          $dc exec -T backup backup
+          dump=$($dc exec -T backup sh -c 'cd /backups && ls -1t db_*.dump | head -1')
+          media=$($dc exec -T backup sh -c 'cd /backups && ls -1t media_*.tar.gz | head -1')
+          echo "backups: $dump $media"
 
-            dump=$(ls -1t /backups/db_*.dump 2>/dev/null | head -1 || true)
-            [ -n "$dump" ] || { echo "FAIL: no db dump produced"; exit 1; }
+          # A second backup or restore is refused while one holds the lock.
+          $dc exec -d backup flock /backups/.qatrackplus-backup-restore.lock -c 'sleep 30'
+          sleep 2
+          if $dc exec -T backup backup; then echo "FAIL: backup ran while another held the lock"; exit 1; fi
 
-            size=$(stat -c %s "$dump")
-            echo "dump=$dump size=$size"
-            [ "$size" -gt 0 ] || { echo "FAIL: db dump is 0 bytes (auth failed)"; exit 1; }
+          $dc exec -T django python manage.py shell -c \
+            "from django.contrib.auth.models import User; User.objects.filter(username='restoreme').delete()"
+          $dc exec -T django rm qatrack/media/uploads/ci-restore.txt
 
-            # Prove it is a real pg_dump archive, not just non-empty.
-            pg_restore --list "$dump" >/dev/null || { echo "FAIL: not a valid archive"; exit 1; }
+          $dc stop django django-q
+          sleep 30  # let the lock holder above finish
+          # A wrong confirmation changes nothing.
+          if echo nope | $dc run --rm -T --no-deps backup restore-db "$dump"; then
+            echo "FAIL: restore-db went ahead without confirmation"; exit 1
+          fi
+          echo qatrackplus | $dc run --rm -T --no-deps backup restore-db "$dump"
+          echo RESTORE | $dc run --rm -T --no-deps backup restore-media "$media"
+          $dc up -d --wait --wait-timeout 300
 
-            # Media archive must also be produced.
-            ls -1 /backups/media_*.tar.gz >/dev/null || { echo "FAIL: media archive missing"; exit 1; }
-
-            echo "PASS: valid db dump + media archive produced"
-          '
+          $dc exec -T django python manage.py shell -c \
+            "import sys; from django.contrib.auth.models import User; sys.exit(not User.objects.filter(username='restoreme').exists())"
+          [ "$($dc exec -T django cat qatrack/media/uploads/ci-restore.txt)" = "restore me" ]
+          [ "$($dc exec -T django stat -c %u qatrack/media/uploads/ci-restore.txt)" = 1000 ]
+          echo "PASS: backup restored the user and the uploaded file"
 
       - name: Tear Down
         if: always()
@@ -531,6 +547,9 @@ jobs:
           # 4.0.1 keeps its secret key in the checkout (compose.override.yaml
           # mounts it); the upgrade guide carries it over.
           test -s user-data/secret_key.txt
+          # A backup made by 4.0.1's own backup service, restored after the upgrade.
+          docker compose exec -T backup bash /backup.sh
+          ls -l backups
           docker compose down
 
       - name: Upgrade to this branch on the same volumes
@@ -575,6 +594,31 @@ jobs:
           $dc exec -T django touch qatrack/media/uploads/after-upgrade.txt
           [ "$($dc exec -T django stat -c %u qatrack/media/uploads/after-upgrade.txt)" = 1000 ]
           echo "PASS: 4.0.1 site upgraded; data intact and owned by the app user"
+
+      - name: Restore the 4.0.1 backup with this release's tools
+        # Sites' existing backups were made by 4.0.1's backup image (pg_dump 16);
+        # this release's restore-db and restore-media must read them.
+        working-directory: deploy/docker
+        run: |
+          set -euo pipefail
+          dc="docker compose"
+          old="$GITHUB_WORKSPACE/../base/deploy/docker/backups"
+          sudo mkdir -p backups
+          sudo cp "$old"/db_*.dump "$old"/media_*.tar.gz backups/
+          dump=$(cd backups && ls db_*.dump | head -1)
+          media=$(cd backups && ls media_*.tar.gz | head -1)
+          $dc exec -T django python manage.py shell -c \
+            "from django.contrib.auth.models import User; User.objects.filter(username='ci').delete()"
+          $dc exec -T django rm qatrack/media/uploads/ci-upgrade.txt
+          $dc stop django django-q
+          echo qatrackplus | $dc run --rm -T --no-deps backup restore-db "$dump"
+          echo RESTORE | $dc run --rm -T --no-deps backup restore-media "$media"
+          $dc up -d --wait --wait-timeout 300
+          $dc exec -T django python manage.py shell -c \
+            "import sys; from django.contrib.auth.models import User; sys.exit(not User.objects.filter(username='ci').exists())"
+          [ "$($dc exec -T django cat qatrack/media/uploads/ci-upgrade.txt)" = "written by 4.0.1" ]
+          [ "$($dc exec -T django stat -c %u qatrack/media/uploads/ci-upgrade.txt)" = 1000 ]
+          echo "PASS: a 4.0.1 backup restored with this release's tools"
 
       - name: Tear Down
         if: always()

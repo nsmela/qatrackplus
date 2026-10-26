@@ -347,19 +347,6 @@ folder, which is given to your user when the stack starts, even if an earlier
 QATrack+ container created it as root.
 
 
-Setting up copying backups from local machine to remote server on Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create the following bat file:
-
-.. code-block:: batch
-
-    NET USE V: "\\pdc\OneDrive$\QATrack+"
-
-    xcopy D:\QATrack+\qatrackplus\deploy\docker\user-data\backup-management\backups V:\backups /E /G /H /D /Y
-
-Then using Windows Task scheduler to set that bat file to run daily.
-
 Advanced usage tips
 -------------------
 
@@ -432,27 +419,6 @@ to `8080:80` then you would need to type http://localhost:8080 within your
 browser to see QATrack+. After editing `compose.yaml` you need to rerun
 `docker compose up`.
 
-Making the backup management store its files on a network share
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Within the docker image all backup data is placed at
-`/usr/src/qatrackplus/deploy/docker/user-data/backup-management`.  If during
-the initial boot of the docker image a network drive is mounted to that
-directory theoretically all backups should be managed on that network drive
-instead. To achieve this, at the start of `init.sh` write the following line:
-
-
-.. code-block:: console
-
-    mount -t cifs -o username=your_user_name -o password=your_password //host_name/share_name /usr/src/qatrackplus/deploy/docker/user-data/backup-management
-
-See `cifs man page
-<https://www.systutorials.com/docs/linux/man/8-mount.cifs/>`__ for more help if
-needed.
-
-This has not been tested yet, please inform Simon Biggs (me@simonbiggs.net) if
-you have issues / if you get it working.
-
 Shutdown the server
 ~~~~~~~~~~~~~~~~~~~
 
@@ -482,21 +448,62 @@ Once any files have changed in the qatrackplus directory you need to run the fol
     docker compose build
     docker compose up
 
-Backup management
-~~~~~~~~~~~~~~~~~
+.. _docker_backups:
 
-Everytime `docker compose up` is run a timestamped backup zip file of the
-database, uploaded files, and your site specific css is created. These backups
-are stored within
-`qatrackplus/deploy/docker/user-data/backup-management/backups`.  To restore a
-backup zip file copy it to the restore directory found at
-`qatrackplus/deploy/docker/user-data/backup-management/restore`.  The
-restoration will occur next time `docker compose up` is called. After
-successful restoration the zip file within the restore directory is deleted.
+Backing up and restoring
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-This restore method will also successfully restore backup files created on a
-different machine. However it will only successfully restore a like for like
-QATrack+ version. This cannot be used when upgrading between versions.
+The ``backup`` service backs up QATrack+'s database and uploaded files every
+night at 2 AM, into the ``deploy/docker/backups`` folder:
+
+* ``db_YYYYMMDD_HHMMSS.dump``, the database;
+* ``media_YYYYMMDD_HHMMSS.tar.gz``, the uploaded files.
+
+Each file is checked as it is made, and only gets its final name once it is
+complete, so an interrupted backup never looks like a finished one. Backups older
+than 7 days are deleted. To back up now, or to see the backups you have:
+
+.. code-block:: console
+
+    docker compose exec backup backup
+    docker compose exec backup ls -lh /backups
+
+A backup does not contain your ``.env`` file, which holds the database password
+and your settings, nor the certificates in ``user-data/ssl``. Keep copies of
+those as well. If you have not set ``SECRET_KEY`` in ``.env``, QATrack+ keeps a
+generated one in a Docker volume, which a backup does not contain: restoring on
+another server signs everyone out once and voids password-reset links. Set
+``SECRET_KEY`` in ``.env`` to keep it with your settings.
+
+**Keep copies off the server.** ``deploy/docker/backups`` is on the same disk as
+QATrack+, so a disk failure, or ransomware, that takes the server takes these
+backups too. Have your IT department's backup system copy that folder to another
+machine every day.
+
+.. note::
+
+    Uploaded files are part of QATrack+'s records: an attachment belongs to the
+    test list, service event or fault it was attached to, and nothing in
+    QATrack+ deletes one. The folder only grows. Plan storage for it, and never
+    point a clean-up job at it.
+
+To restore, stop QATrack+, restore the database and the uploaded files from the
+same backup, and start it again:
+
+.. code-block:: console
+
+    docker compose stop django django-q
+    docker compose run --rm --no-deps backup restore-db db_YYYYMMDD_HHMMSS.dump
+    docker compose run --rm --no-deps backup restore-media media_YYYYMMDD_HHMMSS.tar.gz
+    docker compose up -d
+
+Each command checks the backup before it changes anything, then asks you to
+confirm: type the database name for ``restore-db``, and ``RESTORE`` for
+``restore-media``. A restore replaces everything: anything entered since that
+backup is lost. Backups made by QATrack+ 4.0.0 and 4.0.1 can be restored. When
+you restore a backup from an older release, ``docker compose up -d`` applies the
+database changes the current release needs. Do not restore a backup from a newer
+release into an older one.
 
 Delete docker data
 ~~~~~~~~~~~~~~~~~~
