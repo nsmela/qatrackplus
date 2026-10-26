@@ -10,10 +10,11 @@ BACKUP_DIR="/backups"
 MEDIA_DIR="/media"
 LOCK_FILE="$BACKUP_DIR/.qatrackplus-backup-restore.lock"
 
-# How long the backup archives are kept. This deletes only the db_*.dump and
-# media_*.tar.gz files this script writes. Never point anything like it at the
-# media folder: uploads are part of QATrack+'s records, and nothing in QATrack+
-# deletes one.
+# How many days of backups are kept: a backup is deleted once it is RETENTION_DAYS
+# days old, so 7 keeps a week of nightly backups. This deletes only the db_*.dump
+# and media_*.tar.gz files this script writes (and the .tmp files a killed backup
+# leaves). Never point anything like it at the media folder: uploads are part of
+# QATrack+'s records, and nothing in QATrack+ deletes one.
 RETENTION_DAYS=7
 
 mkdir -p "$BACKUP_DIR"
@@ -39,6 +40,10 @@ trap cleanup EXIT
 
 echo "Starting backup at $DATE"
 
+# A backup killed outright (power cut, docker kill) cannot remove its own .tmp
+# file. Holding the lock means no other backup is writing one now.
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name "db_*.dump.tmp" -o -name "media_*.tar.gz.tmp" \) -delete
+
 export PGPASSWORD="$POSTGRES_PASSWORD"
 
 echo "Dumping the database..."
@@ -50,20 +55,27 @@ pg_dump \
     --format=custom \
     --lock-wait-timeout=60s \
     --file="$dump_file.tmp"
-pg_restore --list "$dump_file.tmp" >/dev/null
+# Read the whole archive back, every data block, not just its table of contents,
+# so a dump cut short is caught now rather than on the day it is needed.
+pg_restore --file=/dev/null "$dump_file.tmp"
 mv "$dump_file.tmp" "$dump_file"
 echo "Database saved to $dump_file"
 
 echo "Archiving uploaded files..."
 # Entries are media/..., the same layout as backups made by QATrack+ 4.0.
-tar --create --gzip --file="$media_file.tmp" --directory=/ "${MEDIA_DIR#/}"
+# .restore.* is restore-media's working folder, which a restore that was killed
+# outright can leave behind; it is not part of the uploaded files.
+tar --create --gzip --file="$media_file.tmp" --directory=/ \
+    --anchored --exclude="${MEDIA_DIR#/}/.restore.*" "${MEDIA_DIR#/}"
 tar --list --gzip --file="$media_file.tmp" >/dev/null
 mv "$media_file.tmp" "$media_file"
 echo "Uploaded files saved to $media_file"
 
 trap - EXIT
 
-find "$BACKUP_DIR" -maxdepth 1 -type f -name "db_*.dump" -mtime +$RETENTION_DAYS -delete
-find "$BACKUP_DIR" -maxdepth 1 -type f -name "media_*.tar.gz" -mtime +$RETENTION_DAYS -delete
+# find counts age in whole days, rounded down: -mtime +N matches files at least
+# N+1 days old, so +$((RETENTION_DAYS - 1)) deletes those RETENTION_DAYS days old.
+find "$BACKUP_DIR" -maxdepth 1 -type f -name "db_*.dump" -mtime +$((RETENTION_DAYS - 1)) -delete
+find "$BACKUP_DIR" -maxdepth 1 -type f -name "media_*.tar.gz" -mtime +$((RETENTION_DAYS - 1)) -delete
 
 echo "Backup completed successfully"
