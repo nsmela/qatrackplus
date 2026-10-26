@@ -36,5 +36,16 @@ python manage.py configure_site --domain "${SITE_DOMAIN:-}" --name "${SITE_NAME:
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
+# Without SECRET_KEY in .env, the key QATrack+ generated lives only in the
+# user-data volume, which the nightly backup does not include. Say so once per
+# start, here rather than in the settings, which every process imports. The
+# notice names the file and never shows the key; with SECRET_KEY set it is empty.
+python -c '
+from qatrack.docker_settings import secret_key_notice
+notice = secret_key_notice()
+if notice:
+    print(notice)
+'
+
 echo "Starting Gunicorn..."
 exec gunicorn qatrack.wsgi:application -w 2 -b 0.0.0.0:8000
