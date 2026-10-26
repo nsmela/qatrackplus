@@ -24,38 +24,6 @@ step. The live description preview and test list builder are driven by htmx.
   --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
 }
 
-/* ---- Top Breadcrumbs ---- */
-.breadcrumbs, .tl-breadcrumbs {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 0 8px 0 !important;
-  margin: 0 0 6px 0 !important;
-  font-size: 12px !important;
-  font-family: var(--tl-font) !important;
-  color: #8c939d !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-}
-.tl-breadcrumbs a, .breadcrumbs a {
-  color: #3c8dbc !important;
-  font-weight: 400 !important;
-  text-decoration: none !important;
-}
-.tl-breadcrumbs a:hover, .breadcrumbs a:hover {
-  text-decoration: underline !important;
-}
-.tl-breadcrumbs .tl-bc-sep, .breadcrumbs .tl-bc-sep {
-  color: #8c939d !important;
-  font-size: 12px !important;
-  margin: 0 1px !important;
-}
-.tl-breadcrumbs .tl-bc-current, .breadcrumbs .tl-bc-current {
-  color: #8c939d !important;
-  font-weight: 400 !important;
-}
-
 /* ---- Top Header Bar ---- */
 .tl-header-bar {
   display: flex;
@@ -339,7 +307,6 @@ step. The live description preview and test list builder are driven by htmx.
 .tl-card-header { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--tl-line-soft); background:#fff; }
 .tl-card-header > .fa { font-size:16px; color:#555; }
 .tl-card-title { font-size:17px; font-weight:600; color:#444 !important; background:transparent !important; margin:0; line-height:1; padding:0; }
-.tl-card-id { margin-left:auto; font-size:12px; font-weight:600; color:var(--tl-group-label); }
 .tl-card-body { padding:14px; }
 .tl-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
 .tl-field { display:flex; flex-direction:column; gap:4px; min-width:0; }
@@ -517,6 +484,11 @@ tr.tl-dragging {
 }
 .tl-test-desc:hover {
   color: var(--tl-blue);
+}
+.tl-test-desc.tl-test-desc-readonly,
+.tl-test-desc.tl-test-desc-readonly:hover {
+  cursor: default;
+  color: #64748b;
 }
 
 .tl-add-desc-btn {
@@ -1000,6 +972,44 @@ tr.tl-dragging {
   padding: 16px;
   overflow-y: auto;
   flex: 1;
+}
+
+.tl-modal-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #6e7785;
+  line-height: 1.4;
+}
+
+.tl-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tl-modal-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.tl-modal-input,
+input[type="text"].tl-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
+  padding: 6px 10px;
+  font-size: 14px;
+  box-shadow: 2px 2px 2px #ddd;
+}
+.tl-modal-input:focus,
+input[type="text"].tl-modal-input:focus {
+  border-color: #3c8dbc;
+  outline: none;
+}
+.tl-modal-hint {
+  font-size: 12px;
+  color: #6e7785;
 }
 
 .tl-modal-textarea {
@@ -1551,7 +1561,6 @@ ul.messagelist li.error {
 
 /* ---- Changelist ---- */
 .change-list.model-testlist #content { padding-top:8px; }
-.change-list.model-testlist #content > h1 { margin:0 0 6px; }
 .tl-index-header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; margin:0 0 12px; }
 .tl-index-title { font-size:22px; font-weight:400; margin:0; }
 .tl-index-title small { font-size:14px; color:var(--body-quiet-color,#999); margin-left:8px; }
@@ -1575,7 +1584,12 @@ ul.messagelist li.error {
 .tl-results-search #changelist-search > div::before { font-family:FontAwesome; content:"\f002"; color:#9aa2ae; margin-right:6px; font-size:13px; }
 .tl-results-search label { display:none; }
 .tl-results-search #searchbar { border:0; outline:none; font-size:13px; min-width:210px; padding:0; margin:0; background:transparent; }
-.tl-results-search input[type="submit"] { border:0; background:var(--tl-primary); color:#fff; font-size:12px; padding:4px 11px; border-radius:2px; margin-left:8px; cursor:pointer; }
+/* Search is a secondary button (the page's one primary action is "New Test List").
+   The #changelist/#toolbar ids outrank Django's #toolbar form input[type="submit"]. */
+#changelist .tl-results-search #toolbar form input[type="submit"] { border:1px solid #d2d6de; background:#f4f4f4; color:#444; font-size:12px; font-weight:600; line-height:1.4; padding:4px 11px; border-radius:2px; box-shadow:none; margin:0 0 0 8px; cursor:pointer; }
+#changelist .tl-results-search #toolbar form input[type="submit"]:hover { background:#e7e7e7; border-color:#d2d6de; color:#444; }
+#changelist .tl-results-search #toolbar form input[type="submit"]:focus { border-color:#3c8dbc; outline:none; }
+#changelist .tl-results-search #toolbar form input[type="submit"]:focus-visible { outline:2px solid #3c8dbc; outline-offset:1px; }
 .tl-results-search #changelist-search .quiet, .tl-results-search #changelist-search .help { display:none; }
 /* Rows scroll inside the card with the header pinned; initResultsScroll() fits
    --tl-results-max to the viewport so the actions bar and paginator stay visible. */
@@ -1616,14 +1630,41 @@ ul.messagelist li.error {
 #changelist-filter h2::before { font-family:FontAwesome; content:"\f0b0"; font-size:14px; color:#555; }
 #changelist-filter #changelist-filter-clear { margin:0; padding:8px 12px 0; background:transparent; border:0; }
 #changelist-filter #changelist-filter-clear a { color:var(--tl-blue); font-size:12px; font-weight:600; text-decoration:none; }
-#changelist-filter > h3 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--tl-group-label); margin:0; padding:14px 12px 6px; }
-#changelist-filter ul { list-style:none; margin:0; padding:0 8px; display:flex; flex-direction:column; gap:2px; }
+/* The filter card is always white: set the text colour here too, because the dark
+   admin theme's light text is inherited as a computed colour, not via variables. */
+#changelist-filter { color:var(--tl-text); }
+/* Django 4.2 renders each filter as <details><summary>By …</summary><ul>…</ul></details>. */
+#changelist-filter details { margin:0; }
+#changelist-filter details > summary { display:flex; align-items:center; gap:6px; list-style:none; font-size:11px; font-weight:700; line-height:1.3; text-transform:uppercase; letter-spacing:.03em; color:#6e7785; margin:0; padding:14px 12px 6px; cursor:pointer; }
+#changelist-filter details > summary::-webkit-details-marker { display:none; }
+#changelist-filter details > summary::before { font-family:FontAwesome; content:"\f0da"; flex:none; width:8px; font-size:12px; font-weight:400; color:#6e7785; }
+#changelist-filter details[open] > summary::before { content:"\f0d7"; }
+#changelist-filter details > summary:hover, #changelist-filter details > summary:hover::before { color:#444; }
+#changelist-filter details > summary:focus-visible { outline:2px solid #3c8dbc; outline-offset:-2px; }
+/* base_site.html forces overflow-y:scroll on every admin filter list; these are short. */
+#changelist-filter ul { list-style:none; margin:0; padding:0 8px; border:0; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
 #changelist-filter ul li, #changelist-filter ul li.selected { margin:0; padding:0; border:0; }
 #changelist-filter ul li a { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:4px; font-size:13px; color:#4b5563; text-decoration:none; }
 #changelist-filter ul li a:hover { background:#f2f5f8; color:#1f2937; }
 #changelist-filter ul li.selected a { font-weight:600; color:#1f2937; }
 #changelist-filter ul li a::before { content:''; flex:none; box-sizing:border-box; width:15px; height:15px; border:1.5px solid #c3c9d4; border-radius:50%; background:#fff; }
 #changelist-filter ul li.selected a::before { border-color:var(--tl-blue); background:var(--tl-blue); box-shadow:inset 0 0 0 2.5px #fff; }
+#changelist.filtered > .changelist-inner { min-width:0; }
+/* Narrow screens: one column, filter card above the results with its groups side by side. */
+@media (max-width: 1024px) {
+  #changelist.filtered { grid-template-columns:minmax(0, 1fr); row-gap:12px; }
+  #changelist.filtered > .changelist-inner { grid-column:1; grid-row:2; }
+  #changelist.filtered > #changelist-filter { grid-column:1; grid-row:1; position:static; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); align-items:start; column-gap:8px; }
+  #changelist-filter > h2, #changelist-filter > #changelist-filter-clear { grid-column:1 / -1; }
+  #changelist-filter ul { max-height:180px; }
+  .tl-results-head { flex-wrap:wrap; }
+  .tl-results-search { flex:1 1 280px; min-width:0; }
+  .tl-results-search #changelist-search > div { max-width:none; }
+  .tl-results-search #searchbar { min-width:0; flex:1 1 auto; width:auto; }
+  /* initResultsScroll() sizes the rows to the space left below them; with the filter
+     on top that is often nothing, so allow roughly a screen of rows instead. */
+  #changelist-form .results { max-height:max(var(--tl-results-max, 240px), min(560px, calc(100vh - 220px))); }
+}
 </style>
 
 <script>
@@ -1636,6 +1677,22 @@ ul.messagelist li.error {
   window.__TL_BUILDER_INITIALIZED__ = true;
 
   var activeSwapCard = null;
+
+  // Django's JS translation catalogue is loaded on admin pages; fall back to
+  // plain English if it isn't there.
+  var gettext = window.gettext || function (s) { return s; };
+  var ngettext = window.ngettext || function (s, p, n) { return n === 1 ? s : p; };
+  var interpolate = window.interpolate || function (fmt, obj) {
+    return fmt.replace(/%\(\w+\)s/g, function (m) { return String(obj[m.slice(2, -2)]); });
+  };
+
+  // Builder endpoint URLs are reversed by Django's url tag and rendered as data-*
+  // attributes on the Tests & Sublists card, so nothing here depends on
+  // where the admin is mounted.
+  function builderUrl(name) {
+    var card = document.getElementById("tl-tests-card");
+    return card ? (card.getAttribute("data-" + name + "-url") || "") : "";
+  }
 
   // Change form: toggle the live (htmx-driven) description preview pane.
   function initPreviewToggle() {
@@ -1740,11 +1797,12 @@ ul.messagelist li.error {
       }
     });
 
+    // Both the card badge and the page header show the total number of tests,
+    // including the tests inside sublists, so the two numbers always agree.
     var totalTests = visibleDirectCount + sublistTestsCount;
-    var totalSections = visibleSublistsCount + (visibleDirectCount > 0 ? 1 : 0);
 
     var badge = document.getElementById("tl-tests-count");
-    if (badge) { badge.textContent = visibleDirectCount; }
+    if (badge) { badge.textContent = totalTests; }
     var emptyMsg = document.getElementById("tl-empty-tests-msg");
     if (emptyMsg) {
       emptyMsg.style.display = (visibleDirectCount + visibleSublistsCount) === 0 ? "block" : "none";
@@ -1752,9 +1810,9 @@ ul.messagelist li.error {
 
     var headerCounts = document.getElementById("tl-header-counts");
     if (headerCounts) {
-      var tStr = totalTests === 1 ? "1 test" : (totalTests + " tests");
-      var sStr = totalSections === 1 ? "1 section" : (totalSections + " sections");
-      headerCounts.innerHTML = '<span>' + tStr + '</span> &middot; <span>' + sStr + '</span>';
+      var tStr = interpolate(ngettext("%(count)s test", "%(count)s tests", totalTests), {count: totalTests}, true);
+      var sStr = interpolate(ngettext("%(count)s sublist", "%(count)s sublists", visibleSublistsCount), {count: visibleSublistsCount}, true);
+      headerCounts.innerHTML = '<span>' + escapeHtml(tStr) + '</span> &middot; <span>' + escapeHtml(sStr) + '</span>';
     }
   }
 
@@ -1798,7 +1856,7 @@ ul.messagelist li.error {
       if (title) { title.textContent = "Select Test to Add"; }
       if (input) {
         input.placeholder = "Search by test name, macro slug or category…";
-        url = "/admin/qa/testlist/search-tests/";
+        url = builderUrl("search-tests");
         input.setAttribute("hx-get", url);
         input.value = "";
       }
@@ -1806,7 +1864,7 @@ ul.messagelist li.error {
       if (title) { title.textContent = activeSwapCard ? "Change Sublist" : "Select Sublist to Add"; }
       if (input) {
         input.placeholder = "Search available test lists…";
-        url = "/admin/qa/testlist/search-sublists/" + (originalId ? "?current_id=" + encodeURIComponent(originalId) : "");
+        url = builderUrl("search-sublists") + (originalId ? "?current_id=" + encodeURIComponent(originalId) : "");
         input.setAttribute("hx-get", url);
         input.value = "";
       }
@@ -1838,7 +1896,7 @@ ul.messagelist li.error {
     var testsCard = document.getElementById("tl-tests-card");
     var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
 
-    var url = "/admin/qa/testlist/add-test-row/?test_id=" + encodeURIComponent(testId) +
+    var url = builderUrl("add-test-row") + "?test_id=" + encodeURIComponent(testId) +
               "&index=" + currentIndex +
               "&test_list_id=" + encodeURIComponent(originalId);
 
@@ -1866,7 +1924,7 @@ ul.messagelist li.error {
       var index = card.getAttribute("data-index") || "0";
       var testsCard = document.getElementById("tl-tests-card");
       var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
-      var url = "/admin/qa/testlist/add-sublist-card/?child_id=" + encodeURIComponent(childId) +
+      var url = builderUrl("add-sublist-card") + "?child_id=" + encodeURIComponent(childId) +
                 "&index=" + index +
                 "&parent_id=" + encodeURIComponent(originalId);
       fetch(url)
@@ -1891,7 +1949,7 @@ ul.messagelist li.error {
     var testsCard = document.getElementById("tl-tests-card");
     var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
 
-    var url = "/admin/qa/testlist/add-sublist-card/?child_id=" + encodeURIComponent(childId) +
+    var url = builderUrl("add-sublist-card") + "?child_id=" + encodeURIComponent(childId) +
               "&index=" + currentIndex +
               "&parent_id=" + encodeURIComponent(originalId);
 
@@ -2150,7 +2208,7 @@ ul.messagelist li.error {
         var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
         var modalContainer = document.getElementById("tl-modal-container");
         if (modalContainer) {
-          fetch("/admin/qa/testlist/duplicate-test/?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
+          fetch(builderUrl("duplicate-test") + "?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
             .then(function(res) { return res.text(); })
             .then(function(html) {
               modalContainer.innerHTML = html;
@@ -2433,7 +2491,9 @@ ul.messagelist li.error {
 
     var html = '<div class="tl-preview-banner">' +
       '<i class="fa fa-eye" aria-hidden="true"></i> ' +
-      '<span><strong>Preview Mode</strong> — This is a live demonstration of how this Test List appears when performed.</span>' +
+      '<span><strong>' + escapeHtml(gettext("Preview")) + '</strong> — ' +
+      escapeHtml(gettext("a rough layout of this test list. It doesn't show the real Perform QC inputs yet, and nothing you enter here is saved.")) +
+      '</span>' +
       '</div>';
 
     html += '<div class="tl-preview-card">';

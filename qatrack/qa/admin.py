@@ -7,7 +7,11 @@ from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
 from django.db.models import Count, Prefetch, Q
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+)
 from django.shortcuts import get_object_or_404, render
 from django.template import loader
 from django.template.defaultfilters import date as date_formatter
@@ -1176,7 +1180,13 @@ def testlist_add_sublist_card(request):
 
 
 def testlist_test_desc_modal(request):
-    """HTMX endpoint to view or update a test's description."""
+    """HTMX endpoint to view or update a test's description.
+
+    This saves the Test straight away (not when the test list is saved), so it
+    needs the same permission as editing the Test itself, not just staff access.
+    """
+    if not request.user.has_perm("qa.change_test"):
+        return HttpResponseForbidden(_("You don't have permission to change tests. Nothing was changed."))
     test_id = request.GET.get("test_id") or request.POST.get("test_id")
     index = request.GET.get("index", "0")
     test = get_object_or_404(models.Test.objects.select_related("category"), pk=test_id)
@@ -1197,7 +1207,12 @@ def testlist_test_desc_modal(request):
 
 
 def testlist_duplicate_test(request):
-    """HTMX / AJAX endpoint to duplicate a Test object, prompting user for new name and copying type, category, calculation, and unit references/tolerances."""
+    """HTMX / AJAX endpoint to duplicate a Test object, prompting user for new name and copying type, category, calculation, and unit references/tolerances.
+
+    The new Test is created immediately, so this needs permission to add tests.
+    """
+    if not request.user.has_perm("qa.add_test"):
+        return HttpResponseForbidden(_("You don't have permission to add tests. No test was created."))
     source_test_id = request.GET.get("test_id") or request.POST.get("source_test_id")
     source = get_object_or_404(models.Test.objects.select_related("category"), pk=source_test_id)
 
@@ -1254,6 +1269,8 @@ def testlist_duplicate_test(request):
         wrap_high=source.wrap_high,
         calculation_procedure=source.calculation_procedure,
         formatting=source.formatting,
+        created_by=request.user,
+        modified_by=request.user,
     )
 
     # Copy UnitTestInfo (references and tolerances across all units)

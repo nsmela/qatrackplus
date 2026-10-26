@@ -1,24 +1,31 @@
 {% extends "admin/change_form.html" %}
-{% load i18n static %}
+{% load i18n static admin_urls %}
 
 {#
   Test List Builder — Change Form View (Details, Tests, Sublists, Attachments matching Fault Logs, Parents & Actions).
 #}
 
+{% block title %}{% if add %}{% trans "Add Test List" %}{% else %}{{ original.name }} | {% trans "Edit Test List" %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
 {% block pretitle %}{% endblock %}
 {% block content_title %}{% endblock %}
 {% block content_subtitle %}{% endblock %}
-{% block breadcrumbs %}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans "Home" %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; {% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
+  {% if add %}
+  &rsaquo; {% trans "Add" %}
+  {% else %}
+  &rsaquo; {% trans "Edit" %} &rsaquo; {{ original.pk }}
+  {% endif %}
+</div>
+{% endblock %}
 
 {% block object-tools %}{% endblock %}
 
 {% block form_top %}
 {% include "admin/qa/testlist/testlist_assets.html" %}
-
-{# Breadcrumbs #}
-<div class="tl-breadcrumbs">
-  <a href="{% url 'admin:qa_testlist_changelist' %}">{% trans "Test Lists" %}</a> <span class="tl-bc-sep">&rsaquo;</span> <span class="tl-bc-current">{% if add %}{% trans "Add" %}{% else %}{% trans "Edit" %}{% endif %}</span>
-</div>
 
 {# Top Header Bar #}
 <div class="tl-header-bar">
@@ -86,7 +93,6 @@
   <div class="tl-card-header">
     <i class="fa fa-info-circle" aria-hidden="true"></i>
     <h2 class="tl-card-title">{% trans "Details" %}</h2>
-    {% if original.pk %}<span class="tl-card-id">ID: {{ original.pk }}</span>{% endif %}
   </div>
   <div class="tl-card-body">
     <div class="tl-form">
@@ -140,7 +146,12 @@
 
 {% block inline_field_sets %}
   {# --- Unified Tests & Sublists Builder Card --- #}
-  <div class="tl-members-card" id="tl-tests-card" data-original-id="{{ original.pk|default:'' }}">
+  <div class="tl-members-card" id="tl-tests-card" data-original-id="{{ original.pk|default:'' }}"
+       data-search-tests-url="{% url 'admin:qa_testlist_search_tests' %}"
+       data-search-sublists-url="{% url 'admin:qa_testlist_search_sublists' %}"
+       data-add-test-row-url="{% url 'admin:qa_testlist_add_test_row' %}"
+       data-add-sublist-card-url="{% url 'admin:qa_testlist_add_sublist_card' %}"
+       data-duplicate-test-url="{% url 'admin:qa_testlist_duplicate_test' %}">
     <div class="tl-card-header">
       <i class="fa fa-list" aria-hidden="true"></i>
       <h2 class="tl-card-title">{% trans "Tests & Sublists" %}</h2>
@@ -212,6 +223,48 @@
       </span>
     </div>
   </div>
+
+  {# --- Parent Test List Memberships (where this list is used as a sublist) --- #}
+  {% if original.pk %}
+    {% if original.sublist_set.all %}
+      <div class="tl-parents-card" id="tl-parents-card">
+        <div class="tl-card-header">
+          <i class="fa fa-sitemap" aria-hidden="true"></i>
+          <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
+          <span class="tl-count-badge">{{ original.sublist_set.all|length }}</span>
+        </div>
+        <div class="tl-sublist-info-banner">
+          <i class="fa fa-info-circle" aria-hidden="true"></i>
+          <span>{% trans "This test list is used as a sublist in the test lists below. Changes you save here apply to each of them." %}</span>
+        </div>
+        <div class="tl-parents-grid">
+          {% for sublist in original.sublist_set.all %}
+            <a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}" class="tl-parent-card-item">
+              <i class="fa fa-folder-o tl-parent-icon" aria-hidden="true"></i>
+              <div class="tl-parent-info">
+                <span class="tl-parent-name">{{ sublist.parent.name }}</span>
+                <span class="tl-parent-slug">({{ sublist.parent.slug }})</span>
+              </div>
+              <i class="fa fa-external-link tl-parent-ext" aria-hidden="true"></i>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="tl-parents-card tl-parents-empty-card" id="tl-parents-card">
+        <div class="tl-card-header">
+          <i class="fa fa-sitemap" aria-hidden="true"></i>
+          <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
+        </div>
+        <div class="tl-card-body">
+          <p class="tl-no-parents-hint">
+            <i class="fa fa-info-circle" aria-hidden="true"></i>
+            {% trans "This Test List is standalone and is not currently used as a sublist in any other Test Lists." %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
 
   {% for inline_admin_formset in inline_admin_formsets %}
     {% if "attachment" in inline_admin_formset.formset.prefix %}
@@ -332,47 +385,3 @@
 
 {% endblock %}
 
-{% block after_field_sets %}{{ block.super }}
-
-{% if original.pk %}
-  {% if original.sublist_set.all %}
-    <div class="tl-parents-card" id="tl-parents-card">
-      <div class="tl-card-header">
-        <i class="fa fa-sitemap" aria-hidden="true"></i>
-        <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
-        <span class="tl-count-badge">{{ original.sublist_set.all|length }}</span>
-      </div>
-      <div class="tl-sublist-info-banner">
-        <i class="fa fa-info-circle" aria-hidden="true"></i>
-        <span>{% trans "This Test List is included as a sublist inside the following parent Test Lists. Changes here immediately take effect across all parents." %}</span>
-      </div>
-      <div class="tl-parents-grid">
-        {% for sublist in original.sublist_set.all %}
-          <a href="{% url 'admin:qa_testlist_change' sublist.parent.pk %}" class="tl-parent-card-item">
-            <i class="fa fa-folder-o tl-parent-icon" aria-hidden="true"></i>
-            <div class="tl-parent-info">
-              <span class="tl-parent-name">{{ sublist.parent.name }}</span>
-              <span class="tl-parent-slug">({{ sublist.parent.slug }})</span>
-            </div>
-            <i class="fa fa-external-link tl-parent-ext" aria-hidden="true"></i>
-          </a>
-        {% endfor %}
-      </div>
-    </div>
-  {% else %}
-    <div class="tl-parents-card tl-parents-empty-card" id="tl-parents-card">
-      <div class="tl-card-header">
-        <i class="fa fa-sitemap" aria-hidden="true"></i>
-        <h2 class="tl-card-title">{% trans "Parent Test List Memberships" %}</h2>
-      </div>
-      <div class="tl-card-body">
-        <p class="tl-no-parents-hint">
-          <i class="fa fa-info-circle" aria-hidden="true"></i>
-          {% trans "This Test List is standalone and is not currently used as a sublist in any other Test Lists." %}
-        </p>
-      </div>
-    </div>
-  {% endif %}
-{% endif %}
-
-{% endblock %}

@@ -1,6 +1,8 @@
 import json
+import re
 
 from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import constants, get_messages
 from django.core.exceptions import ValidationError
@@ -1208,3 +1210,221 @@ class TestTestListAdminBuilderUI(TestCase):
         resp = self.client.post(url, {'description': 'x'})
         # admin_view redirects anonymous users to the admin login
         self.assertIn(resp.status_code, (302, 403))
+
+
+class TestTestListBuilderQuickFixes(TestCase):
+    """Permissions, URLs and layout of the Test List Builder edit page."""
+
+    def setUp(self):
+        self.superuser = create_user(is_superuser=True, uname='super', pwd='pwd')
+        self.limited = create_user(is_superuser=False, uname='limited', pwd='pwd')
+        # "test list editor": full test list permissions (including the inlines'
+        # models), but no permissions on Test itself
+        cts = ContentType.objects.get_for_models(
+            qa_models.TestList, qa_models.TestListMembership, qa_models.Sublist,
+        ).values()
+        self.limited.user_permissions.add(
+            *Permission.objects.filter(content_type__in=cts)
+        )
+        self.test = qa_utils.create_test(name='quickfix_test')
+        self.test.description = 'Original description'
+        self.test.save()
+        self.tl = qa_utils.create_test_list(name='quickfix_tl')
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.test, order=0)
+        self.desc_url = reverse('admin:qa_testlist_test_desc_modal')
+        self.dup_url = reverse('admin:qa_testlist_duplicate_test')
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _login(self, uname):
+        self.client.login(username=uname, password='pwd')
+
+    def _grant(self, codename):
+        test_ct = ContentType.objects.get_for_model(qa_models.Test)
+        self.limited.user_permissions.add(Permission.objects.get(content_type=test_ct, codename=codename))
+
+    # --- description dialog ---
+
+    def test_desc_modal_get_forbidden_without_change_test(self):
+        self._login('limited')
+        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('Nothing was changed', resp.content.decode())
+
+    def test_desc_modal_post_forbidden_without_change_test(self):
+        self._login('limited')
+        resp = self.client.post(self.desc_url + '?test_id=%d' % self.test.pk, {'description': 'Hacked'})
+        self.assertEqual(resp.status_code, 403)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'Original description')
+
+    def test_desc_modal_allowed_with_change_test(self):
+        self._grant('change_test')
+        self._login('limited')
+        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
+        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(self.desc_url + '?test_id=%d' % self.test.pk, {'description': 'Updated'})
+        self.assertEqual(resp.status_code, 200)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'Updated')
+
+    def test_desc_modal_wording(self):
+        self._login('super')
+        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
+        self.assertContains(resp, 'Description (HTML allowed)</label>')
+        self.assertNotContains(resp, 'Test Description (HTML allowed)')
+        self.assertContains(resp, 'Saving updates this test straight away')
+
+    # --- duplicate dialog ---
+
+    def test_duplicate_get_forbidden_without_add_test(self):
+        self._login('limited')
+        resp = self.client.get(self.dup_url, {'test_id': self.test.pk})
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn('No test was created', resp.content.decode())
+
+    def test_duplicate_post_forbidden_without_add_test(self):
+        self._login('limited')
+        before = qa_models.Test.objects.count()
+        resp = self.client.post(self.dup_url, {'source_test_id': self.test.pk, 'new_name': 'quickfix copy'})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(qa_models.Test.objects.count(), before)
+        self.assertFalse(qa_models.Test.objects.filter(name='quickfix copy').exists())
+
+    def test_duplicate_allowed_with_add_test(self):
+        self._grant('add_test')
+        self._login('limited')
+        resp = self.client.get(self.dup_url, {'test_id': self.test.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'created as soon as you click')
+        resp = self.client.post(self.dup_url, {'source_test_id': self.test.pk, 'new_name': 'quickfix copy'})
+        self.assertEqual(resp.status_code, 200)
+        copy = qa_models.Test.objects.get(name='quickfix copy')
+        self.assertEqual(copy.created_by, self.limited)
+
+    # --- buttons hidden without permission ---
+
+    def test_change_form_hides_test_actions_without_perms(self):
+        self._login('limited')
+        resp = self.client.get(self.change_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
+        self.assertNotContains(resp, 'hx-get="%s' % self.desc_url)
+        self.assertContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
+
+    def test_change_form_shows_test_actions_with_perms(self):
+        self._login('super')
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
+        self.assertContains(resp, 'hx-get="%s' % self.desc_url)
+        self.assertNotContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
+
+    def test_add_test_row_respects_perms(self):
+        url = reverse('admin:qa_testlist_add_test_row')
+        self._login('limited')
+        resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'tl-duplicate-test-btn')
+        self.assertNotContains(resp, self.desc_url)
+        self.client.logout()
+        self._login('super')
+        resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
+        self.assertContains(resp, 'tl-duplicate-test-btn')
+        self.assertContains(resp, self.desc_url)
+
+    # --- URLs rendered by Django, not hard-coded in JS ---
+
+    def test_change_form_renders_builder_urls_as_data_attributes(self):
+        self._login('super')
+        resp = self.client.get(self.change_url)
+        for attr, name in [
+            ('data-search-tests-url', 'qa_testlist_search_tests'),
+            ('data-search-sublists-url', 'qa_testlist_search_sublists'),
+            ('data-add-test-row-url', 'qa_testlist_add_test_row'),
+            ('data-add-sublist-card-url', 'qa_testlist_add_sublist_card'),
+            ('data-duplicate-test-url', 'qa_testlist_duplicate_test'),
+        ]:
+            self.assertContains(resp, '%s="%s"' % (attr, reverse('admin:%s' % name)))
+
+    def test_assets_have_no_hard_coded_admin_urls(self):
+        from django.template import loader
+        source = loader.get_template('admin/qa/testlist/testlist_assets.html').template.source
+        self.assertNotIn('/admin/qa/testlist/search', source)
+        self.assertNotIn('/admin/qa/testlist/', source)
+
+    # --- layout ---
+
+    def test_parents_card_renders_after_tests_card(self):
+        parent = qa_utils.create_test_list(name='quickfix_parent')
+        qa_utils.create_sublist(parent_test_list=parent, child_test_list=self.tl)
+        self._login('super')
+        content = self.client.get(self.change_url).content.decode()
+        tests_pos = content.index('id="tl-tests-card"')
+        parents_pos = content.index('id="tl-parents-card"')
+        attach_pos = content.index('id="tl-attachments-card"')
+        self.assertLess(tests_pos, parents_pos)
+        self.assertLess(parents_pos, attach_pos)
+        self.assertIn('Changes you save here apply to each of them.', content)
+        self.assertNotIn('immediately take effect across all parents', content)
+
+    def test_standalone_parents_card_still_renders(self):
+        self._login('super')
+        resp = self.client.get(self.change_url)
+        self.assertContains(resp, 'tl-parents-empty-card')
+        self.assertContains(resp, 'is standalone')
+
+    def test_details_card_has_no_id_label(self):
+        self._login('super')
+        resp = self.client.get(self.change_url)
+        self.assertNotContains(resp, 'tl-card-id')
+
+
+class TestTestListAdminBreadcrumbs(TestCase):
+    """The Test List pages show the standard admin breadcrumbs bar as their header."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.index_url = reverse('admin:index')
+        self.app_url = reverse('admin:app_list', kwargs={'app_label': 'qa'})
+        self.changelist_url = reverse('admin:qa_testlist_changelist')
+
+    def _breadcrumbs(self, resp):
+        """Return (plain text, list of hrefs) of the single breadcrumbs bar."""
+        content = resp.content.decode()
+        divs = re.findall(r'<div class="breadcrumbs">(.*?)</div>', content, re.S)
+        self.assertEqual(len(divs), 1)
+        html = divs[0]
+        text = ' '.join(re.sub(r'<[^>]+>', ' ', html).replace('&rsaquo;', '›').split())
+        hrefs = re.findall(r'href="([^"]+)"', html)
+        return text, hrefs
+
+    def _assert_common(self, resp):
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'tl-breadcrumbs')
+
+    def test_changelist_breadcrumbs(self):
+        qa_utils.create_test_list()
+        resp = self.client.get(self.changelist_url)
+        self._assert_common(resp)
+        text, hrefs = self._breadcrumbs(resp)
+        self.assertEqual(text, 'Home › QC › Test Lists')
+        self.assertEqual(hrefs, [self.index_url, self.app_url])
+        self.assertNotContains(resp, 'Select test list to change')
+        self.assertContains(resp, '<title>Test Lists | QATrack+ Admin Site</title>', html=True)
+
+    def test_change_form_breadcrumbs(self):
+        tl = qa_utils.create_test_list()
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
+        self._assert_common(resp)
+        text, hrefs = self._breadcrumbs(resp)
+        self.assertEqual(text, 'Home › QC › Test Lists › Edit › %d' % tl.pk)
+        self.assertContains(resp, '<title>%s | Edit Test List | QATrack+ Admin Site</title>' % tl.name, html=True)
+        self.assertEqual(hrefs, [self.index_url, self.app_url, self.changelist_url])
+
+    def test_add_form_breadcrumbs(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add'))
+        self._assert_common(resp)
+        text, hrefs = self._breadcrumbs(resp)
+        self.assertEqual(text, 'Home › QC › Test Lists › Add')
+        self.assertContains(resp, '<title>Add Test List | QATrack+ Admin Site</title>', html=True)
+        self.assertEqual(hrefs, [self.index_url, self.app_url, self.changelist_url])

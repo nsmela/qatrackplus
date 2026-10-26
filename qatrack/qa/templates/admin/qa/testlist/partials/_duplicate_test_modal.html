@@ -21,7 +21,8 @@
               <span class="tl-type-badge {{ source_meta.type_class }}">{{ source_meta.type_badge }}</span>
               {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator"></i> {% trans "Calculation copied" %}</span>{% endif %}
             </div>
-            <p class="tl-dup-note">{% trans "A new test will be created copying the type, category, calculation, and all unit reference/tolerance values." %}</p>
+            <p class="tl-dup-note">{% trans "A new test will be created copying the type, category, calculation, and all unit reference/tolerance values." %}
+              {% trans "The new test is created as soon as you click the button below, even if you don't save this test list." %}</p>
           </div>
         </div>
 

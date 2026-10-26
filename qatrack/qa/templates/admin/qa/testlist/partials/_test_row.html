@@ -35,23 +35,7 @@
   <td class="tl-cell-test">
     <div class="tl-test-name" title="{{ test_meta.slug }}">{{ test_meta.display_name|default:test_meta.name }}</div>
     <div class="tl-test-desc-wrap" id="tl-desc-wrap-{{ test_meta.id }}-{{ index }}">
-      {% if test_meta.description %}
-        <div class="tl-test-desc"
-             hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
-             hx-target="#tl-modal-container"
-             hx-trigger="click"
-             title="{% trans "Click to edit description" %}">
-          <i class="fa fa-align-left" aria-hidden="true"></i>
-          <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
-        </div>
-      {% else %}
-        <button type="button" class="tl-add-desc-btn"
-                hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
-                hx-target="#tl-modal-container"
-                hx-trigger="click">
-          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add description" %}
-        </button>
-      {% endif %}
+      {% include "admin/qa/testlist/partials/_test_desc_cell.html" %}
     </div>
   </td>
   <td class="tl-cell-category">
@@ -81,9 +65,11 @@
     <a href="{{ test_meta.edit_url }}" target="_blank" class="tl-action-icon" title="{% trans "Edit Test in new tab" %}">
       <i class="fa fa-pencil" aria-hidden="true"></i>
     </a>
+    {% if perms.qa.add_test %}
     <button type="button" class="tl-action-icon tl-duplicate-test-btn" data-test-id="{{ test_meta.id }}" title="{% trans "Duplicate Test" %}">
       <i class="fa fa-clone" aria-hidden="true"></i>
     </button>
+    {% endif %}
     <button type="button" class="tl-action-icon tl-delete-test-btn" title="{% trans "Remove Test from list" %}">
       <i class="fa fa-trash-o" aria-hidden="true"></i>
     </button>

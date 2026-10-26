@@ -2,11 +2,16 @@
 {% load i18n static admin_urls admin_list %}
 
 {#
-  Test List Builder — pass 1 (changelist).
+  Test List Builder — changelist.
   Restyled header + object tools; the results table, search, filter sidebar and
-  paginator keep Django's ChangeList machinery and are styled by
-  qa/css/testlist_builder.css (loaded via TestListAdmin.Media).
+  paginator keep Django's ChangeList machinery. Styles are inlined in
+  admin/qa/testlist/testlist_assets.html (included below) so they work without
+  collectstatic. The breadcrumbs block is inherited unchanged.
 #}
+
+{# The .tl-index-header below is the page heading, so drop Django's "Select test list to change" h1. #}
+{% block content_title %}{% endblock %}
+{% block title %}{% trans "Test Lists" %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
 
 {% block object-tools %}
 {% include "admin/qa/testlist/testlist_assets.html" %}

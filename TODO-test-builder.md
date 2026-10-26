@@ -83,20 +83,20 @@ Remove this file before the branch is merged.
       `flag_when` is True, and Tolerance is always "—". Drop the
       `flag_when` "reference" from `get_test_metadata`; columns follow the
       mode rules under "Two editing modes" above.
-- [ ] Parent Memberships card says changes "immediately take effect"; they
+- [x] Parent Memberships card says changes "immediately take effect"; they
       only apply on Save.
-- [ ] "Add description" saves the Test right away, outside the test list's
+- [x] "Add description" saves the Test right away, outside the test list's
       Save. Either save it with the test list, or say in the dialog that it
       saves the test straight away for every list that uses it.
-- [ ] Add `change_test` / `add_test` permission checks to
+- [x] Add `change_test` / `add_test` permission checks to
       `testlist_test_desc_modal` and `testlist_duplicate_test`.
-- [ ] Replace the hard-coded `/admin/qa/testlist/search-*/` URLs in the JS
+- [x] Replace the hard-coded `/admin/qa/testlist/search-*/` URLs in the JS
       with the `{% url %}` values, so search works when QATrack+ is installed
       under a sub-path.
-- [ ] Preview banner says "a live demonstration of how this Test List
+- [x] Preview banner says "a live demonstration of how this Test List
       appears when performed", but every test gets a plain text box. Fix
       the wording now; the full fix is the preview item under Features.
-- [ ] "Duplicate" creates the new test immediately, before the test list is
+- [x] "Duplicate" creates the new test immediately, before the test list is
       saved, and it stays even if the user then cancels. Say so in the
       dialog, or create it on Save.
 
@@ -166,17 +166,17 @@ Remove this file before the branch is merged.
 
 ## Layout and CSS bugs
 
-- [ ] List page: hide Django's "Select test list to change" heading.
-- [ ] List page: filter heading styles target `#changelist-filter > h3`, but
+- [x] List page: hide Django's "Select test list to change" heading.
+- [x] List page: filter heading styles target `#changelist-filter > h3`, but
       Django 4.2 uses `<details><summary>`. The headings are nearly invisible
       in admin's dark mode.
-- [ ] List page: the Search button rule loses to Django's
+- [x] List page: the Search button rule loses to Django's
       `#toolbar form input[type="submit"]`.
-- [ ] List page: at narrow widths the filter column runs off the page; collapse
+- [x] List page: at narrow widths the filter column runs off the page; collapse
       to one column.
-- [ ] List page: remove the stale `testlist_builder.css` comment in
+- [x] List page: remove the stale `testlist_builder.css` comment in
       `change_list.html`.
-- [ ] Breadcrumbs: bring back the v3.1.0 Django admin breadcrumbs bar on
+- [x] Breadcrumbs: bring back the v3.1.0 Django admin breadcrumbs bar on
       both pages, as the header above the page title. v3.1.0 markup for
       reference:
       ```html
@@ -234,7 +234,7 @@ Remove this file before the branch is merged.
     group always visible, a second group at the bottom may not be needed.
   - The "Editing" scope bar (machine dropdown, Editor/Preview) is not
     pinned; it scrolls with the page.
-- [ ] Edit page: remove the "ID: 123" label from the Details card header
+- [x] Edit page: remove the "ID: 123" label from the Details card header
       (`#tl-details-card > div.tl-card-header > span`, i.e.
       `<span class="tl-card-id">` in `change_form.html`) and its
       `.tl-card-id` style. The ID is shown in the breadcrumbs instead.
@@ -256,8 +256,8 @@ Remove this file before the branch is merged.
       (`admin:qa_testlist_history`). Bring it back in the top right group
       (edit page only, not when adding), styled like the other secondary
       buttons.
-- [ ] Edit page: give the Duplicate dialog fields styles (`.tl-modal-field`,
+- [x] Edit page: give the Duplicate dialog fields styles (`.tl-modal-field`,
       `.tl-modal-input` and `.tl-modal-hint` are missing).
-- [ ] Edit page: move Parent Memberships below Tests & Sublists.
-- [ ] Edit page: the Tests & Sublists badge (direct tests only) disagrees with
+- [x] Edit page: move Parent Memberships below Tests & Sublists.
+- [x] Edit page: the Tests & Sublists badge (direct tests only) disagrees with
       the header count (includes sublist tests).

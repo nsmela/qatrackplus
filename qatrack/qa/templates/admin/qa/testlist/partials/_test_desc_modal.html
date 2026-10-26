@@ -11,7 +11,8 @@
           data-modal-form>
       {% csrf_token %}
       <div class="tl-modal-body">
-        <label for="tl-modal-desc-input">{% trans "Test Description (HTML allowed)" %}:</label>
+        <p class="tl-modal-note">{% trans "Saving updates this test straight away, in every test list that uses it. It doesn't wait for you to save this test list." %}</p>
+        <label for="tl-modal-desc-input">{% trans "Description (HTML allowed)" %}</label>
         <textarea name="description" id="tl-modal-desc-input" rows="5" class="tl-modal-textarea">{{ test.description|default:'' }}</textarea>
       </div>
       <div class="tl-modal-footer">
