@@ -199,6 +199,18 @@ Deployment and Upgrade Notes
   read them. The image now installs just those client tools on Alpine, rather
   than starting from the PostgreSQL server image.
 
+* **Docker: the nightly backup runs at 2 AM local time.** It ran at 2 AM UTC,
+  which is the evening before across the Americas (10 PM in Toronto in summer),
+  and named its files in UTC. It now uses QATrack+'s own time zone, ``TIME_ZONE``
+  in ``.env``, for both. If ``TIME_ZONE`` is not set, that is QATrack+'s default,
+  America/Toronto, which QATrack+ already shows dates in: set it if your site is
+  elsewhere. ``docker compose logs backup`` shows the zone in use. Backups from
+  before the upgrade keep their UTC names, so for a day or so the names do not
+  sort in the order the backups were made; ``ls -lt`` lists them newest first.
+  The first backup after the upgrade may come up to a day sooner or later than
+  usual. On the night clocks jump from 2 AM to 3 AM there is no backup, and where
+  they go back from 3 AM to 2 AM there are two (see :ref:`docker_backups`).
+
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to
   each container and starts again empty when the container is recreated, for
