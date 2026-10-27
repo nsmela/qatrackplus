@@ -1,10 +1,15 @@
+import re
 from unittest import mock
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.staticfiles import finders
 from django.core.exceptions import PermissionDenied
+from django.template.loader import get_template
 from django.test import TestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 from django_auth_adfs.backend import AdfsAuthCodeBackend
 
 from qatrack.accounts import models
@@ -185,3 +190,82 @@ class TestADFSCreateUser(TestCase):
         # QATrack+ overrides authenticate to swallow PermissionDenied -> None
         with mock.patch.object(AdfsAuthCodeBackend, "authenticate", side_effect=PermissionDenied):
             assert self.backend.authenticate(authorization_code="x") is None
+
+
+REQUIREJS_CONFIG = 'requirejs/js/requirejs-config.js'
+
+
+def requirejs_paths():
+    """Map each RequireJS module name to the static path it is configured with."""
+    with open(finders.find(REQUIREJS_CONFIG)) as f:
+        config = f.read()
+    return {
+        name.strip("'\""): path
+        for name, path in re.findall(r"""([\w.'"/-]+):\s*siteConfig\.STATIC_URL\s*\+\s*'([^']+)'""", config)
+    }
+
+
+def missing_static_files(html):
+    """Return the static files referenced by ``html`` (directly, or via require([...])) that don't exist."""
+    paths = requirejs_paths()
+    static_url = settings.STATIC_URL
+    wanted = set()
+    for attr_url in re.findall(r"""(?:src|href)=["']([^"']+)["']""", html):
+        if attr_url.startswith(static_url):
+            wanted.add(attr_url[len(static_url):].split('?')[0])
+    for module_list in re.findall(r"require\(\s*\[([^\]]*)\]", html):
+        for module in re.findall(r"""['"]([^'"]+)['"]""", module_list):
+            if module.startswith(static_url):
+                wanted.add(module[len(static_url):].split('?')[0])
+            elif module in paths and not paths[module].endswith('/'):
+                wanted.add(paths[module] + '.js')
+            elif module not in paths:
+                wanted.add('<unconfigured requirejs module %s>' % module)
+    return sorted(p for p in wanted if not finders.find(p))
+
+
+class TestPasswordPagesStaticFiles(TestCase):
+    """The password pages used to require zxcvbn/password_strength, which 404'd (no package provides them)."""
+
+    def setUp(self):
+        self.user = utils.create_user(is_superuser=True, uname='pwuser', pwd='pwd')
+        self.client.login(username='pwuser', password='pwd')
+
+    def test_admin_password_change_references_existing_static_files(self):
+        resp = self.client.get(reverse('admin:password_change'))
+        assert resp.status_code == 200
+        assert 'registration/password_change_form.html' in [t.name for t in resp.templates]
+        html = resp.content.decode()
+        assert 'zxcvbn' not in html
+        assert missing_static_files(html) == []
+
+    def test_account_password_change_references_existing_static_files(self):
+        resp = self.client.get(reverse('account-change-password'))
+        assert resp.status_code == 200
+        html = resp.content.decode()
+        assert 'zxcvbn' not in html
+        assert missing_static_files(html) == []
+
+    def test_password_templates_only_require_existing_modules(self):
+        # registration_form.html is only reachable with ACCOUNTS_SELF_REGISTER, so check the template sources too
+        for name in (
+            'registration/password_change_form.html',
+            'registration/password_reset_confirm.html',
+            'registration/registration_form.html',
+        ):
+            source = get_template(name).template.source
+            assert missing_static_files(source) == [], name
+
+    def test_requirejs_config_has_no_zxcvbn_modules(self):
+        assert 'zxcvbn' not in requirejs_paths()
+        assert 'password_strength' not in requirejs_paths()
+
+    def test_change_password_still_works(self):
+        resp = self.client.post(reverse('account-change-password'), {
+            'old_password': 'pwd',
+            'new_password1': 'a-Much-Longer-pass-42',
+            'new_password2': 'a-Much-Longer-pass-42',
+        })
+        assert resp.status_code == 302
+        self.user.refresh_from_db()
+        assert self.user.check_password('a-Much-Longer-pass-42')

@@ -62,8 +62,6 @@ require.config({
         multiselect: siteConfig.STATIC_URL + 'multiselect/js/bootstrap.multiselect',
         select2: siteConfig.STATIC_URL + 'select2/js/select2.min',
         slimscroll: siteConfig.STATIC_URL + 'slimscroll/js/jquery.slimscroll.min',
-        zxcvbn: siteConfig.STATIC_URL + 'zxcvbn_password/js/zxcvbn',
-        password_strength: siteConfig.STATIC_URL + 'zxcvbn_password/js/password_strength',
         treeview: siteConfig.STATIC_URL + 'treeview/js/bootstrap-treeview.min',
 
         // Site wide:
@@ -199,9 +197,6 @@ require.config({
         multiselect: {
             deps: ['jquery', 'bootstrap']
         },
-        password_strength: {
-            deps: ['jquery']
-        },
         'pivottable/pivot': ['jquery', 'jqueryui'],
         'pivottable/d3_renderers': ['pivottable/pivot', 'd3'],
         'pivottable/c3_renderers': ['pivottable/pivot', 'c3'],
@@ -219,9 +214,6 @@ require.config({
         },
         treeview: {
             deps: ['jquery', 'lodash']
-        },
-        zxcvbn: {
-            deps: ['jquery']
         },
 
         // Site wide:

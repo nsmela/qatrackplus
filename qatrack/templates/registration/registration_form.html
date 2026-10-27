@@ -8,8 +8,7 @@
 {% block register_active %} class="active"{% endblock %}
 
 {% block require_javascript %}
-    require(['jquery', 'zxcvbn', 'password_strength'], function ($, zxcvbn, password_strength) {
-        window.zxcvbn = zxcvbn;
+    require(['jquery'], function ($) {
         $("#id_username").focus();
     });
 {% endblock %}
