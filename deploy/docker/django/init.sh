@@ -20,6 +20,11 @@
 # Docker volumes are always QATrack+'s own, so they are never checked or marked,
 # and a site that sets none of the variables works exactly as before.
 #
+# A file with more than one name (a hard link) is never re-owned, in a folder or
+# a volume: its other name can be anywhere on the same disk, and re-owning it
+# would hand that file over too. It is left as it is, and a warning names it.
+# QATrack+ itself never leaves a hard link in these locations.
+#
 # See "Keeping QATrack+'s data in folders on the server" in docs/install/docker.rst.
 set -eu
 
@@ -214,9 +219,27 @@ done
 # chown -h re-owns a symbolic link itself, never the file it points to (which
 # may be outside the folder, or missing). -xdev keeps find off any other disk
 # mounted inside a location: only the folder it is mounted on is re-owned,
-# nothing on that disk.
+# nothing on that disk. A file with more than one name (-links +1) is left
+# alone: its other name may be outside the location, so someone who can write
+# to a folder could link a file from elsewhere on the disk into it to be handed
+# that file.
 for location in "$media" "$static" "$user_data" "$logs"; do
     find "$location" -xdev \( ! -user "$uid" -o ! -group "$gid" \) \
-        -printf . -exec chown -h "$uid:$gid" {} + >"$tmp/count"
+        \( ! -type d -links +1 -fprintf "$tmp/linked" '%p\n' -fprintf "$tmp/linked_count" . \
+        -o -printf . -exec chown -h "$uid:$gid" {} + \) >"$tmp/count"
     echo "Re-owned to $uid:$gid in $(describe "$location"): $(wc -c <"$tmp/count")"
+    linked=$(wc -c <"$tmp/linked_count")
+    if [ "$linked" -gt 0 ]; then
+        {
+            echo "Warning: not re-owned to $uid:$gid in $(describe "$location"):"
+            echo "$linked file(s) with more than one name (a hard link). The other name may be"
+            echo "outside it, and re-owning the file would hand that to QATrack+'s user too, so"
+            echo "they are left as they are. QATrack+ never makes these; if one of them is"
+            echo "QATrack+'s and it needs to change it, replace it with a copy of itself:"
+            head -n 20 "$tmp/linked" | while IFS= read -r path; do
+                echo "    $(on_server "$location" "$path")"
+            done
+            if [ "$linked" -gt 20 ]; then echo "    ..."; fi
+        } >&2
+    fi
 done
