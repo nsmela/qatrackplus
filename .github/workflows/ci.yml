@@ -769,6 +769,21 @@ jobs:
           # The marker is in the media folder, but it is not an uploaded file.
           got=$(curl -sk -o /dev/null -w '%{http_code}' --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/.qatrackplus-data)
           [ "$got" = 404 ] || { echo "FAIL: nginx answered $got for the marker"; exit 1; }
+          # Nor is restore-media's working folder, which holds a whole unpacked
+          # backup while a restore runs, however the path is written. Uploads
+          # are still served.
+          sudo mkdir -m 755 "$data/media/.restore.ci1234"
+          echo "unpacked" | sudo tee "$data/media/.restore.ci1234/f.txt" >/dev/null
+          sudo chmod 644 "$data/media/.restore.ci1234/f.txt"
+          for path in .restore.ci1234/f.txt %2Erestore.ci1234/f.txt %2erestore.ci1234%2Ff.txt \
+            /.restore.ci1234/f.txt uploads/../.restore.ci1234/f.txt .restore.ci1234/ \
+            .qatrackplus-data/ %2Eqatrackplus-data //.qatrackplus-data; do
+            got=$(curl -sk --path-as-is -o /dev/null -w '%{http_code}' --resolve qatrack.test:443:127.0.0.1 "https://qatrack.test/media/$path")
+            [ "$got" = 404 ] || { echo "FAIL: nginx answered $got for /media/$path"; exit 1; }
+          done
+          got=$(curl -sk -o /dev/null -w '%{http_code}' --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/uploads/ci-host-folder.txt)
+          [ "$got" = 200 ] || { echo "FAIL: nginx answered $got for an upload"; exit 1; }
+          sudo rm -r "$data/media/.restore.ci1234"
 
           # Back up and restore the uploaded files in the folders.
           $dc exec -T backup backup
@@ -838,11 +853,15 @@ jobs:
           sudo rm -rf "$data/.qatrackplus-data" "$data/media/ci-root-owned-later.txt" "$shared"
           sudo install -m 664 /dev/null "$RUNNER_TEMP/ci-elsewhere.txt"
           sudo ln "$RUNNER_TEMP/ci-elsewhere.txt" "$data/media/ci-hard-link.txt"
+          # And an upload from before 2016 that kept its own name, which happens
+          # to be a backup's: uploads are not checked for backup names.
+          sudo mkdir -p "$data/media/uploads/tli/1"
+          sudo touch "$data/media/uploads/tli/1/db_20150101_120000.dump"
           out=$($dc run --rm -T init 2>&1)
           grep -qF "Warning: not re-owned to 1000:1000 in QATRACK_MEDIA_DIR=$data/media:" <<<"$out"
           grep -qxF "    $data/media/ci-hard-link.txt" <<<"$out"
           [ "$(sudo stat -c %u:%g "$RUNNER_TEMP/ci-elsewhere.txt")" = 0:0 ]
-          sudo rm "$data/media/ci-hard-link.txt" "$RUNNER_TEMP/ci-elsewhere.txt"
+          sudo rm -r "$data/media/ci-hard-link.txt" "$RUNNER_TEMP/ci-elsewhere.txt" "$data/media/uploads/tli"
           echo "PASS: data kept in folders on the server, owned by the app user, backed up and restored; unsafe folders refused"
 
       - name: Verify a site package that conflicts with QATrack+ stops the build
