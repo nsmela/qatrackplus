@@ -1565,6 +1565,45 @@ class TestPerformQA(TestCase):
         response = self.client.get(self.url)
         self.assertIn("do not treat", str(list(response.context['messages'])[0]).lower())
 
+    def test_missing_unit_test_info_message_names_test(self):
+        """The 'Do not treat' warning names the test that has no unit test info"""
+        self.unit_test_infos[0].delete()
+        response = self.client.get(self.url)
+        msgs = [str(m) for m in response.context['messages']]
+        self.assertEqual(
+            msgs,
+            ["Do not treat! Please call physics. Test 'test_simple' is missing information for this unit"],
+        )
+
+    def test_missing_unit_test_info_msgid_is_constant(self):
+        """The string passed to gettext is the constant msgid, not an already-formatted message"""
+        from unittest import mock
+
+        self.unit_test_infos[0].delete()
+        seen = []
+
+        def fake_gettext(s):
+            seen.append(s)
+            return s
+
+        with mock.patch("qatrack.qa.views.perform._", side_effect=fake_gettext):
+            self.client.get(self.url)
+        self.assertIn(
+            "Do not treat! Please call physics. Test '%(test_name)s' is missing information for this unit",
+            seen,
+        )
+        self.assertFalse(any("test_simple" in s for s in seen))
+
+    def test_missing_unit_test_info_message_escaped(self):
+        """A test name containing markup is shown as text in the warning, not rendered as HTML"""
+        self.t_simple.name = "<b>bold</b> test"
+        self.t_simple.save()
+        self.unit_test_infos[0].delete()
+        response = self.client.get(self.url)
+        content = response.content.decode()
+        self.assertIn("Test &#x27;&lt;b&gt;bold&lt;/b&gt; test&#x27; is missing information", content)
+        self.assertNotIn("<b>bold</b> test", content)
+
     def test_invalid_day(self):
 
         tl1 = utils.create_test_list(name="tl1")

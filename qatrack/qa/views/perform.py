@@ -1109,9 +1109,16 @@ class PerformQA(PermissionRequiredMixin, CreateView):
                 self.unit_test_infos.append(utis[uti_tests.index(test)])
             except ValueError:
                 # if this happens it usually indicates a bug somewhere. Please report.
-                msg = "Do not treat! Please call physics.  Test '%s' is missing information for this unit " % test.name
-                logger.error(msg + " Test=%d" % test.pk)
-                messages.error(self.request, _(msg))
+                logger.error(
+                    "Do not treat! Please call physics. Test '%s' is missing information for this unit. Test=%d",
+                    test.name, test.pk,
+                )
+                # Plain text: the message templates autoescape it, so a test name containing
+                # markup is shown as text.
+                msg = _("Do not treat! Please call physics. Test '%(test_name)s' is missing information for this unit") % {
+                    'test_name': test.name,
+                }
+                messages.error(self.request, msg)
 
     def add_histories(self, forms):
         """paste historical values onto unit test infos (ugly)"""
