@@ -9,9 +9,11 @@ and 150 with an unsubstituted `__Format_0__` placeholder, shown verbatim to
 Spanish users for a year.
 """
 import re
+from io import StringIO
 from pathlib import Path
 
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.test import SimpleTestCase, override_settings
 
 from qatrack.qatrack_core.translation_catalogues import (
     _unescape,
@@ -324,3 +326,51 @@ class TestContextQualifiedEntries(SimpleTestCase):
     def test_a_fuzzy_context_entry_is_still_excluded(self):
         po = self._po('#, fuzzy\nmsgctxt "month name"\nmsgid "May"\nmsgstr "mai"\n')
         assert po_translations(po) == {}
+
+
+class TestSourceLanguageIsNotTheSiteDefault(SimpleTestCase):
+    """`check_translations` must not mistake a site's default language for the source.
+
+    The msgids are written in English whatever a site chooses to show by default.
+    When the command read its source language from LANGUAGE_CODE, a site set to
+    'fr' had French skipped as "the language the strings are written in", English
+    reported as missing its catalogue, and the command exited 1 with every
+    catalogue up to date.
+    """
+
+    def _run(self):
+        out = StringIO()
+        try:
+            call_command('check_translations', stdout=out, stderr=StringIO())
+            code = 0
+        except SystemExit as exc:
+            code = exc.code
+        return out.getvalue(), code
+
+    def _row(self, output, code):
+        return next(line for line in output.splitlines() if line.split()[:1] == [code])
+
+    def test_the_source_language_is_english(self):
+        from qatrack.qatrack_core.management.commands.check_translations import SOURCE_LANGUAGE
+
+        assert SOURCE_LANGUAGE == 'en'
+
+    @override_settings(LANGUAGE_CODE='fr')
+    def test_a_french_site_still_treats_english_as_the_source(self):
+        output, _ = self._run()
+        assert 'source language: en' in output, output
+        assert 'written in' in self._row(output, 'en'), output
+        assert 'NO CATALOGUE' not in output, output
+
+    @override_settings(LANGUAGE_CODE='fr')
+    def test_a_french_site_has_its_french_coverage_reported(self):
+        output, _ = self._run()
+        assert 'translated' in self._row(output, 'fr'), output
+
+    def test_the_report_does_not_depend_on_the_site_default(self):
+        """Same catalogues, same report and exit status, whatever LANGUAGE_CODE says."""
+
+        english = self._run()
+        for code in ('fr', 'fr-ca', 'es'):
+            with self.subTest(LANGUAGE_CODE=code), override_settings(LANGUAGE_CODE=code):
+                assert self._run() == english

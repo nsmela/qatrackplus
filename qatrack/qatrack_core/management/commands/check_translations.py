@@ -8,7 +8,6 @@ run and every pre-commit, for a condition that can only be cleared by finishing 
 translation. Catalogue *staleness* stays a system check (`qatrack.W010`), because
 that one is silent when healthy and is a real defect when it is not.
 """
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from qatrack.qatrack_core.translation_catalogues import (
@@ -17,6 +16,16 @@ from qatrack.qatrack_core.translation_catalogues import (
     locale_root,
     po_entries,
 )
+
+#: The language the msgids in the source code are written in. This is a fact
+#: about the QATrack+ codebase, not a per-site setting, so it is deliberately not
+#: read from settings. LANGUAGE_CODE is only the language a site shows by
+#: default: a site set to 'fr' would otherwise have French waved through as "the
+#: language the strings are written in", English reported as missing its
+#: catalogue, and the command exit 1 with every catalogue up to date. Nor is it
+#: taken from the first entry of LANGUAGES, which is just the order the language
+#: picker lists them in. Untranslated strings always fall back to these msgids.
+SOURCE_LANGUAGE = 'en'
 
 
 class Command(BaseCommand):
@@ -38,7 +47,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         from django.utils.translation import to_locale
 
-        source = getattr(settings, "LANGUAGE_CODE", "en")
+        source = SOURCE_LANGUAGE
 
         if options["missing"]:
             return self._list_missing(options["missing"], options["limit"], to_locale)
