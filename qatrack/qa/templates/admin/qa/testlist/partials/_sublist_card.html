@@ -5,7 +5,7 @@
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
     data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ sublist_meta.order }}{% endif %}">
-  {# spans the builder table's visible columns: 6 in base mode; syncColumnSpans() (testlist_assets.html) makes it 7 in machine mode #}
+  {# spans the builder table's visible columns: 6 in base mode and in machine mode (Reference & Tolerance replaces Type Value); syncColumnSpans() (testlist_assets.html) recounts them when the mode changes #}
   <td colspan="6" class="tl-sublist-cell tl-span-visible-cols">
     {# a sublist the user removed before a failed save: hidden exactly as the Remove button leaves it #}
     <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}"{% if inline_admin_form.form.DELETE.value %} style="opacity: 0; display: none;"{% endif %}>
@@ -94,8 +94,7 @@
                 <th class="tl-th-category">{% trans "Category" %}</th>
                 <th class="tl-th-type">{% trans "Type" %}</th>
                 <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
-                <th class="tl-th-ref tl-col-ref">{% trans "Reference" %}</th>
-                <th class="tl-th-tol tl-col-tol">{% trans "Tolerance" %}</th>
+                <th class="tl-th-reftol tl-col-reftol">{% trans "Reference & Tolerance" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -112,17 +111,14 @@
                     <span class="tl-cat-pill">{{ test_meta.category_name }}</span>
                   </td>
                   <td class="tl-cell-type">
-                    <div class="tl-type-pill-wrap">
-                      <span class="tl-type-badge">{{ test_meta.type_badge }}</span>
-                      <span class="tl-type-label">{{ test_meta.type_label }}</span>
-                    </div>
+                    <span class="tl-type-chip">{{ test_meta.type_label }}</span>
                   </td>
                   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
                   {% include "admin/qa/testlist/partials/_machine_cells.html" %}
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  {# 5 visible columns in base mode, 6 in machine mode (see syncColumnSpans()) #}
+                  {# 5 visible columns in base mode and in machine mode (see syncColumnSpans()) #}
                   <td colspan="5" class="tl-empty-sublist-msg tl-span-visible-cols">{% trans "This sublist has no tests yet." %}</td>
                 </tr>
               {% endfor %}

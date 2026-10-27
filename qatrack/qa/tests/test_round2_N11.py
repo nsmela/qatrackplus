@@ -46,10 +46,11 @@ def _classes(button):
 
 
 class TestDialogSubmitHooks(TestCase):
-    """The description dialog's and Save As dialog's submit buttons each have their own hook.
+    """The Save As dialog's submit button has its own hook.
 
     `tl-btn-modal-save` is shared styling only; nothing that's meant for one dialog's submit
-    may select it, so a handler for Save As can't disable, relabel or fire the description's.
+    may select it, so a handler for Save As can't disable, relabel or fire another dialog's.
+    (The description dialog this once guarded against was removed in round 3, R7.)
     """
 
     def setUp(self):
@@ -64,39 +65,20 @@ class TestDialogSubmitHooks(TestCase):
         assert resp.status_code == 200
         return _parse(resp.content.decode())
 
-    def desc_dialog(self):
-        url = reverse('admin:qa_testlist_test_desc_modal')
-        resp = self.client.get(url, {'test_id': self.test.pk, 'index': 0})
-        assert resp.status_code == 200
-        return _parse(resp.content.decode())
-
     def saveas_button(self, page):
         found = [b for b in page.buttons if b.get('id') == 'tl-saveas-submit']
         assert len(found) == 1
         return found[0]
 
-    def desc_button(self, dialog):
-        found = [b for b in dialog.buttons if b.get('type') == 'submit']
-        assert len(found) == 1
-        return found[0]
-
-    def test_each_submit_has_its_own_class(self):
+    def test_saveas_submit_has_its_own_class(self):
         saveas = self.saveas_button(self.change_page())
-        desc = self.desc_button(self.desc_dialog())
         assert 'tl-saveas-submit' in _classes(saveas)
-        assert 'tl-desc-submit' in _classes(desc)
-        assert 'tl-saveas-submit' not in _classes(desc)
-        assert 'tl-desc-submit' not in _classes(saveas)
-        assert desc.get('id') == 'tl-desc-submit'
-        assert desc.get('id') != saveas.get('id')
 
     def test_shared_look_kept(self):
         saveas = self.saveas_button(self.change_page())
-        desc = self.desc_button(self.desc_dialog())
         assert 'tl-btn-modal-save' in _classes(saveas)
-        assert 'tl-btn-modal-save' in _classes(desc)
 
-    def test_saveas_js_selectors_do_not_match_description_button(self):
+    def test_saveas_js_selectors_name_their_own_button(self):
         page = self.change_page()
         script = '\n'.join(page.scripts)
         assert 'submitSaveAs' in script
@@ -107,15 +89,6 @@ class TestDialogSubmitHooks(TestCase):
         by_sel = re.findall(r'["\']([^"\']*saveas-submit[^"\']*)["\']', script)
         assert by_id and set(by_id) == {'tl-saveas-submit'}
         assert set(by_sel) == {'tl-saveas-submit', '#tl-saveas-submit'}
-
-        desc = self.desc_button(self.desc_dialog())
-        for sel in by_sel:
-            if sel.startswith('#'):
-                assert desc.get('id') != sel[1:]
-            elif sel.startswith('.'):
-                assert sel[1:] not in _classes(desc)
-            else:
-                assert desc.get('id') != sel
 
     def test_saveas_disabled_style_scoped_to_saveas_submit(self):
         page = self.change_page()

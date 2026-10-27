@@ -19,7 +19,7 @@
             <strong>{% trans "Duplicating:" %}</strong> {{ source.name }}
             <div class="tl-dup-details">
               <span class="tl-cat-pill">{{ source_meta.category_name }}</span>
-              <span class="tl-type-badge" title="{{ source_meta.type_label }}">{{ source_meta.type_badge }}</span>
+              <span class="tl-type-chip">{{ source_meta.type_label }}</span>
               {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator" aria-hidden="true"></i> {% trans "Calculation copied" %}</span>{% endif %}
             </div>
             {% if can_copy_refs_tols %}

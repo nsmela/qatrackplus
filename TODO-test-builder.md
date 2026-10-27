@@ -276,7 +276,7 @@ Remove this file before the branch is merged.
 
 ## Round 3
 
-- [ ] **Blank "New reference value" keeps the current reference**
+- [x] **Blank "New reference value" keeps the current reference**
   - Unit Test Info admin page: changing only the tolerance with the field
     blank currently clears the unit's reference
     (`UnitTestInfoForm.save()`, `elif 'reference_value' in
@@ -288,13 +288,13 @@ Remove this file before the branch is merged.
     the field's help text.
   - Check validation that reads the reference (percent tolerance, zero
     reference, wraparound) uses the kept reference when the field is blank.
-- [ ] **Type column: one chip with the type's full name**
+- [x] **Type column: one chip with the type's full name**
   - Each row shows a short badge plus the full name
     (`tl-type-badge` + `tl-type-label` in `_test_row.html`). Replace both
     with a single chip reading the full type name (e.g. "Multiple Choice"),
     in rows, sublist rows and the search/add dialogs if they show the same
     pair.
-- [ ] **Machine mode: combine Reference and Tolerance into one column**
+- [x] **Machine mode: combine Reference and Tolerance into one column**
   - One "Reference & Tolerance" column whose content depends on the test
     type, instead of two columns with "Not used" filling the gaps.
     - Multiple Choice: no reference, so show only the tolerance (pass /
@@ -307,7 +307,7 @@ Remove this file before the branch is merged.
   - Keep the "Not set" warning where the type needs a value, the Set
     Reference & Tolerance dialog link, and the colspan sync for sublist rows
     (`syncColumnSpans`, column counts change).
-- [ ] **Test list rows align to the top of the cell**
+- [x] **Test list rows align to the top of the cell**
   - Rows with a long name, description or type value currently centre their
     other cells vertically; align every cell to the top, in test rows and
     sublist rows.
@@ -321,13 +321,13 @@ Remove this file before the branch is merged.
     test rows, with its current title/aria label.
   - Fits with the combined Reference & Tolerance column above; keep the
     column counts and `syncColumnSpans` right.
-- [ ] **Edit Test List header shows the test list's ID**
+- [x] **Edit Test List header shows the test list's ID**
   - The page title reads "Edit Test List" (`h1.tl-header-title` in
     `change_form.html`). Add the ID there too (e.g. "Edit Test List · 123"),
     edit page only. The "ID: 123" label was removed from the Details card
     earlier and the ID is in the breadcrumbs; this puts it back in the
     pinned title row.
-- [ ] **Remove the test description dialog from the builder**
+- [x] **Remove the test description dialog from the builder**
   - Editing a test belongs on the Test's own page (the pencil). Remove the
     description dialog: `_test_desc_modal.html`, the
     `testlist_test_desc_modal` endpoint and URL (`admin.py`), its JS/CSS
@@ -340,7 +340,7 @@ Remove this file before the branch is merged.
   - "Add Description" on tests without one: also link to the Test edit page
     (or drop it; decide when building).
   - Rows added in the browser (add/duplicate) render the same link.
-- [ ] **Attachments card above Tests & Sublists**
+- [x] **Attachments card above Tests & Sublists**
   - Edit page card order becomes Details, Attachments, Tests & Sublists,
     Parent Memberships (`#tl-attachments-card` currently sits last in
     `change_form.html`). Check the add page and the narrow-window layout,

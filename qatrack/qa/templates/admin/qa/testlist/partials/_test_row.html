@@ -44,10 +44,7 @@
     <span class="tl-cat-pill">{{ test_meta.category_name }}</span>
   </td>
   <td class="tl-cell-type">
-    <div class="tl-type-pill-wrap">
-      <span class="tl-type-badge">{{ test_meta.type_badge }}</span>
-      <span class="tl-type-label">{{ test_meta.type_label }}</span>
-    </div>
+    <span class="tl-type-chip">{{ test_meta.type_label }}</span>
   </td>
   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
   {% include "admin/qa/testlist/partials/_machine_cells.html" %}

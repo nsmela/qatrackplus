@@ -52,11 +52,12 @@ class TestReferenceChangedFlag(TestCase):
         self.assertTrue(change.reference_changed)
         self.assertFalse(change.tolerance_changed)
 
-    def test_admin_cleared_reference_flagged(self):
+    def test_admin_blank_reference_keeps_it(self):
         change = self._admin_save(self.uti, {'reference_value': '', 'tolerance': self.abs_tol.pk, 'comment': 'Clear'})
         self.uti.refresh_from_db()
-        self.assertIsNone(self.uti.reference)
-        self.assertTrue(change.reference_changed)
+        # a blank reference value now keeps the current reference (round 3, R1)
+        self.assertEqual(self.uti.reference_id, self.old_ref.pk)
+        self.assertFalse(change.reference_changed)
 
     # --- builder's machine Reference and Tolerance endpoint ---
 

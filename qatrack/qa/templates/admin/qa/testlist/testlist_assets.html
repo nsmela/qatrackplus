@@ -82,6 +82,13 @@ html:has(.tl-header-bar) { scroll-padding-top: calc(var(--qa-admin-top-h, 90px) 
   letter-spacing: normal;
   font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
+/* "· ID 123" after "Edit Test List": same line, quieter colour, never split. */
+.tl-header-id {
+  color: var(--body-quiet-color, #666);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tl-header-id-sep { margin-right: 2px; }
 .tl-header-counts {
   font-size: 12px;
   font-weight: 400;
@@ -465,20 +472,28 @@ button.tl-btn-assign-machine {
   display: none;
 }
 
-/* Reference / Tolerance columns replace Type Value in machine mode */
-.tl-col-ref,
-.tl-col-tol {
+/* The Reference & Tolerance column replaces Type Value in machine mode */
+.tl-col-reftol {
   display: none;
 }
-body.tl-mode-machine .tl-col-ref,
-body.tl-mode-machine .tl-col-tol {
+body.tl-mode-machine .tl-col-reftol {
   display: table-cell;
 }
 body.tl-mode-machine .tl-col-type-value {
   display: none;
 }
-.tl-th-ref { width: 150px; }
-.tl-th-tol { width: 260px; }
+.tl-th-reftol { width: 320px; }
+/* One line each for the reference and the tolerance, when the type uses both */
+.tl-reftol-line {
+  display: block;
+}
+.tl-reftol-line + .tl-reftol-line {
+  margin-top: 2px;
+}
+.tl-reftol-label {
+  font-size: 12px;
+  color: #5f6773; /* 5.33:1 on the #f5f7fa row hover, like .tl-machine-unused */
+}
 .tl-machine-value {
   font-size: 13px;
   color: #333;
@@ -697,14 +712,11 @@ body.tl-mode-machine #tl-tests-card .tl-btn-change-sublist,
 body.tl-mode-machine #tl-tests-card .tl-btn-remove-sublist,
 body.tl-mode-machine #tl-tests-card .tl-remove-locked,
 body.tl-mode-machine #tl-tests-card .tl-sublist-outline,
-body.tl-mode-machine #tl-tests-card .tl-add-desc-btn,
+body.tl-mode-machine #tl-tests-card .tl-add-desc-link,
 body.tl-mode-machine #tl-attachments-card .tl-browse-wrap,
 body.tl-mode-machine #tl-attachments-card .btn-delete-existing,
 body.tl-mode-machine #tl-attachments-card .btn-remove-pending {
   display: none !important;
-}
-body.tl-mode-machine #tl-tests-card .tl-test-desc {
-  pointer-events: none;
 }
 body.tl-mode-machine #tl-details-card input[readonly],
 body.tl-mode-machine #tl-details-card textarea[readonly] {
@@ -1012,9 +1024,12 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   background-color: #f5f7fa;
 }
 
+/* Top-aligned: a long name, description or value makes a row taller, and the
+   other cells (handle, chips, icons) stay level with the test name's first line
+   instead of drifting to the middle of the row. */
 .tlb-table tbody td {
   padding: 8px 10px;
-  vertical-align: middle;
+  vertical-align: top;
   font-size: 14px;
   color: #333;
   border: 0;
@@ -1070,7 +1085,8 @@ tr.tl-dragging {
 
 .tl-test-desc {
   display: inline-flex;
-  align-items: center;
+  /* icon beside the first line of a long description, not halfway down it */
+  align-items: flex-start;
   gap: 6px;
   color: #555;
   font-size: 13px;
@@ -1081,23 +1097,25 @@ tr.tl-dragging {
   color: #6d7787;
   font-size: 11px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 /* Hover: darker + underline (link blue on the hovered row would be under 4.5:1) */
 .tl-test-desc:hover {
   color: #333;
   text-decoration: underline;
 }
-/* The editable description is a <button> (keyboard access): drop the browser's button look. */
-button.tl-test-desc {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font-family: inherit;
-  text-align: left;
+/* The description links to the Test's own page (new tab): keep the row's grey
+   text rather than the admin link colour, darker + underlined on hover. */
+a.tl-test-desc:link,
+a.tl-test-desc:visited {
+  color: #555;
 }
-button.tl-test-desc:focus-visible,
-.tl-add-desc-btn:focus-visible,
+a.tl-test-desc:hover {
+  color: #333;
+  text-decoration: underline;
+}
+a.tl-test-desc:focus-visible,
+a.tl-add-desc-link:focus-visible,
 .tl-browse-btn:focus-visible {
   outline: 2px solid #3c8dbc;
   outline-offset: 2px;
@@ -1109,20 +1127,20 @@ button.tl-test-desc:focus-visible,
   text-decoration: none;
 }
 
-.tl-add-desc-btn {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  color: #555;
+/* Tests without a description: a small link to add one on the Test's own page (new tab) */
+a.tl-add-desc-link {
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition: color 0.15s ease;
 }
-.tl-add-desc-btn:hover {
+a.tl-add-desc-link:link,
+a.tl-add-desc-link:visited {
+  color: #555;
+}
+a.tl-add-desc-link:hover {
   color: #333;
   text-decoration: underline;
 }
@@ -1131,9 +1149,11 @@ button.tl-test-desc:focus-visible,
   text-align: center;
 }
 
-/* One neutral chip for every category: colour is kept for QC status meaning
-   (red = Action), so it isn't used to tell categories apart. */
-.tl-cat-pill {
+/* One neutral chip for every category and every test type (full type name):
+   colour is kept for QC status meaning (red = Action), so it isn't used to
+   tell categories or types apart. */
+.tl-cat-pill,
+.tl-type-chip {
   display: inline-block;
   padding: 1px 8px;
   border-radius: 3px;
@@ -1144,36 +1164,6 @@ button.tl-test-desc:focus-visible,
   background: #fff;
   border: 1px solid #d2d6de;
   color: #555;
-}
-
-.tl-type-pill-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-}
-
-/* One neutral label (label-default) for every test type; green/orange/cyan
-   would read as QC status. */
-.tl-type-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #444;
-  background: #d2d6de;
-  border-radius: 2px;
-  padding: 2px 6px;
-  min-width: 26px;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.tl-type-label {
-  font-size: 13px;
-  color: #333;
-  font-weight: 400;
 }
 
 /* Base list "Type Value" column: one line, ellipsis, full text in the title tooltip */
@@ -1292,11 +1282,24 @@ button.tl-test-desc:focus-visible,
   background: #fbfcfd;
   padding: 6px 10px;
   display: flex;
-  align-items: center;
+  /* Top, like the test rows: when a long name wraps (narrow screens), the drag
+     handle and toggle stay beside its first line. Each part's first line is 28px
+     tall (handle, toggle, folder icon, actions), so a one-line header still
+     lines up across the middle. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   min-height: 38px;
   box-sizing: border-box;
+}
+.tl-sublist-header .tl-sublist-drag-handle,
+.tl-sublist-header .tl-sublist-toggle-btn,
+.tl-sublist-header .tl-sublist-actions {
+  min-height: 28px;
+  box-sizing: border-box;
+}
+.tl-sublist-header .tl-sublist-folder-icon {
+  line-height: 28px;
 }
 
 .tl-sublist-drag-handle {
@@ -1563,20 +1566,14 @@ a.tl-btn-sublist:hover {
   .tl-th-category,
   .tl-th-type,
   .tl-th-type-value,
-  .tl-th-ref,
-  .tl-th-tol { width: auto; }
+  .tl-th-reftol { width: auto; }
   .tl-th-actions { width: 1%; }
   .tl-test-name,
   .tl-test-desc { overflow-wrap: break-word; }
-  .tl-cat-pill { white-space: normal; }
-  .tl-type-pill-wrap {
-    flex-wrap: wrap;
-    gap: 2px 6px;
-    white-space: normal;
-  }
+  .tl-cat-pill,
+  .tl-type-chip { white-space: normal; }
   .tl-cell-type-value { max-width: 150px; }
-  .tl-cell-ref { min-width: 56px; }
-  .tl-cell-tol { min-width: 90px; }
+  .tl-cell-reftol { min-width: 120px; }
   .tl-th-lock, .tl-cell-lock { padding-left: 4px; }
   /* Two icons per line instead of three in a row */
   .tl-cell-actions {
@@ -2561,7 +2558,6 @@ ul.messagelist li.error {
     "Couldn't open the New Tolerance dialog. Nothing was saved. Try again.":"{{ _("Couldn't open the New Tolerance dialog. Nothing was saved. Try again.")|escapejs }}",
     "Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.": "{{ _("Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.")|escapejs }}",
     "Couldn't save the reference and tolerance. Nothing was changed. Try again.": "{{ _("Couldn't save the reference and tolerance. Nothing was changed. Try again.")|escapejs }}",
-    "Couldn't save the description. Nothing was saved. Try again.": "{{ _("Couldn't save the description. Nothing was saved. Try again.")|escapejs }}",
     "Create": "{{ _('Create')|escapejs }}",
     "Create & Add Test": "{{ _('Create & Add Test')|escapejs }}",
     "Creating…": "{{ _('Creating…')|escapejs }}",
@@ -2575,6 +2571,11 @@ ul.messagelist li.error {
     "No limits set: results on %(unit)s will show No Tol Set": "{% trans 'No limits set: results on %(unit)s will show No Tol Set' as s %}{{ s|escapejs }}",
     "None": "{{ _('None')|escapejs }}",
     "Not used": "{{ _('Not used')|escapejs }}",
+    "No limits needed": "{{ _('No limits needed')|escapejs }}",
+    {# Translators: label before a Boolean test's expected result (Yes or No) in the builder's machine mode #}
+    "Expected": "{{ _('Expected')|escapejs }}",
+    "Reference": "{{ _('Reference')|escapejs }}",
+    "Tolerance": "{{ _('Tolerance')|escapejs }}",
     "Preview": "{{ _('Preview')|escapejs }}",
     "Preview %(name)s": "{% trans 'Preview %(name)s' as s %}{{ s|escapejs }}",
     "Remove": "{{ _('Remove')|escapejs }}",
@@ -3551,7 +3552,6 @@ ul.messagelist li.error {
   // Tolerance and New Tolerance are dropped, as with their Cancel buttons.
   var BACKDROP_CLOSERS = {
     "tl-search-modal": closeSearchModal,
-    "tl-desc-modal-backdrop": closeContainerDialog,
     "tl-duplicate-modal-backdrop": closeContainerDialog,
     "tl-saveas-modal": closeSaveAsDialog,
     "tl-assign-modal": closeAssignDialog,
@@ -3617,7 +3617,7 @@ ul.messagelist li.error {
               tbody.appendChild(newRow);
             }
             newRow.style.animation = "tl-pulse-highlight 1.5s ease";
-            if (window.htmx) { htmx.process(newRow); }  // its description button uses hx-get
+            if (window.htmx) { htmx.process(newRow); }
           }
         }
         var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
@@ -3653,12 +3653,12 @@ ul.messagelist li.error {
     }
   });
 
-  // ---- Builder dialog focus (search, Duplicate Test, Description) ----
+  // ---- Builder dialog focus (search, Duplicate Test) ----
   // Like the Save As, Assign and Unsaved dialogs: the first field gets focus on
   // open, Tab stays inside the dialog, Esc closes it, and focus goes back to the
   // control that opened it. The search dialog and #tl-modal-container sit after
   // the change form (see change_form.html), never inside it.
-  var builderDialogFocus = { searchOpener: null, containerOpener: null, containerWrapId: null };
+  var builderDialogFocus = { searchOpener: null, containerOpener: null };
 
   function focusIfThere(el) {
     if (el && el.isConnected && typeof el.focus === "function") {
@@ -3677,59 +3677,17 @@ ul.messagelist li.error {
     focusIfThere(opener);
   }
 
-  // Closes the Duplicate Test or Description dialog; false if neither was open.
+  // Closes the Duplicate Test dialog; false if it wasn't open.
   function closeContainerDialog() {
     var container = document.getElementById("tl-modal-container");
     var backdrop = container && container.querySelector(".tl-modal-backdrop");
     if (!backdrop) { return false; }
     container.innerHTML = "";
     var opener = builderDialogFocus.containerOpener;
-    var wrap = builderDialogFocus.containerWrapId ? document.getElementById(builderDialogFocus.containerWrapId) : null;
     builderDialogFocus.containerOpener = null;
-    builderDialogFocus.containerWrapId = null;
-    // A saved description replaces its cell, so fall back to the new button there.
-    if (!focusIfThere(opener) && wrap) { focusIfThere(wrap.querySelector("button")); }
+    focusIfThere(opener);
     return true;
   }
-
-  // Description dialog (htmx): remember its opener, and don't open it in machine
-  // mode (the cell can't be clicked there, but a keyboard press would still fire).
-  document.addEventListener("htmx:beforeRequest", function (e) {
-    var elt = e.detail && e.detail.elt;
-    if (!elt || !elt.matches || !elt.matches(".tl-test-desc, .tl-add-desc-btn")) { return; }
-    if (document.body.classList.contains("tl-mode-machine")) {
-      e.preventDefault();
-      return;
-    }
-    var wrap = elt.closest(".tl-test-desc-wrap");
-    builderDialogFocus.containerOpener = elt;
-    builderDialogFocus.containerWrapId = wrap ? wrap.id : null;
-  });
-
-  document.addEventListener("htmx:afterSwap", function (e) {
-    if (!e.detail || !e.detail.target || e.detail.target.id !== "tl-modal-container") { return; }
-    var textarea = document.getElementById("tl-modal-desc-input");
-    if (textarea) { textarea.focus(); }
-  });
-
-  // Description saved: the cell was swapped in place; close the dialog. On an
-  // error, say so in the dialog (htmx doesn't swap error responses).
-  document.addEventListener("htmx:afterRequest", function (e) {
-    var elt = e.detail && e.detail.elt;
-    if (!elt || !elt.matches || !elt.matches("form[data-modal-form]")) { return; }
-    if (e.detail.successful) {
-      closeContainerDialog();
-      return;
-    }
-    var errorBox = document.getElementById("tl-desc-error-msg");
-    var xhr = e.detail.xhr;
-    var text = xhr && xhr.status ? (xhr.responseText || "") : "";
-    var msg = text && !/^\s*</.test(text) ? text : gettext("Couldn't save the description. Nothing was saved. Try again.");
-    if (errorBox) {
-      errorBox.textContent = msg;
-      errorBox.hidden = false;
-    }
-  });
 
   // Enter in the search box only searches; it must never submit anything.
   document.addEventListener("keydown", function (e) {
@@ -4381,7 +4339,7 @@ ul.messagelist li.error {
       });
   }
 
-  // One Reference or Tolerance cell. `use` is how this test's type uses the value
+  // One reference or tolerance value in the Reference & Tolerance cell. `use` is how this test's type uses the value
   // (machine_limit_usage): "required" values that are missing are highlighted,
   // since results on this unit will show No Tol Set; "unused" ones say Not used.
   // valueTitle: tooltip for a set value (the tolerance's explanation and stored name).
@@ -4422,45 +4380,92 @@ ul.messagelist li.error {
     return name ? name.textContent.trim() : "";
   }
 
-  // Fill one row's own Reference / Tolerance cells (not those of a nested table).
-  function fillMachineRow(r, info, limits) {
-    var refCell = null, tolCell = null;
+  // This row's own Reference & Tolerance cell (not one in a nested table).
+  function machineRefTolCell(r) {
+    var cell = null;
     Array.prototype.forEach.call(r.children, function (td) {
-      if (td.classList.contains("tl-col-ref")) { refCell = td; }
-      if (td.classList.contains("tl-col-tol")) { tolCell = td; }
+      if (!cell && td.classList.contains("tl-col-reftol")) { cell = td; }
     });
-    if (!refCell || !tolCell) { return; }
-    limits = limits || { uses_limits: true, reference: "required", tolerance: "required" };
-    if (!info) {
-      // No UnitTestInfo yet: QATrack+ creates it when the test list is saved.
-      refCell.innerHTML = machineValueHtml(null, limits.uses_limits ? "optional" : "unused");
-      tolCell.innerHTML = machineValueHtml(null, limits.uses_limits ? "optional" : "unused");
-      if (limits.uses_limits) {
-        tolCell.innerHTML += '<span class="tl-machine-hint" title="' +
-          escapeHtml(interpolate(gettext("Save the test list first: QATrack+ adds this test to %(unit)s when it's saved."),
-            { unit: scopeState.unitName }, true)) + '">' +
-          escapeHtml(gettext("Save the test list first")) + '</span>';
-      }
-      return;
+    return cell;
+  }
+
+  // One labelled line ("Reference 100") of the Reference & Tolerance cell.
+  function machineRefTolLine(label, valueHtml) {
+    return '<span class="tl-reftol-line">' +
+      (label ? '<span class="tl-reftol-label">' + escapeHtml(label) + '</span> ' : '') +
+      valueHtml + '</span>';
+  }
+
+  // The Reference & Tolerance cell's text, by how the test type uses them
+  // (machine_limit_usage). info: the unit's values, or null before the test
+  // list is saved (QATrack+ creates the unit's UnitTestInfo on save).
+  //  - no limits (Upload, Date, Date & Time): one neutral note
+  //  - no reference (Multiple Choice, String types): the tolerance only
+  //  - Boolean: the expected value, plus its tolerance when one is set
+  //  - everything else: reference and tolerance, one line each
+  function machineRefTolHtml(info, limits) {
+    if (!limits.uses_limits) {
+      return '<span class="tl-machine-unused" title="' +
+        escapeHtml(gettext("Limits don't apply to this test type: its results never pass or fail.")) + '">' +
+        escapeHtml(gettext("No limits needed")) + '</span>';
     }
-    refCell.innerHTML = machineValueHtml(info.reference, limits.reference,
-      limits.uses_limits ? gettext("This test type has no reference: only its tolerance is used.") : "");
-    var tolHtml = machineValueHtml(info.tolerance, limits.tolerance, "", info.tolerance_title);
+    if (!info) {
+      return machineValueHtml(null, "optional") +
+        '<span class="tl-machine-hint" title="' +
+        escapeHtml(interpolate(gettext("Save the test list first: QATrack+ adds this test to %(unit)s when it's saved."),
+          { unit: scopeState.unitName }, true)) + '">' +
+        escapeHtml(gettext("Save the test list first")) + '</span>';
+    }
+    var tolSet = info.tolerance !== null && info.tolerance !== undefined && info.tolerance !== "";
+    var tolValue = machineValueHtml(info.tolerance, limits.tolerance, "", info.tolerance_title);
+    if (limits.reference === "unused") {
+      // the tolerance text names its own statuses ("OK: a · Tolerance: b")
+      return machineRefTolLine(tolSet ? "" : gettext("Tolerance"), tolValue);
+    }
+    var refLabel = limits.tolerance === "optional" ? gettext("Expected") : gettext("Reference");
+    var html = machineRefTolLine(refLabel, machineValueHtml(info.reference, limits.reference));
+    if (limits.tolerance === "optional") {
+      // Boolean: "Action if wrong" when a tolerance is set; nothing otherwise
+      return html + (tolSet ? machineRefTolLine("", tolValue) : "");
+    }
+    // plain tolerance text starts with its status ("Tolerance −1 to 1 · Action −2 to 2")
+    return html + machineRefTolLine(tolSet ? "" : gettext("Tolerance"), tolValue);
+  }
+
+  // The pencil that opens the Set Reference & Tolerance dialog (or the Unit Test
+  // Info page when this user can't use the dialog); "" when there's nothing to set.
+  function machineRefTolEditHtml(r, info, limits) {
+    if (!info || !limits.uses_limits) { return ""; }
     var dialogUrl = refTolUrl(info.uti_id);
-    if (limits.uses_limits && dialogUrl) {
+    if (dialogUrl) {
       var setLabel = interpolate(gettext("Set reference and tolerance for %(test)s on %(unit)s"),
         { test: rowTestName(r), unit: scopeState.unitName }, true);
-      tolHtml += '<button type="button" class="tl-machine-edit tl-machine-reftol-btn" aria-haspopup="dialog"' +
+      return '<button type="button" class="tl-machine-edit tl-machine-reftol-btn" aria-haspopup="dialog"' +
         ' data-reftol-url="' + escapeHtml(dialogUrl) + '"' +
         ' title="' + escapeHtml(setLabel) + '" aria-label="' + escapeHtml(setLabel) + '">' +
         '<i class="fa fa-pencil" aria-hidden="true"></i></button>';
-    } else if (limits.uses_limits && info.uti_url) {
+    }
+    if (info.uti_url) {
       var label = interpolate(scopeMsg("edit-uti"), { unit: scopeState.unitName }, true);
-      tolHtml += '<a href="' + escapeHtml(info.uti_url) + '" target="_blank" rel="noopener" class="tl-machine-edit"' +
+      return '<a href="' + escapeHtml(info.uti_url) + '" target="_blank" rel="noopener" class="tl-machine-edit"' +
         ' title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
         '<i class="fa fa-pencil" aria-hidden="true"></i></a>';
     }
-    tolCell.innerHTML = tolHtml;
+    return "";
+  }
+
+  // Fill one row's own Reference & Tolerance cell.
+  function fillMachineRow(r, info, limits) {
+    var cell = machineRefTolCell(r);
+    if (!cell) { return; }
+    limits = limits || { uses_limits: true, reference: "required", tolerance: "required" };
+    var html = machineRefTolHtml(info, limits);
+    var edit = machineRefTolEditHtml(r, info, limits);
+    if (edit) {
+      // the pencil follows the last line instead of wrapping onto its own
+      html = html.replace(/<\/span>$/, edit + '</span>');
+    }
+    cell.innerHTML = html;
   }
 
   // data: testlist_machine_values' JSON ({tests, limits}).
@@ -4480,7 +4485,7 @@ ul.messagelist li.error {
   }
 
   function clearMachineCells() {
-    document.querySelectorAll("#tl-tests-card td.tl-col-ref, #tl-tests-card td.tl-col-tol").forEach(function (td) {
+    document.querySelectorAll("#tl-tests-card td.tl-col-reftol").forEach(function (td) {
       td.innerHTML = "";
     });
   }
@@ -4732,10 +4737,8 @@ ul.messagelist li.error {
     var opener = refTolState.opener;
     refTolState.opener = null;
     if (!opener || !opener.row || !document.contains(opener.row)) { return; }
-    var btn = null;
-    Array.prototype.forEach.call(opener.row.children, function (td) {
-      if (!btn && td.classList.contains("tl-col-tol")) { btn = td.querySelector(".tl-machine-reftol-btn"); }
-    });
+    var cell = machineRefTolCell(opener.row);
+    var btn = cell ? cell.querySelector(".tl-machine-reftol-btn") : null;
     if (btn) { btn.focus(); }
   }
 
@@ -5123,16 +5126,13 @@ ul.messagelist li.error {
         var catElem = r.querySelector(".tl-cat-pill");
         var cat = catElem ? catElem.textContent.trim() : "";
         var catClass = catElem ? catElem.className : "tl-cat-pill";
-        var typeBadge = r.querySelector(".tl-type-badge");
-        var typeBadgeText = typeBadge ? typeBadge.textContent.trim() : "";
-        var typeBadgeClass = typeBadge ? typeBadge.className : "tl-type-badge";
-        var typeLabel = r.querySelector(".tl-type-label");
-        var typeLabelText = typeLabel ? typeLabel.textContent.trim() : "";
+        var typeChip = r.querySelector(".tl-type-chip");
+        var typeChipText = typeChip ? typeChip.textContent.trim() : "";
 
         html += '<tr>' +
           '<td class="tl-cell-test"><div class="tl-test-name">' + escapeHtml(name) + '</div></td>' +
           '<td class="tl-cell-category"><span class="' + escapeHtml(catClass) + '">' + escapeHtml(cat) + '</span></td>' +
-          '<td class="tl-cell-type"><div class="tl-type-pill-wrap"><span class="' + escapeHtml(typeBadgeClass) + '">' + escapeHtml(typeBadgeText) + '</span> <span class="tl-type-label">' + escapeHtml(typeLabelText) + '</span></div></td>' +
+          '<td class="tl-cell-type"><span class="tl-type-chip">' + escapeHtml(typeChipText) + '</span></td>' +
           previewTypeValueCellHtml(r) +
           mockInputHtml +
           '</tr>';
@@ -5174,14 +5174,12 @@ ul.messagelist li.error {
           var tname = sr.querySelector(".tl-test-name") ? sr.querySelector(".tl-test-name").textContent.trim() : "";
           var tcat = sr.querySelector(".tl-cat-pill") ? sr.querySelector(".tl-cat-pill").textContent.trim() : "";
           var tcatClass = sr.querySelector(".tl-cat-pill") ? sr.querySelector(".tl-cat-pill").className : "tl-cat-pill";
-          var tb = sr.querySelector(".tl-type-badge") ? sr.querySelector(".tl-type-badge").textContent.trim() : "";
-          var tbClass = sr.querySelector(".tl-type-badge") ? sr.querySelector(".tl-type-badge").className : "tl-type-badge";
-          var tl = sr.querySelector(".tl-type-label") ? sr.querySelector(".tl-type-label").textContent.trim() : "";
+          var tchip = sr.querySelector(".tl-type-chip") ? sr.querySelector(".tl-type-chip").textContent.trim() : "";
 
           html += '<tr>' +
             '<td class="tl-cell-test"><div class="tl-test-name">' + escapeHtml(tname) + '</div></td>' +
             '<td class="tl-cell-category"><span class="' + escapeHtml(tcatClass) + '">' + escapeHtml(tcat) + '</span></td>' +
-            '<td class="tl-cell-type"><div class="tl-type-pill-wrap"><span class="' + escapeHtml(tbClass) + '">' + escapeHtml(tb) + '</span> <span class="tl-type-label">' + escapeHtml(tl) + '</span></div></td>' +
+            '<td class="tl-cell-type"><span class="tl-type-chip">' + escapeHtml(tchip) + '</span></td>' +
             previewTypeValueCellHtml(sr) +
             mockInputHtml +
             '</tr>';
@@ -5344,7 +5342,7 @@ ul.messagelist li.error {
 
   // Sorted name=value pairs, like FormData, but leaving out the inputs of the
   // builder's dialogs that sit inside the main form without being part of the
-  // test list (Save As). The Duplicate Test, Description and search dialogs are
+  // test list (Save As). The Duplicate Test and search dialogs are
   // rendered after the form, so they're never in form.elements at all.
   function serialiseUnsavedForm(form) {
     var pairs = [];

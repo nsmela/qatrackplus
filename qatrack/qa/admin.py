@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
-from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
+from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.admin.options import IS_POPUP_VAR
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.contrib.contenttypes.models import ContentType
@@ -33,7 +33,6 @@ from django.utils.safestring import mark_safe
 from django.utils.text import Truncator, slugify
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
-from django.utils.translation import pgettext
 from django_mptt_admin.admin import DjangoMpttAdmin
 from dynamic_raw_id.admin import DynamicRawIDMixin
 from dynamic_raw_id.widgets import DynamicRawIDWidget
@@ -145,6 +144,11 @@ class UnitTestInfoForm(forms.ModelForm):
                 )
                 self.fields['reference_value'].widget = forms.TextInput()
 
+        if not isinstance(self.fields['reference_value'].widget, forms.HiddenInput):
+            self.fields['reference_value'].help_text = _(
+                "Leave this blank to keep the current reference. Enter a value only when you want to change it."
+            )
+
         for field in readonly:
             self.fields[field].widget.attrs['readonly'] = True
 
@@ -155,11 +159,14 @@ class UnitTestInfoForm(forms.ModelForm):
             return cleaned_data
 
         reference_value = cleaned_data.get("reference_value", "")
+        if not self._reference_value_changed():
+            # left as it was: save() keeps the current reference, so check that one
+            reference_value = self._kept_reference_value()
         tolerance = cleaned_data.get("tolerance")
 
         # Validate percent tolerance requires numerical reference
         if tolerance and tolerance.type == models.PERCENT:
-            if not reference_value:
+            if reference_value is None or reference_value == "":
                 self.add_error('reference_value', _("A reference value is required when using a percent tolerance"))
             else:
                 try:
@@ -176,7 +183,7 @@ class UnitTestInfoForm(forms.ModelForm):
         # Validate wraparound tests
         if self.instance.test.type == models.WRAPAROUND:
             try:
-                if reference_value:
+                if reference_value is not None and reference_value != "":
                     val = float(reference_value)
                     if val < self.instance.test.wrap_low or val > self.instance.test.wrap_high:
                         self.add_error(
@@ -193,13 +200,29 @@ class UnitTestInfoForm(forms.ModelForm):
 
     _KEEP_REFERENCE = object()
 
+    def _reference_value_changed(self):
+        """True when the user changed the reference field from what the form showed.
+
+        The Unit Test Info admin page shows the field empty, so there leaving it
+        blank means "keep the current reference". The builder's Reference and
+        Tolerance dialog (MachineRefTolForm) shows the current value, so there an
+        untouched value keeps it and emptying the field clears it on purpose.
+        """
+        return 'reference_value' in self.cleaned_data and 'reference_value' in self.changed_data
+
+    def _kept_reference_value(self):
+        """The value of the reference save() keeps when the field is left as it was."""
+        if self.instance.reference_id and self.instance.reference is not None:
+            return self.instance.reference.value
+        return ""
+
     def _reference_for_validation(self):
         """The reference save() is about to attach, as an unsaved Reference (or None).
 
         Returns _KEEP_REFERENCE when save() leaves the stored reference alone.
         Only the value matters here: it's what UnitTestInfo.clean checks.
         """
-        if 'reference_value' not in self.cleaned_data:
+        if not self._reference_value_changed():
             return self._KEEP_REFERENCE
         reference_value = self.cleaned_data['reference_value']
         if reference_value is None or reference_value == '':
@@ -238,7 +261,11 @@ class UnitTestInfoForm(forms.ModelForm):
         # Get the user from the form's initial data (set by FormWithRequest)
         user = self.initial.get('modified_by')
 
-        if reference_value is not None and reference_value != '':  # Non-empty reference value
+        if not self._reference_value_changed():
+            # Left blank (or, in the builder's dialog, unchanged): keep the
+            # current Reference rather than clearing it or saving a copy.
+            pass
+        elif reference_value is not None and reference_value != '':  # Non-empty reference value
             if instance.test.type == models.BOOLEAN:
                 value = bool(int(reference_value))
             elif instance.test.type == models.MULTIPLE_CHOICE:
@@ -267,8 +294,9 @@ class UnitTestInfoForm(forms.ModelForm):
             )
             ref.save()
             instance.reference = ref
-        elif 'reference_value' in self.cleaned_data:
-            # reference_value field was in the form but empty - clear the reference
+        else:
+            # A value the form showed was emptied on purpose (only possible in the
+            # builder's dialog, which starts with the current value filled in).
             instance.reference = None
 
         if commit:
@@ -848,45 +876,31 @@ def get_test_metadata(test):
     cat_slug = test.category.slug if test.category else "general"
     cat_name = test.category.name if test.category else _("General")
 
-    # Categories and types are drawn with one neutral pill / badge style
-    # (.tl-cat-pill, .tl-type-badge): colour in QATrack+ means QC status, so
-    # it isn't used to tell categories or test types apart.
-
-    # Badges are short type abbreviations shown in the builder; the context
-    # tells translators to keep them short.
+    # Categories and types are each drawn as one neutral chip (.tl-cat-pill,
+    # .tl-type-chip, showing the full type name): colour in QATrack+ means QC
+    # status, so it isn't used to tell categories or test types apart.
     t = test.type
     if t == models.BOOLEAN:
-        type_badge = pgettext("test type badge", "Y/N")
         type_label = _("Boolean")
     elif t in (models.SIMPLE, models.NUMERICAL):
-        type_badge = pgettext("test type badge", "Num")
         type_label = _("Numerical")
     elif t == models.WRAPAROUND:
-        type_badge = pgettext("test type badge", "Num")
         type_label = _("Wraparound")
     elif t == models.MULTIPLE_CHOICE:
-        type_badge = pgettext("test type badge", "M/C")
         type_label = _("Multiple Choice")
     elif t == models.COMPOSITE:
-        type_badge = pgettext("test type badge", "Comp")
         type_label = _("Composite")
     elif t == models.CONSTANT:
-        type_badge = pgettext("test type badge", "Const")
         type_label = _("Constant")
     elif t == models.STRING:
-        type_badge = pgettext("test type badge", "Text")
         type_label = _("String")
     elif t == models.STRING_COMPOSITE:
-        type_badge = pgettext("test type badge", "JSON")
         type_label = _("String Composite")
     elif t == models.UPLOAD:
-        type_badge = pgettext("test type badge", "File")
         type_label = _("File Upload")
     elif t in (models.DATE, models.DATETIME):
-        type_badge = pgettext("test type badge", "Date")
         type_label = _("Date") if t == models.DATE else _("Date & Time")
     else:
-        type_badge = pgettext("test type badge", "Test")
         type_label = test.get_type_display()
 
     type_value, type_value_title, type_value_mono = _get_test_type_value(test)
@@ -900,7 +914,6 @@ def get_test_metadata(test):
         "category_name": cat_name,
         "category_slug": cat_slug,
         "type": test.type,
-        "type_badge": type_badge,
         "type_label": type_label,
         "type_value": type_value,
         "type_value_title": type_value_title,
@@ -1480,49 +1493,6 @@ def testlist_add_sublist_card(request):
     })
 
 
-def testlist_test_desc_modal(request):
-    """HTMX endpoint to view or update a test's description.
-
-    This saves the Test straight away (not when the test list is saved), so it
-    needs the same permission as editing the Test itself, not just staff access.
-    """
-    if not request.user.has_perm("qa.change_test"):
-        return HttpResponseForbidden(_("You don't have permission to change tests. Nothing was changed."))
-    test_id = request.GET.get("test_id") or request.POST.get("test_id")
-    index = request.GET.get("index", "0")
-    test = get_object_or_404(models.Test.objects.select_related("category"), pk=test_id)
-    if request.method == "POST":
-        desc = request.POST.get("description", "")
-        # Browsers send textarea line breaks as \r\n, so compare with line
-        # endings normalized: re-saving an untouched description isn't a change.
-        if desc.replace("\r\n", "\n") != (test.description or "").replace("\r\n", "\n"):
-            test.description = desc
-            test.modified_by = request.user
-            with transaction.atomic():
-                # Only these fields, so a stale in-memory Test can't overwrite
-                # other fields. "modified" is auto_now, which Django only
-                # refreshes when it's listed in update_fields.
-                test.save(update_fields=["description", "modified", "modified_by"])
-                LogEntry.objects.log_action(
-                    user_id=request.user.pk,
-                    content_type_id=ContentType.objects.get_for_model(test).pk,
-                    object_id=test.pk,
-                    object_repr=str(test),
-                    action_flag=CHANGE,
-                    change_message=_("Changed description from the test list builder."),
-                )
-        test_meta = get_test_metadata(test)
-        return render(request, "admin/qa/testlist/partials/_test_desc_cell.html", {
-            "test_meta": test_meta,
-            "index": index,
-        })
-    return render(request, "admin/qa/testlist/partials/_test_desc_modal.html", {
-        "test": test,
-        "test_meta": get_test_metadata(test),
-        "index": index,
-    })
-
-
 def _copy_unit_test_infos(source, new_test, user):
     """Give ``new_test`` the same references and tolerances as ``source`` on every unit.
 
@@ -1952,6 +1922,8 @@ class MachineRefTolForm(UnitTestInfoForm):
                 value = repr(float(ref.value))
                 self.initial["reference_value"] = value[:-2] if value.endswith(".0") else value
         self.fields["reference_value"].label = _("Reference")
+        # the dialog shows the current value, so "leave blank to keep" doesn't apply
+        self.fields["reference_value"].help_text = ""
         self.fields["tolerance"].label = _("Tolerance")
         self.fields["tolerance"].empty_label = _("No tolerance")
         if not isinstance(self.fields["tolerance"].widget, forms.HiddenInput):
@@ -1966,19 +1938,8 @@ class MachineRefTolForm(UnitTestInfoForm):
             widget = self.fields[name].widget
             if not isinstance(widget, forms.HiddenInput):
                 widget.attrs["class"] = "tl-modal-input"
-
-    def _reference_for_validation(self):
-        # matches save(): an unchanged value keeps the current Reference
-        if "reference_value" not in self.changed_data:
-            return self._KEEP_REFERENCE
-        return super()._reference_for_validation()
-
-    def save(self, commit=True):
-        if "reference_value" not in self.changed_data:
-            # Unchanged: keep the current Reference (UnitTestInfoForm.save would
-            # save a new one with the same value, or clear it when blank).
-            self.cleaned_data.pop("reference_value", None)
-        return super().save(commit=commit)
+        # An unchanged value keeps the current Reference and emptying the field
+        # clears it: UnitTestInfoForm handles both (see _reference_value_changed).
 
 
 def testlist_machine_ref_tol(request, uti_id):
@@ -2333,11 +2294,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 'add-sublist-card/',
                 self.admin_site.admin_view(testlist_add_sublist_card),
                 name='qa_testlist_add_sublist_card',
-            ),
-            path(
-                'test-desc-modal/',
-                self.admin_site.admin_view(testlist_test_desc_modal),
-                name='qa_testlist_test_desc_modal',
             ),
             path(
                 'duplicate-test/',

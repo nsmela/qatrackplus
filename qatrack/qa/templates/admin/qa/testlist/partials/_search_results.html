@@ -19,7 +19,7 @@
         </div>
         <div class="tl-search-item-right">
           <span class="tl-cat-pill">{{ t.category_name }}</span>
-          <span class="tl-type-badge" title="{{ t.type_label }}">{{ t.type_badge }}</span>
+          <span class="tl-type-chip">{{ t.type_label }}</span>
           <button type="button" class="tl-btn-select-test" data-test-id="{{ t.id }}"
                   aria-label="{% blocktrans with name=t.name %}Add {{ name }}{% endblocktrans %}">
             <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add" %}

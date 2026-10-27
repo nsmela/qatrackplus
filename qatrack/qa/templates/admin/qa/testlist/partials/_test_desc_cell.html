@@ -1,6 +1,8 @@
 {% load i18n static %}
+{# A test's description is edited on the Test's own page (like the row's pencil), never in the builder. #}
+{% with test_name=test_meta.display_name|default:test_meta.name %}
 {% if not perms.qa.change_test %}
-  {# Read-only for users who can't change tests: the dialog saves the Test directly. #}
+  {# Read-only for users who can't change tests. #}
   {% if test_meta.description %}
     <div class="tl-test-desc tl-test-desc-readonly">
       <i class="fa fa-align-left" aria-hidden="true"></i>
@@ -8,20 +10,18 @@
     </div>
   {% endif %}
 {% elif test_meta.description %}
-  {# A button, so the description can be opened from the keyboard (Enter or Space) as well as by clicking. #}
-  <button type="button" class="tl-test-desc" aria-haspopup="dialog"
-          hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
-          hx-target="#tl-modal-container"
-          hx-trigger="click"
-          title="{% trans "Click to edit description" %}">
+  {# the visible description stays the link's name; the hidden text says where it goes #}
+  <a href="{{ test_meta.edit_url }}" target="_blank" rel="noopener" class="tl-test-desc"
+     title="{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}">
     <i class="fa fa-align-left" aria-hidden="true"></i>
     <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
-  </button>
+    <span class="tl-visually-hidden">{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}</span>
+  </a>
 {% else %}
-  <button type="button" class="tl-add-desc-btn" aria-haspopup="dialog"
-          hx-get="{% url 'admin:qa_testlist_test_desc_modal' %}?test_id={{ test_meta.id }}&index={{ index }}"
-          hx-target="#tl-modal-container"
-          hx-trigger="click">
+  <a href="{{ test_meta.edit_url }}" target="_blank" rel="noopener" class="tl-add-desc-link"
+     title="{% blocktrans with name=test_name %}Add Description to {{ name }} (opens in a new tab){% endblocktrans %}">
     <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Description" %}
-  </button>
+    <span class="tl-visually-hidden">{% blocktrans with name=test_name %}to {{ name }} (opens in a new tab){% endblocktrans %}</span>
+  </a>
 {% endif %}
+{% endwith %}

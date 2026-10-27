@@ -941,7 +941,8 @@ class TestUnitTestInfoAdmin(TestCase):
         form = admin.get_form(request)(instance=self.uti_1, data=data)
         self.assertTrue(form.is_valid())
         admin.save_model(request, admin.save_form(request, form, True), form, True)
-        self.assertEqual(self.uti_1.reference, None)
+        # a blank reference value keeps the current reference (round 3, R1)
+        self.assertEqual(self.uti_1.reference.value, self.r_2.value)
 
         data['reference_value'] = '3.14159'
         form = admin.get_form(request)(instance=self.uti_1, data=data)
@@ -1671,7 +1672,6 @@ class TestTestListBuilderQuickFixes(TestCase):
         self.test.save()
         self.tl = qa_utils.create_test_list(name='quickfix_tl')
         qa_utils.create_test_list_membership(test_list=self.tl, test=self.test, order=0)
-        self.desc_url = reverse('admin:qa_testlist_test_desc_modal')
         self.dup_url = reverse('admin:qa_testlist_duplicate_test')
         self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
 
@@ -1681,38 +1681,6 @@ class TestTestListBuilderQuickFixes(TestCase):
     def _grant(self, codename):
         test_ct = ContentType.objects.get_for_model(qa_models.Test)
         self.limited.user_permissions.add(Permission.objects.get(content_type=test_ct, codename=codename))
-
-    # --- description dialog ---
-
-    def test_desc_modal_get_forbidden_without_change_test(self):
-        self._login('limited')
-        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
-        self.assertEqual(resp.status_code, 403)
-        self.assertIn('Nothing was changed', resp.content.decode())
-
-    def test_desc_modal_post_forbidden_without_change_test(self):
-        self._login('limited')
-        resp = self.client.post(self.desc_url + '?test_id=%d' % self.test.pk, {'description': 'Hacked'})
-        self.assertEqual(resp.status_code, 403)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'Original description')
-
-    def test_desc_modal_allowed_with_change_test(self):
-        self._grant('change_test')
-        self._login('limited')
-        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
-        self.assertEqual(resp.status_code, 200)
-        resp = self.client.post(self.desc_url + '?test_id=%d' % self.test.pk, {'description': 'Updated'})
-        self.assertEqual(resp.status_code, 200)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'Updated')
-
-    def test_desc_modal_wording(self):
-        self._login('super')
-        resp = self.client.get(self.desc_url, {'test_id': self.test.pk})
-        self.assertContains(resp, 'Description (HTML allowed)</label>')
-        self.assertNotContains(resp, 'Test Description (HTML allowed)')
-        self.assertContains(resp, 'Saving updates this test straight away')
 
     # --- duplicate dialog ---
 
@@ -1749,14 +1717,14 @@ class TestTestListBuilderQuickFixes(TestCase):
         resp = self.client.get(self.change_url)
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
-        self.assertNotContains(resp, 'hx-get="%s' % self.desc_url)
+        self.assertNotContains(resp, 'rel="noopener" class="tl-test-desc"')
         self.assertContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
 
     def test_change_form_shows_test_actions_with_perms(self):
         self._login('super')
         resp = self.client.get(self.change_url)
         self.assertContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
-        self.assertContains(resp, 'hx-get="%s' % self.desc_url)
+        self.assertContains(resp, 'rel="noopener" class="tl-test-desc"')
         self.assertNotContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
 
     def test_add_test_row_respects_perms(self):
@@ -1765,12 +1733,12 @@ class TestTestListBuilderQuickFixes(TestCase):
         resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'tl-duplicate-test-btn')
-        self.assertNotContains(resp, self.desc_url)
+        self.assertNotContains(resp, 'rel="noopener" class="tl-test-desc"')
         self.client.logout()
         self._login('super')
         resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
         self.assertContains(resp, 'tl-duplicate-test-btn')
-        self.assertContains(resp, self.desc_url)
+        self.assertContains(resp, 'rel="noopener" class="tl-test-desc"')
 
     # --- URLs rendered by Django, not hard-coded in JS ---
 
@@ -1803,7 +1771,8 @@ class TestTestListBuilderQuickFixes(TestCase):
         parents_pos = content.index('id="tl-parents-card"')
         attach_pos = content.index('id="tl-attachments-card"')
         self.assertLess(tests_pos, parents_pos)
-        self.assertLess(parents_pos, attach_pos)
+        # R8: Attachments sits above Tests & Sublists
+        self.assertLess(attach_pos, tests_pos)
         self.assertIn('Changes you save here apply to each of them.', content)
         self.assertNotIn('immediately take effect across all parents', content)
 
@@ -1937,77 +1906,11 @@ class TestTestListBuilderDuplicateRefsTols(TestCase):
         self.assertEqual(uti.reference.value, 12.5)
 
 
-class TestTestListBuilderDescAudit(TestCase):
-    """The description dialog records who changed the test, and when."""
-
-    def setUp(self):
-        self.creator = create_user(is_superuser=True, uname='creator', pwd='pwd')
-        self.editor = create_user(is_superuser=False, uname='editor', pwd='pwd')
-        self.viewer = create_user(is_superuser=False, uname='viewer', pwd='pwd')
-        test_ct = ContentType.objects.get_for_model(qa_models.Test)
-        self.editor.user_permissions.add(Permission.objects.get(content_type=test_ct, codename='change_test'))
-        self.test = qa_utils.create_test(name='desc_audit_test')
-        qa_models.Test.objects.filter(pk=self.test.pk).update(
-            description='Line one\nLine two', created_by=self.creator, modified_by=self.creator,
-        )
-        self.test.refresh_from_db()
-        self.url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%d&index=0' % self.test.pk
-        self.test_ct = test_ct
-
-    def _entries(self):
-        from django.contrib.admin.models import LogEntry
-        return LogEntry.objects.filter(content_type=self.test_ct, object_id=str(self.test.pk))
-
-    def test_change_updates_modified_and_logs(self):
-        from django.contrib.admin.models import CHANGE
-        old_modified = self.test.modified
-        self.client.login(username='editor', password='pwd')
-        resp = self.client.post(self.url, {'description': 'New text'})
-        self.assertEqual(resp.status_code, 200)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'New text')
-        self.assertEqual(self.test.modified_by, self.editor)
-        self.assertGreater(self.test.modified, old_modified)
-        self.assertEqual(self.test.created_by, self.creator)
-        entries = list(self._entries())
-        self.assertEqual(len(entries), 1)
-        self.assertEqual(entries[0].action_flag, CHANGE)
-        self.assertEqual(entries[0].user, self.editor)
-        self.assertEqual(entries[0].get_change_message(), 'Changed description from the test list builder.')
-
-    def test_change_does_not_overwrite_other_fields(self):
-        self.client.login(username='editor', password='pwd')
-        qa_models.Test.objects.filter(pk=self.test.pk).update(name='renamed elsewhere')
-        self.client.post(self.url, {'description': 'New text'})
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.name, 'renamed elsewhere')
-
-    def test_unchanged_description_does_not_save_or_log(self):
-        old_modified = self.test.modified
-        self.client.login(username='editor', password='pwd')
-        # browsers send textarea line breaks as \r\n
-        resp = self.client.post(self.url, {'description': 'Line one\r\nLine two'})
-        self.assertEqual(resp.status_code, 200)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.modified, old_modified)
-        self.assertEqual(self.test.modified_by, self.creator)
-        self.assertFalse(self._entries().exists())
-
-    def test_forbidden_without_change_test(self):
-        self.client.login(username='viewer', password='pwd')
-        resp = self.client.post(self.url, {'description': 'Hacked'})
-        self.assertEqual(resp.status_code, 403)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'Line one\nLine two')
-        self.assertFalse(self._entries().exists())
-
-
 class TestBooleanTestNonBooleanReference(TestCase):
     """A Boolean test can't keep a reference other than 0 / 1 on any unit.
 
-    The ``on_test_save`` signal refuses such saves; the Test admin form reports
-    it as a form error, and saves that can't change the type (the builder's
-    description dialog) aren't blocked.
+    The ``on_test_save`` signal refuses such saves, and the Test admin form
+    reports it as a form error.
     """
 
     def setUp(self):
@@ -2016,11 +1919,6 @@ class TestBooleanTestNonBooleanReference(TestCase):
         self.uti = qa_utils.create_unit_test_info(
             test=self.test, ref=qa_utils.create_reference(value=5.0),
         )
-
-    def _make_boolean_in_db(self):
-        """Put the test in the bad state directly, bypassing the signal (as legacy data might be)."""
-        qa_models.Test.objects.filter(pk=self.test.pk).update(type=qa_models.BOOLEAN)
-        self.test.refresh_from_db()
 
     def test_boolean_with_numerical_reference_rejected(self):
         # Build the type string at runtime so it isn't interned: the old check
@@ -2044,15 +1942,6 @@ class TestBooleanTestNonBooleanReference(TestCase):
         self.test.save()
         self.test.refresh_from_db()
         self.assertEqual(self.test.type, qa_models.WRAPAROUND)
-
-    def test_description_only_save_not_blocked(self):
-        self._make_boolean_in_db()
-        self.client.login(username='booladmin', password='pwd')
-        url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%d&index=0' % self.test.pk
-        resp = self.client.post(url, {'description': 'New text'})
-        self.assertEqual(resp.status_code, 200)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'New text')
 
     def test_admin_form_reports_error_instead_of_raising(self):
         data = {
@@ -2197,9 +2086,8 @@ class TestTestListBuilderTypeValue(TestCase):
         self.assertNotContains(resp, 'TOLERANCE')
         # Reference / Tolerance columns exist only for machine mode, and are
         # empty and hidden (CSS) on the base list
-        self.assertEqual(content.count('<th class="tl-th-ref tl-col-ref">Reference</th>'), 2)
-        self.assertEqual(content.count('<th class="tl-th-tol tl-col-tol">Tolerance</th>'), 2)
-        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref"></td>'), 3)
+        self.assertEqual(content.count('<th class="tl-th-reftol tl-col-reftol">Reference & Tolerance</th>'), 2)
+        self.assertEqual(content.count('<td class="tl-cell-reftol tl-col-reftol"></td>'), 3)
         self.assertNotContains(resp, 'Pass = ')
         self.assertContains(resp, 'data-type-value="22.0"')
         self.assertContains(resp, '<span class="tl-type-value">22.0</span>', html=True)
@@ -2210,8 +2098,8 @@ class TestTestListBuilderTypeValue(TestCase):
         # columns aren't counted (the builder JS recounts them in machine mode)
         thead = content.split('id="tl-tests-table"')[1].split('</thead>')[0]
         main_cols = len(re.findall(r'<th\b', thead))
-        self.assertEqual(main_cols, 8)
-        self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell tl-span-visible-cols"' % (main_cols - 2))
+        self.assertEqual(main_cols, 7)
+        self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell tl-span-visible-cols"' % (main_cols - 1))
 
 
 class TestTestListAdminBreadcrumbs(TestCase):
@@ -3171,10 +3059,8 @@ class TestTestListBuilderMachineMode(TestCase):
         self.assertIn('Machine B', through)
 
         # rows carry the (hidden until machine mode) Reference / Tolerance cells
-        self.assertContains(resp, '<th class="tl-th-ref tl-col-ref">')
-        self.assertContains(resp, '<th class="tl-th-tol tl-col-tol">')
-        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref">'), 3)
-        self.assertEqual(content.count('<td class="tl-cell-tol tl-col-tol">'), 3)
+        self.assertContains(resp, '<th class="tl-th-reftol tl-col-reftol">')
+        self.assertEqual(content.count('<td class="tl-cell-reftol tl-col-reftol">'), 3)
         self.assertContains(resp, reverse('admin:qa_testlist_machine_values'))
 
     def test_through_endpoint_info_and_cycle(self):
@@ -3196,7 +3082,7 @@ class TestTestListBuilderMachineMode(TestCase):
         resp = self.client.get(reverse('admin:qa_testlist_change', args=(parent.pk,)))
         content = resp.content.decode()
         self.assertIn('class="tl-sublist-test-row" data-test-id="%d"' % self.num_test.pk, content)
-        self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref">'), 3)
+        self.assertEqual(content.count('<td class="tl-cell-reftol tl-col-reftol">'), 3)
         self.assertIn('colspan="6" class="tl-sublist-cell tl-span-visible-cols"', content)
         # no assignments: only the base list option
         select = re.search(r'<select id="tl-machine-scope-select".*?</select>', content, re.S).group(0)
@@ -4221,13 +4107,6 @@ class TestTestListBuilderWordingAndAccessibility(TestCase):
         self.assertIn('aria-labelledby="tl-duplicate-title"', dialog)
         self.assertIn('id="tl-duplicate-title"', dup)
 
-        desc = self.client.get(
-            reverse('admin:qa_testlist_test_desc_modal'), {'test_id': self.test.pk, 'index': 0},
-        ).content.decode()
-        dialog = self._tag(desc, r'<div class="tl-modal-dialog"[^>]*>')
-        self.assertIn('role="dialog"', dialog)
-        self.assertIn('aria-labelledby="tl-desc-title"', dialog)
-
     def test_changelist_icons_have_accessible_names(self):
         unit = qa_utils.create_unit(name='Linac 1')
         qa_utils.create_unit_test_collection(unit=unit, test_collection=self.tl)
@@ -4243,10 +4122,10 @@ class TestTestListBuilderWordingAndAccessibility(TestCase):
 
     def test_metadata_labels(self):
         meta = qa_admin.get_test_metadata(self.test)
-        self.assertEqual((meta['type_badge'], meta['type_label']), ('Num', 'Numerical'))
+        self.assertEqual(meta['type_label'], 'Numerical')
         boolean = qa_utils.create_test(name='Door Interlock', test_type=qa_models.BOOLEAN)
         meta = qa_admin.get_test_metadata(boolean)
-        self.assertEqual((meta['type_badge'], meta['type_label']), ('Y/N', 'Boolean'))
+        self.assertEqual(meta['type_label'], 'Boolean')
 
     def test_duplicate_name_taken_error_is_plain_text(self):
         resp = self.client.post(reverse('admin:qa_testlist_duplicate_test'), {
@@ -4261,9 +4140,9 @@ class TestTestListBuilderWordingAndAccessibility(TestCase):
 
 
 class TestTestListBuilderDialogsOutsideForm(TestCase):
-    """The Duplicate Test and Description dialogs have forms of their own. Inside the
-    change form the browser would drop them, so their buttons saved the whole test
-    list; they (and the search dialog) must be rendered after the change form."""
+    """The Duplicate Test dialog has a form of its own. Inside the change form the
+    browser would drop it, so its button saved the whole test list; it (and the
+    search dialog) must be rendered after the change form."""
 
     def setUp(self):
         self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
@@ -4301,33 +4180,23 @@ class TestTestListBuilderDialogsOutsideForm(TestCase):
     def test_dialog_forms_are_standalone(self):
         dup = self.client.get(reverse('admin:qa_testlist_duplicate_test'), {'test_id': self.test.pk}).content.decode()
         self.assertIn('<form id="tl-duplicate-test-form"', dup)
-        desc = self.client.get(
-            reverse('admin:qa_testlist_test_desc_modal'), {'test_id': self.test.pk, 'index': 0},
-        ).content.decode()
-        self.assertIn('hx-target="#tl-desc-wrap-%s-0"' % self.test.pk, desc)
-        self.assertIn('id="tl-desc-error-msg"', desc)
 
-    def test_duplicate_and_description_leave_test_list_alone(self):
+    def test_duplicate_leaves_test_list_alone(self):
         before = qa_models.TestList.objects.get(pk=self.tl.pk)
         resp = self.client.post(reverse('admin:qa_testlist_duplicate_test'), {
             'source_test_id': self.test.pk, 'new_name': 'Output Constancy 6X (Copy)', 'test_list_id': self.tl.pk,
         })
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(qa_models.Test.objects.filter(name='Output Constancy 6X (Copy)').exists())
-        url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%s&index=0' % self.test.pk
-        resp = self.client.post(url, {'description': 'New words'})
-        self.assertEqual(resp.status_code, 200)
-        self.test.refresh_from_db()
-        self.assertEqual(self.test.description, 'New words')
         after = qa_models.TestList.objects.get(pk=self.tl.pk)
         self.assertEqual(after.modified, before.modified)
         self.assertEqual(list(after.tests.all()), [self.test])
 
-    def test_description_cell_is_a_button(self):
+    def test_description_cell_is_a_link(self):
         content = self._change_form()
-        match = re.search(r'<button type="button" class="tl-test-desc"[^>]*>', content)
+        match = re.search(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-test-desc"[^>]*>', content)
         self.assertIsNotNone(match)
-        self.assertIn('hx-target="#tl-modal-container"', match.group(0))
+        self.assertIn('href="%s"' % reverse('admin:qa_test_change', args=[self.test.pk]), match.group(0))
         self.assertNotIn('<div class="tl-test-desc"', content)
 
     def test_browse_is_a_keyboard_button(self):
@@ -4383,7 +4252,7 @@ class TestTestListBuilderDesignSpec(TestCase):
         self.assertIn('<span class="tl-cat-pill">Safety</span>', content)
         self.assertNotRegex(content, r'tl-cat-(?!pill)[a-z]')
         self.assertNotRegex(content, r'tl-type-(num|yn|mc|comp|const|str|scomp|upload|date|default)\b')
-        self.assertIn('<span class="tl-type-badge">', content)
+        self.assertIn('<span class="tl-type-chip">', content)
 
     def test_metadata_has_no_colour_classes(self):
         meta = qa_admin.get_test_metadata(self.interlock)
