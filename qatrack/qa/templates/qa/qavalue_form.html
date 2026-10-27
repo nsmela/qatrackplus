@@ -22,7 +22,10 @@
 <tr id="{{ test_info.test.slug }}-row" class="control-group qa-valuerow qa-{{ test_info.test.type }} {%if test_info.test.hidden %}hidden{% endif %} row-{{ form.prefix }}" data-prefix="{{ form.prefix }}">
 
   {% for hidden in form.hidden_fields %}
+    {# Upload tests render string_value/json_value inside td.qa-value (where qa.js writes them), so skip the duplicate copy here #}
+    {% if not test.is_upload or hidden.name != "string_value" and hidden.name != "json_value" %}
       {{ hidden }}
+    {% endif %}
   {% endfor %}
 
 
@@ -133,7 +136,7 @@
 </tr>
 
 <tr id="{{ slug }}-procedure-row" class="qa-procedure no-hover row-{{ form.prefix }} {%if test_info.test.hidden %}hidden-procedure{% endif %}">
-  <td id="{{ slug }}-procedure" colspan="{% qa_table_colspan perms %}"  class="">
+  <td id="{{ slug }}-procedure-detail" colspan="{% qa_table_colspan perms %}"  class="">
     {% if form.unit_test_info.test.procedure or form.unit_test_info.test.description or form.unit_test_info.test.attachment_set.count %}
       <div class="error-bar {% if form.errors %}in{% endif %}">
         <div class="procedure-container procedure-bar">

@@ -818,14 +818,14 @@
                 {% endif %}
 
                 {% if perms.qa.can_review and perms.qa.can_review_own_tests or perms.qa.can_override_date %}
-                    <li title="{% trans "Toggle admin options visibility" %}" class="primary toggle-element active" data-toggle="admin"><a id="toggle-options" href="#!">
+                    <li title="{% trans "Toggle admin options visibility" %}" class="primary toggle-element active" data-toggle="admin"><a id="toggle-admin" href="#!">
                         <i class="fa fa-unlock-alt fa-fw" aria-hidden="true"></i>
                         <span>{% trans "Admin Options" %}</span>
                     </a></li>
                 {% endif %}
 
                 {% if attachments|length > 0 %}
-                    <li class="primary toggle-element active" data-toggle="attachments"><a id="toggle-options" href="#!">
+                    <li class="primary toggle-element active" data-toggle="attachments"><a id="toggle-attachments" href="#!">
                         <i class="fa fa-paperclip fa-fw" aria-hidden="true"></i>
                         <span>{% trans "Attachments" %}</span>
                     </a></li>
@@ -833,14 +833,14 @@
 
                 {% if form.instance.pk or rtsqa_id %}
                     {% if perms.service_log.add_serviceevent or service_events_ib|length > 0 %}
-                        <li class="primary toggle-element active" data-toggle="serviceevents"><a id="toggle-options" href="#!">
+                        <li class="primary toggle-element active" data-toggle="serviceevents"><a id="toggle-serviceevents" href="#!">
                             <i class="fa fa-wrench fa-fw" aria-hidden="true"></i>
                             <span>{% trans "Service Events" %}</span>
                         </a></li>
                     {% endif %}
                 {% endif %}
 
-                <li title="{% trans "Toggle comments visibility" %}" class="primary toggle-element active" data-toggle="comments"><a id="toggle-options" href="#!">
+                <li title="{% trans "Toggle comments visibility" %}" class="primary toggle-element active" data-toggle="comments"><a id="toggle-comments" href="#!">
                     <i class="fa fa-commenting-o fa-fw" aria-hidden="true"></i>
                     <span>{% trans "Comments" %}</span>
                 </a></li>
