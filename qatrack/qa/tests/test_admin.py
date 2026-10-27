@@ -1762,7 +1762,7 @@ class TestTestListBuilderQuickFixes(TestCase):
 
     # --- layout ---
 
-    def test_parents_card_renders_after_tests_card(self):
+    def test_parents_card_renders_between_attachments_and_tests_cards(self):
         parent = qa_utils.create_test_list(name='quickfix_parent')
         qa_utils.create_sublist(parent_test_list=parent, child_test_list=self.tl)
         self._login('super')
@@ -1770,9 +1770,9 @@ class TestTestListBuilderQuickFixes(TestCase):
         tests_pos = content.index('id="tl-tests-card"')
         parents_pos = content.index('id="tl-parents-card"')
         attach_pos = content.index('id="tl-attachments-card"')
-        self.assertLess(tests_pos, parents_pos)
-        # R8: Attachments sits above Tests & Sublists
-        self.assertLess(attach_pos, tests_pos)
+        # R10: Attachments, then Parent Test List Memberships, then Tests & Sublists
+        self.assertLess(attach_pos, parents_pos)
+        self.assertLess(parents_pos, tests_pos)
         self.assertIn('Changes you save here apply to each of them.', content)
         self.assertNotIn('immediately take effect across all parents', content)
 

@@ -238,7 +238,7 @@
 {% endblock %}
 
 {% block inline_field_sets %}
-  {# --- Attachments card: sits between Details and Tests & Sublists. The remaining inlines render after the builder below. --- #}
+  {# --- Attachments card: sits after Details, before Parent Test List Memberships and Tests & Sublists. The remaining inlines render after the builder below. --- #}
   {% for inline_admin_formset in inline_admin_formsets %}
     {% if "attachment" in inline_admin_formset.formset.prefix %}
       <div class="tl-attachments-card" id="tl-attachments-card">
@@ -338,76 +338,7 @@
     {% endif %}
   {% endfor %}
 
-  {# --- Unified Tests & Sublists Builder Card --- #}
-  <div class="tl-members-card" id="tl-tests-card" data-original-id="{{ original.pk|default:'' }}"
-       data-search-tests-url="{% url 'admin:qa_testlist_search_tests' %}"
-       data-search-sublists-url="{% url 'admin:qa_testlist_search_sublists' %}"
-       data-add-test-row-url="{% url 'admin:qa_testlist_add_test_row' %}"
-       data-add-sublist-card-url="{% url 'admin:qa_testlist_add_sublist_card' %}"
-       data-duplicate-test-url="{% url 'admin:qa_testlist_duplicate_test' %}">
-    <div class="tl-card-header">
-      <i class="fa fa-list" aria-hidden="true"></i>
-      <h2 class="tl-card-title">{% trans "Tests & Sublists" %}</h2>
-      <span class="tl-count-badge" id="tl-tests-count">0</span>
-      <div class="tl-card-header-actions">
-        <button type="button" class="tl-header-text-btn" id="tl-toggle-all-sublists-btn" title="{% trans "Expand or collapse all sublists" %}">
-          <i class="fa fa-expand" aria-hidden="true"></i> <span id="tl-toggle-all-sublists-text">{% trans "Expand All" %}</span>
-        </button>
-        <button type="button" class="tl-header-add-btn" id="tl-header-add-sublist-btn" title="{% trans "Add an existing test list as a sublist" %}">
-          <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add Sublist" %}
-        </button>
-        <button type="button" class="tl-header-add-btn" id="tl-header-add-test-btn" title="{% trans "Add an existing test to this test list" %}">
-          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Test" %}
-        </button>
-      </div>
-    </div>
-
-    <div class="tl-table-wrap">
-      <table class="tlb-table tl-tests-table" id="tl-tests-table">
-        <thead>
-          <tr>
-            <th class="tl-th-drag"><span class="tl-visually-hidden">{% trans "Order" %}</span></th>
-            <th class="tl-th-test">{% trans "Test / Sublist" %}</th>
-            <th class="tl-th-category">{% trans "Category" %}</th>
-            <th class="tl-th-type">{% trans "Type" %}</th>
-            <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
-            <th class="tl-th-reftol tl-col-reftol">{% trans "Reference & Tolerance" %}</th>
-            <th class="tl-th-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
-          </tr>
-        </thead>
-        <tbody id="tl-tests-tbody" class="tl-sortable-tbody">
-          {% for inline_admin_formset in inline_admin_formsets %}
-            {% if inline_admin_formset.formset.prefix == "testlistmembership_set" %}
-              {{ inline_admin_formset.formset.management_form }}
-              {{ inline_admin_formset.formset.non_form_errors }}
-              {% for inline_admin_form in inline_admin_formset %}
-                {% if not inline_admin_form.form.test_meta and forloop.last %}
-                  {# empty form template #}
-                {% elif inline_admin_form.form.test_meta %}
-                  {% include "admin/qa/testlist/partials/_test_row.html" with test_meta=inline_admin_form.form.test_meta prefix="testlistmembership_set" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
-                {% endif %}
-              {% endfor %}
-            {% elif inline_admin_formset.formset.prefix == "children" %}
-              {{ inline_admin_formset.formset.management_form }}
-              {{ inline_admin_formset.formset.non_form_errors }}
-              {% for inline_admin_form in inline_admin_formset %}
-                {% if not inline_admin_form.form.sublist_meta and forloop.last %}
-                  {# empty form template #}
-                {% elif inline_admin_form.form.sublist_meta %}
-                  {% include "admin/qa/testlist/partials/_sublist_card.html" with sublist_meta=inline_admin_form.form.sublist_meta prefix="children" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
-                {% endif %}
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="tl-empty-tests-placeholder" id="tl-empty-tests-msg" style="display:none;">
-        <p>{% trans "No tests or sublists yet. Use Add Test or Add Sublist above to get started." %}</p>
-      </div>
-    </div>
-  </div>
-
-  {# --- Parent Test List Memberships (where this list is used as a sublist) --- #}
+  {# --- Parent Test List Memberships (where this list is used as a sublist): sits between Attachments and Tests & Sublists --- #}
   {% if original.pk %}
     {% if original.sublist_set.all %}
       <div class="tl-parents-card" id="tl-parents-card">
@@ -448,6 +379,75 @@
       </div>
     {% endif %}
   {% endif %}
+
+  {# --- Unified Tests & Sublists Builder Card --- #}
+  <div class="tl-members-card" id="tl-tests-card" data-original-id="{{ original.pk|default:'' }}"
+       data-search-tests-url="{% url 'admin:qa_testlist_search_tests' %}"
+       data-search-sublists-url="{% url 'admin:qa_testlist_search_sublists' %}"
+       data-add-test-row-url="{% url 'admin:qa_testlist_add_test_row' %}"
+       data-add-sublist-card-url="{% url 'admin:qa_testlist_add_sublist_card' %}"
+       data-duplicate-test-url="{% url 'admin:qa_testlist_duplicate_test' %}">
+    <div class="tl-card-header">
+      <i class="fa fa-list" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "Tests & Sublists" %}</h2>
+      <span class="tl-count-badge" id="tl-tests-count">0</span>
+      <div class="tl-card-header-actions">
+        <button type="button" class="tl-header-text-btn" id="tl-toggle-all-sublists-btn" title="{% trans "Expand or collapse all sublists" %}">
+          <i class="fa fa-expand" aria-hidden="true"></i> <span id="tl-toggle-all-sublists-text">{% trans "Expand All" %}</span>
+        </button>
+        <button type="button" class="tl-header-add-btn" id="tl-header-add-sublist-btn" title="{% trans "Add an existing test list as a sublist" %}">
+          <i class="fa fa-folder-o" aria-hidden="true"></i> {% trans "Add Sublist" %}
+        </button>
+        <button type="button" class="tl-header-add-btn" id="tl-header-add-test-btn" title="{% trans "Add an existing test to this test list" %}">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Test" %}
+        </button>
+      </div>
+    </div>
+
+    <div class="tl-table-wrap">
+      <table class="tlb-table tl-tests-table" id="tl-tests-table">
+        <thead>
+          <tr>
+            <th class="tl-th-drag"><span class="tl-visually-hidden">{% trans "Order" %}</span></th>
+            <th class="tl-th-test">{% trans "Test / Sublist" %}</th>
+            <th class="tl-th-category">{% trans "Category" %}</th>
+            <th class="tl-th-type">{% trans "Type" %}</th>
+            <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
+            <th class="tl-th-reftol tl-col-reftol">{% trans "Reference & Tolerance" %}</th>
+            <th class="tl-th-actions tl-col-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
+          </tr>
+        </thead>
+        <tbody id="tl-tests-tbody" class="tl-sortable-tbody">
+          {% for inline_admin_formset in inline_admin_formsets %}
+            {% if inline_admin_formset.formset.prefix == "testlistmembership_set" %}
+              {{ inline_admin_formset.formset.management_form }}
+              {{ inline_admin_formset.formset.non_form_errors }}
+              {% for inline_admin_form in inline_admin_formset %}
+                {% if not inline_admin_form.form.test_meta and forloop.last %}
+                  {# empty form template #}
+                {% elif inline_admin_form.form.test_meta %}
+                  {% include "admin/qa/testlist/partials/_test_row.html" with test_meta=inline_admin_form.form.test_meta prefix="testlistmembership_set" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
+                {% endif %}
+              {% endfor %}
+            {% elif inline_admin_formset.formset.prefix == "children" %}
+              {{ inline_admin_formset.formset.management_form }}
+              {{ inline_admin_formset.formset.non_form_errors }}
+              {% for inline_admin_form in inline_admin_formset %}
+                {% if not inline_admin_form.form.sublist_meta and forloop.last %}
+                  {# empty form template #}
+                {% elif inline_admin_form.form.sublist_meta %}
+                  {% include "admin/qa/testlist/partials/_sublist_card.html" with sublist_meta=inline_admin_form.form.sublist_meta prefix="children" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="tl-empty-tests-placeholder" id="tl-empty-tests-msg" style="display:none;">
+        <p>{% trans "No tests or sublists yet. Use Add Test or Add Sublist above to get started." %}</p>
+      </div>
+    </div>
+  </div>
 
   {% for inline_admin_formset in inline_admin_formsets %}
     {% if "attachment" in inline_admin_formset.formset.prefix %}

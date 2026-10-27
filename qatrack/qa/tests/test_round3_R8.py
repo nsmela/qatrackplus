@@ -7,7 +7,7 @@ from qatrack.attachments.models import Attachment
 from qatrack.qa.tests import utils as qa_utils
 from qatrack.qa.tests.test_round2_N31 import page_post_data
 
-CARD_IDS = ['tl-details-card', 'tl-attachments-card', 'tl-tests-card', 'tl-parents-card']
+CARD_IDS = ['tl-details-card', 'tl-attachments-card', 'tl-parents-card', 'tl-tests-card']  # R10 order
 
 
 def card_order(content):

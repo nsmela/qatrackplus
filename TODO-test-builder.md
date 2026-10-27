@@ -351,7 +351,7 @@ Remove this file before the branch is merged.
     (base-mode Edit/Duplicate/Remove, machine-mode Reference & Tolerance
     pencil) only show after scrolling sideways inside the card. Make whole
     rows fit, in both modes and in sublists; 1440px unchanged.
-- [ ] **Parent Test List Memberships above Tests & Sublists**
+- [x] **Parent Test List Memberships above Tests & Sublists**
   - Edit page card order becomes Details, Attachments, Parent Test List
     Memberships, Tests & Sublists.
 - [ ] **Machine mode: pencil in front of the Reference & Tolerance values**
