@@ -222,66 +222,152 @@ agent. Commits: `211c7e1`, `9f9a7ec`, `aded961`, `00feb64`, `e931c05`,
   the old msgids; carry the French translations over when running
   `makemessages`. The Spanish one for `Test.choices` is a different
   sentence ("Debe dar al menos 1 opción…") and needs retranslating.
-  `docs/developer/guide.rst:666` has the same typo. `Test.choices` also has
-  `verbose_name="Description"`, which looks like a copy-paste error.
+  The docs typo is fixed too. `Test.choices` has `verbose_name="Description"`;
+  the Test admin form now labels it "Choices", but the model's
+  `verbose_name` (and the API label, which reads it) should be fixed with the
+  pending migrations, after which the form's `labels` override can go.
 
-## Open issues found in this round
+## Round 2: what each fix did
+
+Every item that was under "Open issues found in this round" had its own
+agent. Test files are `test_round2_<id>.py` next to each app's tests.
 
 Builder:
-- The list page is 449px wide at a 400px window because the Export /
-  Import / New Test List buttons don't wrap.
-- Admin dark theme: inputs inside builder dialogs render black
-  (`#tl-dialogs-outside-form` isn't in the light-variable re-set list).
-- `#6d7787`/`#6e7785` text is about 4.22:1 where it sits on hovered rows.
-- `TestListAdminForm.clean` uses `filter(id__in=…)`, so the same test added
-  twice directly is only caught by Django's generic duplicate message.
-- The attachments delete control may not check the attachment inline's
-  delete permission (not checked).
-- A saved sublist card renders its `-id` hidden input twice (harmless).
-- Machine mode: a sublist row's colspan spans hidden columns.
-- On narrow screens the list page scrolls ~520px because the filter sits
-  above the results; filter groups could start collapsed there.
-- `#result_list thead th` padding never applies (Django's rule wins).
-- "and N more" in the repeat warning isn't plural-aware.
-- The description dialog's submit shares a class with Save As's.
+- **N1** List page buttons wrap on narrow windows (no sideways scroll at
+  400–800px; 1440px unchanged).
+- **N2** Builder dialogs keep light inputs in the admin dark theme (a
+  separate light-variable rule on `.tl-modal-dialog` and its containers).
+- **N3** "Not used"/"Save the test list first" text in machine mode, and the
+  empty-sublist message, use `#5f6773` (5.3:1 on hovered rows). Icons in the
+  old grey pass 3:1 and stay.
+- **N4** The same test added twice directly now gets the builder's own
+  message naming it; Django's generic duplicate message is turned off for
+  the builder's membership formset (the form check covers it).
+- **N5** The Remove button and DELETE box on saved attachments only show
+  with delete permission. The server already ignored the DELETE; the
+  attachment just came back after saving.
+- **N6** Saved sublist cards render their `-id` input once.
+- **N7** Sublist row colspans match the visible columns in base and machine
+  mode (updated in JS on mode switch).
+- **N8** On windows ≤1024px the list page's filter groups start collapsed,
+  except ones with an active filter or ones the user opened.
+- **N9** The list's header padding now applies (on Django's inner
+  `.text > a/span`); headers are 2px shorter, columns unchanged.
+- **N10** "and N more" uses a real plural form.
+- **N11** The description and Save As submits have their own classes (the
+  clash was latent; nothing misbehaved).
 
 Elsewhere:
-- `/admin/qa/unittestcollection/` returns 500 when an assignment has no
-  `assigned_to` (`assigned_to_name`).
-- `/admin/parts/room/add/` returns 500 ("'Storage' instance needs to have a
-  primary key value…").
-- The admin index renders no app list (empty content block).
-- Perform QC: `id="<slug>-procedure"` and `id="toggle-options"` repeat;
-  one test type renders `string_value`/`json_value` inputs twice.
-- Perform QC's tolerance text (`qa_tags.py`) has untranslated "Between",
-  "All others fail", "No Ref", "No Tol" and uses `</br>`; it could reuse
-  `Tolerance.plain_display`.
-- `qatrack/static/qatrack_core/js/base.js:51`: untranslated "Submitting..."
-  and `.addClass(".disabled")` (stray dot). The admin submit guard blocks
-  later submits if a handler cancels the first one.
-- `record_unit_test_info_change` stores `reference_changed=True` whenever a
-  reference is submitted, even unchanged (the history display works around
-  it).
-- `templates/admin/qa/test/change_form.html:13` "Ref=… & Tolerance = …" can
-  print None.
-- The API returns raw reference type, so older Boolean references show
-  "numerical".
-- `templates/admin/change_form.html` drift from Django 4.2: hard-coded
-  object tools, no `to_field_var`, `bodyclass` without app/model classes,
-  "Add {{ verbose_name }}" word order, dead CSS.
-- `templates/admin/change_list.html`: no `filters.js` (open/closed filter
-  groups not remembered); error count not plural-aware.
-- `testpack-export.js` has untranslated strings and exists twice
-  (`qatrack/static/js/` and `qatrack/admin_media/js/`); `export.html` uses
-  "...".
-- `admin_media/js/drag_admin.js` and `jquery-1.7.1.min.js` are unused.
-- "Succesfully" typo in `password_change_done.html` and
-  `password_reset_complete.html` (translated string; .po files too).
-- `perform.py` ~1637 translates a log message.
-- Another `RemovedInDjango50Warning` (forms `default.html` templates)
-  remains.
-- `testlist_duplicate_test` has no per-object visibility check (any user
-  with `add_test` can duplicate any test by id).
+- **N12** Assignments list no longer 500s when an assignment's group was
+  deleted; it shows "Not assigned".
+- **N13** Room add page no longer 500s (Storage inline's unsaved rows).
+- **N14** Admin app list is back where the nav sidebar can't show it (narrow
+  windows, collapsed sidebar, `/admin/<app>/` pages, staff with no
+  permissions). Upstream removed it on purpose (26580c2a); beside an open
+  sidebar on desktop it stays hidden.
+- **N15** Perform QC has no repeated ids; upload tests render their hidden
+  inputs once.
+- **N16** Perform QC's reference/tolerance text is translatable, escaped, and
+  uses `<br>`; limits come from the tolerance type, not its stored name.
+- **N17** `base.js` "Submitting…" is translated with a working `disabled`
+  class; the admin guard no longer blocks a resubmit after a cancelled one.
+- **N18** `reference_changed` is only recorded when the value really changes.
+  The history display's workaround stays for older rows.
+- **N19** Test page shows "Not set" instead of None for unit refs/tols.
+- **N20** API adds a read-only `reference_display` (unit test infos and the
+  submitted test list response); `type`/`value` unchanged.
+- **N21** Global admin change form matches Django 4.2 (body classes, object
+  tools tag, `to_field`, "Add …" breadcrumb).
+- **N22** Global admin change list loads `filters.js` and pluralises the
+  error note.
+- **N23** Test pack export/import JS strings are translatable; "…" in the
+  templates. The second copy is just collectstatic output.
+- **N24** `drag_admin.js` and `jquery-1.7.1.min.js` deleted.
+- **N25** "Succesfully"/"Successfuly" typos fixed; `.po` msgids corrected and
+  `.mo` rebuilt.
+- **N26** The zero-reference log message is logged in English.
+- **N27** The last `default.html` deprecation warning (review page's bare
+  `{{ form }}`) is gone; markup unchanged.
+- **N28** Duplicate Test goes through the Test admin's own permission and
+  queryset checks; 404 for a bad id. No data was exposed beyond what the Test
+  admin already shows.
+- **N29** Developer guide typos fixed.
+- **N30** Test admin labels `choices` "Choices" (model fix pending, above).
+- **N31** (found by N5) Saving a test list no longer wipes the comments on
+  its saved attachments (the cards now post them back as hidden inputs).
+  Browse… only shows with add_attachment.
+- **N32** (found by N6) Saved test rows render their `-id` input once (they
+  printed it twice, like the sublist cards).
+
+### Decisions from round 2 to review
+- **Data loss on the Unit Test Info admin page (already on `develop`):**
+  leaving "New reference value" blank while changing only the tolerance
+  clears the unit's reference. `UnitTestInfoForm.save()` does this on
+  purpose (`elif 'reference_value' in self.cleaned_data: … = None`). The
+  builder's Reference and Tolerance dialog keeps the reference instead. Not
+  changed here: say whether blank should mean "keep" or "clear".
+- **Duplicate Test** now needs add_test plus view_test or change_test; users
+  with only add_test lose the button. GET still renders the dialog (only POST
+  creates).
+- **Filter state:** the list page stops Chrome's automatic `toggle` events
+  reaching Django's `filters.js`, so it only remembers real clicks.
+- **Admin index:** upstream's "no duplicate app list beside the sidebar"
+  kept. Stock Django's layout is a two-line change if preferred.
+- **API:** `reference_display` isn't on `/api/qa/references/` (a reference
+  isn't tied to one test) or on nested test instances (query cost).
+- **Spanish:** the password page heading now uses the title's translation
+  ("Contraseña cambiada con éxito").
+- **`.mo` files** were rebuilt with GNU msgfmt (installed in this container),
+  so they're larger than Babel's (hash table); contents match.
+- **Reference type on Boolean tests** is ignored when deciding whether the
+  reference changed.
+
+### Open issues found in round 2
+Builder:
+- `change_form.html` renders formset `non_form_errors` directly inside the
+  tests `<tbody>` (invalid HTML; errors land oddly).
+- `.tl-empty-sublist-msg` and `.tl-cell-lock` lose their colour/padding to
+  `.tlb-table tbody td` (specificity).
+- `"%(count)s test(s)"`/`"sublist(s)"` in `TL_STRINGS` are two msgids, not a
+  plural pair.
+- At 400px the results table scrolls sideways inside its card.
+- `testlist_test_desc_modal` and `testlist_add_test_row` use a raw
+  `get_object_or_404(Test…)` (a non-numeric id may 500).
+- No general hook when the builder's mode class changes (new code must call
+  `syncColumnSpans()`).
+- `.tl-modal-dialog` itself inherits the dark body colour in dark mode (all
+  current text sets its own).
+
+Elsewhere:
+- Assignments: no "unassigned" filter option; `assigned_to` is `null=True`
+  but not `blank=True`; `get_content_type` can raise on a stale content type.
+- Parts: `ContactInline` has dead `_get_queryset`/`_formfield_for_foreignkey`;
+  Room change page's "Loading..." text stays visible.
+- `qa_tags`: a boolean tolerance on a non-Boolean test renders "None";
+  `TEST_STATUS_DISPLAY` defaults aren't translatable.
+- `base.js` `preventDoubleSubmit` still marks the form before later handlers
+  run (not hit today).
+- `service_event_update.html:57` "Submitting Service Log..." untranslated.
+- `qavalue_form.html` puts hidden inputs directly inside `<tr>`.
+- Review page form errors render `<tr>` inside a `<form>` with no table.
+- Test pack pages: "Test Lists Cycles:" wording, raw HTML shown in export
+  descriptions, inline styles, dead `coltype flex`, unused vars in
+  `testpack-import.js`.
+- `copy_refs_and_tols.html` uses the old body class.
+- `app_index.html` hard-codes untranslated "Websites"; the nav sidebar
+  doesn't highlight the current app.
+- Password reset complete page uses a bare `<h1>`; es `.po` has a fuzzy
+  "You may change it again…" entry.
+- `set_multiple_references_and_tolerances` records no history.
+- Same-value reference saves still create new Reference rows.
+- The local dev database's "Daily Linac QC" has t3 both directly and in its
+  "Imaging Checks" sublist, so it can't be saved unchanged (check whether
+  that came from seed data or an agent's setup).
+- `qa_utils.create_test_list` makes slugs the change form rejects.
+- `SaveInlineAttachmentUserMixin.save_formset` sets `created_by` on every
+  changed attachment, not just new ones.
+- `initAttachmentsSection` re-binds its document-level Remove listeners each
+  time it runs.
 
 ## Before merging
 

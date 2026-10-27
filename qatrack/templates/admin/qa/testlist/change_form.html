@@ -379,8 +379,15 @@
                         {% endfor %}
                       {% endfor %}
                     {% endfor %}
+                    {# The card doesn't show the row's editable fields (e.g. comment), so post their current values; otherwise Django reads them as blank and saving the list wipes them. File inputs are skipped (an empty upload keeps the saved file) and DELETE is handled below. #}
+                    {% for field in inline_admin_form.form.visible_fields %}
+                      {% if field.name != "DELETE" and not field.field.widget.needs_multipart_form %}{{ field.as_hidden }}{% endif %}
+                    {% endfor %}
                     {% endspaceless %}
-                    <input type="checkbox" name="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" id="id_{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" class="attach-delete" style="display:none;">
+                    {# Only offered when the user may delete attachments (the formset's can_delete); otherwise Django ignores a posted DELETE anyway. #}
+                    {% if inline_admin_formset.formset.can_delete %}
+                      <input type="checkbox" name="{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" id="id_{{ inline_admin_formset.formset.prefix }}-{{ forloop.counter0 }}-DELETE" class="attach-delete" style="display:none;">
+                    {% endif %}
 
                     {% firstof inline_admin_form.original.label inline_admin_form.original.attachment.name as attach_name %}
                     <div class="attachment-name">
@@ -398,10 +405,12 @@
                           <i class="fa fa-eye" aria-hidden="true"></i>
                         </a>
                       {% endif %}
-                      <button type="button" class="tl-attach-btn tl-attach-btn-remove btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}"
-                              title="{% trans 'Remove' %}" aria-label="{% blocktrans with name=attach_name %}Remove {{ name }}{% endblocktrans %}">
-                        <i class="fa fa-trash-o" aria-hidden="true"></i>
-                      </button>
+                      {% if inline_admin_formset.formset.can_delete %}
+                        <button type="button" class="tl-attach-btn tl-attach-btn-remove btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}"
+                                title="{% trans 'Remove' %}" aria-label="{% blocktrans with name=attach_name %}Remove {{ name }}{% endblocktrans %}">
+                          <i class="fa fa-trash-o" aria-hidden="true"></i>
+                        </button>
+                      {% endif %}
                     </div>
                   </div>
                 {% endif %}
@@ -416,9 +425,12 @@
 
             <!-- Empty Placeholder -->
             <div class="tl-empty-attachments-msg" id="tl-empty-attachments-msg" {% if inline_admin_formset.formset.initial_form_count > 0 %}style="display:none;"{% endif %}>
-              <i class="fa fa-paperclip" aria-hidden="true"></i> {% trans "No attachments yet. Use Browse… to attach files." %}
+              <i class="fa fa-paperclip" aria-hidden="true"></i>
+              {% if inline_admin_formset.has_add_permission %}{% trans "No attachments yet. Use Browse… to attach files." %}{% else %}{% trans "No attachments yet." %}{% endif %}
             </div>
 
+            {# Browse… is only offered to users who may add attachments. #}
+            {% if inline_admin_formset.has_add_permission %}
             <!-- Browse Button (Matching Fault Logs) -->
             <div class="tl-browse-wrap margin-top-10">
               {# A real button, so it can be reached and pressed from the keyboard; it opens the hidden file input. #}
@@ -429,6 +441,7 @@
               <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple hidden tabindex="-1"
                      aria-label="{% trans 'Choose files to attach' %}">
             </div>
+            {% endif %}
           </div>
         </div>
       </div>

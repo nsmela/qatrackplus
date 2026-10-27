@@ -1732,6 +1732,7 @@ class TestTestListBuilderQuickFixes(TestCase):
 
     def test_duplicate_allowed_with_add_test(self):
         self._grant('add_test')
+        self._grant('view_test')  # the source test must be viewable in the Test admin (round 2, N28)
         self._login('limited')
         resp = self.client.get(self.dup_url, {'test_id': self.test.pk})
         self.assertEqual(resp.status_code, 200)
@@ -1827,7 +1828,10 @@ class TestTestListBuilderDuplicateRefsTols(TestCase):
     def setUp(self):
         self.user = create_user(is_superuser=False, uname='dupper', pwd='pwd')
         test_ct = ContentType.objects.get_for_model(qa_models.Test)
-        self.user.user_permissions.add(Permission.objects.get(content_type=test_ct, codename='add_test'))
+        # add_test plus view_test: the source must be viewable in the Test admin (round 2, N28)
+        self.user.user_permissions.add(
+            *Permission.objects.filter(content_type=test_ct, codename__in=['add_test', 'view_test'])
+        )
         self.source = qa_utils.create_test(name='dup_source')
         self.unit1 = qa_utils.create_unit(name='dup unit 1')
         self.unit2 = qa_utils.create_unit(name='dup unit 2')
@@ -2201,12 +2205,13 @@ class TestTestListBuilderTypeValue(TestCase):
         self.assertContains(resp, '<span class="tl-type-value">22.0</span>', html=True)
         self.assertContains(resp, '<span class="tl-type-value">a, b</span>', html=True)
         self.assertContains(resp, '<span class="tl-type-value-none">None</span>', html=True)
-        # the sublist row spans the whole main table (drag, test, category, type,
-        # type value, machine-mode reference and tolerance, actions)
+        # the sublist row spans the base list's visible columns (drag, test, category,
+        # type, type value, actions); the hidden machine-mode reference and tolerance
+        # columns aren't counted (the builder JS recounts them in machine mode)
         thead = content.split('id="tl-tests-table"')[1].split('</thead>')[0]
         main_cols = len(re.findall(r'<th\b', thead))
         self.assertEqual(main_cols, 8)
-        self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell"' % main_cols)
+        self.assertContains(resp, 'colspan="%d" class="tl-sublist-cell tl-span-visible-cols"' % (main_cols - 2))
 
 
 class TestTestListAdminBreadcrumbs(TestCase):
@@ -2717,8 +2722,8 @@ class TestTestListBuilderRemovePermission(TestCase):
         self._login('nodelete')
         resp = self.client.post(self.url, data=self._post_data(delete_test=True, new_test=self.t1))
         self.assertEqual(resp.status_code, 200)
-        # the same test twice directly is caught by the formset's own unique check
-        self.assertIn("duplicate", self._errors(resp))
+        # the same test twice directly gets the builder's own duplicate message
+        self.assertIn("appear more than once", self._errors(resp))
         self.assertEqual(qa_models.TestListMembership.objects.filter(test_list=self.parent).count(), 1)
 
     def test_kept_sublist_still_counts_for_duplicates(self):
@@ -3192,7 +3197,7 @@ class TestTestListBuilderMachineMode(TestCase):
         content = resp.content.decode()
         self.assertIn('class="tl-sublist-test-row" data-test-id="%d"' % self.num_test.pk, content)
         self.assertEqual(content.count('<td class="tl-cell-ref tl-col-ref">'), 3)
-        self.assertIn('colspan="8" class="tl-sublist-cell"', content)
+        self.assertIn('colspan="6" class="tl-sublist-cell tl-span-visible-cols"', content)
         # no assignments: only the base list option
         select = re.search(r'<select id="tl-machine-scope-select".*?</select>', content, re.S).group(0)
         self.assertNotIn('<optgroup', select)

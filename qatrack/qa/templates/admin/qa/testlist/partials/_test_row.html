@@ -11,7 +11,8 @@
     <i class="fa fa-bars tl-drag-handle" title="{% trans "Drag to reorder" %}" aria-hidden="true"></i>
     {# Django formset hidden inputs #}
     {% if inline_admin_form %}
-      {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+      {# the row's `-id` input, rendered once (always: without it a saved row would save as a new one) #}
+      {{ inline_admin_form.pk_field.field }}
       {{ inline_admin_form.fk_field.field }}
       {% spaceless %}
       {% for fieldset in inline_admin_form %}
@@ -22,7 +23,6 @@
         {% endfor %}
       {% endfor %}
       {% endspaceless %}
-      <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
       <input type="hidden" name="{{ prefix }}-{{ index }}-test" id="id_{{ prefix }}-{{ index }}-test" value="{{ test_meta.id }}">
       <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-order-input">
       <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;"{% if inline_admin_form.form.DELETE.value %} checked{% endif %}>
@@ -58,7 +58,8 @@
        aria-label="{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}">
       <i class="fa fa-pencil" aria-hidden="true"></i>
     </a>
-    {% if perms.qa.add_test %}
+    {# matches testlist_duplicate_test: add tests, and view the source test the way the Test admin allows #}
+    {% if perms.qa.add_test and perms.qa.view_test or perms.qa.add_test and perms.qa.change_test %}
     <button type="button" class="tl-action-icon tl-duplicate-test-btn" data-test-id="{{ test_meta.id }}"
             title="{% trans "Duplicate Test" %}"
             aria-label="{% blocktrans with name=test_name %}Duplicate {{ name }}{% endblocktrans %}" aria-haspopup="dialog">

@@ -1745,7 +1745,7 @@ input[type="text"].tl-modal-input.tl-input-invalid {
   display: block;
   margin: 4px 0 0;
 }
-.tl-saveas-dialog .tl-btn-modal-save:disabled {
+.tl-saveas-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -2404,7 +2404,14 @@ ul.messagelist li.error {
 #changelist-form .results::-webkit-scrollbar-thumb { background:#8a929e; border:2px solid #f4f4f4; border-radius:3px; }
 #changelist-form .results::-webkit-scrollbar-thumb:hover { background:#6e7785; }
 #result_list { width:100%; border-collapse:collapse; background:#fff; }
-#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; padding:7px 10px; border-bottom:0; box-shadow:inset 0 -2px 0 #d2d6de; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#6e7785; background:#fff; white-space:nowrap; }
+/* Django's #changelist table thead th { padding:0 } outranks a padding set here, and
+   Django pads the header's inner .text link/span (8px 10px) instead, so the header
+   spacing (7px 10px, the design spec's data-table header) goes on that inner element. */
+#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; border-bottom:0; box-shadow:inset 0 -2px 0 #d2d6de; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#6e7785; background:#fff; white-space:nowrap; }
+#result_list thead th .text > a, #result_list thead th .text > span { padding:7px 10px; }
+/* One pixel less than Django's 9px, matching the 1px less above the label, so the
+   sort arrows and priority number stay level with the header text. */
+#result_list thead th.sorted .sortoptions { padding-top:8px; }
 #result_list thead th a, #result_list thead th.sortable a { color:#6e7785; }
 #result_list thead th a:hover, #result_list thead th.sortable a:hover { color:#444; }
 #result_list tbody td, #result_list tbody th { padding:8px 10px; border-top:1px solid #f4f4f4; border-bottom:0; vertical-align:middle; font-size:13px; color:#333; background:transparent; }
@@ -2538,7 +2545,6 @@ ul.messagelist li.error {
     "Can't add: this test list is already a sublist here.": "{{ _("Can't add: this test list is already a sublist here.")|escapejs }}",
     "Can't add: these tests are already in this test list: %(tests)s.": "{% trans "Can't add: these tests are already in this test list: %(tests)s." as s %}{{ s|escapejs }}",
     "Repeats: %(tests)s": "{% trans 'Repeats: %(tests)s' as s %}{{ s|escapejs }}",
-    "Repeats: %(tests)s and %(count)s more": "{% trans 'Repeats: %(tests)s and %(count)s more' as s %}{{ s|escapejs }}",
     "Another test list already uses this slug. Choose a different one.": "{{ _('Another test list already uses this slug. Choose a different one.')|escapejs }}",
     "Assign": "{{ _('Assign')|escapejs }}",
     "Assigning…": "{{ _('Assigning…')|escapejs }}",
@@ -2595,15 +2601,34 @@ ul.messagelist li.error {
     "Value…": "{{ _('Value…')|escapejs }}",
     "You don't have permission to duplicate tests. Nothing was created.": "{{ _("You don't have permission to duplicate tests. Nothing was created.")|escapejs }}"
   };
+  // Plural strings whose singular and plural English text are the same, so
+  // TL_STRINGS can't tell the two forms apart. Each entry is keyed by the
+  // English msgid and holds the translated forms in the active language's
+  // plural order ([one, other] for en, fr and es). blocktranslate renders them
+  // from one proper plural msgid; counter=1 and counter=2 pick the two forms,
+  // and the with-values keep the %(…)s placeholders for interpolate().
+  var TL_PLURALS = {
+    "Repeats: %(tests)s and %(count)s more": [
+      "{% blocktranslate count counter=1 with tests='%(tests)s' count='%(count)s' asvar s %}Repeats: {{ tests }} and {{ count }} more{% plural %}Repeats: {{ tests }} and {{ count }} more{% endblocktranslate %}{{ s|escapejs }}",
+      "{% blocktranslate count counter=2 with tests='%(tests)s' count='%(count)s' asvar s %}Repeats: {{ tests }} and {{ count }} more{% plural %}Repeats: {{ tests }} and {{ count }} more{% endblocktranslate %}{{ s|escapejs }}"
+    ]
+  };
   var hasOwn = Object.prototype.hasOwnProperty;
   var jsGettext = window.gettext || function (s) { return s; };
   var jsNgettext = window.ngettext || function (s, p, n) { return n === 1 ? s : p; };
+  // Django's JS catalogue exposes the active language's plural rule; it can
+  // return a number or a boolean, so callers wrap it in Number().
+  var jsPluralidx = window.pluralidx || function (n) { return n === 1 ? 0 : 1; };
   var gettext = function (s) {
     return hasOwn.call(TL_STRINGS, s) ? TL_STRINGS[s] : jsGettext(s);
   };
   var ngettext = function (s, p, n) {
     var fromCatalogue = jsNgettext(s, p, n);
     if (fromCatalogue !== s && fromCatalogue !== p) { return fromCatalogue; }  // the JS catalogue has it
+    if (hasOwn.call(TL_PLURALS, s)) {
+      var forms = TL_PLURALS[s];
+      return forms[Math.min(Number(jsPluralidx(n)) || 0, forms.length - 1)];
+    }
     return gettext(n === 1 ? s : p);
   };
   var interpolate = window.interpolate || function (fmt, obj) {
@@ -2725,6 +2750,77 @@ ul.messagelist li.error {
       // The pinned header (and so --qa-admin-top-h) changes height as it wraps.
       new ResizeObserver(queueFit).observe(pinned);
     }
+  }
+
+  // Changelist, narrow screens (the filter card stacks above the results at the
+  // same max-width: 1024px as the CSS): start the filter groups collapsed so the
+  // first rows show near the top of the page. A group stays open when a choice
+  // other than "All" is picked in it, or when the person opened it themselves
+  // (Django's admin/js/filters.js remembers that in sessionStorage). Only the
+  // person's own clicks reach that memory: Chrome also fires "toggle" for every
+  // group that's parsed open, which filters.js would otherwise store as "opened",
+  // and our own collapsing must not be stored either. The groups we closed open
+  // again if the window becomes wide. Runs before initResultsScroll() so it
+  // measures the collapsed card.
+  function initFilterCollapse() {
+    var filter = document.getElementById("changelist-filter");
+    if (!filter || filter.dataset.tlCollapse || !window.matchMedia) { return; }
+    filter.dataset.tlCollapse = "1";
+    var narrow = window.matchMedia("(max-width: 1024px)");
+    var autoClosed = [];
+    function remembered() {
+      try {
+        return JSON.parse(window.sessionStorage.getItem("django.admin.filtersState")) || {};
+      } catch (e) {
+        return {};
+      }
+    }
+    function hasActiveChoice(details) {
+      // Every filter on this page lists "All" first; it's the selected one when
+      // the filter isn't in use.
+      var first = details.querySelector("li");
+      var selected = details.querySelector("li.selected");
+      return !!selected && selected !== first;
+    }
+    // A click on a summary (Enter and Space on a focused summary click it too)
+    // marks its group as toggled by the person.
+    filter.addEventListener("click", function (e) {
+      var summary = e.target.closest ? e.target.closest("summary") : null;
+      if (summary && summary.parentNode.tagName === "DETAILS") {
+        summary.parentNode.tlUserToggle = true;
+      }
+    }, true);
+    // "toggle" doesn't bubble: a capture listener on window runs before
+    // filters.js's listener on the <details>, so other toggles never reach it.
+    window.addEventListener("toggle", function (e) {
+      var details = e.target;
+      if (!details || !filter.contains(details)) { return; }
+      if (!details.tlUserToggle) {
+        e.stopImmediatePropagation();
+        return;
+      }
+      details.tlUserToggle = false;
+      // The person toggled it: from now on it's theirs, not ours to reopen.
+      var i = autoClosed.indexOf(details);
+      if (i !== -1) { autoClosed.splice(i, 1); }
+    }, true);
+    function apply() {
+      if (narrow.matches) {
+        var state = remembered();
+        filter.querySelectorAll("details").forEach(function (details) {
+          if (!details.open || hasActiveChoice(details) ||
+              state[details.dataset.filterTitle] === true) { return; }
+          details.open = false;
+          autoClosed.push(details);
+        });
+      } else {
+        autoClosed.forEach(function (details) { details.open = true; });
+        autoClosed = [];
+      }
+    }
+    apply();
+    if (narrow.addEventListener) { narrow.addEventListener("change", apply); }
+    else if (narrow.addListener) { narrow.addListener(apply); }
   }
 
   function sortBuilderItemsByOrder() {
@@ -2902,7 +2998,8 @@ ul.messagelist li.error {
     if (!repeats.length) { return null; }
     var shown = repeats.slice(0, 3).join(", ");
     var note = repeats.length > 3 ?
-      interpolate(gettext("Repeats: %(tests)s and %(count)s more"), { tests: shown, count: repeats.length - 3 }, true) :
+      interpolate(ngettext("Repeats: %(tests)s and %(count)s more", "Repeats: %(tests)s and %(count)s more",
+        repeats.length - 3), { tests: shown, count: repeats.length - 3 }, true) :
       interpolate(gettext("Repeats: %(tests)s"), { tests: shown }, true);
     return {
       note: note,
@@ -4112,7 +4209,8 @@ ul.messagelist li.error {
   function initAttachmentsSection() {
     var fileInput = document.getElementById("id_tl-new-attachments");
     var container = document.getElementById("attachments-editor-container");
-    if (!container || !fileInput) { return; }
+    // No file input when the user may not add attachments; removing saved ones still works.
+    if (!container) { return; }
 
     var prefix = container.getAttribute("data-prefix") || "attachments_attachment_set";
     var parentId = container.getAttribute("data-parent-id") || "";
@@ -4122,7 +4220,7 @@ ul.messagelist li.error {
 
     // Browse… is a real button (keyboard access); it opens the hidden file input.
     var browseBtn = document.getElementById("tl-browse-btn");
-    if (browseBtn && !browseBtn.hasAttribute("data-tl-init")) {
+    if (browseBtn && fileInput && !browseBtn.hasAttribute("data-tl-init")) {
       browseBtn.setAttribute("data-tl-init", "");
       browseBtn.addEventListener("click", function (e) {
         e.preventDefault();
@@ -4159,7 +4257,7 @@ ul.messagelist li.error {
     });
 
     // File input change: add pending attachment cards and Django formset file inputs
-    fileInput.addEventListener("change", function () {
+    if (fileInput) fileInput.addEventListener("change", function () {
       if (!this.files || !this.files.length) { return; }
 
       var currentTotal = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
@@ -4445,6 +4543,7 @@ ul.messagelist li.error {
     scopeState.unitId = null;
     scopeState.unitName = "";
     document.body.classList.remove("tl-mode-machine");
+    syncColumnSpans();
     var banner = document.getElementById("tl-machine-banner");
     if (banner) { banner.hidden = true; }
     clearMachineCells();
@@ -4479,6 +4578,7 @@ ul.messagelist li.error {
         });
         if (banner) { banner.hidden = false; }
         document.body.classList.add("tl-mode-machine");
+        syncColumnSpans();
         lockSharedSettings(true);
         setScopeInfo(data.unit || {});
         setScopeUrl(unitId);
@@ -4495,11 +4595,47 @@ ul.messagelist li.error {
       });
   }
 
+  // A full-width cell (the sublist row, an empty sublist's message) must span
+  // exactly the columns its table shows. Hidden columns (display: none) aren't
+  // in the table grid, so a colspan counting them adds phantom columns past the
+  // last header (invalid table markup, and screen readers announce the wrong
+  // span). The server renders the base-mode count; this recounts after the
+  // mode changes or a sublist row is added.
+  function syncColumnSpans(root) {
+    var changed = [];
+    (root || document).querySelectorAll("td.tl-span-visible-cols").forEach(function (td) {
+      var table = td.closest("table");
+      var head = table && table.tHead && table.tHead.rows[0];
+      if (!head) { return; }
+      var n = 0;
+      Array.prototype.forEach.call(head.cells, function (th) {
+        if (window.getComputedStyle(th).display !== "none") { n += th.colSpan || 1; }
+      });
+      if (n > 0 && td.colSpan !== n) {
+        td.colSpan = n;
+        changed.push(td);
+      }
+    });
+    if (!changed.length) { return; }
+    // Chrome keeps a cell's old width when its colspan grows after the table
+    // has been laid out (the sublist card stopped one column short of the
+    // edge). Taking the cells out of the layout once and back makes it
+    // measure them again. Nothing is repainted in between.
+    changed.forEach(function (td) { td.style.display = "none"; });
+    void document.body.offsetHeight;
+    changed.forEach(function (td) { td.style.display = ""; });
+  }
+
   // Rows or sublists added while a machine is shown get that machine's values too.
   function observeScopeRows() {
     var tbody = document.getElementById("tl-tests-tbody");
     if (!tbody || !window.MutationObserver) { return; }
     new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        Array.prototype.forEach.call(m.addedNodes, function (node) {
+          if (node.nodeType === 1) { syncColumnSpans(node); }
+        });
+      });
       if (!scopeState.unitId) { return; }
       var unitId = scopeState.unitId;
       mutations.forEach(function (m) {
@@ -5426,6 +5562,7 @@ ul.messagelist li.error {
   document.addEventListener("DOMContentLoaded", function () {
     initPreviewToggle();
     initRowClick();
+    initFilterCollapse();
     initResultsScroll();
     sortBuilderItemsByOrder();
     initSortables();
@@ -5442,6 +5579,7 @@ ul.messagelist li.error {
     setTimeout(function () {
       initPreviewToggle();
       initRowClick();
+      initFilterCollapse();
       initResultsScroll();
       sortBuilderItemsByOrder();
       initSortables();

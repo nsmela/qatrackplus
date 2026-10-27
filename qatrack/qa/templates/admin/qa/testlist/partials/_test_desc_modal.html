@@ -19,7 +19,8 @@
       </div>
       <div class="tl-modal-footer">
         <button type="button" class="tl-btn-modal-cancel" data-modal-close>{% trans "Cancel" %}</button>
-        <button type="submit" class="tl-btn-modal-save">
+        {# tl-btn-modal-save is shared styling only; tl-desc-submit is this dialog's own hook #}
+        <button type="submit" class="tl-btn-modal-save tl-desc-submit" id="tl-desc-submit">
           <i class="fa fa-check" aria-hidden="true"></i> {% trans "Save Description" %}
         </button>
       </div>

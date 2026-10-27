@@ -276,13 +276,37 @@ class UnitTestInfoForm(forms.ModelForm):
         return instance
 
 
+def reference_value_changed(old_reference, new_reference, test=None):
+    """True when ``new_reference`` holds a different value (or type) than ``old_reference``.
+
+    Saving a reference creates a new Reference row even when the value is the
+    same, so comparing the objects themselves would call every save a change.
+    Going from no reference to one (or back) counts as a change. On Boolean
+    tests the type is ignored: older Yes/No references were stored with the
+    numerical type, and re-saving one as Boolean doesn't change its meaning.
+    """
+    if old_reference is None or new_reference is None:
+        return (old_reference is None) != (new_reference is None)
+    # a freshly saved Reference can still hold the submitted string ("100") or
+    # bool in memory, so compare the values as the database stores them
+    to_python = models.Reference._meta.get_field("value").to_python
+    if to_python(old_reference.value) != to_python(new_reference.value):
+        return True
+    if test is not None and test.is_boolean():
+        return False
+    return old_reference.type != new_reference.type
+
+
 def record_unit_test_info_change(uti, old_reference, old_tolerance, comment, user, changed_fields):
     """Add a history entry (UnitTestInfoChange) for a reference/tolerance change.
 
     Shared by the UnitTestInfo admin page and the test list builder's Reference
     and Tolerance dialog, so both keep the same history. ``changed_fields`` is the
     form's ``changed_data``; nothing is recorded unless the comment, reference or
-    tolerance was touched. Returns the new entry, or None.
+    tolerance was touched. ``reference_changed`` is only set when the reference
+    value actually differs (see ``reference_value_changed``); tolerances are
+    picked from shared records, so comparing them directly is already accurate.
+    Returns the new entry, or None.
     """
     if not uti or not uti.pk:
         return None
@@ -292,7 +316,7 @@ def record_unit_test_info_change(uti, old_reference, old_tolerance, comment, use
         unit_test_info=uti,
         comment=comment,
         reference=old_reference,
-        reference_changed=old_reference != uti.reference,
+        reference_changed=reference_value_changed(old_reference, uti.reference, uti.test),
         tolerance=old_tolerance,
         tolerance_changed=old_tolerance != uti.tolerance,
         changed_by=user,
@@ -461,8 +485,11 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
 
         def part(before, after, flagged):
             before, after = display(before), display(after)
-            # a new Reference object is created on every save, so only call it a
-            # change when the flag is set *and* the displayed value differs
+            # Only call it a change when the flag is set *and* the displayed value
+            # differs. New entries only set reference_changed for a real change,
+            # but older entries in existing databases were flagged on every save
+            # (a new Reference object is created each time), so keep this check
+            # for them.
             return {'before': before, 'after': after, 'changed': bool(flagged) and before != after}
 
         history = []
@@ -708,8 +735,14 @@ class TestListAdminForm(forms.ModelForm):
 
     def clean(self):
         test_ids = self._posted_ids("testlistmembership_set", "test")
-        # (macro name, test name) for every test, direct or through a sublist
-        tests = list(models.Test.objects.filter(id__in=test_ids).values_list("slug", "name"))
+        # (macro name, test name) for every test, direct or through a sublist.
+        # One entry per posted row (not per distinct test), so the same test
+        # added twice directly is reported below like any other duplicate.
+        found = {
+            str(pk): (slug, name)
+            for pk, slug, name in models.Test.objects.filter(id__in=test_ids).values_list("pk", "slug", "name")
+        }
+        tests = [found[str(test_id)] for test_id in test_ids if str(test_id) in found]
 
         child_ids = self._posted_ids("children", "child")
         for tl in models.TestList.objects.filter(id__in=child_ids):
@@ -895,6 +928,15 @@ def get_sublist_metadata(child, sublist_pk=None, order=0, outline=False):
 
 
 class TestListMembershipInlineFormSet(forms.models.BaseInlineFormSet):
+
+    # The Test List admin turns this off: TestListAdminForm.clean already names
+    # a test added twice (with the tests repeated through sublists), so Django's
+    # generic "Please correct the duplicate data for test." would only repeat it.
+    check_unique = True
+
+    def validate_unique(self):
+        if self.check_unique:
+            super().validate_unique()
 
     def __init__(self, *args, **kwargs):
         instance = kwargs.get("instance")
@@ -1133,7 +1175,10 @@ class TestListMembershipInline(DynamicRawIDMixin, admin.TabularInline):
             self.test_names = dict(obj.tests.values_list("pk", "name"))
         else:
             self.test_names = {}
-        return super().get_formset(request, obj, **kwargs)
+        formset = super().get_formset(request, obj, **kwargs)
+        # duplicates are reported by TestListAdminForm.clean instead
+        formset.check_unique = False
+        return formset
 
 
 class SublistInline(DynamicRawIDMixin, admin.TabularInline):
@@ -1515,20 +1560,50 @@ def _copy_unit_test_infos(source, new_test, user):
             )
 
 
+def _visible_source_test(request, test_id):
+    """The Test to copy from, as the Test admin itself would show it to this user.
+
+    Uses the registered Test admin's own ``get_queryset`` and ``has_view_permission``
+    rather than a raw ``Test.objects.get``, so any per-object restriction the Test
+    admin ever gains (site, unit, group…) applies here too. Returns a 403 response
+    when the user can't view tests at all, raises Http404 for a missing or malformed
+    id or a test outside what the Test admin shows them.
+    """
+    test_admin = admin.site._registry.get(models.Test)
+    if test_admin is None or not test_admin.has_view_permission(request):
+        return HttpResponseForbidden(_("You don't have permission to view tests. No test was created."))
+    try:
+        test_id = int(test_id)
+    except (TypeError, ValueError):
+        raise Http404(_("Test not found"))
+    source = get_object_or_404(test_admin.get_queryset(request).select_related("category"), pk=test_id)
+    if not test_admin.has_view_permission(request, source):
+        return HttpResponseForbidden(_("You don't have permission to view this test. No test was created."))
+    return source
+
+
 @transaction.atomic
 def testlist_duplicate_test(request):
     """HTMX / AJAX endpoint to duplicate a Test object, prompting user for new name and copying type, category, calculation, and unit references/tolerances.
 
-    The new Test is created immediately, so this needs permission to add tests.
+    GET only renders the dialog (no changes); POST creates the copy. The admin_view
+    wrapper applies CSRF protection to the POST. The new Test is created immediately,
+    so this needs permission to add tests, and the source test must be one the Test
+    admin lets this user view.
     References and tolerances are only copied for users who can change them
     (``qa.change_unittestinfo``); otherwise the new test starts without any.
     Atomic so a failure while copying never leaves a half-made test behind.
     """
+    if request.method not in ("GET", "POST"):
+        from django.http import HttpResponseNotAllowed
+        return HttpResponseNotAllowed(["GET", "POST"])
     can_copy_refs_tols = request.user.has_perm("qa.change_unittestinfo")
     if not request.user.has_perm("qa.add_test"):
         return HttpResponseForbidden(_("You don't have permission to add tests. No test was created."))
-    source_test_id = request.GET.get("test_id") or request.POST.get("source_test_id")
-    source = get_object_or_404(models.Test.objects.select_related("category"), pk=source_test_id)
+    source_test_id = request.GET.get("test_id") if request.method == "GET" else request.POST.get("source_test_id")
+    source = _visible_source_test(request, source_test_id)
+    if isinstance(source, HttpResponse):
+        return source
 
     if request.method == "GET":
         index = request.GET.get("index", "0")
@@ -2416,6 +2491,11 @@ class TestForm(forms.ModelForm):
     class Meta:
         model = models.Test
         fields = "__all__"
+        # The model field's verbose_name is "Description" (a copy/paste slip), which put two
+        # "Description" labels on this form. Label it here until the model metadata migration lands.
+        labels = {
+            'choices': _l("Choices"),
+        }
 
     def clean(self):
         """if test already has some history don't allow for the test type to be changed"""

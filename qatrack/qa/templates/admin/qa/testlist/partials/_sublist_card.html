@@ -5,12 +5,14 @@
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
     data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ sublist_meta.order }}{% endif %}">
-  <td colspan="8" class="tl-sublist-cell">{# every column of the builder table, including the machine-mode ones #}
+  {# spans the builder table's visible columns: 6 in base mode; syncColumnSpans() (testlist_assets.html) makes it 7 in machine mode #}
+  <td colspan="6" class="tl-sublist-cell tl-span-visible-cols">
     {# a sublist the user removed before a failed save: hidden exactly as the Remove button leaves it #}
     <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}"{% if inline_admin_form.form.DELETE.value %} style="opacity: 0; display: none;"{% endif %}>
       {# Hidden Django formset inputs for Sublist #}
       {% if inline_admin_form %}
-        {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+        {# the row's `-id` input, rendered once (always: without it a saved row would save as a new one) #}
+        {{ inline_admin_form.pk_field.field }}
         {{ inline_admin_form.fk_field.field }}
         {% spaceless %}
         {% for fieldset in inline_admin_form %}
@@ -21,7 +23,6 @@
           {% endfor %}
         {% endfor %}
         {% endspaceless %}
-        <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ inline_admin_form.form.instance.pk|default:'' }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-sublist-order-input">
         <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;"{% if inline_admin_form.form.DELETE.value %} checked{% endif %}>
@@ -121,7 +122,8 @@
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  <td colspan="7" class="tl-empty-sublist-msg">{% trans "This sublist has no tests yet." %}</td>
+                  {# 5 visible columns in base mode, 6 in machine mode (see syncColumnSpans()) #}
+                  <td colspan="5" class="tl-empty-sublist-msg tl-span-visible-cols">{% trans "This sublist has no tests yet." %}</td>
                 </tr>
               {% endfor %}
             </tbody>

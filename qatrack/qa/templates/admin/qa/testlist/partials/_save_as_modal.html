@@ -41,7 +41,8 @@
     </div>
     <div class="tl-modal-footer">
       <button type="button" class="tl-btn-modal-cancel" data-saveas-close>{% trans "Cancel" %}</button>
-      <button type="button" class="tl-btn-modal-save" id="tl-saveas-submit">
+      {# tl-btn-modal-save is shared styling only; the JS and the :disabled rule use tl-saveas-submit #}
+      <button type="button" class="tl-btn-modal-save tl-saveas-submit" id="tl-saveas-submit">
         <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save As New Test List" %}
       </button>
     </div>
