@@ -1676,6 +1676,46 @@ result = json.load(FILE)
         data = json.loads(response.content.decode("UTF-8"))
         self.assertEqual(data["result"]["baz"]["baz1"], "test")
 
+    def _upload_spreadsheet(self, extension, engine):
+        """
+        Upload a one-column spreadsheet and read it back with pandas from
+        the calculation procedure, the way a clinic's upload test would.
+        """
+        import io
+
+        import pandas as pd
+
+        buf = io.BytesIO()
+        pd.DataFrame({"x": [1.5]}).to_excel(buf, index=False, engine=engine)
+
+        self.test.calculation_procedure = (
+            "import pandas as pd\n"
+            "result = float(pd.read_excel(BIN_FILE)['x'][0])\n"
+        )
+        self.test.save()
+
+        response = self.client.post(
+            self.url, {
+                "test_id": self.test.pk,
+                "upload": SimpleUploadedFile("TESTRUNNER_sheet.%s" % extension, buf.getvalue()),
+                "meta": "{}",
+                "unit_id": self.unit_test_info.unit.id,
+                "test_list_id": self.test_list.id,
+            }
+        )
+        return json.loads(response.content.decode("UTF-8"))
+
+    def test_upload_xlsx_read_with_pandas(self):
+        data = self._upload_spreadsheet("xlsx", "openpyxl")
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(data["result"], 1.5)
+
+    def test_upload_ods_read_with_pandas(self):
+        """pandas reads .ods files with odfpy, which is not a pandas dependency itself"""
+        data = self._upload_spreadsheet("ods", "odf")
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(data["result"], 1.5)
+
 
 class TestBaseEditTestListInstance(TestCase):
 
