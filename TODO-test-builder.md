@@ -273,3 +273,51 @@ Remove this file before the branch is merged.
 - [x] Edit page: move Parent Memberships below Tests & Sublists.
 - [x] Edit page: the Tests & Sublists badge (direct tests only) disagrees with
       the header count (includes sublist tests).
+
+## Round 3
+
+- [ ] **Blank "New reference value" keeps the current reference**
+  - Unit Test Info admin page: changing only the tolerance with the field
+    blank currently clears the unit's reference
+    (`UnitTestInfoForm.save()`, `elif 'reference_value' in
+    self.cleaned_data: instance.reference = None`). Blank should keep the
+    existing reference, as the builder's Reference and Tolerance dialog
+    already does.
+  - Check what still clears a reference on purpose (e.g. a test whose type no
+    longer uses one) and how a user can clear it deliberately, and update
+    the field's help text.
+  - Check validation that reads the reference (percent tolerance, zero
+    reference, wraparound) uses the kept reference when the field is blank.
+- [ ] **Type column: one chip with the type's full name**
+  - Each row shows a short badge plus the full name
+    (`tl-type-badge` + `tl-type-label` in `_test_row.html`). Replace both
+    with a single chip reading the full type name (e.g. "Multiple Choice"),
+    in rows, sublist rows and the search/add dialogs if they show the same
+    pair.
+- [ ] **Machine mode: combine Reference and Tolerance into one column**
+  - One "Reference & Tolerance" column whose content depends on the test
+    type, instead of two columns with "Not used" filling the gaps.
+    - Multiple Choice: no reference, so show only the tolerance (pass /
+      tolerance choices).
+    - Boolean: the expected value only.
+    - Numerical, Simple Numerical, Constant, Composite, Wraparound: reference
+      and tolerance together.
+    - Upload, Date/Time, String types that use neither: a short neutral note,
+      not "Not used" twice.
+  - Keep the "Not set" warning where the type needs a value, the Set
+    Reference & Tolerance dialog link, and the colspan sync for sublist rows
+    (`syncColumnSpans`, column counts change).
+- [ ] **Test list rows align to the top of the cell**
+  - Rows with a long name, description or type value currently centre their
+    other cells vertically; align every cell to the top, in test rows and
+    sublist rows.
+- [ ] **Edit (pencil) link in its own last column**
+  - Move the "Edit Test in a New Tab" pencil out of `tl-cell-actions` into a
+    separate final column, after Duplicate/Remove. Update the header row,
+    sublist tables, colspans and the empty-state rows.
+- [ ] **Edit Test List header shows the test list's ID**
+  - The page title reads "Edit Test List" (`h1.tl-header-title` in
+    `change_form.html`). Add the ID there too (e.g. "Edit Test List · 123"),
+    edit page only. The "ID: 123" label was removed from the Details card
+    earlier and the ID is in the breadcrumbs; this puts it back in the
+    pinned title row.

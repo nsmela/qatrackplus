@@ -307,8 +307,9 @@ Elsewhere:
   leaving "New reference value" blank while changing only the tolerance
   clears the unit's reference. `UnitTestInfoForm.save()` does this on
   purpose (`elif 'reference_value' in self.cleaned_data: … = None`). The
-  builder's Reference and Tolerance dialog keeps the reference instead. Not
-  changed here: say whether blank should mean "keep" or "clear".
+  builder's Reference and Tolerance dialog keeps the reference instead.
+  Decided: blank keeps the current reference (to do in
+  `TODO-test-builder.md`, Round 3).
 - **Duplicate Test** now needs add_test plus view_test or change_test; users
   with only add_test lose the button. GET still renders the dialog (only POST
   creates).
