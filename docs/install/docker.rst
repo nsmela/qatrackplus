@@ -15,6 +15,15 @@ configuring it, looking after its data and backups, running it day to day, and
 developing QATrack+ with it. If you are upgrading a Docker site from QATrack+
 4.0.0 or 4.0.1, start with :ref:`docker_upgrade_from_4_0`.
 
+.. note::
+
+    **Docker hosting is supported on Linux only.** You need a Linux server with
+    Docker Engine 23.0 or newer and Docker Compose 2.17 or newer (see
+    :ref:`docker_minimum_versions`). Running QATrack+ in Docker on Windows,
+    including with Docker Desktop, is not supported. If your server runs
+    Windows, follow the :ref:`Windows Server installation guide
+    <win_install_40>` instead, which installs QATrack+ without Docker.
+
 .. contents:: On this page
     :local:
     :depth: 2
@@ -26,17 +35,16 @@ Setting up QATrack+
 
 Docker installations are supported on Ubuntu 24.04 LTS, and the instructions
 have also been tested on Ubuntu 22.04 LTS, the same releases as the
-:ref:`Linux installation guide <linux_install_40>`. The Windows 10 section below
-predates QATrack+ 4.0. Depending on which system you are using there are
-different ways to install the required dependencies. Follow the section that
-applies to your specific machine.
+:ref:`Linux installation guide <linux_install_40>`. Other Linux distributions
+work too, as long as they can run the Docker versions below. Work through this
+section once, in order, on the server that will host QATrack+.
 
 .. _docker_minimum_versions:
 
 Minimum Docker versions
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Whichever system you use, QATrack+ needs:
+QATrack+ needs:
 
 * **Docker Compose 2.17 or newer.** QATrack+'s ``compose.yaml`` passes your
   :ref:`own Python packages <docker_site_packages>` to the build in a way older
@@ -67,103 +75,10 @@ The first prints the Compose version (for example ``Docker Compose version
 v2.27.0``) and the second the Engine version. If either is too old, update
 Docker by following Docker's own instructions linked below (on Ubuntu, Docker's
 ``apt`` repository updates both the Engine and the ``docker-compose-plugin``
-package), or update Docker Desktop on Windows. Docker's current releases are
-well above both minimums.
+package). Docker's current releases are well above both minimums.
 
-Windows 10 Professional or Enterprise with Hyper-V
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The aim of this setup is to have a complete installation of QATrack+ on a
-Windows 10 Professional or Enterprise machine. Backups are covered in
-:ref:`docker_backups`.
-
-Ensure Virtualisation is enabled
-................................
-
-This setup uses Hyper-V. To use Hyper-V you need Windows 10 Professional or
-Enterprise with virtualisation enabled. To verify that virtualisation is
-enabled open the task manager, select `More details`, click on the
-`Performance` tab and verify that in the bottom right it states
-`Virtualisation: Enabled` as in the following screenshot:
-
-.. figure:: https://docs.docker.com/docker-for-windows/images/virtualization-enabled.png
-    :alt: Virtualization enabled
-
-    Virtualisation enabled
-
-If this says disabled then this will need to be enabled within your machines
-BIOS before continuing.
-
-See https://docs.docker.com/docker-for-windows/troubleshoot/#virtualization for
-further troubleshooting if required.
-
-Chocolatey
-..........
-
-To simplify this guide all installation will be done via the chocolatey package
-manager. To install chocoletey run the following in a command prompt with
-administrative privileges.
-
-.. code-block:: console
-
-    @"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-
-For more information on chocolatey see https://chocolatey.org/
-
-Docker for Windows, and Git
-...........................
-
-To install Docker for Windows, Docker Compose and Git run the following within
-and administrative command prompt:
-
-.. code-block:: console
-
-    choco install git docker-for-windows -y
-
-Reboot your machine.
-
-Run the newly created `Docker for Windows` icon that has appeared on the
-desktop. If prompted to approve the request to enable Hyper-V. Thise will once
-again reboot your computer. Depending on your user priveledges you may need to
-add your user account to `docker-users`
-(https://github.com/docker/for-win/issues/868#issuecomment-352279510) at this
-point.
-
-You should not need to click this icon again.
-
-After multiple reboots Docker will begin downloading and setting up its virtual
-machine.  This will take some time and you may notice the PC running slow while
-it is working on this.
-
-Specifically you are waiting until the following popup is displayed:
-
-.. figure:: https://docs.docker.com/docker-for-windows/images/docker-app-welcome.png
-    :alt: Docker Welcome
-
-    Docker Welcome
-
-On my machine this docker initialisation process took a little over 15 minutes.
-
-To test that docker is working as expected run the following in a command
-prompt:
-
-.. code-block:: console
-
-    docker run hello-world
-
-Enable shared drives within Docker for Windows
-..............................................
-
-Right click on the whale in the notification panel, then click `Settings`.
-Within settings select `Shared Drives` and then tick all of the drives you wish
-to be able to use within Docker containers. For this guide to work you will at
-least need to share the drive where you will be keeping the QATrack+ server
-files.
-
-Docker for Windows does not support network drives.
-
-Ubuntu 24.04 LTS
-~~~~~~~~~~~~~~~~
+Installing Docker and Git
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If your server runs Ubuntu 24.04 LTS (or 22.04 LTS), follow these steps to
 install the required prerequisites.
@@ -187,8 +102,8 @@ Check that Compose is available, and that both meet
     docker compose version
     docker version --format '{{.Server.Version}}'
 
-Make docker work without sudo on Linux
-......................................
+Running Docker without sudo
+...........................
 
 You will also need to implement the following to be able to run docker without
 sudo:
@@ -213,54 +128,33 @@ following:
 On other systems follow the instructions at
 https://www.atlassian.com/git/tutorials/install-git.
 
-This part is OS independent. The language used will be tuned for a Windows 10
-user, but equivalent steps can be followed on Ubuntu.
+Getting the QATrack+ code
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Changing to the directory where all server files will be stored
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Open a command prompt with just user priveledges and change your directory to
-the directory where all of the QATrack+ server files will be stored.
-
-Lets say, for example, all our files are going to be located within the
-`D:` drive at `D:\QATrack+` then we would want to do the following:
+As your own user (not root), choose a folder to keep QATrack+ in. This guide
+uses ``~/web``, as the :ref:`Linux installation guide <linux_install_40>` does,
+and fetches QATrack+ from its git repository into it:
 
 .. code-block:: console
 
-    D:
-    cd QATrack+
-
-Downloading
-~~~~~~~~~~~
-
-At this point QATrack plus files need to be pulled from the git repository.  Do
-the following:
-
-.. code-block:: console
-
+    mkdir -p ~/web
+    cd ~/web
     git clone https://github.com/qatrackplus/qatrackplus.git
     cd qatrackplus
 
 Creating your settings file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To run any `docker compose` commands you need to be within the
-`qatrackplus\\deploy\\docker` directory. So lets change to there now:
+To run any ``docker compose`` commands you need to be within the
+``qatrackplus/deploy/docker`` directory. So let's change to there now:
 
 .. code-block:: console
 
-    cd deploy\docker
+    cd deploy/docker
 
 All of QATrack+'s Docker settings live in a file called ``.env`` in this
 directory. It holds your passwords, so it is never part of the QATrack+
-repository: create it from the documented template, then edit it. In Windows
-Command Prompt:
-
-.. code-block:: console
-
-    copy .env.example .env
-
-On Linux:
+repository: create it from the documented template, then edit it:
 
 .. code-block:: console
 
@@ -432,10 +326,7 @@ apply it:
     docker compose up -d
 
 The key is the same one, so nobody is signed out, and the notice no longer
-appears in the log. On Windows, run
-``docker compose exec -T django cat deploy/docker/user-data/secret_key.txt``
-instead, and paste what it prints into ``.env`` after ``SECRET_KEY=``. From then
-on, ``.env`` holds the key that signs your users' sessions: keep it as private
+appears in the log. From then on, ``.env`` holds the key that signs your users' sessions: keep it as private
 as your database password, and keep a copy with your backups.
 
 To choose your own key instead, set ``SECRET_KEY`` in ``.env`` before QATrack+
@@ -663,8 +554,8 @@ file is readable by root alone (mode 600) on the server. Each backup also does
 the same to any backups made by earlier releases, which other users could read. To
 copy them, use ``sudo`` (for example ``sudo cp`` or ``sudo rsync``), or have the
 copy job run as root, and keep the copies just as private. If the folder is on a
-drive that cannot hold Linux permissions, such as a Windows share, ``backup``
-prints a warning but still makes the backup.
+drive that cannot hold Linux permissions, such as an SMB/CIFS network share,
+``backup`` prints a warning but still makes the backup.
 
 .. note::
 
@@ -1002,28 +893,30 @@ running the version it had before.
 
 .. _docker_line_endings:
 
-.. note::
+If your QATrack+ folder was copied from a Windows computer
+..........................................................
 
-    Files under ``deploy/docker`` run inside Linux containers and must have LF line
-    endings. Git checks them out that way on every platform. A clone made before
-    QATrack+ 4.0.2 on Windows may still have CRLF copies. To check them out again,
-    run the following from the ``qatrackplus`` folder. It replaces the tracked files
-    under ``deploy/docker`` with fresh copies, so the first and last lines save your
-    own changes to them (your ``.env``, and any edits to ``nginx.conf`` or the
-    compose files) and put them back. These are git commands only, so they work the
-    same in Command Prompt, PowerShell or a Linux terminal. Untracked folders such
-    as ``user-data`` and ``backups`` are not touched.
+Files under ``deploy/docker`` run inside Linux containers and must have LF line
+endings. Git checks them out that way, whatever its settings. But a QATrack+
+folder first cloned on a Windows computer before QATrack+ 4.0.2, and then copied
+to your Linux server, may still have CRLF copies, which stop the containers
+building or starting. To check them out again, run the following from the
+``qatrackplus`` folder. It replaces the tracked files under ``deploy/docker``
+with fresh copies, so the first and last lines save your own changes to them
+(your ``.env``, and any edits to ``nginx.conf`` or the compose files) and put
+them back. Untracked folders such as ``user-data`` and ``backups`` are not
+touched.
 
-    .. code-block:: console
+.. code-block:: console
 
-        git diff HEAD --output=../qatrack-docker-local.patch -- deploy/docker
-        git rm -r --cached -q deploy/docker
-        git checkout HEAD -- deploy/docker
-        git apply --allow-empty ../qatrack-docker-local.patch
+    git diff HEAD --output=../qatrack-docker-local.patch -- deploy/docker
+    git rm -r --cached -q deploy/docker
+    git checkout HEAD -- deploy/docker
+    git apply --allow-empty ../qatrack-docker-local.patch
 
-    ``--allow-empty`` needs git 2.35 or newer. The patch file holds your ``.env``,
-    including the database password, so delete ``qatrack-docker-local.patch`` once
-    you have checked that QATrack+ starts.
+``--allow-empty`` needs git 2.35 or newer. The patch file holds your ``.env``,
+including the database password, so delete ``qatrack-docker-local.patch`` once
+you have checked that QATrack+ starts.
 
 Accessing the Django shell
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
