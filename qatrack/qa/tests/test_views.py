@@ -1622,6 +1622,91 @@ class TestPerformQA(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class TestPerformQARepeatedTest(TestCase):
+    """Perform QC for an (older, now disallowed) list layout where a test is
+    both a direct member and part of a sublist.  The test should be shown and
+    saved once, not twice."""
+
+    def setUp(self):
+        self.status = utils.create_status()
+
+        self.t_rep = utils.create_test(name="rep_test")
+        self.t_other = utils.create_test(name="other_test")
+        self.t_sub = utils.create_test(name="sub_test")
+
+        self.parent = utils.create_test_list(name="parent")
+        self.child = utils.create_test_list(name="child")
+        utils.create_test_list_membership(self.parent, self.t_rep, 0)
+        utils.create_test_list_membership(self.parent, self.t_other, 20)
+        utils.create_test_list_membership(self.child, self.t_sub, 0)
+        utils.create_test_list_membership(self.child, self.t_rep, 1)
+        utils.create_sublist(self.parent, self.child, order=10)
+
+        group = Group.objects.create(name="foo")
+        self.utc = utils.create_unit_test_collection(
+            test_collection=self.parent,
+            frequency=utils.create_frequency(name="daily"),
+        )
+        self.url = reverse("perform_qa", kwargs={"pk": self.utc.pk})
+        self.client.login(username="user", password="password")
+        user = User.objects.get(username="user")
+        user.is_superuser = False
+        user.save()
+        user.groups.add(group)
+
+    def test_ordered_tests_lists_repeated_test_once_at_first_position(self):
+        self.assertEqual(self.parent.ordered_tests(), [self.t_rep, self.t_sub, self.t_other])
+
+    def test_ordered_tests_unchanged_for_valid_list(self):
+        tl = utils.create_test_list(name="valid")
+        sub = utils.create_test_list(name="valid_sub")
+        utils.create_test_list_membership(tl, self.t_other, 0)
+        utils.create_test_list_membership(tl, self.t_rep, 20)
+        utils.create_test_list_membership(sub, self.t_sub, 0)
+        utils.create_sublist(tl, sub, order=10)
+        self.assertEqual(tl.ordered_tests(), [self.t_other, self.t_sub, self.t_rep])
+
+    def test_one_form_per_unit_test_info(self):
+        response = self.client.get(self.url)
+        forms_ = response.context["formset"].forms
+        self.assertEqual([f.unit_test_info.test for f in forms_], [self.t_rep, self.t_sub, self.t_other])
+
+    def test_repeated_test_ids_unique(self):
+        response = self.client.get(self.url)
+        content = response.content.decode()
+        slug = self.t_rep.slug
+        for elid in [
+            "%s-row" % slug,
+            "%s-value" % slug,
+            "%s-status" % slug,
+            "%s-comment" % slug,
+            "comment-toggle-%s" % slug,
+            "id_form-0-value",
+        ]:
+            self.assertEqual(content.count('id="%s"' % elid), 1, elid)
+        self.assertNotIn('id="id_form-3-value"', content)
+
+    def test_submit_saves_one_test_instance_per_test(self):
+        data = {
+            "work_started": "2012-11-07 00:09",
+            "status": self.status.pk,
+            "form-TOTAL_FORMS": 3,
+            "form-INITIAL_FORMS": 3,
+            "form-MAX_NUM_FORMS": "",
+            "form-0-value": 3,
+            "form-1-value": 4,
+            "form-2-value": 5,
+        }
+        response = self.client.post(self.url, data=data)
+        self.assertEqual(response.status_code, 302)
+
+        tis = models.TestInstance.objects.order_by("order")
+        self.assertEqual(
+            [(ti.unit_test_info.test, ti.value) for ti in tis],
+            [(self.t_rep, 3), (self.t_sub, 4), (self.t_other, 5)],
+        )
+
+
 class TestAJAXUpload(TestCase):
 
     def setUp(self):
