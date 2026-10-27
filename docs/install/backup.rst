@@ -66,7 +66,9 @@ yourself.
 
 The ``backup`` service connects to the database with ``POSTGRES_DB``,
 ``POSTGRES_USER`` and ``POSTGRES_PASSWORD`` from ``deploy/docker/.env``, the same
-settings the ``postgres`` service uses, so it needs no setup of its own.
+settings the ``postgres`` service uses, so it needs no setup of its own. If one of
+them is missing from ``.env``, the backup stops with an *unbound variable* error
+before it runs ``pg_dump``, rather than backing up the wrong database.
 
 .. note::
 

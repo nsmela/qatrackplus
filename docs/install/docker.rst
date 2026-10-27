@@ -6,6 +6,15 @@ configuring it, looking after its data and backups, running it day to day, and
 developing QATrack+ with it. If you are upgrading a Docker site from QATrack+
 4.0.0 or 4.0.1, start with :ref:`docker_upgrade_from_4_0`.
 
+.. These labels keep links to section titles from older versions of this page
+   working. Please keep them.
+
+.. _windows-10-professional-or-enterprise-with-hyper-v:
+.. _ensure-virtualisation-is-enabled:
+.. _chocolatey:
+.. _docker-for-windows-and-git:
+.. _enable-shared-drives-within-docker-for-windows:
+
 .. note::
 
     **Docker hosting is supported on Linux only.** You need a Linux server with
@@ -18,6 +27,10 @@ developing QATrack+ with it. If you are upgrading a Docker site from QATrack+
 .. contents:: On this page
     :local:
     :depth: 2
+
+.. Kept so links to an older section title still work.
+
+.. _installing-qatrack:
 
 .. _docker_setup:
 
@@ -68,6 +81,11 @@ Docker by following Docker's own instructions linked below (on Ubuntu, Docker's
 ``apt`` repository updates both the Engine and the ``docker-compose-plugin``
 package). Docker's current releases are well above both minimums.
 
+.. Kept so links to an older section title still work.
+
+.. _prerequisites-by-os:
+.. _ubuntu-24-04-lts:
+
 Installing Docker and Git
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -92,6 +110,10 @@ Check that Compose is available, and that both meet
 
     docker compose version
     docker version --format '{{.Server.Version}}'
+
+.. Kept so links to an older section title still work.
+
+.. _make-docker-work-without-sudo-on-linux:
 
 Running Docker without sudo
 ...........................
@@ -121,6 +143,11 @@ following:
 On other systems follow the instructions at
 https://www.atlassian.com/git/tutorials/install-git.
 
+.. Kept so links to an older section title still work.
+
+.. _changing-to-the-directory-where-all-server-files-will-be-stored:
+.. _downloading:
+
 Getting the QATrack+ code
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -140,6 +167,10 @@ The ``releases/4.0`` branch is the 4.0 series including its patch releases, so
 :ref:`updating later <docker_updating>` is a ``git pull``: you never name a
 version. A ``git pull`` brings in the fixes for 4.0 but never moves you on to
 the next major version, so that upgrade only happens when you choose to make it.
+
+.. Kept so links to an older section title still work.
+
+.. _installation:
 
 Creating your settings file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -897,6 +928,10 @@ the database and the uploaded files from the same night together: a restore
 needs both. ``docker compose down -v`` removes QATrack+'s volumes, but never
 deletes a folder on the server.
 
+.. Kept so links to an older section title still work.
+
+.. _advanced-usage-tips:
+
 .. _docker_operation:
 
 Running QATrack+ day to day
@@ -947,12 +982,18 @@ Scheduled notifications, scheduled reports and the emails they send run in the
 again empty when a container is recreated, for example by an upgrade.
 QATrack+'s own log files (``debug.log``, ``auth.log`` and the others) are kept in
 the ``logs-volume`` volume (or the folder ``QATRACK_LOGS_DIR`` names; see
-:ref:`docker_data_dirs`) and survive upgrades. List them, and read the end of
-one, with:
+:ref:`docker_data_dirs`) and survive upgrades. Each file only appears once
+QATrack+ has something to write to it, so on a brand-new site the folder may
+still be empty, or have only some of them. To see which files there are, run:
 
 .. code-block:: console
 
     docker compose exec django ls logs
+
+Then read the end of one from that list, for example ``debug.log``:
+
+.. code-block:: console
+
     docker compose exec django tail -n 50 logs/debug.log
 
 .. _docker_updating:
@@ -1038,6 +1079,10 @@ activate first. This requires that the containers are already running.
 
 The shell works directly on your clinic's live database, so take a backup first
 (``docker compose exec backup backup``) if you are going to change anything.
+
+.. Kept so links to an older section title still work.
+
+.. _delete-docker-data:
 
 .. _docker_removing:
 
