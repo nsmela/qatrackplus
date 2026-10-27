@@ -5,21 +5,18 @@ Inlined (not a static file) so it loads under DEBUG=False without a collectstati
 step. The live description preview and test list builder are driven by htmx.
 {% endcomment %}{% load i18n %}
 <style>
-:root {
-  --tl-primary: #424f57; --tl-primary-2: #323e46; --tl-blue: #3c8dbc; --tl-red: #dd4b39;
-  --tl-gray: #d2d6de; --tl-text: #333; --tl-muted: #777; --tl-line: #d2d6de;
-  --tl-line-soft: #f4f4f4; --tl-label: #555; --tl-group-label: #8a929e; --tl-warn: #b6893b;
-  --tl-card-shadow: 0 1px 1px rgba(0,0,0,.1); --tl-input-shadow: 2px 2px 2px #ddd;
-  --tl-font: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
-  --tl-mono: ui-monospace, Menlo, Consolas, monospace;
-}
-.tl-mono { font-family: var(--tl-mono); }
+/* Colours, sizes and shapes follow the QATrack+ design spec and are written as
+   literal values (no custom properties of our own). The only variables used here
+   are Django admin's (re-asserted below for its dark theme) and --qa-admin-top-h,
+   which base_site.html sets to the pinned admin header's height. */
+/* Same meaning as base.css's .tl-mono (monospace); size comes from context here. */
+.tl-mono { font-family: Menlo, Consolas, monospace; }
 
 /* Keep this deliberately-light UI legible under Django 4.2's dark admin theme:
    re-assert light theme variables on our always-white components so inherited /
    variable-driven text stays dark-on-white. */
 .tl-details-card, .tl-members-card, .tl-control-card, .tl-preview-card, #changelist {
-  --body-fg: #333; --body-bg: #fff; --body-quiet-color: #777; --body-loud-color: #111;
+  --body-fg: #333; --body-bg: #fff; --body-quiet-color: #767676; --body-loud-color: #111;
   --link-fg: #3c8dbc; --link-hover-color: #3c8dbc; --hairline-color: #f4f4f4;
   --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
 }
@@ -32,7 +29,7 @@ step. The live description preview and test list builder are driven by htmx.
   gap: 16px;
   flex-wrap: wrap;
   margin: 0 0 12px;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 /* The title row stays pinned just below the admin header (base_site.html measures
    its height into --qa-admin-top-h); the scope bar below it scrolls away.
@@ -60,19 +57,21 @@ html:has(.tl-header-bar) { scroll-padding-top: calc(var(--qa-admin-top-h, 90px) 
   gap: 8px;
   flex-wrap: wrap;
 }
+/* Title and counts sit on the page background (not a white card), so they use
+   Django's variables to stay readable in the dark admin theme too. */
 .tl-header-title {
-  font-size: 21px;
-  font-weight: 500;
-  color: #333;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--body-fg, #444);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.1;
   letter-spacing: normal;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 .tl-header-counts {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  color: #8c939d;
+  color: var(--body-quiet-color, #666);
 }
 /* The page's one save button group (Django's bottom submit row is removed).
    Left to right: History, Delete, Cancel, Save As…, Save and Continue Editing, Save. */
@@ -101,7 +100,7 @@ button.tl-top-btn,
   text-transform: none;
   letter-spacing: normal;
   white-space: nowrap;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
   height: 30px;
   box-sizing: border-box;
   box-shadow: 2px 2px 2px #ddd;
@@ -155,28 +154,32 @@ button.tl-top-btn-save:hover {
 .tl-control-card {
   background: #fff;
   border: 1px solid #d2d6de;
-  border-radius: 3px;
+  border-radius: 0;
   padding: 8px 12px;
   margin-bottom: 18px;
-  box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
+/* The left group takes the free space and wraps inside itself (scope text, Assign
+   button, success note), so the Editor/Preview toggle stays on the first line. */
 .tl-control-left {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .tl-control-label {
   font-size: 11px;
   font-weight: 700;
-  color: #8a929e;
-  letter-spacing: 0.06em;
+  color: #6e7785;
+  letter-spacing: .03em;
   text-transform: uppercase;
   margin-right: 2px;
 }
@@ -196,11 +199,11 @@ button.tl-top-btn-save:hover {
   -webkit-appearance: auto;
   min-width: 210px;
   height: 30px;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
   box-sizing: border-box;
 }
 .tl-scope-select:focus {
-  border-color: var(--tl-blue);
+  border-color: #3c8dbc;
   outline: none;
 }
 .tl-scope-info {
@@ -208,20 +211,24 @@ button.tl-top-btn-save:hover {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #8a929e;
+  color: #6e7785;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .tl-scope-globe-icon {
-  color: #8a929e;
+  color: #6e7785;
   font-size: 13px;
+  flex-shrink: 0;
 }
+/* Secondary button */
 .tl-btn-assign-machine {
-  background: #fff;
-  border: 1px dashed #cbd5e1;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
   padding: 3px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: #444;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -229,31 +236,39 @@ button.tl-top-btn-save:hover {
   cursor: pointer;
   height: 28px;
   box-sizing: border-box;
-  transition: all 0.15s ease;
+  box-shadow: 2px 2px 2px #ddd;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
 }
 .tl-btn-assign-machine:hover {
-  border-color: var(--tl-blue);
-  color: var(--tl-blue);
-  background: #f0f7ff;
+  background: #e7e7e7;
+  color: #444;
   text-decoration: none;
+}
+.tl-btn-assign-machine:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 
 /* ---- Assign to Machine dialog ---- */
 button.tl-btn-assign-machine {
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 .tl-btn-assign-machine:disabled,
 .tl-btn-assign-machine:disabled:hover {
   opacity: 0.55;
   cursor: not-allowed;
-  border-color: #cbd5e1;
-  color: #64748b;
-  background: #fff;
+  border-color: #d2d6de;
+  color: #444;
+  background: #f4f4f4;
 }
 .tl-assign-note {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 12px;
   color: #333;
   background: #fff;
@@ -304,7 +319,7 @@ button.tl-btn-assign-machine {
   min-height: 32px;
   background: #fff;
   color: #333;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 .tl-assign-dialog select.tl-modal-input:focus {
   border-color: #3c8dbc;
@@ -345,11 +360,15 @@ button.tl-btn-assign-machine {
 .tl-control-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: flex-start;
 }
 .tl-view-toggle {
   display: inline-flex;
-  border: 1px solid #3c8dbc;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
+  box-shadow: 2px 2px 2px #ddd;
   overflow: hidden;
   background: #fff;
   height: 30px;
@@ -358,7 +377,7 @@ button.tl-btn-assign-machine {
 .tl-view-tab {
   border: 0;
   background: #fff;
-  color: #666;
+  color: #444;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 400;
@@ -366,17 +385,21 @@ button.tl-btn-assign-machine {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--tl-font);
-  transition: all 0.15s ease;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  transition: background-color 0.15s ease;
 }
 .tl-view-tab:hover:not(.active) {
-  background: #f8fafc;
+  background: #f4f4f4;
   color: #333;
 }
 .tl-view-tab.active {
-  background: var(--tl-blue);
+  background: #424f57;
   color: #fff;
   font-weight: 600;
+}
+.tl-view-tab:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: -2px;
 }
 .tl-view-tab:last-child {
   border-left: 1px solid #d2d6de;
@@ -408,7 +431,7 @@ button.tl-btn-assign-machine {
   background: #fff;
   border: 1px solid #d2d6de;
   border-left: 3px solid #424f57;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
   font-size: 13px;
   color: #333;
 }
@@ -449,7 +472,7 @@ body.tl-mode-machine .tl-col-type-value {
 }
 .tl-machine-none {
   font-size: 13px;
-  color: #6e7785;
+  color: #555;
 }
 .tl-machine-edit {
   margin-left: 6px;
@@ -490,8 +513,8 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
 
 /* ---- Live Preview Container ---- */
 .tl-preview-container {
-  font-family: var(--tl-font);
-  color: var(--tl-text);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  color: #333;
   margin-bottom: 24px;
 }
 /* Notes above the preview: which preview this is, unsaved changes */
@@ -524,58 +547,103 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   box-shadow: 0 1px 1px rgba(0,0,0,.1);
 }
 .tl-preview-banner {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 4px;
-  padding: 10px 14px;
+  background: #f4f4f4;
+  border-left: 3px solid #424f57;
+  border-radius: 0;
+  padding: 8px 12px;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
-  color: #1e40af;
-  font-weight: 500;
+  color: #333;
+  font-weight: 400;
+}
+.tl-preview-banner .fa {
+  color: #424f57;
 }
 .tl-preview-card {
   background: #fff;
-  border-top: 3px solid var(--tl-primary);
-  box-shadow: var(--tl-card-shadow);
+  border-top: 3px solid #424f57;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
   margin-bottom: 20px;
   padding: 16px 20px;
 }
 .tl-preview-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #444;
   margin: 0 0 6px;
+}
+.tl-preview-slug {
+  font-size: 14px;
+  font-weight: 400;
+  color: #6e7785;
 }
 .tl-preview-desc {
   font-size: 14px;
-  line-height: 1.6;
-  color: #475569;
+  line-height: 1.5;
+  color: #555;
   margin-bottom: 14px;
 }
+/* The test list's warning message (shown on the Perform QC page when a test fails) */
 .tl-preview-warning {
-  background: #fffbeb;
-  border-left: 4px solid #f59e0b;
-  padding: 10px 14px;
-  font-size: 13.5px;
-  color: #92400e;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #f39c12;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #333;
   margin-bottom: 16px;
-  border-radius: 0 4px 4px 0;
+  border-radius: 0;
+}
+.tl-preview-warning .fa {
+  color: #8a6420;
+}
+.tl-preview-js-note {
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: #555;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
+  padding: 6px 10px;
+  border-radius: 0;
+}
+.tl-preview-table-wrap {
+  margin-top: 16px;
+}
+.tlb-table.tl-preview-tests-table {
+  border: 1px solid #d2d6de;
+  margin-bottom: 16px;
+}
+.tlb-table.tl-preview-sublist-table {
+  border: 1px solid #d2d6de;
+  border-top: 0;
+  margin-bottom: 16px;
+}
+.tlb-table .tl-th-input {
+  width: 140px;
+  text-align: right;
+}
+.tl-cell-input {
+  text-align: right;
 }
 .tl-preview-sublist-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #fbfcfd;
+  border: 1px solid #d2d6de;
   border-bottom: 0;
   padding: 8px 14px;
   font-size: 14px;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: #444;
   margin-top: 16px;
+}
+.tl-preview-sublist-header .fa {
+  color: #555;
 }
 /* Outlined sublist: mirrors the Perform QC page, which draws a 3px grey
    rule above and below the sublist with its name (italic) as the heading */
@@ -597,71 +665,78 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   font-size: 13px;
   color: #333;
   padding: 6px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #d2d6de;
   border-bottom: 0;
 }
 .tl-preview-mock-input {
   background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 3px;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
   padding: 4px 8px;
   font-size: 13px;
-  color: #94a3b8;
+  color: #555;
   width: 100px;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: none;
+}
+.tl-preview-mock-input::placeholder {
+  color: #6d7787;
+  opacity: 1;
 }
 
 /* ---- Details card (change form) ---- */
-.tl-details-card { background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); border-radius:0; margin-bottom:20px; font-family:var(--tl-font); color:var(--tl-text); }
-.tl-card-header { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--tl-line-soft); background:#fff; }
+.tl-details-card { background:#fff; border-top:3px solid #424f57; box-shadow:0 1px 1px rgba(0,0,0,.1); border-radius:0; margin-bottom:20px; font-family:'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif; color:#333; }
+.tl-card-header { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid #f4f4f4; background:#fff; }
 .tl-card-header > .fa { font-size:16px; color:#555; }
-.tl-card-title { font-size:17px; font-weight:600; color:#444 !important; background:transparent !important; margin:0; line-height:1; padding:0; }
+.tl-card-title { font-size:18px; font-weight:400; color:#444 !important; background:transparent !important; margin:0; line-height:1; padding:0; text-transform:none; letter-spacing:normal; }
 .tl-card-body { padding:14px; }
-.tl-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
-.tl-field { display:flex; flex-direction:column; gap:4px; min-width:0; }
+/* tlb- (builder) prefix: base.css already defines shared tl- form, field and table blocks. */
+.tlb-form { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; }
+.tlb-field { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .tl-col-1 { grid-column:1; } .tl-col-2 { grid-column:2; } .tl-col-full { grid-column:1 / -1; }
-.tl-field > label, .tl-label-row > label { font-size:13px; font-weight:600; color:var(--tl-label); margin:0; }
-.tl-req { color:var(--tl-red); font-style:normal; }
+.tlb-field > label, .tl-label-row > label { font-size:13px; font-weight:600; color:#555; margin:0; }
+.tl-req { color:#c0392b; font-style:normal; }
 .tl-label-row { display:flex; align-items:center; }
 .tl-hint { font-size:11px; font-weight:600; margin-left:6px; display:inline-flex; align-items:center; gap:4px; }
-.tl-hint-neutral { color:var(--tl-group-label); } .tl-hint-warn { color:var(--tl-warn); }
-.tl-preview-toggle { margin-left:auto; border:1px solid #cfd5df; background:#fff; color:#6b7280; border-radius:3px; padding:3px 10px; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
-.tl-preview-toggle:hover { border-color:var(--tl-blue); color:var(--tl-blue); }
-.tl-preview-toggle.on { border-color:var(--tl-blue); color:var(--tl-blue); background:#f2f8fc; }
-.tl-field input[type="text"], .tl-field textarea, .tl-field select {
+.tl-hint-neutral { color:#6e7785; } .tl-hint-warn { color:#8a6420; }
+.tl-preview-toggle { margin-left:auto; border:1px solid #d2d6de; background:#f4f4f4; color:#444; border-radius:3px; padding:3px 10px; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:2px 2px 2px #ddd; }
+.tl-preview-toggle:hover { background:#e7e7e7; color:#444; }
+.tl-preview-toggle.on { background:#e7e7e7; color:#333; box-shadow:inset 0 1px 2px rgba(0,0,0,.1); }
+.tl-preview-toggle:focus-visible { border-color:#3c8dbc; outline:2px solid #3c8dbc; outline-offset:1px; }
+.tlb-field input[type="text"], .tlb-field textarea, .tlb-field select {
   width:100%; box-sizing:border-box; font-size:14px; color:#555; background:#fff;
-  border:1px solid var(--tl-line); border-radius:0; box-shadow:var(--tl-input-shadow);
+  border:1px solid #d2d6de; border-radius:0; box-shadow:2px 2px 2px #ddd;
   padding:6px 10px; min-height:34px; margin:0;
 }
-.tl-field textarea { resize:vertical; line-height:1.5; }
+.tlb-field textarea { resize:vertical; line-height:1.5; }
 .tl-desc-input { min-height:52px; }
-.tl-field #id_javascript { font-family:var(--tl-mono); font-size:13px; height:76px; }
-.tl-field #id_slug { font-family:var(--tl-mono); font-size:13px; }
-.tl-field input[type="text"]:focus, .tl-field textarea:focus { border-color:var(--tl-blue); outline:none; }
-.tl-html-preview { min-height:60px; border:1px solid var(--tl-line); box-shadow:var(--tl-input-shadow); padding:8px 10px; background:#fcfcfd; font-size:14px; line-height:1.55; color:var(--tl-text); }
+.tlb-field #id_javascript { font-family:Menlo, Consolas, monospace; font-size:13px; height:76px; }
+.tlb-field #id_slug { font-family:Menlo, Consolas, monospace; font-size:13px; }
+.tlb-field input[type="text"]:focus, .tlb-field textarea:focus { border-color:#3c8dbc; outline:none; }
+.tl-html-preview { min-height:60px; border:1px solid #d2d6de; box-shadow:2px 2px 2px #ddd; padding:8px 10px; background:#fff; font-size:14px; line-height:1.5; color:#333; }
 .tl-html-preview p { margin:0 0 8px; } .tl-html-preview p:last-child { margin-bottom:0; }
 .tl-html-preview ul, .tl-html-preview ol { margin:0 0 8px; padding-left:22px; }
-.tl-html-preview a { color:var(--tl-blue); }
-.tl-htmlpreview-empty { color:#9aa2ae; font-style:italic; }
-.tl-field .errorlist { list-style:none; margin:0 0 4px; padding:0; color:var(--tl-red); font-size:12px; font-weight:600; }
-.tl-field .errorlist li { margin:0; }
+.tl-html-preview a { color:#3c8dbc; }
+.tl-htmlpreview-empty { color:#6d7787; font-style:italic; }
+.tlb-field .errorlist { list-style:none; margin:0 0 4px; padding:0; color:#c0392b; font-size:12px; font-weight:600; }
+.tlb-field .errorlist li { margin:0; }
 
 /* ---- Tests Card & Table ---- */
 .tl-members-card {
   background: #fff;
-  border-top: 3px solid var(--tl-primary);
-  box-shadow: var(--tl-card-shadow);
+  border-top: 3px solid #424f57;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
   border-radius: 0;
   margin-bottom: 20px;
-  font-family: var(--tl-font);
-  color: var(--tl-text);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  color: #333;
 }
 
+/* Card header buttons (Expand All, Add Sublist, Add Test): secondary style.
+   .tl-card-header-actions already pushes them to the right. */
 .tl-header-add-btn {
-  margin-left: auto;
-  border: 1px solid #cfd5df;
-  background: #fff;
-  color: #4b5563;
+  border: 1px solid #d2d6de;
+  background: #f4f4f4;
+  color: #444;
   border-radius: 3px;
   padding: 4px 12px;
   font-size: 12px;
@@ -670,12 +745,21 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  transition: all 0.15s ease;
+  height: 28px;
+  box-sizing: border-box;
+  box-shadow: 2px 2px 2px #ddd;
+  transition: background-color 0.15s ease;
 }
 .tl-header-add-btn:hover {
-  border-color: var(--tl-blue);
-  color: var(--tl-blue);
-  background: #f2f8fc;
+  background: #e7e7e7;
+  color: #444;
+}
+.tl-header-add-btn:focus-visible,
+.tl-header-text-btn:focus-visible,
+.tl-btn-sublist:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 
 .tl-table-wrap {
@@ -684,21 +768,21 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
   background: #fff;
 }
 
-.tl-table {
+.tlb-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 
-.tl-table thead th {
+.tlb-table thead th {
   text-align: left;
-  padding: 10px 14px;
-  border-bottom: 2px solid var(--tl-line-soft);
+  padding: 7px 10px;
+  border-bottom: 2px solid #d2d6de;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8a929e;
+  letter-spacing: .03em;
+  color: #6e7785;
   background: #fff;
   white-space: nowrap;
 }
@@ -710,21 +794,21 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
 .tl-th-type-value { width: 220px; }
 .tl-th-actions { width: 90px; text-align: right !important; }
 
-.tl-table tbody tr {
+.tlb-table tbody tr {
   background: #fff;
-  border-bottom: 1px solid var(--tl-line-soft);
+  border-bottom: 1px solid #f4f4f4;
   transition: background-color 0.1s ease;
 }
 
-.tl-table tbody tr:hover {
-  background-color: #f8fafc;
+.tlb-table tbody tr:hover {
+  background-color: #f5f7fa;
 }
 
-.tl-table tbody td {
-  padding: 11px 14px;
+.tlb-table tbody td {
+  padding: 8px 10px;
   vertical-align: middle;
-  font-size: 13.5px;
-  color: var(--tl-text);
+  font-size: 14px;
+  color: #333;
   border: 0;
 }
 
@@ -736,19 +820,19 @@ body.tl-mode-machine #tl-details-card textarea[readonly] {
 
 tr.tl-dragging {
   opacity: 0.45;
-  background: #f1f5f9 !important;
+  background: #f4f4f4 !important;
 }
 
 .ui-sortable-helper {
   display: table;
   background: #fff !important;
   box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-  border-top: 1px solid var(--tl-line-soft);
-  border-bottom: 1px solid var(--tl-line-soft);
+  border-top: 1px solid #f4f4f4;
+  border-bottom: 1px solid #f4f4f4;
 }
 
 .tl-drag-handle {
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 14px;
   cursor: grab;
   padding: 4px;
@@ -768,7 +852,7 @@ tr.tl-dragging {
 .tl-test-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: #333;
   line-height: 1.3;
 }
 
@@ -780,18 +864,20 @@ tr.tl-dragging {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #64748b;
-  font-size: 12.5px;
+  color: #555;
+  font-size: 13px;
   line-height: 1.35;
   cursor: pointer;
 }
 .tl-test-desc > i {
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 11px;
   flex-shrink: 0;
 }
+/* Hover: darker + underline (link blue on the hovered row would be under 4.5:1) */
 .tl-test-desc:hover {
-  color: var(--tl-blue);
+  color: #333;
+  text-decoration: underline;
 }
 /* The editable description is a <button> (keyboard access): drop the browser's button look. */
 button.tl-test-desc {
@@ -811,16 +897,17 @@ button.tl-test-desc:focus-visible,
 .tl-test-desc.tl-test-desc-readonly,
 .tl-test-desc.tl-test-desc-readonly:hover {
   cursor: default;
-  color: #64748b;
+  color: #555;
+  text-decoration: none;
 }
 
 .tl-add-desc-btn {
   background: transparent;
   border: 0;
   padding: 0;
-  color: #94a3b8;
+  color: #555;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -828,44 +915,27 @@ button.tl-test-desc:focus-visible,
   transition: color 0.15s ease;
 }
 .tl-add-desc-btn:hover {
-  color: var(--tl-blue);
+  color: #333;
+  text-decoration: underline;
 }
 
 .tl-cell-category {
   text-align: center;
 }
 
+/* One neutral chip for every category: colour is kept for QC status meaning
+   (red = Action), so it isn't used to tell categories apart. */
 .tl-cat-pill {
   display: inline-block;
-  padding: 2px 14px;
-  border-radius: 9999px;
-  font-size: 11.5px;
-  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
   background: #fff;
-  border: 1px solid #94a3b8;
-  color: #475569;
-}
-.tl-cat-general {
-  border-color: #94a3b8;
-  color: #475569;
-}
-.tl-cat-safety {
-  border-color: #ef4444;
-  color: #dc2626;
-}
-.tl-cat-dosimetry {
-  border-color: #3b82f6;
-  color: #2563eb;
-}
-.tl-cat-mechanical {
-  border-color: #8b5cf6;
-  color: #7c3aed;
-}
-.tl-cat-imaging {
-  border-color: #0d9488;
-  color: #0f766e;
+  border: 1px solid #d2d6de;
+  color: #555;
 }
 
 .tl-type-pill-wrap {
@@ -875,35 +945,27 @@ button.tl-test-desc:focus-visible,
   white-space: nowrap;
 }
 
+/* One neutral label (label-default) for every test type; green/orange/cyan
+   would read as QC status. */
 .tl-type-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  color: #fff;
-  border-radius: 3px;
+  color: #444;
+  background: #d2d6de;
+  border-radius: 2px;
   padding: 2px 6px;
   min-width: 26px;
   text-align: center;
   line-height: 1.2;
 }
 
-.tl-type-num { background: #2b78a9; }
-.tl-type-yn { background: #008744; }
-.tl-type-mc { background: #7c3aed; }
-.tl-type-comp { background: #d97706; }
-.tl-type-const { background: #0d9488; }
-.tl-type-str { background: #64748b; }
-.tl-type-scomp { background: #4f46e5; }
-.tl-type-upload { background: #6366f1; }
-.tl-type-date { background: #0891b2; }
-.tl-type-default { background: #64748b; }
-
 .tl-type-label {
   font-size: 13px;
-  color: #334155;
-  font-weight: 500;
+  color: #333;
+  font-weight: 400;
 }
 
 /* Base list "Type Value" column: one line, ellipsis, full text in the title tooltip */
@@ -924,9 +986,10 @@ button.tl-test-desc:focus-visible,
   font-size: 12px;
 }
 
+/* #555, not the #6e7785 meta grey: rows turn #f5f7fa on hover, where the meta grey is under 4.5:1 */
 .tl-type-value-none {
   font-size: 13px;
-  color: #6e7785;
+  color: #555;
 }
 
 .tl-cell-actions {
@@ -937,27 +1000,34 @@ button.tl-test-desc:focus-visible,
   background: transparent;
   border: 0;
   padding: 4px 6px;
-  color: #94a3b8;
-  font-size: 13.5px;
+  color: #6d7787;
+  font-size: 14px;
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 3px;
   transition: color 0.15s ease;
 }
 .tl-cell-actions .tl-action-icon:hover {
-  color: var(--tl-blue);
+  color: #555;
+  background: #eceff3;
 }
 .tl-cell-actions .tl-delete-test-btn:hover {
-  color: var(--tl-red);
+  color: #c0392b;
+  background: #fbe9e7;
+}
+.tl-cell-actions .tl-action-icon:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 0;
 }
 
 .tl-empty-tests-placeholder {
   padding: 32px 16px;
   text-align: center;
-  color: #94a3b8;
-  font-size: 13.5px;
+  color: #6d7787;
+  font-size: 13px;
 }
 
 /* ---- Sublist Row in Builder Table ---- */
@@ -974,18 +1044,19 @@ button.tl-test-desc:focus-visible,
   background: transparent !important;
 }
 
+/* Sublist cards are neutral: amber means Tolerance in QATrack+. */
 .tl-sublist-card {
-  border: 1.5px solid #d99b26;
-  border-radius: 4px;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
   background: #fff;
   margin: 2px 0;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  font-family: var(--tl-font);
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
   overflow: hidden;
   transition: box-shadow 0.15s ease;
 }
 .tl-sublist-row:hover .tl-sublist-card {
-  box-shadow: 0 2px 5px rgba(217, 155, 38, 0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
 }
 /* Sublist drawn in its own box on the Perform QC page (Sublist.outline) */
 .tl-sublist-card.tl-sublist-outlined {
@@ -1010,7 +1081,7 @@ button.tl-test-desc:focus-visible,
 }
 
 .tl-sublist-header {
-  background: #fffdf7;
+  background: #fbfcfd;
   padding: 6px 10px;
   display: flex;
   align-items: center;
@@ -1022,7 +1093,7 @@ button.tl-test-desc:focus-visible,
 
 .tl-sublist-drag-handle {
   cursor: grab;
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 13px;
   padding: 4px 6px;
   display: inline-flex;
@@ -1031,14 +1102,14 @@ button.tl-test-desc:focus-visible,
   transition: color 0.15s ease;
 }
 .tl-sublist-drag-handle:hover {
-  color: #d99b26;
+  color: #444;
 }
 
 .tl-sublist-toggle-btn {
   background: transparent;
   border: 0;
   padding: 4px 6px;
-  color: #64748b;
+  color: #555;
   cursor: pointer;
   font-size: 12px;
   display: inline-flex;
@@ -1048,8 +1119,12 @@ button.tl-test-desc:focus-visible,
   transition: all 0.15s ease;
 }
 .tl-sublist-toggle-btn:hover {
-  background: #fef3c7;
-  color: #92400e;
+  background: #e7e7e7;
+  color: #333;
+}
+.tl-sublist-toggle-btn:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 0;
 }
 .tl-toggle-icon {
   transition: transform 0.2s ease;
@@ -1069,8 +1144,8 @@ button.tl-test-desc:focus-visible,
   transform: rotate(90deg);
 }
 .tl-sublist-row.expanded .tl-sublist-header {
-  border-bottom: 1px solid #fef08a;
-  background: #fffbeb;
+  border-bottom: 1px solid #f4f4f4;
+  background: #fbfcfd;
 }
 
 .tl-sublist-title-wrap {
@@ -1083,34 +1158,35 @@ button.tl-test-desc:focus-visible,
 }
 
 .tl-sublist-folder-icon {
-  color: #d99b26;
+  color: #555;
   font-size: 15px;
 }
 
+/* "Sublist" badge and test count: label-default */
 .tl-sublist-badge {
-  background: #d99b26;
-  color: #fff;
-  font-size: 10px;
+  background: #d2d6de;
+  color: #444;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.5px;
+  border-radius: 2px;
+  letter-spacing: .03em;
   text-transform: uppercase;
 }
 
 .tl-sublist-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: #333;
 }
 
 .tl-sublist-count {
-  background: #fef3c7;
-  color: #92400e;
+  background: #d2d6de;
+  color: #444;
   font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
   margin-left: 2px;
 }
 
@@ -1128,65 +1204,79 @@ button.tl-test-desc:focus-visible,
 }
 
 .tl-header-text-btn {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 3px;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: all 0.15s ease;
-  height: 28px;
-  box-sizing: border-box;
-}
-.tl-header-text-btn:hover {
-  border-color: var(--tl-blue);
-  color: var(--tl-blue);
-  background: #f0f7ff;
-}
-
-.tl-btn-sublist {
-  background: #fff;
-  border: 1px solid #d1d5db;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: #444;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 2px 2px 2px #ddd;
+  transition: background-color 0.15s ease;
+  height: 28px;
+  box-sizing: border-box;
+}
+.tl-header-text-btn:hover {
+  background: #e7e7e7;
+  color: #444;
+}
+
+/* Sublist header buttons (Edit, Change, Remove): secondary; Remove is the ghost danger style */
+.tl-btn-sublist {
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
+  border-radius: 3px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 0 1px 1px rgba(0,0,0,0.04);
-  transition: all 0.15s ease;
+  box-shadow: 2px 2px 2px #ddd;
+  transition: background-color 0.15s ease;
 }
-.tl-btn-sublist:hover {
-  border-color: var(--tl-blue);
-  color: var(--tl-blue);
+a.tl-btn-sublist:link,
+a.tl-btn-sublist:visited {
+  color: #444;
+}
+.tl-btn-sublist:hover,
+a.tl-btn-sublist:hover {
+  background: #e7e7e7;
+  color: #444;
+  text-decoration: none;
+}
+.tl-btn-sublist.tl-btn-remove-sublist {
+  background: #fff;
+  border-color: #e8c4be;
+  color: #c0392b;
 }
 .tl-btn-sublist.tl-btn-remove-sublist:hover {
-  border-color: var(--tl-red);
-  color: var(--tl-red);
+  background: #fbe9e7;
+  border-color: #e8c4be;
+  color: #c0392b;
 }
 
+/* Also used by the Parent Memberships card */
 .tl-sublist-info-banner {
-  background: #fffdf5;
-  border-top: 1px solid #fef08a;
-  border-bottom: 1px solid #fef08a;
+  background: #f4f4f4;
+  border-top: 1px solid #d2d6de;
+  border-bottom: 1px solid #d2d6de;
   padding: 7px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
-  color: #78350f;
+  font-size: 12px;
+  color: #555;
 }
 .tl-sublist-info-banner > .fa {
-  color: #d99b26;
+  color: #555;
   font-size: 14px;
   flex-shrink: 0;
 }
@@ -1198,31 +1288,31 @@ button.tl-test-desc:focus-visible,
 
 .tl-sublist-table tbody tr {
   background: #fff;
-  border-bottom: 1px solid #f8fafc;
+  border-bottom: 1px solid #f4f4f4;
 }
 .tl-sublist-table tbody tr:hover {
-  background: #fffefb;
+  background: #f5f7fa;
 }
 
 .tl-cell-lock {
   width: 36px;
   text-align: center;
   padding-right: 0 !important;
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 12px;
   white-space: nowrap;
 }
 .tl-lock-icon {
-  color: #c4b5fd;
+  color: #6d7787;
   margin-right: 4px;
 }
 .tl-caret-icon {
-  color: #94a3b8;
+  color: #6d7787;
 }
 
 .tl-empty-sublist-msg {
   padding: 16px 14px;
-  color: #94a3b8;
+  color: #6d7787;
   font-style: italic;
   font-size: 13px;
 }
@@ -1244,15 +1334,16 @@ button.tl-test-desc:focus-visible,
 
 .tl-modal-dialog {
   background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  border-radius: 0;
+  border-top: 3px solid #424f57;
+  box-shadow: 0 8px 26px rgba(0,0,0,.18);
   width: 100%;
   max-width: 580px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: var(--tl-font);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
 }
 .tl-search-dialog {
   max-width: 650px;
@@ -1262,29 +1353,48 @@ button.tl-test-desc:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--tl-line-soft);
-  background: #f8fafc;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f4f4f4;
+  background: #fff;
 }
 .tl-modal-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #444;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  background: transparent;
+  padding: 0;
+}
+.tl-modal-title > .fa {
+  color: #555;
+  font-size: 16px;
 }
 .tl-modal-close-btn {
   background: transparent;
   border: 0;
+  border-radius: 3px;
   font-size: 20px;
   line-height: 1;
-  color: #94a3b8;
+  color: #6d7787;
   cursor: pointer;
 }
 .tl-modal-close-btn:hover {
-  color: #1e293b;
+  color: #333;
+}
+.tl-modal-close-btn:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
+.tl-modal-body label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
 }
 
 .tl-modal-body {
@@ -1358,45 +1468,63 @@ input[type="text"].tl-modal-input.tl-input-invalid {
 .tl-modal-textarea {
   width: 100%;
   box-sizing: border-box;
-  font-size: 13.5px;
-  border: 1px solid var(--tl-line);
+  font-size: 14px;
+  border: 1px solid #d2d6de;
   padding: 8px 10px;
-  border-radius: 3px;
+  border-radius: 0;
+  box-shadow: 2px 2px 2px #ddd;
   line-height: 1.5;
   margin-top: 6px;
+}
+.tl-modal-textarea:focus {
+  border-color: #3c8dbc;
+  outline: none;
 }
 
 .tl-modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--tl-line-soft);
-  background: #f8fafc;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 12px;
+  border-top: 1px solid #f4f4f4;
+  background: #fbfcfd;
 }
 
 .tl-btn-modal-cancel {
-  background: #fff;
-  border: 1px solid #d1d5db;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
-  color: #4b5563;
+  color: #444;
+  box-shadow: 2px 2px 2px #ddd;
   cursor: pointer;
 }
+.tl-btn-modal-cancel:hover {
+  background: #e7e7e7;
+}
 .tl-btn-modal-save {
-  background: var(--tl-primary);
-  border: 1px solid var(--tl-primary-2);
+  background: #424f57;
+  border: 1px solid #424f57;
   border-radius: 3px;
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 600;
   color: #fff;
+  box-shadow: 2px 2px 2px #ddd;
   cursor: pointer;
 }
 .tl-btn-modal-save:hover {
-  background: var(--tl-primary-2);
+  background: #323e46;
+  border-color: #212b33;
+}
+.tl-btn-modal-cancel:focus-visible,
+.tl-btn-modal-save:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 
 .tl-duplicate-modal {
@@ -1404,20 +1532,20 @@ input[type="text"].tl-modal-input.tl-input-invalid {
   max-width: 95vw;
 }
 .tl-dup-info-banner {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 4px;
-  padding: 12px 14px;
+  background: #f4f4f4;
+  border-left: 3px solid #424f57;
+  border-radius: 0;
+  padding: 10px 12px;
   margin-bottom: 16px;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
   font-size: 13px;
-  color: #166534;
+  color: #333;
 }
 .tl-dup-info-banner > .fa {
-  font-size: 18px;
-  color: #16a34a;
+  font-size: 16px;
+  color: #424f57;
   margin-top: 2px;
   flex-shrink: 0;
 }
@@ -1430,33 +1558,33 @@ input[type="text"].tl-modal-input.tl-input-invalid {
   flex-wrap: wrap;
 }
 .tl-dup-badge {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #d2d6de;
+  color: #444;
   font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 3px;
-  border: 1px solid #bae6fd;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
 }
 .tl-dup-note {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #4b5563;
+  color: #555;
   line-height: 1.4;
 }
 .tl-dup-error-banner {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  font-size: 12.5px;
+  background: #fbe9e7;
+  border: 1px solid #e8c4be;
+  border-left: 3px solid #dd4b39;
+  color: #333;
+  font-size: 13px;
   font-weight: 600;
   padding: 8px 12px;
-  border-radius: 3px;
+  border-radius: 0;
   margin-bottom: 14px;
 }
 @keyframes tl-pulse-highlight {
-  0% { background-color: #ecfdf5; box-shadow: inset 0 0 0 2px #10b981; }
-  70% { background-color: #f0fdf4; box-shadow: inset 0 0 0 1px #a7f3d0; }
+  0% { background-color: #f5f7fa; box-shadow: inset 0 0 0 2px #424f57; }
+  70% { background-color: #f5f7fa; box-shadow: inset 0 0 0 1px #d2d6de; }
   100% { background-color: transparent; box-shadow: none; }
 }
 
@@ -1469,7 +1597,7 @@ input[type="text"].tl-modal-input.tl-input-invalid {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 14px;
   pointer-events: none;
   z-index: 2;
@@ -1481,49 +1609,49 @@ input[type="text"].tl-search-input,
   box-sizing: border-box !important;
   padding: 9px 12px 9px 38px !important;
   padding-left: 38px !important;
-  border: 1px solid var(--tl-line) !important;
-  border-radius: 3px !important;
+  border: 1px solid #d2d6de !important;
+  border-radius: 0 !important;
   font-size: 14px !important;
   line-height: 1.4 !important;
   height: 38px !important;
   outline: none !important;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
+  box-shadow: 2px 2px 2px #ddd !important;
   color: #333 !important;
   background: #fff !important;
 }
 .tl-search-input-wrap input.tl-search-input:focus,
 input[type="text"].tl-search-input:focus,
 .tl-search-input:focus {
-  border-color: var(--tl-blue) !important;
-  box-shadow: 0 0 0 2px rgba(60,141,188,0.15) !important;
+  border-color: #3c8dbc !important;
+  box-shadow: 2px 2px 2px #ddd !important;
 }
 
 .tl-search-results-container {
   max-height: 380px;
   overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 3px;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
 }
 .tl-search-initial-hint, .tl-search-no-results {
   padding: 24px;
   text-align: center;
-  color: #94a3b8;
-  font-size: 13.5px;
+  color: #6d7787;
+  font-size: 13px;
 }
 
 .tl-search-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f4f4f4;
   transition: background-color 0.1s ease;
 }
 .tl-search-item:last-child {
   border-bottom: 0;
 }
 .tl-search-item:hover {
-  background-color: #f8fafc;
+  background-color: #f5f7fa;
 }
 .tl-search-item-left {
   display: flex;
@@ -1532,18 +1660,19 @@ input[type="text"].tl-search-input:focus,
   min-width: 0;
 }
 .tl-search-item-title {
-  font-size: 13.5px;
-  color: #1e293b;
+  font-size: 14px;
+  color: #333;
 }
+/* #555 rather than the meta grey: these sit on rows that turn #f5f7fa on hover */
 .tl-search-item-slug {
   font-size: 12px;
-  color: #64748b;
-  font-family: var(--tl-mono);
+  color: #555;
+  font-family: Menlo, Consolas, monospace;
   margin-left: 4px;
 }
 .tl-search-item-desc {
   font-size: 12px;
-  color: #64748b;
+  color: #555;
 }
 .tl-search-item-right {
   display: flex;
@@ -1553,10 +1682,11 @@ input[type="text"].tl-search-input:focus,
   margin-left: 12px;
 }
 
+/* Secondary: each result row has one, so none of them is "the" primary action */
 .tl-btn-select-test, .tl-btn-select-sublist {
-  background: var(--tl-blue);
-  color: #fff;
-  border: 0;
+  background: #f4f4f4;
+  color: #444;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
   padding: 4px 10px;
   font-size: 12px;
@@ -1565,9 +1695,16 @@ input[type="text"].tl-search-input:focus,
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  box-shadow: 2px 2px 2px #ddd;
 }
 .tl-btn-select-test:hover, .tl-btn-select-sublist:hover {
-  background: #2b78a9;
+  background: #e7e7e7;
+  color: #444;
+}
+.tl-btn-select-test:focus-visible, .tl-btn-select-sublist:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 
 /* ---- Unsaved Changes Dialog ---- */
@@ -1618,38 +1755,39 @@ input[type="text"].tl-search-input:focus,
 /* ---- Attachments Card (Matching Fault Logs Edit Mode) ---- */
 .tl-attachments-card {
   background: #fff;
-  border-top: 3px solid var(--tl-primary);
-  box-shadow: var(--tl-card-shadow);
+  border-top: 3px solid #424f57;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
   border-radius: 0;
   margin-top: 24px;
   margin-bottom: 24px;
-  font-family: var(--tl-font);
-  color: var(--tl-text);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  color: #333;
 }
 .attachment-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
+  padding: 8px 10px;
   margin-bottom: 8px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  transition: all 0.15s ease;
+  box-shadow: none;
 }
 .attachment-card:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  background: #f5f7fa;
 }
+/* Left rule: grey = saved, dark slate = pending upload (saved with the list),
+   red = file missing from the server (a real problem). */
 .attachment-card.existing {
-  border-left: 4px solid #5cb85c;
+  border-left: 3px solid #d2d6de;
 }
 .attachment-card.missing {
-  border-left: 4px solid #dd4b39;
+  border-left: 3px solid #dd4b39;
 }
 .attachment-card.pending {
-  border-left: 4px solid #5bc0de;
-  background: #f8fcfe;
+  border-left: 3px solid #424f57;
+  background: #fbfcfd;
 }
 .attachment-name {
   flex-grow: 1;
@@ -1657,14 +1795,59 @@ input[type="text"].tl-search-input:focus,
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-right: 15px;
-  font-size: 13.5px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 .attachment-name strong {
-  color: #1e293b;
+  color: #333;
+}
+.tl-attach-icon {
+  color: #555;
+}
+.tl-attach-size {
+  font-size: 12px;
+  color: #555;
+}
+/* Icon-only buttons on each attachment: Preview (secondary), Remove (ghost danger) */
+.tl-attach-btn,
+a.tl-attach-btn:link,
+a.tl-attach-btn:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid #d2d6de;
+  border-radius: 3px;
+  background: #f4f4f4;
+  color: #444;
+  box-shadow: 2px 2px 2px #ddd;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tl-attach-btn:hover,
+a.tl-attach-btn:hover {
+  background: #e7e7e7;
+  color: #444;
+}
+.tl-attach-btn.tl-attach-btn-remove {
+  background: #fff;
+  border-color: #e8c4be;
+  color: #c0392b;
+}
+.tl-attach-btn.tl-attach-btn-remove:hover {
+  background: #fbe9e7;
+  color: #c0392b;
+}
+.tl-attach-btn:focus-visible,
+.tl-browse-btn:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 .attachment-actions {
   white-space: nowrap;
@@ -1675,9 +1858,9 @@ input[type="text"].tl-search-input:focus,
 }
 .tl-attach-comment-tag {
   font-size: 12px;
-  color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: #555;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
   padding: 2px 8px;
   border-radius: 3px;
   font-weight: normal;
@@ -1687,15 +1870,16 @@ input[type="text"].tl-search-input:focus,
 }
 .tl-pending-comment-input {
   font-size: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 3px;
+  border: 1px solid #d2d6de;
+  border-radius: 2px;
+  box-shadow: 2px 2px 2px #eee;
   padding: 4px 8px;
   min-width: 200px;
   margin-left: 6px;
   outline: none;
 }
 .tl-pending-comment-input:focus {
-  border-color: var(--tl-blue);
+  border-color: #3c8dbc;
 }
 .tl-browse-wrap {
   margin-top: 12px;
@@ -1708,68 +1892,37 @@ input[type="text"].tl-search-input:focus,
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #d2d6de;
   border-radius: 3px;
-  background: #f8fafc;
-  color: #334155;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  transition: all 0.15s ease;
+  background: #f4f4f4;
+  color: #444;
+  box-shadow: 2px 2px 2px #ddd;
+  transition: background-color 0.15s ease;
 }
 .tl-browse-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #0f172a;
+  background: #e7e7e7;
+  color: #444;
+}
+.tl-browse-btn .fa {
+  color: #555;
 }
 .tl-empty-attachments-msg {
   padding: 14px 4px;
-  color: #94a3b8;
+  color: #6d7787;
   font-size: 13px;
   font-style: italic;
-}
-.text-success { color: #5cb85c !important; }
-.text-info { color: #5bc0de !important; }
-.text-muted { color: #8a929e !important; }
-.btn-xs {
-  padding: 3px 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  border-radius: 3px;
-}
-.btn-danger {
-  background-color: #dd4b39;
-  border-color: #d73925;
-  color: #fff;
-  cursor: pointer;
-}
-.btn-danger:hover {
-  background-color: #c23321;
-  border-color: #ac2d1d;
-  color: #fff;
-}
-.btn-default {
-  background-color: #f4f4f4;
-  color: #444;
-  border-color: #ddd;
-  cursor: pointer;
-}
-.btn-default:hover {
-  background-color: #e7e7e7;
-  color: #333;
-}
-.margin-right-5 {
-  margin-right: 5px;
 }
 
 /* ---- Parent Memberships Card ---- */
 .tl-parents-card {
   background: #fff;
-  border-top: 3px solid var(--tl-primary);
-  box-shadow: var(--tl-card-shadow);
+  border-top: 3px solid #424f57;
+  box-shadow: 0 1px 1px rgba(0,0,0,.1);
   border-radius: 0;
   margin-top: 20px;
   margin-bottom: 24px;
-  font-family: var(--tl-font);
-  color: var(--tl-text);
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  color: #333;
 }
 .tl-parents-grid {
   display: grid;
@@ -1781,23 +1934,26 @@ input[type="text"].tl-search-input:focus,
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-radius: 3px;
+  padding: 8px 10px;
   text-decoration: none;
   color: inherit;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 .tl-parent-card-item:hover {
-  background: #fff;
-  border-color: var(--tl-blue);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-  transform: translateY(-1px);
+  background: #f4f4f4;
+  text-decoration: none;
+}
+.tl-parent-card-item:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
 }
 .tl-parent-icon {
   font-size: 18px;
-  color: #d99b26;
+  color: #555;
   flex-shrink: 0;
 }
 .tl-parent-info {
@@ -1808,32 +1964,33 @@ input[type="text"].tl-search-input:focus,
   flex: 1;
 }
 .tl-parent-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* #555: the item turns #f4f4f4 on hover, where the meta grey is under 4.5:1 */
 .tl-parent-slug {
-  font-size: 11.5px;
-  color: #64748b;
-  font-family: var(--tl-mono);
+  font-size: 12px;
+  color: #555;
+  font-family: Menlo, Consolas, monospace;
 }
 .tl-parent-ext {
   font-size: 12px;
-  color: #94a3b8;
+  color: #6d7787;
   margin-left: auto;
   flex-shrink: 0;
 }
 .tl-parent-card-item:hover .tl-parent-ext {
-  color: var(--tl-blue);
+  color: #444;
 }
 .tl-parents-empty-card .tl-card-body {
   padding: 14px;
 }
 .tl-no-parents-hint {
-  color: #64748b;
+  color: #6e7785;
   font-size: 13px;
   margin: 0;
   display: flex;
@@ -1841,7 +1998,7 @@ input[type="text"].tl-search-input:focus,
   gap: 8px;
 }
 .tl-no-parents-hint > .fa {
-  color: #94a3b8;
+  color: #6e7785;
 }
 
 /* ---- Messages List ---- */
@@ -1850,36 +2007,44 @@ ul.messagelist {
   padding: 0;
   list-style: none;
 }
+/* Status colour only as the left rule (with the message's own words); text stays dark. */
 ul.messagelist li {
-  padding: 10px 14px;
+  padding: 8px 12px;
   margin-bottom: 8px;
-  font-size: 13.5px;
-  font-weight: 500;
-  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 400;
+  border-radius: 0;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  color: #333;
 }
 ul.messagelist li.success {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #00a65a;
+  color: #333;
 }
 ul.messagelist li.warning {
-  background: #fffbeb;
-  border: 1px solid #fef08a;
-  color: #854d0e;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #f39c12;
+  color: #333;
 }
 ul.messagelist li.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: #fbe9e7;
+  border: 1px solid #e8c4be;
+  border-left: 3px solid #dd4b39;
+  color: #333;
 }
 .errornote {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-  font-size: 13.5px;
+  background: #fbe9e7;
+  border: 1px solid #e8c4be;
+  border-left: 3px solid #dd4b39;
+  color: #333;
+  font-size: 14px;
   font-weight: 600;
-  padding: 10px 14px;
-  border-radius: 3px;
+  padding: 8px 12px;
+  border-radius: 0;
   margin-bottom: 16px;
 }
 
@@ -1888,46 +2053,50 @@ ul.messagelist li.error {
 .tl-visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0, 0, 0, 0); white-space:nowrap; border:0; }
 .change-list.model-testlist #content { padding-top:8px; }
 .tl-index-header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; margin:0 0 12px; }
-.tl-index-title { font-size:22px; font-weight:400; margin:0; }
-.tl-index-title small { font-size:14px; color:var(--body-quiet-color,#999); margin-left:8px; }
+/* The title sits on the page background, not a white card: Django's own variables
+   keep it readable in both the light and the dark admin theme. */
+.tl-index-title { font-size:22px; font-weight:400; line-height:1.1; color:var(--body-fg, #444); margin:0; }
+.tl-index-title small { font-size:14px; color:var(--body-quiet-color, #666); margin-left:8px; }
 .tl-object-tools { margin:0; padding:0; display:flex; gap:6px; list-style:none; }
 .tl-object-tools li { list-style:none; margin:0; float:none; }
-.tl-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; line-height:1.4; padding:6px 12px; border:1px solid #ddd; border-radius:3px; box-shadow:2px 2px 2px #ddd; text-decoration:none; white-space:nowrap; }
+.tl-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; line-height:1.4; padding:6px 12px; border:1px solid #d2d6de; border-radius:3px; box-shadow:2px 2px 2px #ddd; text-decoration:none; white-space:nowrap; }
 /* a.tl-btn-*:link etc. outrank Django admin's a:link/a:visited/a:hover colours. */
-.tl-btn-default, a.tl-btn-default:link, a.tl-btn-default:visited { background:#f4f4f4; border-color:#ddd; color:#444; }
+.tl-btn-default, a.tl-btn-default:link, a.tl-btn-default:visited { background:#f4f4f4; border-color:#d2d6de; color:#444; }
 .tl-btn-default:hover, a.tl-btn-default:hover, a.tl-btn-default:focus { background:#e7e7e7; color:#444; }
-.tl-btn-primary, a.tl-btn-primary:link, a.tl-btn-primary:visited { background:var(--tl-primary); border-color:var(--tl-primary-2); color:#fff; font-weight:600; }
-.tl-btn-primary:hover, a.tl-btn-primary:hover, a.tl-btn-primary:focus { background:var(--tl-primary-2); border-color:#262f35; color:#fff; }
+.tl-btn-primary, a.tl-btn-primary:link, a.tl-btn-primary:visited { background:#424f57; border-color:#424f57; color:#fff; font-weight:600; }
+.tl-btn-primary:hover, a.tl-btn-primary:hover, a.tl-btn-primary:focus { background:#323e46; border-color:#212b33; color:#fff; }
 #changelist.filtered { display:grid; grid-template-columns:1fr 248px; column-gap:16px; row-gap:0; align-items:start; background:transparent; box-shadow:none; border:0; padding:0; margin:0; width:auto; }
-#changelist:not(.filtered) { background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
-.tl-results-head { grid-column:1; grid-row:1; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-top:3px solid var(--tl-primary); border-bottom:1px solid var(--tl-line-soft); box-shadow:var(--tl-card-shadow); }
+#changelist:not(.filtered) { background:#fff; border-top:3px solid #424f57; box-shadow:0 1px 1px rgba(0,0,0,.1); }
+.tl-results-head { grid-column:1; grid-row:1; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-top:3px solid #424f57; border-bottom:1px solid #f4f4f4; box-shadow:0 1px 1px rgba(0,0,0,.1); }
 .tl-results-head > .fa { font-size:16px; color:#555; }
-.tl-results-title { font-size:17px; font-weight:600; color:#444 !important; background:transparent !important; margin:0; padding:0; }
+.tl-results-title, #changelist .tl-results-title { font-size:18px; font-weight:400; line-height:1; color:#444 !important; background:transparent !important; margin:0; padding:0; }
 .tl-results-search { margin-left:auto; }
-#changelist-form { grid-column:1; grid-row:2; background:#fff; box-shadow:var(--tl-card-shadow); }
+#changelist-form { grid-column:1; grid-row:2; background:#fff; box-shadow:0 1px 1px rgba(0,0,0,.1); }
 .tl-results-search #toolbar { padding:0; margin:0; border:0; background:transparent; }
-.tl-results-search #changelist-search > div { display:flex; align-items:center; border:1px solid var(--tl-line); padding:4px 9px; background:#fff; box-shadow:2px 2px 2px #eee; border-radius:2px; }
-.tl-results-search #changelist-search > div::before { font-family:FontAwesome; content:"\f002"; color:#9aa2ae; margin-right:6px; font-size:13px; }
+.tl-results-search #changelist-search > div { display:flex; align-items:center; border:1px solid #d2d6de; padding:4px 9px; background:#fff; box-shadow:2px 2px 2px #eee; border-radius:2px; }
+.tl-results-search #changelist-search > div::before { font-family:FontAwesome; content:"\f002"; color:#6d7787; margin-right:6px; font-size:13px; }
 .tl-results-search label { display:none; }
 .tl-results-search #searchbar { border:0; outline:none; font-size:13px; min-width:210px; padding:0; margin:0; background:transparent; }
 /* Search is a secondary button (the page's one primary action is "New Test List").
    The #changelist/#toolbar ids outrank Django's #toolbar form input[type="submit"]. */
-#changelist .tl-results-search #toolbar form input[type="submit"] { border:1px solid #d2d6de; background:#f4f4f4; color:#444; font-size:12px; font-weight:600; line-height:1.4; padding:4px 11px; border-radius:2px; box-shadow:none; margin:0 0 0 8px; cursor:pointer; }
+#changelist .tl-results-search #toolbar form input[type="submit"] { border:1px solid #d2d6de; background:#f4f4f4; color:#444; font-size:12px; font-weight:600; line-height:1.4; padding:4px 11px; border-radius:3px; box-shadow:2px 2px 2px #ddd; margin:0 0 0 8px; cursor:pointer; }
 #changelist .tl-results-search #toolbar form input[type="submit"]:hover { background:#e7e7e7; border-color:#d2d6de; color:#444; }
 #changelist .tl-results-search #toolbar form input[type="submit"]:focus { border-color:#3c8dbc; outline:none; }
 #changelist .tl-results-search #toolbar form input[type="submit"]:focus-visible { outline:2px solid #3c8dbc; outline-offset:1px; }
 .tl-results-search #changelist-search .quiet, .tl-results-search #changelist-search .help { display:none; }
-/* Rows scroll inside the card with the header pinned; initResultsScroll() fits
-   --tl-results-max to the viewport so the actions bar and paginator stay visible. */
-#changelist-form .results { max-height:var(--tl-results-max, calc(100vh - 320px)); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#c3c9d4 #f4f4f4; }
+/* Rows scroll inside the card with the header pinned; initResultsScroll() sets an
+   inline max-height that fits the viewport so the actions bar and paginator stay
+   visible. This is the fallback before (or without) the script. */
+#changelist-form .results { max-height:calc(100vh - 320px); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#8a929e #f4f4f4; }
 #changelist-form .results::-webkit-scrollbar { width:10px; height:10px; }
 #changelist-form .results::-webkit-scrollbar-track { background:#f4f4f4; }
-#changelist-form .results::-webkit-scrollbar-thumb { background:#c3c9d4; border:2px solid #f4f4f4; border-radius:5px; }
-#changelist-form .results::-webkit-scrollbar-thumb:hover { background:#9aa2ae; }
+#changelist-form .results::-webkit-scrollbar-thumb { background:#8a929e; border:2px solid #f4f4f4; border-radius:3px; }
+#changelist-form .results::-webkit-scrollbar-thumb:hover { background:#6e7785; }
 #result_list { width:100%; border-collapse:collapse; background:#fff; }
-#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; padding:8px 10px; border-bottom:0; box-shadow:inset 0 -2px 0 var(--tl-line); font-size:13px; font-weight:600; color:#444; background:#fff; white-space:nowrap; }
-#result_list thead th a, #result_list thead th.sortable a { color:#444; }
-#result_list tbody td, #result_list tbody th { padding:8px 10px; border-top:1px solid var(--tl-line-soft); border-bottom:0; vertical-align:middle; font-size:13px; color:var(--tl-text); background:transparent; }
+#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; padding:7px 10px; border-bottom:0; box-shadow:inset 0 -2px 0 #d2d6de; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#6e7785; background:#fff; white-space:nowrap; }
+#result_list thead th a, #result_list thead th.sortable a { color:#6e7785; }
+#result_list thead th a:hover, #result_list thead th.sortable a:hover { color:#444; }
+#result_list tbody td, #result_list tbody th { padding:8px 10px; border-top:1px solid #f4f4f4; border-bottom:0; vertical-align:middle; font-size:13px; color:#333; background:transparent; }
 #result_list tbody tr { background:#fff; }
 #result_list tbody tr:hover { background:#f5f7fa; cursor:pointer; }
 #result_list .column-col_id, #result_list .field-col_id { width:60px; }
@@ -1936,29 +2105,30 @@ ul.messagelist li.error {
 #result_list .column-col_units, #result_list .field-col_units { width:72px; }
 #result_list .column-col_modified, #result_list .field-col_modified { width:150px; }
 #result_list .column-col_edit, #result_list .field-col_edit { width:40px; text-align:center; }
-.tl-cell-id { color:var(--tl-muted); }
+.tl-cell-id { color:#767676; }
 .tl-cell-name { display:flex; flex-direction:column; gap:1px; text-decoration:none; }
-.tl-cell-name .tl-name { font-weight:600; color:var(--tl-text); }
-.tl-cell-name .tl-slug { font-size:12px; color:var(--tl-muted); }
-.tl-cell-name:hover .tl-name { color:var(--tl-blue); }
-.tl-count-badge { display:inline-block; background:var(--tl-gray); color:#444; font-size:75%; font-weight:600; border-radius:2px; padding:.22em .6em; }
-.tl-freq-tag { display:inline-block; font-size:11px; font-weight:600; color:#5a6472; background:#eef1f5; border:1px solid #e0e5ec; border-radius:3px; padding:2px 8px; margin:0 3px 3px 0; }
-.tl-cell-units { color:var(--tl-muted); white-space:nowrap; } .tl-cell-units .fa { margin-right:3px; }
+.tl-cell-name .tl-name { font-weight:600; color:#333; }
+.tl-cell-name .tl-slug { font-size:12px; color:#767676; }
+.tl-cell-name:hover .tl-name { color:#3c8dbc; }
+.tl-count-badge { display:inline-block; background:#d2d6de; color:#444; font-size:75%; font-weight:600; border-radius:2px; padding:.22em .6em; }
+.tl-freq-tag { display:inline-block; font-size:11px; font-weight:600; color:#555; background:#f4f4f4; border:1px solid #d2d6de; border-radius:3px; padding:2px 8px; margin:0 3px 3px 0; }
+.tl-cell-units { color:#767676; white-space:nowrap; } .tl-cell-units .fa { margin-right:3px; }
 .tl-cell-modified { display:flex; flex-direction:column; font-size:13px; line-height:1.35; }
-.tl-cell-modified .tl-mod-by { color:var(--tl-muted); font-size:12px; }
-.tl-editlink { color:#9aa2ae; text-decoration:none; } .tl-editlink:hover { color:var(--tl-blue); }
-#changelist-form .actions { box-sizing:border-box; width:100%; padding:8px 12px; background:#fbfcfd; border-bottom:1px solid var(--tl-line-soft); margin:0; }
-.paginator { box-sizing:border-box; width:100%; padding:10px 12px; font-size:13px; color:var(--tl-muted); border-top:1px solid var(--tl-line-soft); background:#fff; }
-.paginator a:link, .paginator a:visited { color:var(--tl-blue); background:transparent; }
+.tl-cell-modified .tl-mod-by { color:#767676; font-size:12px; }
+.tl-editlink, a.tl-editlink:link, a.tl-editlink:visited { color:#6d7787; text-decoration:none; }
+.tl-editlink:hover, a.tl-editlink:hover, a.tl-editlink:focus { color:#3c8dbc; }
+#changelist-form .actions { box-sizing:border-box; width:100%; padding:8px 12px; background:#fbfcfd; border-bottom:1px solid #f4f4f4; margin:0; }
+.paginator { box-sizing:border-box; width:100%; padding:10px 12px; font-size:13px; color:#767676; border-top:1px solid #f4f4f4; background:#fff; }
+.paginator a:link, .paginator a:visited { color:#3c8dbc; background:transparent; }
 .paginator .this-page { font-weight:700; color:#444; }
-#changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:calc(var(--qa-admin-top-h, 0px) + 16px); width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid var(--tl-primary); box-shadow:var(--tl-card-shadow); }
-#changelist-filter h2 { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:600; color:#444; margin:0; padding:10px 12px; border-bottom:1px solid var(--tl-line-soft); background:#fff; text-transform:none; }
+#changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:calc(var(--qa-admin-top-h, 0px) + 16px); width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid #424f57; box-shadow:0 1px 1px rgba(0,0,0,.1); }
+#changelist-filter h2 { display:flex; align-items:center; gap:8px; font-size:18px; font-weight:400; line-height:1; color:#444; margin:0; padding:10px 12px; border-bottom:1px solid #f4f4f4; background:#fff; text-transform:none; }
 #changelist-filter h2::before { font-family:FontAwesome; content:"\f0b0"; font-size:14px; color:#555; }
 #changelist-filter #changelist-filter-clear { margin:0; padding:8px 12px 0; background:transparent; border:0; }
-#changelist-filter #changelist-filter-clear a { color:var(--tl-blue); font-size:12px; font-weight:600; text-decoration:none; }
+#changelist-filter #changelist-filter-clear a { color:#3c8dbc; font-size:12px; font-weight:600; text-decoration:none; }
 /* The filter card is always white: set the text colour here too, because the dark
    admin theme's light text is inherited as a computed colour, not via variables. */
-#changelist-filter { color:var(--tl-text); }
+#changelist-filter { color:#333; }
 /* Django 4.2 renders each filter as <details><summary>By …</summary><ul>…</ul></details>. */
 #changelist-filter details { margin:0; }
 #changelist-filter details > summary { display:flex; align-items:center; gap:6px; list-style:none; font-size:11px; font-weight:700; line-height:1.3; text-transform:uppercase; letter-spacing:.03em; color:#6e7785; margin:0; padding:14px 12px 6px; cursor:pointer; }
@@ -1970,11 +2140,12 @@ ul.messagelist li.error {
 /* base_site.html forces overflow-y:scroll on every admin filter list; these are short. */
 #changelist-filter ul { list-style:none; margin:0; padding:0 8px; border:0; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
 #changelist-filter ul li, #changelist-filter ul li.selected { margin:0; padding:0; border:0; }
-#changelist-filter ul li a { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:4px; font-size:13px; color:#4b5563; text-decoration:none; }
-#changelist-filter ul li a:hover { background:#f2f5f8; color:#1f2937; }
-#changelist-filter ul li.selected a { font-weight:600; color:#1f2937; }
-#changelist-filter ul li a::before { content:''; flex:none; box-sizing:border-box; width:15px; height:15px; border:1.5px solid #c3c9d4; border-radius:50%; background:#fff; }
-#changelist-filter ul li.selected a::before { border-color:var(--tl-blue); background:var(--tl-blue); box-shadow:inset 0 0 0 2.5px #fff; }
+#changelist-filter ul li a { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:3px; font-size:13px; color:#444; text-decoration:none; }
+#changelist-filter ul li a:hover { background:#f5f7fa; color:#333; }
+#changelist-filter ul li.selected a { font-weight:600; color:#333; }
+/* Radio-style marker: a circle on purpose (it reads as "pick one"), 3:1 against white. */
+#changelist-filter ul li a::before { content:''; flex:none; box-sizing:border-box; width:15px; height:15px; border:1px solid #8a929e; border-radius:50%; background:#fff; }
+#changelist-filter ul li.selected a::before { border-color:#3c8dbc; background:#3c8dbc; box-shadow:inset 0 0 0 3px #fff; }
 #changelist.filtered > .changelist-inner { min-width:0; }
 /* Narrow screens: one column, filter card above the results with its groups side by side. */
 @media (max-width: 1024px) {
@@ -1987,9 +2158,9 @@ ul.messagelist li.error {
   .tl-results-search { flex:1 1 280px; min-width:0; }
   .tl-results-search #changelist-search > div { max-width:none; }
   .tl-results-search #searchbar { min-width:0; flex:1 1 auto; width:auto; }
-  /* initResultsScroll() sizes the rows to the space left below them; with the filter
-     on top that is often nothing, so allow roughly a screen of rows instead. */
-  #changelist-form .results { max-height:max(var(--tl-results-max, 240px), min(560px, calc(100vh - 220px))); }
+  /* With the filter on top the space left below the rows is often nothing, so allow
+     roughly a screen of rows instead (initResultsScroll() does the same inline). */
+  #changelist-form .results { max-height:min(560px, calc(100vh - 220px)); }
 }
 </style>
 
@@ -2131,12 +2302,18 @@ ul.messagelist li.error {
     if (!results || results.dataset.tlFit) { return; }
     results.dataset.tlFit = "1";
     var form = document.getElementById("changelist-form");
+    var narrow = window.matchMedia ? window.matchMedia("(max-width: 1024px)") : null;
     function fit() {
       var box = results.getBoundingClientRect();
       var top = box.top + window.scrollY;
       var below = form.getBoundingClientRect().bottom - box.bottom;
-      var avail = window.innerHeight - top - below - 16;
-      results.style.setProperty("--tl-results-max", Math.max(240, avail) + "px");
+      var avail = Math.max(240, window.innerHeight - top - below - 16);
+      // With the filter card on top (narrow screens) the space left below is often
+      // nothing, so allow roughly a screen of rows instead.
+      if (narrow && narrow.matches) {
+        avail = Math.max(avail, Math.min(560, window.innerHeight - 220));
+      }
+      results.style.maxHeight = avail + "px";
     }
     fit();
     window.addEventListener("resize", fit);
@@ -3349,17 +3526,17 @@ ul.messagelist li.error {
         var commentPlaceholder = gettext("Add an optional comment…");
         card.innerHTML =
           '<div class="attachment-name">' +
-            '<i class="fa fa-upload fa-fw text-info" aria-hidden="true"></i> ' +
+            '<i class="fa fa-upload fa-fw tl-attach-icon" aria-hidden="true"></i> ' +
             '<strong>' + escapeHtml(file.name) + '</strong> ' +
-            '<span class="text-muted">(' + escapeHtml(interpolate(gettext("%(size)s KB"), { size: sizeKB }, true)) + ')</span>' +
+            '<span class="tl-attach-size">(' + escapeHtml(interpolate(gettext("%(size)s KB"), { size: sizeKB }, true)) + ')</span>' +
             '<input type="text" name="' + prefix + '-' + newIndex + '-comment" placeholder="' + escapeHtml(commentPlaceholder) + '"' +
               ' aria-label="' + escapeHtml(commentPlaceholder) + '" class="tl-pending-comment-input">' +
           '</div>' +
           '<div class="attachment-actions">' +
-            '<a href="' + url + '" target="_blank" class="btn btn-default btn-xs margin-right-5"' +
+            '<a href="' + url + '" target="_blank" class="tl-attach-btn"' +
               ' title="' + escapeHtml(gettext("Preview")) + '" aria-label="' + escapeHtml(previewLabel) + '">' +
               '<i class="fa fa-eye" aria-hidden="true"></i></a>' +
-            '<button type="button" class="btn btn-danger btn-xs btn-remove-pending" data-index="' + newIndex + '"' +
+            '<button type="button" class="tl-attach-btn tl-attach-btn-remove btn-remove-pending" data-index="' + newIndex + '"' +
               ' title="' + escapeHtml(gettext("Remove")) + '" aria-label="' + escapeHtml(removeLabel) + '">' +
               '<i class="fa fa-trash-o" aria-hidden="true"></i></button>' +
           '</div>';
@@ -3698,7 +3875,7 @@ ul.messagelist li.error {
       '</div>';
 
     html += '<div class="tl-preview-card">';
-    html += '<h2 class="tl-preview-title">' + escapeHtml(nameVal) + (slugVal ? ' <span style="font-size:14px; font-weight:normal; color:#8a929e;">(' + escapeHtml(slugVal) + ')</span>' : '') + '</h2>';
+    html += '<h2 class="tl-preview-title">' + escapeHtml(nameVal) + (slugVal ? ' <span class="tl-preview-slug">(' + escapeHtml(slugVal) + ')</span>' : '') + '</h2>';
 
     if (descVal) {
       html += '<div class="tl-preview-desc">' + descVal + '</div>';
@@ -3709,7 +3886,7 @@ ul.messagelist li.error {
     }
 
     if (jsVal) {
-      html += '<div style="margin-bottom:14px; font-size:12px; color:#6366f1; background:#eef2ff; border:1px solid #e0e7ff; padding:6px 10px; border-radius:3px;">' +
+      html += '<div class="tl-preview-js-note">' +
         '<i class="fa fa-code" aria-hidden="true"></i> ' +
         escapeHtml(gettext("This test list runs custom JavaScript on the Perform QC page.")) +
         '</div>';
@@ -3720,9 +3897,9 @@ ul.messagelist li.error {
       '<th class="tl-th-category">' + escapeHtml(gettext("Category")) + '</th>' +
       '<th class="tl-th-type">' + escapeHtml(gettext("Type")) + '</th>' +
       '<th class="tl-th-type-value tl-col-type-value">' + escapeHtml(gettext("Type Value")) + '</th>' +
-      '<th style="width:140px; text-align:right;">' + escapeHtml(gettext("Input")) + '</th>' +
+      '<th class="tl-th-input">' + escapeHtml(gettext("Input")) + '</th>' +
       '</tr></thead>';
-    var mockInputHtml = '<td style="text-align:right;"><input type="text" placeholder="' + escapeHtml(gettext("Value…")) + '"' +
+    var mockInputHtml = '<td class="tl-cell-input"><input type="text" placeholder="' + escapeHtml(gettext("Value…")) + '"' +
       ' class="tl-preview-mock-input" disabled aria-label="' + escapeHtml(gettext("Input")) + '"></td>';
 
     // Interleaved items in visual top-to-bottom order
@@ -3737,8 +3914,8 @@ ul.messagelist li.error {
 
       if (r.classList.contains("tl-test-row")) {
         if (!inDirectTable) {
-          html += '<div style="margin-top:16px;">' +
-            '<table class="tl-table tl-tests-table" style="border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 16px;">' +
+          html += '<div class="tl-preview-table-wrap">' +
+            '<table class="tlb-table tl-tests-table tl-preview-tests-table">' +
             previewHeadHtml + '<tbody>';
           inDirectTable = true;
         }
@@ -3780,7 +3957,7 @@ ul.messagelist li.error {
           html += '<div class="tl-preview-sublist-outlined">';
         }
 
-        html += '<div class="tl-preview-sublist-header"><i class="fa fa-folder-o text-warning" aria-hidden="true"></i> <span>' + escapeHtml(subName) + '</span> <span class="tl-sublist-count">' + escapeHtml(subCount) + '</span></div>';
+        html += '<div class="tl-preview-sublist-header"><i class="fa fa-folder-o" aria-hidden="true"></i> <span>' + escapeHtml(subName) + '</span> <span class="tl-sublist-count">' + escapeHtml(subCount) + '</span></div>';
 
         if (subOutlined) {
           var subHeaderElem = r.querySelector(".tl-sublist-header");
@@ -3792,7 +3969,7 @@ ul.messagelist li.error {
         }
 
         var subRows = r.querySelectorAll("tbody tr.tl-sublist-test-row");
-        html += '<table class="tl-table tl-sublist-table" style="border:1px solid #e2e8f0; border-top:0; margin-bottom:16px;">';
+        html += '<table class="tlb-table tl-sublist-table tl-preview-sublist-table">';
         html += previewHeadHtml + '<tbody>';
 
         subRows.forEach(function (sr) {

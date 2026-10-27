@@ -711,18 +711,9 @@ def get_test_metadata(test):
     cat_slug = test.category.slug if test.category else "general"
     cat_name = test.category.name if test.category else _("General")
 
-    # colour from the category's own (untranslated) name
-    cat_lower = (test.category.name if test.category else "").lower()
-    if "safety" in cat_lower:
-        cat_class = "tl-cat-safety"
-    elif "dosimetry" in cat_lower:
-        cat_class = "tl-cat-dosimetry"
-    elif "mechanical" in cat_lower:
-        cat_class = "tl-cat-mechanical"
-    elif "imaging" in cat_lower:
-        cat_class = "tl-cat-imaging"
-    else:
-        cat_class = "tl-cat-general"
+    # Categories and types are drawn with one neutral pill / badge style
+    # (.tl-cat-pill, .tl-type-badge): colour in QATrack+ means QC status, so
+    # it isn't used to tell categories or test types apart.
 
     # Badges are short type abbreviations shown in the builder; the context
     # tells translators to keep them short.
@@ -730,47 +721,36 @@ def get_test_metadata(test):
     if t == models.BOOLEAN:
         type_badge = pgettext("test type badge", "Y/N")
         type_label = _("Boolean")
-        type_class = "tl-type-yn"
     elif t in (models.SIMPLE, models.NUMERICAL):
         type_badge = pgettext("test type badge", "Num")
         type_label = _("Numerical")
-        type_class = "tl-type-num"
     elif t == models.WRAPAROUND:
         type_badge = pgettext("test type badge", "Num")
         type_label = _("Wraparound")
-        type_class = "tl-type-num"
     elif t == models.MULTIPLE_CHOICE:
         type_badge = pgettext("test type badge", "M/C")
         type_label = _("Multiple Choice")
-        type_class = "tl-type-mc"
     elif t == models.COMPOSITE:
         type_badge = pgettext("test type badge", "Comp")
         type_label = _("Composite")
-        type_class = "tl-type-comp"
     elif t == models.CONSTANT:
         type_badge = pgettext("test type badge", "Const")
         type_label = _("Constant")
-        type_class = "tl-type-const"
     elif t == models.STRING:
         type_badge = pgettext("test type badge", "Text")
         type_label = _("String")
-        type_class = "tl-type-str"
     elif t == models.STRING_COMPOSITE:
         type_badge = pgettext("test type badge", "JSON")
         type_label = _("String Composite")
-        type_class = "tl-type-scomp"
     elif t == models.UPLOAD:
         type_badge = pgettext("test type badge", "File")
         type_label = _("File Upload")
-        type_class = "tl-type-upload"
     elif t in (models.DATE, models.DATETIME):
         type_badge = pgettext("test type badge", "Date")
         type_label = _("Date") if t == models.DATE else _("Date & Time")
-        type_class = "tl-type-date"
     else:
         type_badge = pgettext("test type badge", "Test")
         type_label = test.get_type_display()
-        type_class = "tl-type-default"
 
     type_value, type_value_title, type_value_mono = _get_test_type_value(test)
 
@@ -782,11 +762,9 @@ def get_test_metadata(test):
         "description": test.description or "",
         "category_name": cat_name,
         "category_slug": cat_slug,
-        "category_class": cat_class,
         "type": test.type,
         "type_badge": type_badge,
         "type_label": type_label,
-        "type_class": type_class,
         "type_value": type_value,
         "type_value_title": type_value_title,
         "type_value_mono": type_value_mono,

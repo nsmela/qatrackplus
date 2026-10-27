@@ -102,27 +102,27 @@ Remove this file before the branch is merged.
 
 ## Design spec alignment
 
-- [ ] Category pills: use one neutral style instead of colours picked by
+- [x] Category pills: use one neutral style instead of colours picked by
       matching English words in the name. Red stays reserved for QC Action.
-- [ ] Sublist cards: drop amber, which means Tolerance; use the neutral or
+- [x] Sublist cards: drop amber, which means Tolerance; use the neutral or
       primary palette.
-- [ ] Test type badges: one neutral style, or colours that pass 4.5:1 and avoid
+- [x] Test type badges: one neutral style, or colours that pass 4.5:1 and avoid
       the status colours (Comp 3.19, Date 3.68, Const 3.74, SUBLIST 2.42 fail
       today).
-- [ ] Don't use link blue (`#3c8dbc`) as a button fill (Editor/Preview toggle,
+- [x] Don't use link blue (`#3c8dbc`) as a button fill (Editor/Preview toggle,
       search "Add").
-- [ ] Raise low-contrast text and icons: `#94a3b8` 2.56, `#cbd5e1` 1.48,
+- [x] Raise low-contrast text and icons: `#94a3b8` 2.56, `#cbd5e1` 1.48,
       `#c4b5fd` 1.85, `#8c939d` 3.10. Don't redefine `.text-muted` globally.
-- [ ] Stop overriding shared classes globally in `testlist_assets.html`
+- [x] Stop overriding shared classes globally in `testlist_assets.html`
       (`.text-success`, `.text-info`, `.text-muted`, `.btn-xs`, `.btn-danger`,
       `.btn-default`, `.margin-right-5`); scope them to the builder or drop
       them.
-- [ ] Write colour values directly instead of `:root` CSS variables
+- [x] Write colour values directly instead of `:root` CSS variables
       (`--tl-*`), as the spec asks until QATrack+ adopts custom properties.
-- [ ] Replace the Tailwind-style greys with the spec's colours.
-- [ ] Radii only 0, 2px or 3px (no fully rounded pills, no 4px corners, no
+- [x] Replace the Tailwind-style greys with the spec's colours.
+- [x] Radii only 0, 2px or 3px (no fully rounded pills, no 4px corners, no
       1.5px borders).
-- [ ] Card titles at 18px and not bold. Table headers at .03em letter spacing
+- [x] Card titles at 18px and not bold. Table headers at .03em letter spacing
       with 8/10 cell padding. No half-pixel font sizes.
 - [x] Save buttons: the top right group ("Cancel", "Save Test List") and
       Django's bottom bar ("SAVE", "Save as new", "Save and continue
@@ -153,7 +153,7 @@ Remove this file before the branch is merged.
   - Replaces Django's "Save as new": set `save_as = False` on
     `TestListAdmin` so it no longer appears, and remove its styles
     (`_saveasnew`) from the submit row CSS.
-- [ ] Rename `tl-` classes that clash with the shared blocks in `base.css`
+- [x] Rename `tl-` classes that clash with the shared blocks in `base.css`
       (`.tl-table`, `.tl-form`, `.tl-field`, `.tl-search`).
 - [x] Translate the strings set in JavaScript and the type labels in
       `get_test_metadata`. Write the "EDITING", "TEST / SUBLIST" and "SUBLIST"

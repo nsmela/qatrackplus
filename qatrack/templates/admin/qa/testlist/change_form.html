@@ -177,18 +177,18 @@
     <h2 class="tl-card-title">{% trans "Details" %}</h2>
   </div>
   <div class="tl-card-body">
-    <div class="tl-form">
-      <div class="tl-field tl-col-1">
+    <div class="tlb-form">
+      <div class="tlb-field tl-col-1">
         <label for="id_name">{% trans "Name" %} <em class="tl-req">*</em></label>
         {{ adminform.form.name.errors }}
         {{ adminform.form.name }}
       </div>
-      <div class="tl-field tl-col-2">
+      <div class="tlb-field tl-col-2">
         <label for="id_slug">{% trans "Slug" %}</label>
         {{ adminform.form.slug.errors }}
         {{ adminform.form.slug }}
       </div>
-      <div class="tl-field tl-col-full">
+      <div class="tlb-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_description">{% trans "Description" %}</label>
           <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "HTML markup allowed" %}</span>
@@ -205,7 +205,7 @@
                   hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>{{ adminform.form.description.value|default:'' }}</textarea>
         <div class="tl-html-preview" id="tl-desc-preview" hidden></div>
       </div>
-      <div class="tl-field tl-col-full">
+      <div class="tlb-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_warning_message">{% trans "Warning message" %}</label>
           <span class="tl-hint tl-hint-warn"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {% trans "shown on failure" %}</span>
@@ -213,7 +213,7 @@
         {{ adminform.form.warning_message.errors }}
         {{ adminform.form.warning_message }}
       </div>
-      <div class="tl-field tl-col-full">
+      <div class="tlb-field tl-col-full">
         <span class="tl-label-row">
           <label for="id_javascript">{% trans "JavaScript" %}</label>
           <span class="tl-hint tl-hint-neutral"><i class="fa fa-code" aria-hidden="true"></i> {% trans "runs on the Perform QC page" %}</span>
@@ -252,7 +252,7 @@
     </div>
 
     <div class="tl-table-wrap">
-      <table class="tl-table tl-tests-table" id="tl-tests-table">
+      <table class="tlb-table tl-tests-table" id="tl-tests-table">
         <thead>
           <tr>
             <th class="tl-th-drag"><span class="tl-visually-hidden">{% trans "Order" %}</span></th>
@@ -375,7 +375,7 @@
 
                     {% firstof inline_admin_form.original.label inline_admin_form.original.attachment.name as attach_name %}
                     <div class="attachment-name">
-                      <i class="fa fa-paperclip fa-fw text-success" aria-hidden="true"></i>
+                      <i class="fa fa-paperclip fa-fw tl-attach-icon" aria-hidden="true"></i>
                       <strong>{{ attach_name }}</strong>
                       {% if inline_admin_form.original.comment %}
                         <span class="tl-attach-comment-tag"><i class="fa fa-comment-o" aria-hidden="true"></i> {{ inline_admin_form.original.comment }}</span>
@@ -384,12 +384,12 @@
 
                     <div class="attachment-actions">
                       {% if inline_admin_form.original.attachment.url %}
-                        <a href="{{ inline_admin_form.original.attachment.url }}" target="_blank" class="btn btn-default btn-xs margin-right-5"
+                        <a href="{{ inline_admin_form.original.attachment.url }}" target="_blank" class="tl-attach-btn"
                            title="{% trans 'Preview' %}" aria-label="{% blocktrans with name=attach_name %}Preview {{ name }}{% endblocktrans %}">
                           <i class="fa fa-eye" aria-hidden="true"></i>
                         </a>
                       {% endif %}
-                      <button type="button" class="btn btn-danger btn-xs btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}"
+                      <button type="button" class="tl-attach-btn tl-attach-btn-remove btn-delete-existing" data-id="{{ inline_admin_form.original.pk }}"
                               title="{% trans 'Remove' %}" aria-label="{% blocktrans with name=attach_name %}Remove {{ name }}{% endblocktrans %}">
                         <i class="fa fa-trash-o" aria-hidden="true"></i>
                       </button>
@@ -407,15 +407,15 @@
 
             <!-- Empty Placeholder -->
             <div class="tl-empty-attachments-msg" id="tl-empty-attachments-msg" {% if inline_admin_formset.formset.initial_form_count > 0 %}style="display:none;"{% endif %}>
-              <i class="fa fa-paperclip text-muted" aria-hidden="true"></i> {% trans "No attachments yet. Use Browse… to attach files." %}
+              <i class="fa fa-paperclip" aria-hidden="true"></i> {% trans "No attachments yet. Use Browse… to attach files." %}
             </div>
 
             <!-- Browse Button (Matching Fault Logs) -->
             <div class="tl-browse-wrap margin-top-10">
               {# A real button, so it can be reached and pressed from the keyboard; it opens the hidden file input. #}
-              <button type="button" class="btn btn-default btn-sm btn-flat tl-browse-btn" id="tl-browse-btn"
+              <button type="button" class="tl-browse-btn" id="tl-browse-btn"
                       aria-controls="id_tl-new-attachments" title="{% trans 'Choose files to attach' %}">
-                <i class="fa fa-folder-open text-info" aria-hidden="true"></i> {% trans "Browse…" %}
+                <i class="fa fa-folder-open-o" aria-hidden="true"></i> {% trans "Browse…" %}
               </button>
               <input type="file" id="id_tl-new-attachments" class="tl-hidden-file-input" multiple hidden tabindex="-1"
                      aria-label="{% trans 'Choose files to attach' %}">

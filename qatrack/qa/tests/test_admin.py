@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.forms import HiddenInput, inlineformset_factory, modelform_factory
 from django.http import QueryDict
+from django.template.loader import get_template
 from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -2824,3 +2825,81 @@ class TestTestListBuilderDialogsOutsideForm(TestCase):
         self.assertIsNotNone(file_input)
         self.assertIn('tabindex="-1"', file_input.group(0))
         self.assertNotIn('<label class="btn btn-default btn-sm btn-flat tl-browse-btn"', content)
+
+
+class TestTestListBuilderDesignSpec(TestCase):
+    """The builder follows the QATrack+ design spec: one neutral style for every
+    category and test type (colour means QC status), literal values instead of
+    custom --tl-* properties, whole-pixel type, no pill radii, no page-wide
+    overrides of shared classes, and tlb- names where base.css has a tl- block."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        safety = qa_utils.create_category(name='Safety', slug='safety', description='Safety')
+        self.interlock = qa_utils.create_test(name='Door Interlock', test_type=qa_models.BOOLEAN, category=safety)
+        self.output = qa_utils.create_test(name='Output Constancy 6X')
+        self.tl = qa_utils.create_test_list(name='Daily QC')
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.interlock)
+        qa_utils.create_test_list_membership(test_list=self.tl, test=self.output)
+        child = qa_utils.create_test_list(name='Imaging Checks')
+        qa_utils.create_test_list_membership(test_list=child, test=qa_utils.create_test(name='Image Upload'))
+        qa_utils.create_sublist(parent_test_list=self.tl, child_test_list=child)
+        self.change_url = reverse('admin:qa_testlist_change', args=(self.tl.pk,))
+
+    def _get(self, url):
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        return resp.content.decode()
+
+    def _source(self):
+        origin = get_template('admin/qa/testlist/testlist_assets.html').origin
+        with open(origin.name, encoding='utf-8') as f:
+            return f.read()
+
+    def test_no_custom_tl_properties_rendered(self):
+        for url in (self.change_url, reverse('admin:qa_testlist_changelist')):
+            content = self._get(url)
+            self.assertNotIn('--tl-', content, url)
+            # the pinned-header height set by base_site.html is still used
+            self.assertIn('--qa-admin-top-h', content, url)
+
+    def test_categories_and_types_are_neutral(self):
+        content = self._get(self.change_url)
+        self.assertIn('<span class="tl-cat-pill">Safety</span>', content)
+        self.assertNotRegex(content, r'tl-cat-(?!pill)[a-z]')
+        self.assertNotRegex(content, r'tl-type-(num|yn|mc|comp|const|str|scomp|upload|date|default)\b')
+        self.assertIn('<span class="tl-type-badge">', content)
+
+    def test_metadata_has_no_colour_classes(self):
+        meta = qa_admin.get_test_metadata(self.interlock)
+        self.assertNotIn('category_class', meta)
+        self.assertNotIn('type_class', meta)
+        self.assertEqual(meta['category_name'], 'Safety')
+
+    def test_builder_classes_do_not_clash_with_base_css(self):
+        content = self._get(self.change_url)
+        self.assertIn('<table class="tlb-table tl-tests-table" id="tl-tests-table">', content)
+        self.assertIn('<table class="tlb-table tl-sublist-table">', content)
+        self.assertIn('<div class="tlb-form">', content)
+        self.assertIn('<div class="tlb-field tl-col-1">', content)
+        for name in ('tl-table', 'tl-form', 'tl-field'):
+            self.assertNotRegex(content, r'class="(?:[^"]* )?%s(?:[ "])' % name)
+            self.assertNotRegex(content, r'\.%s(?![\w-])' % name)
+
+    def test_assets_source_shapes_and_sizes(self):
+        source = self._source()
+        self.assertNotIn('9999px', source)
+        self.assertNotIn('1.5px', source)
+        self.assertNotRegex(source, r'font-size:\s*\d+\.\d+px')
+        self.assertNotRegex(source, r'--tl-')
+
+    def test_no_page_wide_overrides_of_shared_classes(self):
+        source = self._source()
+        style = source[source.index('<style>'):source.index('</style>')]
+        self.assertNotRegex(
+            style, r'(?m)^\s*\.(text-success|text-info|text-muted|btn-xs|btn-danger|btn-default|margin-right-5)\b',
+        )
+        content = self._get(self.change_url)
+        self.assertNotIn('btn-xs', content)
+        self.assertNotIn('margin-right-5', content)

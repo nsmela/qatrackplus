@@ -76,7 +76,7 @@
         </div>
 
         <div class="tl-sublist-table-wrap">
-          <table class="tl-table tl-sublist-table">
+          <table class="tlb-table tl-sublist-table">
             <thead>
               <tr>
                 <th class="tl-th-lock"><span class="tl-visually-hidden">{% trans "Read-only" %}</span></th>
@@ -99,11 +99,11 @@
                     <div class="tl-test-name">{{ test_meta.display_name|default:test_meta.name }}</div>
                   </td>
                   <td class="tl-cell-category">
-                    <span class="tl-cat-pill {{ test_meta.category_class }}">{{ test_meta.category_name }}</span>
+                    <span class="tl-cat-pill">{{ test_meta.category_name }}</span>
                   </td>
                   <td class="tl-cell-type">
                     <div class="tl-type-pill-wrap">
-                      <span class="tl-type-badge {{ test_meta.type_class }}">{{ test_meta.type_badge }}</span>
+                      <span class="tl-type-badge">{{ test_meta.type_badge }}</span>
                       <span class="tl-type-label">{{ test_meta.type_label }}</span>
                     </div>
                   </td>
