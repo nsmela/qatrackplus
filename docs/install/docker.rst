@@ -787,8 +787,12 @@ be able to write to its folders. You do not need to set this up: Docker creates 
 folder that does not exist yet, and each time QATrack+ starts, its ``init``
 service gives everything in the media, logs and user-data folders to 1000:1000.
 It changes nothing outside those folders, follows no links out of them, and
-does not go into another disk mounted inside one. The backups folder is
-never changed: the backups in it stay readable by root only.
+does not go into another disk mounted inside one. A file that also has another
+name elsewhere on the disk (a *hard link*) is left as it is, since giving it to
+1000:1000 would give away that other file too; ``docker compose logs init``
+then shows a warning naming the setting and the file. QATrack+ never makes such
+files itself. The backups folder is never changed: the backups in it stay
+readable by root only.
 
 **Folders of QATrack+'s own.** Giving files to another user cannot be undone, so
 ``init`` only does it to folders that are clearly QATrack+'s. Such a folder holds
@@ -798,15 +802,34 @@ no extra step. If you set a variable to a folder that already holds files and ha
 no ``.qatrackplus-data`` file (a shared folder, say, or the wrong path), QATrack+
 does not start, and nothing in the folder is changed: ``docker compose up``
 stops with ``service "init" didn't complete successfully``, and
-``docker compose logs init`` names the setting and the folder. Choose an empty
-folder instead. If the folder really holds only QATrack+'s own data, such as
-files you copied from its volume yourself, mark it as QATrack+'s:
+``docker compose logs init`` names the setting and the folder.
+
+When that happens, check the path in ``.env`` first: the most common slip is a
+folder one level too high, such as ``/srv/qatrack`` instead of
+``/srv/qatrack/media``. For a new site, choose an empty folder instead. Only once
+you have checked that the folder holds QATrack+'s own data for that setting and
+nothing else, such as uploaded files you copied from its volume yourself, mark it
+as QATrack+'s:
 
 .. code-block:: console
 
     sudo touch /srv/qatrack/media/.qatrackplus-data
 
-Keep that file in place. ``restore-media`` leaves it where it is.
+Keep that file in place. ``restore-media`` leaves it where it is, and the web
+server does not show it. Marking does not help a folder that clearly holds more
+than QATrack+'s data for that one setting: ``init`` refuses it, marked or not,
+if anywhere inside it there is another ``.qatrackplus-data`` file (it holds
+another of QATrack+'s folders) or a file named like a QATrack+ backup
+(``db_YYYYMMDD_HHMMSS.dump`` or ``media_YYYYMMDD_HHMMSS.tar.gz``). Point the
+setting at the right folder instead.
+
+While ``init`` refuses to start, the site stays offline until the setting is
+fixed, even if QATrack+ was running before you changed ``.env``: browsers get
+*502 Bad Gateway*, or no answer at all. ``docker compose logs init`` says why.
+Fix ``.env`` and run ``docker compose up -d`` again; the site comes back once
+QATrack+ has started, usually within a minute. Docker creates any folder named
+in ``.env`` that does not exist yet, empty and owned by root, even when ``init``
+then refuses; remove any you do not want.
 
 For the same reason, each location needs a folder of its own, side by side, as
 in ``/srv/qatrack/media`` and ``/srv/qatrack/logs``. ``init`` refuses to start if
