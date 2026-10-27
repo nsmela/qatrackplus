@@ -82,10 +82,13 @@ language = 'en'
 #
 # Measured, because the stronger claim that used to be here was wrong: with today's
 # label-free fragments, un-excluding them builds clean and merely publishes two
-# duplicate pages. Add one `.. _label:` to a fragment and the same build gives three
-# duplicate-label warnings - one per including page plus the fragment itself - which
-# `-W` turns into a failure. So this is insurance that becomes necessary the first
-# time somebody writes a label.
+# duplicate pages.
+#
+# What this pattern does NOT do is make a label in a fragment safe. Measured: one
+# `.. _label:` in `_upgrade_4_0_after.rst`, excluded here and included by three
+# pages, still gives two duplicate-label warnings, because each including page
+# defines it. Excluding removes only the fragment's own copy. The rule is in the
+# developer guide: labels belong in pages, not in shared fragments.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/_*.rst']
 
 # The name of the Pygments (syntax highlighting) style to use.
