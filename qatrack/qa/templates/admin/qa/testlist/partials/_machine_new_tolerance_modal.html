@@ -1,0 +1,97 @@
+{% load i18n %}
+{# "New Tolerance" dialog, stacked on the Reference and Tolerance dialog (TestListAdmin: testlist_new_tolerance). #}
+{# The builder JS puts it in #tl-dialogs-outside-form, after the change form. Create saves the Tolerance #}
+{# straight away; the Reference and Tolerance dialog applies it to the unit when that dialog is saved. #}
+<div class="tl-modal-backdrop tl-newtol-backdrop" id="tl-newtol-modal">
+  <div class="tl-modal-dialog tl-reftol-dialog" role="dialog" aria-modal="true"
+       aria-labelledby="tl-newtol-title" aria-describedby="tl-newtol-subtitle">
+    <div class="tl-modal-header">
+      <div class="tl-reftol-heading">
+        <h3 class="tl-modal-title" id="tl-newtol-title">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "New Tolerance" %}
+        </h3>
+        <p class="tl-reftol-subtitle" id="tl-newtol-subtitle">
+          {% blocktrans with test=test_name %}For {{ test }}{% endblocktrans %}
+        </p>
+      </div>
+      <button type="button" class="tl-modal-close-btn" data-newtol-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <form id="tl-newtol-form" method="post" action="{% url 'admin:qa_testlist_new_tolerance' %}" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="uti" value="{{ uti.pk }}">
+      <div class="tl-modal-body">
+        <p class="tl-modal-note">
+          {% trans "The new tolerance is saved when you click Create, and can be reused for other tests. It isn't applied to this machine until you click Save in the previous dialog." %}
+        </p>
+
+        <div class="tl-assign-alert" id="tl-newtol-alert" role="alert"{% if not form.non_field_errors %} hidden{% endif %}>
+          <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+          <span>
+            <span id="tl-newtol-alert-text">
+              {% if form.duplicate %}
+                {% blocktrans with name=form.duplicate %}A tolerance with these values already exists: {{ name }}. Nothing was saved.{% endblocktrans %}
+              {% else %}
+                {% for err in form.non_field_errors %}{{ err }} {% endfor %}
+              {% endif %}
+            </span>
+            {% if form.duplicate %}
+              <button type="button" class="tl-btn-newtol tl-newtol-use" id="tl-newtol-use"
+                      data-tolerance-id="{{ form.duplicate.pk }}" data-tolerance-label="{{ form.duplicate }}">
+                <i class="fa fa-check" aria-hidden="true"></i> {% trans "Use This One" %}
+              </button>
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="tl-modal-field">
+          {% if form.types|length > 1 %}
+            <label for="{{ form.type.id_for_label }}">{% trans "Type" %}</label>
+            {{ form.type }}
+            <span class="tl-modal-hint">{% trans "Absolute limits are in the test's own units. Percent limits are a percentage of the reference (enter 2 for 2%)." %}</span>
+          {% else %}
+            <span class="tl-newtol-type-label">{% trans "Type" %}</span>
+            <span class="tl-newtol-type-value">{{ type_label }}</span>
+            {{ form.type }}
+          {% endif %}
+          {% for err in form.type.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+        </div>
+
+        {% if is_choice %}
+          <p class="tl-modal-note">
+            {% trans "A result in the OK choices is OK, one in the Tolerance choices shows Tolerance, and any other choice shows Action." %}
+          </p>
+          {% for field in form %}{% if field.name == "mc_pass_choices" or field.name == "mc_tol_choices" %}
+            <div class="tl-modal-field">
+              <label for="{{ field.id_for_label }}">{% if field.name == "mc_pass_choices" %}{% trans "OK Choices" %}{% else %}{% trans "Tolerance Choices" %}{% endif %}</label>
+              {{ field }}
+              {% for err in field.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+              <span class="tl-modal-hint">{{ field.help_text }}</span>
+            </div>
+          {% endif %}{% endfor %}
+        {% else %}
+          <p class="tl-modal-note">
+            {% trans "Results between Tolerance Low and Tolerance High are OK; between a Tolerance and Action limit show Tolerance; beyond an Action limit show Action. Leave a limit blank to not use it." %}
+          </p>
+          <div class="tl-newtol-limits">
+            {% for field in form %}{% if field.name == "act_low" or field.name == "tol_low" or field.name == "tol_high" or field.name == "act_high" %}
+              <div class="tl-modal-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}
+                  <span class="tl-newtol-unit" data-newtol-percent{% if form.type.value != "percent" %} hidden{% endif %}>(%)</span></label>
+                {{ field }}
+                {% for err in field.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+                <span class="tl-modal-hint">{{ field.help_text }}</span>
+              </div>
+            {% endif %}{% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="tl-modal-footer">
+        <button type="button" class="tl-btn-modal-cancel" data-newtol-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="tl-btn-modal-save" id="tl-newtol-submit">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Create" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

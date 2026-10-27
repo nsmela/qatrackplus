@@ -487,6 +487,192 @@ body.tl-mode-machine .tl-col-type-value {
   text-decoration: none;
 }
 
+/* ---- Machine Reference and Tolerance dialog ---- */
+/* "Not set" where it matters: results on this unit will show No Tol Set */
+.tl-machine-missing {
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+}
+.tl-machine-missing .fa {
+  color: #8a6420;
+  margin-right: 3px;
+}
+.tl-machine-unused,
+.tl-machine-hint {
+  font-size: 12px;
+  color: #6e7785;
+}
+.tl-machine-hint {
+  display: block;
+  margin-top: 2px;
+}
+button.tl-machine-edit {
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+}
+button.tl-machine-edit:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
+.tl-reftol-dialog {
+  max-width: 480px;
+}
+.tl-reftol-dialog form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+.tl-reftol-heading {
+  min-width: 0;
+}
+.tl-reftol-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #6e7785;
+  overflow-wrap: anywhere;
+}
+.tl-reftol-current {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #424f57;
+  font-size: 13px;
+  color: #333;
+  overflow-wrap: anywhere;
+}
+.tl-reftol-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #6e7785;
+}
+.tl-reftol-dialog select.tl-modal-input {
+  height: auto;
+  min-height: 32px;
+  background: #fff;
+  color: #333;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+.tl-reftol-dialog select.tl-modal-input:focus {
+  border-color: #3c8dbc;
+  outline: none;
+}
+.tl-reftol-dialog .tl-modal-textarea {
+  margin-top: 0;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+.tl-reftol-dialog .tl-modal-hint a,
+.tl-reftol-history-link a {
+  color: #3c8dbc;
+}
+.tl-reftol-history-link {
+  margin: 0;
+  font-size: 12px;
+}
+.tl-reftol-dialog .tl-btn-modal-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.tl-reftol-tol-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tl-reftol-tol-row select {
+  flex: 1;
+  min-width: 0;
+}
+/* secondary action inside a dialog: "New Tolerance…", "Use This One" */
+.tl-btn-newtol {
+  flex: 0 0 auto;
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  box-shadow: 2px 2px 2px #ddd;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tl-btn-newtol:hover {
+  background: #e7e7e7;
+}
+.tl-btn-newtol:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
+.tl-newtol-use {
+  margin-top: 6px;
+  display: block;
+}
+.tl-assign-alert .tl-newtol-use .fa {
+  color: #444;
+  margin-top: 0;
+}
+/* New Tolerance sits on top of the Reference and Tolerance dialog */
+.tl-modal-backdrop.tl-newtol-backdrop {
+  z-index: 10000;
+  background: rgba(0,0,0,0.25);
+}
+.tl-newtol-limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.tl-newtol-type-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.tl-newtol-type-value {
+  font-size: 14px;
+  color: #333;
+}
+.tl-newtol-unit[hidden] {
+  display: none;
+}
+.tl-reftol-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -10px 0 18px;
+  padding: 4px 6px 4px 12px;
+  background: #fff;
+  border: 1px solid #d2d6de;
+  border-left: 3px solid #424f57;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+  font-size: 13px;
+  color: #333;
+  transition: opacity 0.4s ease;
+}
+.tl-reftol-note[hidden] {
+  display: none;
+}
+.tl-reftol-note .fa {
+  color: #424f57;
+}
+.tl-reftol-note-text {
+  flex: 1;
+}
+.tl-reftol-note.tl-reftol-note-error {
+  border-left-color: #c0392b;
+}
+.tl-reftol-note.tl-reftol-note-error .fa {
+  color: #c0392b;
+}
+.tl-reftol-note.tl-reftol-note-fading {
+  opacity: 0;
+}
+
 /* Shared settings are locked in machine mode: only that machine's values are shown */
 body.tl-mode-machine #tl-tests-card .tl-drag-handle,
 body.tl-mode-machine #tl-header-add-test-btn,
@@ -2202,7 +2388,12 @@ ul.messagelist li.error {
     "Couldn't create the test. Nothing was saved. Try again.": "{{ _("Couldn't create the test. Nothing was saved. Try again.")|escapejs }}",
     "Couldn't load the list. Close this dialog and try again.": "{{ _("Couldn't load the list. Close this dialog and try again.")|escapejs }}",
     "Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.": "{{ _("Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.")|escapejs }}",
+    "Couldn't create the tolerance. Nothing was saved. Try again.": "{{ _("Couldn't create the tolerance. Nothing was saved. Try again.")|escapejs }}",
+    "Couldn't open the New Tolerance dialog. Nothing was saved. Try again.": "{{ _("Couldn't open the New Tolerance dialog. Nothing was saved. Try again.")|escapejs }}",
+    "Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.": "{{ _("Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.")|escapejs }}",
+    "Couldn't save the reference and tolerance. Nothing was changed. Try again.": "{{ _("Couldn't save the reference and tolerance. Nothing was changed. Try again.")|escapejs }}",
     "Couldn't save the description. Nothing was saved. Try again.": "{{ _("Couldn't save the description. Nothing was saved. Try again.")|escapejs }}",
+    "Create": "{{ _('Create')|escapejs }}",
     "Create & Add Test": "{{ _('Create & Add Test')|escapejs }}",
     "Creating…": "{{ _('Creating…')|escapejs }}",
     "Enter a name for the new test list.": "{{ _('Enter a name for the new test list.')|escapejs }}",
@@ -2210,19 +2401,27 @@ ul.messagelist li.error {
     "Expand All": "{{ _('Expand All')|escapejs }}",
     "Hide Preview": "{{ _('Hide Preview')|escapejs }}",
     "Input": "{{ _('Input')|escapejs }}",
+    "Limits don't apply to this test type: its results never pass or fail.": "{{ _("Limits don't apply to this test type: its results never pass or fail.")|escapejs }}",
     "Loading…": "{{ _('Loading…')|escapejs }}",
+    "No limits set: results on %(unit)s will show No Tol Set": "{% trans 'No limits set: results on %(unit)s will show No Tol Set' as s %}{{ s|escapejs }}",
     "None": "{{ _('None')|escapejs }}",
+    "Not used": "{{ _('Not used')|escapejs }}",
     "Preview": "{{ _('Preview')|escapejs }}",
     "Preview %(name)s": "{% trans 'Preview %(name)s' as s %}{{ s|escapejs }}",
     "Remove": "{{ _('Remove')|escapejs }}",
     "Remove %(name)s": "{% trans 'Remove %(name)s' as s %}{{ s|escapejs }}",
+    "Save": "{{ _('Save')|escapejs }}",
     "Save As New Test List": "{{ _('Save As New Test List')|escapejs }}",
+    "Save the test list first": "{{ _('Save the test list first')|escapejs }}",
+    "Save the test list first: QATrack+ adds this test to %(unit)s when it's saved.": "{% trans "Save the test list first: QATrack+ adds this test to %(unit)s when it's saved." as s %}{{ s|escapejs }}",
     "Saving…": "{{ _('Saving…')|escapejs }}",
     "Search available test lists…": "{{ _('Search available test lists…')|escapejs }}",
     "Search by test name, macro name or category…": "{{ _('Search by test name, macro name or category…')|escapejs }}",
     "Search name, slug, description or sublist…": "{{ _('Search name, slug, description or sublist…')|escapejs }}",
     "Select Sublist to Add": "{{ _('Select Sublist to Add')|escapejs }}",
     "Select Test to Add": "{{ _('Select Test to Add')|escapejs }}",
+    "Set reference and tolerance for %(test)s on %(unit)s": "{% trans 'Set reference and tolerance for %(test)s on %(unit)s' as s %}{{ s|escapejs }}",
+    "This test type has no reference: only its tolerance is used.": "{{ _('This test type has no reference: only its tolerance is used.')|escapejs }}",
     "Sublist": "{{ _('Sublist')|escapejs }}",
     "Test": "{{ _('Test')|escapejs }}",
     "This test list runs custom JavaScript on the Perform QC page.": "{{ _('This test list runs custom JavaScript on the Perform QC page.')|escapejs }}",
@@ -3596,7 +3795,8 @@ ul.messagelist li.error {
   // Machine mode shows one unit's references and tolerances (its UnitTestInfo
   // for each test, read-only, with a pencil to its admin page) and locks the
   // shared settings. The body class .tl-mode-machine drives the CSS.
-  var scopeState = { unitId: null, unitName: "", request: 0 };
+  // limits: test id -> machine_limit_usage() for the shown unit's tests
+  var scopeState = { unitId: null, unitName: "", request: 0, limits: {} };
 
   function scopeMsg(key) {
     var card = document.getElementById("tl-control-card");
@@ -3630,37 +3830,99 @@ ul.messagelist li.error {
       });
   }
 
-  function machineValueHtml(value) {
-    if (value === null || value === undefined || value === "") {
-      return '<span class="tl-machine-none">' + escapeHtml(scopeMsg("not-set")) + '</span>';
+  // One Reference or Tolerance cell. `use` is how this test's type uses the value
+  // (machine_limit_usage): "required" values that are missing are highlighted,
+  // since results on this unit will show No Tol Set; "unused" ones say Not used.
+  function machineValueHtml(value, use, unusedTitle) {
+    if (value !== null && value !== undefined && value !== "") {
+      return '<span class="tl-machine-value">' + escapeHtml(value) + '</span>';
     }
-    return '<span class="tl-machine-value">' + escapeHtml(value) + '</span>';
+    if (use === "unused") {
+      return '<span class="tl-machine-unused" title="' +
+        escapeHtml(unusedTitle || gettext("Limits don't apply to this test type: its results never pass or fail.")) + '">' +
+        escapeHtml(gettext("Not used")) + '</span>';
+    }
+    if (use === "required") {
+      var title = interpolate(gettext("No limits set: results on %(unit)s will show No Tol Set"),
+        { unit: scopeState.unitName }, true);
+      return '<span class="tl-machine-missing" title="' + escapeHtml(title) + '">' +
+        '<i class="fa fa-exclamation-circle" aria-hidden="true"></i>' +
+        escapeHtml(scopeMsg("not-set")) + '<span class="tl-visually-hidden">: ' + escapeHtml(title) + '</span></span>';
+    }
+    return '<span class="tl-machine-none">' + escapeHtml(scopeMsg("not-set")) + '</span>';
   }
 
-  function fillMachineCells(tests, root) {
+  // Reference and Tolerance dialog URL for one UnitTestInfo, or "" when this
+  // user can only view the values (the template leaves the attribute out).
+  function refTolUrl(utiId) {
+    var card = document.getElementById("tl-control-card");
+    var base = card ? card.getAttribute("data-ref-tol-url") : "";
+    if (!base || !utiId) { return ""; }
+    return base.replace(/\/0\/$/, "/" + encodeURIComponent(utiId) + "/");
+  }
+
+  function rowTestName(row) {
+    var name = null;
+    Array.prototype.forEach.call(row.children, function (td) {
+      if (!name && td.classList.contains("tl-cell-test")) { name = td.querySelector(".tl-test-name"); }
+    });
+    return name ? name.textContent.trim() : "";
+  }
+
+  // Fill one row's own Reference / Tolerance cells (not those of a nested table).
+  function fillMachineRow(r, info, limits) {
+    var refCell = null, tolCell = null;
+    Array.prototype.forEach.call(r.children, function (td) {
+      if (td.classList.contains("tl-col-ref")) { refCell = td; }
+      if (td.classList.contains("tl-col-tol")) { tolCell = td; }
+    });
+    if (!refCell || !tolCell) { return; }
+    limits = limits || { uses_limits: true, reference: "required", tolerance: "required" };
+    if (!info) {
+      // No UnitTestInfo yet: QATrack+ creates it when the test list is saved.
+      refCell.innerHTML = machineValueHtml(null, limits.uses_limits ? "optional" : "unused");
+      tolCell.innerHTML = machineValueHtml(null, limits.uses_limits ? "optional" : "unused");
+      if (limits.uses_limits) {
+        tolCell.innerHTML += '<span class="tl-machine-hint" title="' +
+          escapeHtml(interpolate(gettext("Save the test list first: QATrack+ adds this test to %(unit)s when it's saved."),
+            { unit: scopeState.unitName }, true)) + '">' +
+          escapeHtml(gettext("Save the test list first")) + '</span>';
+      }
+      return;
+    }
+    refCell.innerHTML = machineValueHtml(info.reference, limits.reference,
+      limits.uses_limits ? gettext("This test type has no reference: only its tolerance is used.") : "");
+    var tolHtml = machineValueHtml(info.tolerance, limits.tolerance);
+    var dialogUrl = refTolUrl(info.uti_id);
+    if (limits.uses_limits && dialogUrl) {
+      var setLabel = interpolate(gettext("Set reference and tolerance for %(test)s on %(unit)s"),
+        { test: rowTestName(r), unit: scopeState.unitName }, true);
+      tolHtml += '<button type="button" class="tl-machine-edit tl-machine-reftol-btn" aria-haspopup="dialog"' +
+        ' data-reftol-url="' + escapeHtml(dialogUrl) + '"' +
+        ' title="' + escapeHtml(setLabel) + '" aria-label="' + escapeHtml(setLabel) + '">' +
+        '<i class="fa fa-pencil" aria-hidden="true"></i></button>';
+    } else if (limits.uses_limits && info.uti_url) {
+      var label = interpolate(scopeMsg("edit-uti"), { unit: scopeState.unitName }, true);
+      tolHtml += '<a href="' + escapeHtml(info.uti_url) + '" target="_blank" rel="noopener" class="tl-machine-edit"' +
+        ' title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
+        '<i class="fa fa-pencil" aria-hidden="true"></i></a>';
+    }
+    tolCell.innerHTML = tolHtml;
+  }
+
+  // data: testlist_machine_values' JSON ({tests, limits}).
+  function fillMachineCells(data, root) {
+    var tests = data.tests || {};
+    var limits = data.limits || {};
     var rows = (root || document).querySelectorAll("tr.tl-test-row[data-test-id], tr.tl-sublist-test-row[data-test-id]");
     var list = Array.prototype.slice.call(rows);
     if (root && root.matches && root.matches("tr.tl-test-row[data-test-id]")) { list.push(root); }
     list.forEach(function (r) {
       var id = r.getAttribute("data-test-id");
       if (!Object.prototype.hasOwnProperty.call(tests, id)) { return; }
-      var info = tests[id];
-      // only this row's own cells, not those of a nested table
-      var refCell = null, tolCell = null;
-      Array.prototype.forEach.call(r.children, function (td) {
-        if (td.classList.contains("tl-col-ref")) { refCell = td; }
-        if (td.classList.contains("tl-col-tol")) { tolCell = td; }
-      });
-      if (!refCell || !tolCell) { return; }
-      refCell.innerHTML = machineValueHtml(info ? info.reference : null);
-      var tolHtml = machineValueHtml(info ? info.tolerance : null);
-      if (info && info.uti_url) {
-        var label = interpolate(scopeMsg("edit-uti"), { unit: scopeState.unitName }, true);
-        tolHtml += '<a href="' + escapeHtml(info.uti_url) + '" target="_blank" rel="noopener" class="tl-machine-edit"' +
-          ' title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' +
-          '<i class="fa fa-pencil" aria-hidden="true"></i></a>';
-      }
-      tolCell.innerHTML = tolHtml;
+      // remembered so a save in the dialog can redraw every row for this test
+      if (limits[id]) { scopeState.limits[id] = limits[id]; }
+      fillMachineRow(r, tests[id], limits[id]);
     });
   }
 
@@ -3755,7 +4017,8 @@ ul.messagelist li.error {
         if (reqId !== scopeState.request) { return; }
         scopeState.unitId = unitId;
         scopeState.unitName = (data.unit && data.unit.name) || unitName;
-        fillMachineCells(data.tests || {});
+        scopeState.limits = {};
+        fillMachineCells(data);
         document.querySelectorAll(".tl-machine-banner .tl-machine-unit-name").forEach(function (el) {
           el.textContent = scopeState.unitName;
         });
@@ -3791,13 +4054,353 @@ ul.messagelist li.error {
           if (!ids.length) { return; }
           fetchMachineValues(unitId, ids)
             .then(function (data) {
-              if (scopeState.unitId === unitId) { fillMachineCells(data.tests || {}, node); }
+              if (scopeState.unitId === unitId) { fillMachineCells(data, node); }
             })
             .catch(function () {});
         });
       });
     }).observe(tbody, { childList: true });
   }
+
+  // ---- Machine Reference and Tolerance dialog ----
+  // The pencil on a machine-mode row loads testlist_machine_ref_tol's dialog
+  // into #tl-reftol-container (after the change form, so its inputs are never
+  // posted with the test list and the unsaved-changes check never sees them).
+  // Save stores the unit's reference and tolerance straight away, then redraws
+  // every row showing that test.
+  var refTolState = { busy: false, opener: null, noteTimer: null };
+
+  function refTolModal() { return document.getElementById("tl-reftol-modal"); }
+
+  function hideRefTolNote() {
+    var note = document.getElementById("tl-reftol-note");
+    clearTimeout(refTolState.noteTimer);
+    if (note) {
+      note.hidden = true;
+      note.classList.remove("tl-reftol-note-fading");
+    }
+  }
+
+  // Success notes fade after a few seconds; errors stay until dismissed.
+  function showRefTolNote(msg, isError) {
+    var note = document.getElementById("tl-reftol-note");
+    var text = document.getElementById("tl-reftol-note-text");
+    var icon = document.getElementById("tl-reftol-note-icon");
+    if (!note || !text) { return; }
+    clearTimeout(refTolState.noteTimer);
+    text.textContent = msg;
+    if (icon) { icon.className = "fa " + (isError ? "fa-exclamation-circle" : "fa-check"); }
+    note.classList.toggle("tl-reftol-note-error", !!isError);
+    note.classList.remove("tl-reftol-note-fading");
+    note.hidden = false;
+    if (!isError) {
+      refTolState.noteTimer = setTimeout(function () {
+        note.classList.add("tl-reftol-note-fading");
+        refTolState.noteTimer = setTimeout(hideRefTolNote, 400);
+      }, 6000);
+    }
+  }
+
+  function mountRefTolDialog(html) {
+    var container = document.getElementById("tl-reftol-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "tl-reftol-container";
+      document.body.appendChild(container);
+    }
+    container.innerHTML = html;
+    var modal = refTolModal();
+    if (!modal) { return; }
+    var errField = modal.querySelector(".tl-modal-field .tl-assign-error");
+    var target = (errField && errField.closest(".tl-modal-field").querySelector("select, input, textarea")) ||
+      modal.querySelector(".tl-modal-body select, .tl-modal-body input:not([type='hidden']), .tl-modal-body textarea");
+    if (target) { target.focus(); }
+  }
+
+  function openRefTolDialog(btn) {
+    if (refTolModal()) { return; }
+    hideRefTolNote();
+    var row = btn.closest("tr[data-test-id]");
+    refTolState.opener = { row: row, testId: row ? row.getAttribute("data-test-id") : null };
+    fetch(btn.getAttribute("data-reftol-url"), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.text();
+      })
+      .then(mountRefTolDialog)
+      .catch(function () {
+        showRefTolNote(gettext("Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again."), true);
+      });
+  }
+
+  // The opener's button is redrawn on a save, so find the row's current one.
+  function focusRefTolOpener() {
+    var opener = refTolState.opener;
+    refTolState.opener = null;
+    if (!opener || !opener.row || !document.contains(opener.row)) { return; }
+    var btn = null;
+    Array.prototype.forEach.call(opener.row.children, function (td) {
+      if (!btn && td.classList.contains("tl-col-tol")) { btn = td.querySelector(".tl-machine-reftol-btn"); }
+    });
+    if (btn) { btn.focus(); }
+  }
+
+  function closeRefTolDialog() {
+    var container = document.getElementById("tl-reftol-container");
+    if (!container || !refTolModal()) { return; }
+    container.innerHTML = "";
+    refTolState.busy = false;
+    focusRefTolOpener();
+  }
+
+  function setRefTolSubmitting(on) {
+    var btn = document.getElementById("tl-reftol-submit");
+    if (!btn) { return; }
+    btn.disabled = on;
+    btn.innerHTML = on
+      ? '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> ' + escapeHtml(gettext("Saving…"))
+      : '<i class="fa fa-floppy-o" aria-hidden="true"></i> ' + escapeHtml(gettext("Save"));
+  }
+
+  // Redraw every row showing this test (directly and in sublists) for the shown unit.
+  function applyRefTolSaved(data) {
+    if (!scopeState.unitId || String(data.unit_id) !== String(scopeState.unitId)) { return; }
+    var id = String(data.test_id);
+    var info = { reference: data.reference, tolerance: data.tolerance, uti_id: data.uti_id, uti_url: data.uti_url };
+    document.querySelectorAll("tr.tl-test-row[data-test-id], tr.tl-sublist-test-row[data-test-id]").forEach(function (r) {
+      if (r.getAttribute("data-test-id") === id) { fillMachineRow(r, info, scopeState.limits[id]); }
+    });
+  }
+
+  function submitRefTol(form) {
+    if (refTolState.busy) { return; }
+    refTolState.busy = true;
+    setRefTolSubmitting(true);
+    fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (res.status === 422) {
+          return res.text().then(function (html) {
+            refTolState.busy = false;
+            mountRefTolDialog(html);
+          });
+        }
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.json().then(function (data) {
+          if (!data || !data.ok) { throw new Error("bad response"); }
+          applyRefTolSaved(data);
+          closeRefTolDialog();
+          showRefTolNote(data.message, false);
+        });
+      })
+      .catch(function () {
+        refTolState.busy = false;
+        setRefTolSubmitting(false);
+        var alert = document.getElementById("tl-reftol-alert");
+        var alertText = document.getElementById("tl-reftol-alert-text");
+        if (alert && alertText) {
+          alertText.textContent = gettext("Couldn't save the reference and tolerance. Nothing was changed. Try again.");
+          alert.hidden = false;
+        }
+      });
+  }
+
+  // ---- New Tolerance dialog (stacked on the Reference and Tolerance dialog) ----
+  // Create saves the Tolerance straight away; it's only added to and selected in
+  // the first dialog's Tolerance select, which applies it when that's saved.
+  var newTolState = { busy: false };
+
+  function newTolModal() { return document.getElementById("tl-newtol-modal"); }
+
+  function syncNewTolUnits() {
+    var type = document.getElementById("tl-newtol-type");
+    var percent = !!type && type.value === "percent";
+    document.querySelectorAll("#tl-newtol-modal [data-newtol-percent]").forEach(function (el) {
+      el.hidden = !percent;
+    });
+  }
+
+  function mountNewTolDialog(html) {
+    var container = document.getElementById("tl-newtol-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "tl-newtol-container";
+      document.body.appendChild(container);
+    }
+    container.innerHTML = html;
+    var modal = newTolModal();
+    if (!modal) { return; }
+    syncNewTolUnits();
+    var errField = modal.querySelector(".tl-modal-field .tl-assign-error");
+    var target = (errField && errField.closest(".tl-modal-field").querySelector("select, input:not([type='hidden'])")) ||
+      modal.querySelector("#tl-newtol-use") ||
+      modal.querySelector(".tl-modal-body select, .tl-modal-body input:not([type='hidden'])");
+    if (target) { target.focus(); }
+  }
+
+  function showRefTolAlert(msg) {
+    var alert = document.getElementById("tl-reftol-alert");
+    var alertText = document.getElementById("tl-reftol-alert-text");
+    if (alert && alertText) {
+      alertText.textContent = msg;
+      alert.hidden = false;
+    }
+  }
+
+  function openNewTolDialog(btn) {
+    if (newTolModal()) { return; }
+    fetch(btn.getAttribute("data-newtol-url"), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.text();
+      })
+      .then(mountNewTolDialog)
+      .catch(function () {
+        showRefTolAlert(gettext("Couldn't open the New Tolerance dialog. Nothing was saved. Try again."));
+      });
+  }
+
+  // Close it and go back to the Reference and Tolerance dialog, whose entries
+  // are untouched. `focusEl` defaults to the New Tolerance… button.
+  function closeNewTolDialog(focusEl) {
+    var container = document.getElementById("tl-newtol-container");
+    if (!container || !newTolModal()) { return; }
+    container.innerHTML = "";
+    newTolState.busy = false;
+    var target = focusEl || document.getElementById("tl-reftol-new-tolerance");
+    if (target) { target.focus(); }
+  }
+
+  // Put a tolerance in the first dialog's select (adding it if it's new) and select it.
+  function pickToleranceInRefTol(id, label) {
+    var select = document.getElementById("tl-reftol-tolerance");
+    if (!select) { return null; }
+    id = String(id);
+    var opt = Array.prototype.filter.call(select.options, function (o) { return o.value === id; })[0];
+    if (!opt) {
+      opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = label;
+      select.appendChild(opt);
+    }
+    select.value = id;
+    return select;
+  }
+
+  function setNewTolSubmitting(on) {
+    var btn = document.getElementById("tl-newtol-submit");
+    if (!btn) { return; }
+    btn.disabled = on;
+    btn.innerHTML = on
+      ? '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> ' + escapeHtml(gettext("Creating…"))
+      : '<i class="fa fa-plus" aria-hidden="true"></i> ' + escapeHtml(gettext("Create"));
+  }
+
+  function submitNewTol(form) {
+    if (newTolState.busy) { return; }
+    newTolState.busy = true;
+    setNewTolSubmitting(true);
+    fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then(function (res) {
+        if (res.status === 422) {
+          return res.text().then(function (html) {
+            newTolState.busy = false;
+            mountNewTolDialog(html);
+          });
+        }
+        if (!res.ok) { throw new Error(String(res.status)); }
+        return res.json().then(function (data) {
+          if (!data || !data.ok) { throw new Error("bad response"); }
+          closeNewTolDialog(pickToleranceInRefTol(data.id, data.label));
+        });
+      })
+      .catch(function () {
+        newTolState.busy = false;
+        setNewTolSubmitting(false);
+        var alert = document.getElementById("tl-newtol-alert");
+        var alertText = document.getElementById("tl-newtol-alert-text");
+        if (alert && alertText) {
+          alertText.textContent = gettext("Couldn't create the tolerance. Nothing was saved. Try again.");
+          alert.hidden = false;
+        }
+      });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) { return; }
+    var useBtn = e.target.closest("#tl-newtol-use");
+    if (e.target.closest("#tl-reftol-new-tolerance")) {
+      e.preventDefault();
+      openNewTolDialog(e.target.closest("#tl-reftol-new-tolerance"));
+    } else if (useBtn) {
+      e.preventDefault();
+      closeNewTolDialog(pickToleranceInRefTol(useBtn.getAttribute("data-tolerance-id"),
+        useBtn.getAttribute("data-tolerance-label")));
+    } else if (e.target.closest("#tl-newtol-modal [data-newtol-close]") || e.target.id === "tl-newtol-modal") {
+      e.preventDefault();
+      closeNewTolDialog();
+    }
+  });
+
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.id === "tl-newtol-type") { syncNewTolUnits(); }
+  });
+
+  document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "tl-newtol-form") {
+      e.preventDefault();
+      submitNewTol(e.target);
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest) { return; }
+    var btn = e.target.closest(".tl-machine-reftol-btn");
+    if (btn) {
+      e.preventDefault();
+      openRefTolDialog(btn);
+    } else if (e.target.closest("#tl-reftol-modal [data-reftol-close]") || e.target.id === "tl-reftol-modal") {
+      e.preventDefault();
+      closeRefTolDialog();
+    } else if (e.target.closest("#tl-reftol-note-close")) {
+      e.preventDefault();
+      hideRefTolNote();
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    if (e.target && e.target.id === "tl-reftol-form") {
+      e.preventDefault();
+      submitRefTol(e.target);
+    }
+  });
+
+  // Esc closes the top dialog only: New Tolerance first, then Reference and Tolerance.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") { return; }
+    if (newTolModal()) {
+      e.preventDefault();
+      closeNewTolDialog();
+    } else if (refTolModal()) {
+      e.preventDefault();
+      closeRefTolDialog();
+    }
+  });
 
   function initScopeSelect() {
     var select = document.getElementById("tl-machine-scope-select");

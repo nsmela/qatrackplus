@@ -235,6 +235,29 @@ class UnitTestInfoForm(forms.ModelForm):
         return instance
 
 
+def record_unit_test_info_change(uti, old_reference, old_tolerance, comment, user, changed_fields):
+    """Add a history entry (UnitTestInfoChange) for a reference/tolerance change.
+
+    Shared by the UnitTestInfo admin page and the test list builder's Reference
+    and Tolerance dialog, so both keep the same history. ``changed_fields`` is the
+    form's ``changed_data``; nothing is recorded unless the comment, reference or
+    tolerance was touched. Returns the new entry, or None.
+    """
+    if not uti or not uti.pk:
+        return None
+    if not any(k in changed_fields for k in ('comment', 'reference_value', 'tolerance')):
+        return None
+    return models.UnitTestInfoChange.objects.create(
+        unit_test_info=uti,
+        comment=comment,
+        reference=old_reference,
+        reference_changed=old_reference != uti.reference,
+        tolerance=old_tolerance,
+        tolerance_changed=old_tolerance != uti.tolerance,
+        changed_by=user,
+    )
+
+
 @admin.display(ordering="test__name")
 def test_name(obj):
     return obj.test.name
@@ -401,17 +424,10 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
         super().save_model(request, test_info, form, change)
 
         # Now create the history record using the old values
-        if any(k in form.changed_data for k in ['comment', 'reference_value', 'tolerance']):
-            if form.instance and form.instance.pk:
-                models.UnitTestInfoChange.objects.create(
-                    unit_test_info=form.instance,
-                    comment=form.cleaned_data["comment"],
-                    reference=old_reference,
-                    reference_changed=old_reference != form.instance.reference,
-                    tolerance=old_tolerance,
-                    tolerance_changed=old_tolerance != form.instance.tolerance,
-                    changed_by=request.user,
-                )
+        record_unit_test_info_change(
+            form.instance, old_reference, old_tolerance, form.cleaned_data.get("comment"), request.user,
+            form.changed_data,
+        )
 
     @admin.action(description=_("Set references and tolerances for selected tests"))
     def set_multiple_references_and_tolerances(self, request, queryset):
@@ -1517,6 +1533,57 @@ def _machine_reference_display(test, reference):
     return reference.value_display()
 
 
+def machine_values_display(uti):
+    """The Reference and Tolerance text machine mode shows for one UnitTestInfo.
+
+    Used by testlist_machine_values and the Reference and Tolerance dialog, so a
+    saved value reads exactly as it does after a reload.
+    """
+    return {
+        "reference": _machine_reference_display(uti.test, uti.reference),
+        "tolerance": str(uti.tolerance) if uti.tolerance_id else None,
+    }
+
+
+# Types TestInstance.calculate_pass_fail never judges against a reference or
+# tolerance: an upload has no value to compare and a date can't be compared, so
+# their results are always No Tol Set and limits don't apply.
+NO_LIMIT_TEST_TYPES = (models.UPLOAD, models.DATE, models.DATETIME)
+
+
+def machine_limit_usage(test):
+    """Which of a unit's reference and tolerance decide this test's pass/fail.
+
+    Mirrors TestInstance.calculate_pass_fail: Boolean tests need a reference (a
+    Boolean tolerance is optional), string types need a multiple choice
+    tolerance and have no reference, other types with a value need both.
+    Each of "reference" and "tolerance" is "required", "optional" or "unused".
+    """
+    if test.type in NO_LIMIT_TEST_TYPES:
+        return {"uses_limits": False, "reference": "unused", "tolerance": "unused"}
+    if test.is_boolean():
+        return {"uses_limits": True, "reference": "required", "tolerance": "optional"}
+    if test.is_string_type():
+        return {"uses_limits": True, "reference": "unused", "tolerance": "required"}
+    return {"uses_limits": True, "reference": "required", "tolerance": "required"}
+
+
+def new_tolerance_types(test):
+    """Tolerance types the builder's New Tolerance dialog offers for this test.
+
+    Matches how UnitTestInfoForm filters a test's tolerances. Never Boolean: Yes/No
+    tolerances are fixed records the Tolerance admin doesn't let you create, so a
+    Boolean test gets an empty list (and no New Tolerance button).
+    """
+    if test.is_boolean():
+        return []
+    if test.is_string_type():
+        return [models.MULTIPLE_CHOICE]
+    if test.type == models.WRAPAROUND:
+        return [models.ABSOLUTE]
+    return [models.ABSOLUTE, models.PERCENT]
+
+
 def can_view_machine_values(user):
     """Machine mode shows UnitTestInfo values, so it needs view (or change) access to them."""
     return user.has_perm("qa.view_unittestinfo") or user.has_perm("qa.change_unittestinfo")
@@ -1527,8 +1594,10 @@ def testlist_machine_values(request):
 
     GET ``unit=<id>``, ``tests=<comma separated test ids>`` and optionally
     ``test_list=<id>`` (for the unit's assignment details). Tests the unit has no
-    UnitTestInfo for come back as ``null``. Read-only; changes are made on the
-    UnitTestInfo admin page each entry links to.
+    UnitTestInfo for come back as ``null``. ``limits`` says, per test, whether its
+    type uses a reference and tolerance at all (see machine_limit_usage). Read-only;
+    changes are made in the builder's Reference and Tolerance dialog
+    (testlist_machine_ref_tol) or on the UnitTestInfo admin page.
     """
     if not can_view_machine_values(request.user):
         return HttpResponseForbidden(_("You don't have permission to view references and tolerances."))
@@ -1549,11 +1618,14 @@ def testlist_machine_values(request):
         "test", "reference", "tolerance",
     )
     for uti in utis:
-        tests[str(uti.test_id)] = {
-            "reference": _machine_reference_display(uti.test, uti.reference),
-            "tolerance": str(uti.tolerance) if uti.tolerance_id else None,
-            "uti_url": reverse("admin:qa_unittestinfo_change", args=[uti.pk]),
-        }
+        entry = machine_values_display(uti)
+        entry["uti_id"] = uti.pk
+        entry["uti_url"] = reverse("admin:qa_unittestinfo_change", args=[uti.pk])
+        tests[str(uti.test_id)] = entry
+    limits = {
+        str(test.pk): machine_limit_usage(test)
+        for test in models.Test.objects.filter(pk__in=test_ids).only("id", "type")
+    }
 
     unit_info = {
         "id": unit.pk,
@@ -1574,7 +1646,112 @@ def testlist_machine_values(request):
                     unit_info[key] = entry[key]
                 break
 
-    return JsonResponse({"unit": unit_info, "tests": tests})
+    return JsonResponse({"unit": unit_info, "tests": tests, "limits": limits})
+
+
+class MachineRefTolForm(UnitTestInfoForm):
+    """UnitTestInfoForm for the builder's Reference and Tolerance dialog.
+
+    Same fields, tolerance filtering, validation and Reference creation as the
+    UnitTestInfo admin page; only the ids, widgets and labels differ. The
+    reference starts filled in with the current value, and an unchanged value
+    keeps the current Reference instead of saving a copy of it.
+    """
+
+    class Meta:
+        model = models.UnitTestInfo
+        # unit, test, active and assigned_to are never changed from the dialog
+        fields = ["tolerance"]
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("auto_id", "tl-reftol-%s")
+        super().__init__(*args, **kwargs)
+        instance = self.instance
+        ref = instance.reference if instance.pk else None
+        if ref is not None and ref.value is not None and "reference_value" not in self.initial:
+            if instance.test.is_boolean():
+                self.initial["reference_value"] = 1 if int(ref.value) == 1 else 0
+            elif not instance.test.is_string_type():
+                value = repr(float(ref.value))
+                self.initial["reference_value"] = value[:-2] if value.endswith(".0") else value
+        self.fields["reference_value"].label = _("Reference")
+        self.fields["tolerance"].label = _("Tolerance")
+        self.fields["tolerance"].empty_label = _("No tolerance")
+        self.fields["comment"].label = _("Comment")
+        self.fields["comment"].help_text = _("Why are you changing this? Saved with the history.")
+        self.fields["comment"].widget.attrs.update({"rows": 3, "class": "tl-modal-textarea"})
+        for name in ("reference_value", "tolerance"):
+            widget = self.fields[name].widget
+            if not isinstance(widget, forms.HiddenInput):
+                widget.attrs["class"] = "tl-modal-input"
+
+    def save(self, commit=True):
+        if "reference_value" not in self.changed_data:
+            # Unchanged: keep the current Reference (UnitTestInfoForm.save would
+            # save a new one with the same value, or clear it when blank).
+            self.cleaned_data.pop("reference_value", None)
+        return super().save(commit=commit)
+
+
+def testlist_machine_ref_tol(request, uti_id):
+    """The builder's Reference and Tolerance dialog for one UnitTestInfo (unit + test).
+
+    GET returns the dialog. POST validates with MachineRefTolForm (the UnitTestInfo
+    admin form's rules), saves straight away and records the change in the
+    UnitTestInfo history like the admin page does. There's no review step, as on
+    the admin page. Success returns JSON with the new display values for machine
+    mode; validation errors return the dialog again with status 422.
+    """
+    if not request.user.has_perm("qa.change_unittestinfo"):
+        return HttpResponseForbidden(
+            _("You don't have permission to change references and tolerances. Nothing was changed.")
+        )
+
+    uti = get_object_or_404(
+        models.UnitTestInfo.objects.select_related("unit", "test", "reference", "tolerance"), pk=uti_id,
+    )
+    test_name = uti.test.get_display_name()
+    # before the form runs: validating a POST puts the posted tolerance on `uti`
+    current = machine_values_display(uti)
+    status = 200
+    if request.method == "POST":
+        old_reference = uti.reference
+        old_tolerance = uti.tolerance
+        form = MachineRefTolForm(request.POST, instance=uti, initial={"modified_by": request.user})
+        if form.is_valid():
+            saved = form.save()
+            record_unit_test_info_change(
+                saved, old_reference, old_tolerance, form.cleaned_data.get("comment"), request.user,
+                form.changed_data,
+            )
+            fresh = models.UnitTestInfo.objects.select_related("test", "reference", "tolerance").get(pk=uti.pk)
+            data = machine_values_display(fresh)
+            data.update({
+                "ok": True,
+                "uti_id": fresh.pk,
+                "uti_url": reverse("admin:qa_unittestinfo_change", args=[fresh.pk]),
+                "test_id": fresh.test_id,
+                "unit_id": fresh.unit_id,
+                "message": _("Saved for %(test)s on %(unit)s.") % {"test": test_name, "unit": uti.unit.name},
+            })
+            return JsonResponse(data)
+        status = 422
+    else:
+        form = MachineRefTolForm(instance=uti, initial={"modified_by": request.user})
+
+    last_change = (
+        models.UnitTestInfoChange.objects.filter(unit_test_info=uti).select_related("changed_by")
+        .order_by("-changed").first()
+    )
+    return render(request, "admin/qa/testlist/partials/_machine_ref_tol_modal.html", {
+        "form": form,
+        "uti": uti,
+        "test_name": test_name,
+        "current": [v for v in (current["reference"], current["tolerance"]) if v],
+        "last_change": last_change,
+        "reference_hidden": isinstance(form.fields["reference_value"].widget, forms.HiddenInput),
+        "can_add_tolerance": request.user.has_perm("qa.add_tolerance") and bool(new_tolerance_types(uti.test)),
+    }, status=status)
 
 
 def testlist_assign_machine(request):
@@ -1870,6 +2047,16 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
                 name='qa_testlist_machine_values',
             ),
             path(
+                'machine-ref-tol/<int:uti_id>/',
+                self.admin_site.admin_view(testlist_machine_ref_tol),
+                name='qa_testlist_machine_ref_tol',
+            ),
+            path(
+                'new-tolerance/',
+                self.admin_site.admin_view(testlist_new_tolerance),
+                name='qa_testlist_new_tolerance',
+            ),
+            path(
                 'assign-machine/',
                 self.admin_site.admin_view(testlist_assign_machine),
                 name='qa_testlist_assign_machine',
@@ -1891,6 +2078,8 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
         extra_context['tl_scope_direct_units'] = direct
         extra_context['tl_scope_through_units'] = through
         extra_context['tl_can_view_machine_values'] = can_view_machine_values(request.user)
+        # Machine mode: set a unit's reference and tolerance in a dialog (testlist_machine_ref_tol)
+        extra_context['tl_can_change_machine_values'] = request.user.has_perm('qa.change_unittestinfo')
         # Preview tab: the real Perform QC page (read-only) for directly assigned units
         extra_context['tl_can_preview_perform'] = request.user.has_perm('qa.change_testlist')
         extra_context['tl_preview_units'] = get_testlist_preview_units(direct, through)
@@ -2680,6 +2869,112 @@ class ToleranceForm(forms.ModelForm):
             if models.Tolerance.objects.filter(**params).count() > 0:
                 errs = [_("Duplicate Tolerance. A Tolerance with these values already exists")]
                 self._update_errors({forms.models.NON_FIELD_ERRORS: errs})
+
+
+class MachineNewToleranceForm(ToleranceForm):
+    """ToleranceForm for the builder's New Tolerance dialog.
+
+    Same model validation and duplicate check as the Tolerance admin; the types
+    are limited to the ones that fit the test (new_tolerance_types). It also
+    checks the limits are in order (Action Low ≤ Tolerance Low ≤ Tolerance High ≤
+    Action High), which the admin page doesn't. ``duplicate`` holds the existing
+    tolerance when the duplicate check fails, so the dialog can offer it.
+    """
+
+    LIMIT_FIELDS = ("act_low", "tol_low", "tol_high", "act_high")
+
+    class Meta:
+        model = models.Tolerance
+        fields = ["type", "act_low", "tol_low", "tol_high", "act_high", "mc_pass_choices", "mc_tol_choices"]
+
+    def __init__(self, *args, types=None, **kwargs):
+        kwargs.setdefault("auto_id", "tl-newtol-%s")
+        super().__init__(*args, **kwargs)
+        self.duplicate = None
+        labels = dict(models.TOL_TYPE_CHOICES)
+        self.types = list(types or [])
+        self.fields["type"].choices = [(t, labels[t]) for t in self.types]
+        if len(self.types) == 1:
+            self.fields["type"].widget = forms.HiddenInput()
+            self.initial.setdefault("type", self.types[0])
+        else:
+            self.initial.setdefault("type", models.ABSOLUTE)
+        for name, field in self.fields.items():
+            if name != "type" or len(self.types) > 1:
+                field.widget.attrs["class"] = "tl-modal-input"
+        for name in self.LIMIT_FIELDS:
+            self.fields[name].widget.attrs["step"] = "any"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("type") in (models.ABSOLUTE, models.PERCENT):
+            values = [(name, cleaned_data.get(name)) for name in self.LIMIT_FIELDS]
+            values = [(name, v) for name, v in values if v is not None]
+            for (low_name, low), (high_name, high) in zip(values, values[1:]):
+                if low > high:
+                    self.add_error(high_name, _("%(high)s must be at least %(low)s.") % {
+                        "high": self.fields[high_name].label, "low": self.fields[low_name].label,
+                    })
+                    break
+        return cleaned_data
+
+    def validate_unique(self):
+        super().validate_unique()
+        if not self.instance.pk and self.has_error(forms.models.NON_FIELD_ERRORS):
+            params = forms.model_to_dict(self.instance)
+            params.pop("id")
+            self.duplicate = models.Tolerance.objects.filter(**params).first()
+
+
+def testlist_new_tolerance(request):
+    """The builder's New Tolerance dialog, opened from the Reference and Tolerance dialog.
+
+    GET ``uti=<UnitTestInfo id>`` returns the dialog, offering only the tolerance
+    types that fit that test (new_tolerance_types; none for Boolean tests, which
+    is a 400). POST validates with MachineNewToleranceForm (the Tolerance admin's
+    ToleranceForm) and creates the Tolerance straight away, with created_by and
+    modified_by set as the admin does. It isn't applied to any unit: the
+    Reference and Tolerance dialog does that when saved. Success returns JSON for
+    that dialog's Tolerance select; errors return this dialog again with status 422.
+    """
+    if not request.user.has_perm("qa.add_tolerance"):
+        return HttpResponseForbidden(_("You don't have permission to create tolerances. Nothing was saved."))
+
+    raw_id = request.POST.get("uti") if request.method == "POST" else request.GET.get("uti")
+    try:
+        uti = models.UnitTestInfo.objects.select_related("test", "unit").get(pk=int(raw_id or ""))
+    except (ValueError, TypeError, models.UnitTestInfo.DoesNotExist):
+        raise Http404(_("Unit test info not found"))
+
+    types = new_tolerance_types(uti.test)
+    if not types:
+        return HttpResponseBadRequest(_("New tolerances can't be created for this test type. Nothing was saved."))
+
+    status = 200
+    if request.method == "POST":
+        form = MachineNewToleranceForm(request.POST, types=types)
+        if form.is_valid():
+            tol = form.save(commit=False)
+            tol.created_by = request.user
+            tol.modified_by = request.user
+            tol.save()
+            return JsonResponse({
+                "ok": True,
+                "id": tol.pk,
+                "label": str(tol),
+                "message": _("Created %(tolerance)s.") % {"tolerance": tol},
+            })
+        status = 422
+    else:
+        form = MachineNewToleranceForm(types=types)
+
+    return render(request, "admin/qa/testlist/partials/_machine_new_tolerance_modal.html", {
+        "form": form,
+        "uti": uti,
+        "test_name": uti.test.get_display_name(),
+        "is_choice": types == [models.MULTIPLE_CHOICE],
+        "type_label": dict(models.TOL_TYPE_CHOICES)[types[0]] if len(types) == 1 else "",
+    }, status=status)
 
 
 class ToleranceAdmin(BasicSaveUserAdmin):

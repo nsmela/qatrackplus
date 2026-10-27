@@ -1,5 +1,6 @@
 import json
 import re
+from unittest import mock
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import Permission
@@ -2184,6 +2185,385 @@ class TestTestListBuilderMachineMode(TestCase):
         resp = self.client.post(url, data)
         self.assertEqual(resp.status_code, 302)
         self.assertNotIn('unit=', resp['Location'])
+
+
+class TestTestListBuilderMachineRefTol(TestCase):
+    """Machine mode's Reference and Tolerance dialog (testlist_machine_ref_tol)."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        get_internal_user()
+        self.bool_warn, self.bool_act = get_bool_tols()
+        self.unit = qa_utils.create_unit(name='Machine A')
+        self.other_unit = qa_utils.create_unit(name='Machine B')
+
+        self.num_test = qa_utils.create_test(name='Output')
+        self.bool_test = qa_utils.create_test(name='Door', test_type=qa_models.BOOLEAN)
+        self.mc_test = qa_utils.create_test(name='Choice', test_type=qa_models.MULTIPLE_CHOICE, choices='a,b,c')
+        self.wrap_test = qa_utils.create_test(name='Gantry', test_type=qa_models.WRAPAROUND, wrap_low=0, wrap_high=360)
+        self.upload_test = qa_utils.create_test(name='Image', test_type=qa_models.UPLOAD)
+        self.date_test = qa_utils.create_test(name='Calibrated', test_type=qa_models.DATE)
+        self.datetime_test = qa_utils.create_test(name='Calibrated At', test_type=qa_models.DATETIME)
+
+        self.abs_tol = qa_utils.create_tolerance(act_low=-3, tol_low=-2, tol_high=2, act_high=3)
+        self.pct_tol = qa_utils.create_tolerance(tol_type=qa_models.PERCENT, act_low=-5, tol_low=-4, tol_high=4, act_high=5)
+        self.mc_tol = qa_utils.create_tolerance(
+            tol_type=qa_models.MULTIPLE_CHOICE, mc_pass_choices='a,b', mc_tol_choices='c',
+        )
+
+        self.old_ref = qa_utils.create_reference(value=100)
+        self.num_uti = qa_utils.create_unit_test_info(
+            unit=self.unit, test=self.num_test, ref=self.old_ref, tol=self.abs_tol,
+        )
+        self.bool_uti = qa_utils.create_unit_test_info(unit=self.unit, test=self.bool_test)
+        self.mc_uti = qa_utils.create_unit_test_info(unit=self.unit, test=self.mc_test)
+        self.wrap_uti = qa_utils.create_unit_test_info(unit=self.unit, test=self.wrap_test)
+        self.upload_uti = qa_utils.create_unit_test_info(unit=self.unit, test=self.upload_test)
+
+    def _url(self, uti):
+        return reverse('admin:qa_testlist_machine_ref_tol', args=[uti.pk])
+
+    def _grant(self, user, *codenames):
+        for codename in codenames:
+            user.user_permissions.add(Permission.objects.get(content_type__app_label='qa', codename=codename))
+
+    def test_get_numerical(self):
+        resp = self.client.get(self._url(self.num_uti))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Reference and Tolerance')
+        self.assertContains(resp, 'Output on Machine A')
+        self.assertContains(resp, 'Currently: 100 · %s' % self.abs_tol)
+        # the current reference is filled in so saving without touching it keeps it
+        self.assertContains(resp, 'type="text" name="reference_value" value="100"')
+        tols = set(resp.context['form'].fields['tolerance'].queryset)
+        self.assertEqual(tols, {self.abs_tol, self.pct_tol})
+        self.assertContains(resp, 'No tolerance')
+        self.assertContains(resp, 'data-newtol-url="%s?uti=%d"' % (
+            reverse('admin:qa_testlist_new_tolerance'), self.num_uti.pk,
+        ))
+        self.assertContains(resp, reverse('admin:qa_unittestinfo_change', args=[self.num_uti.pk]))
+        # posts to itself, not to the test list form
+        self.assertContains(resp, 'action="%s"' % self._url(self.num_uti))
+        for name in ('name="unit"', 'name="test"', 'name="active"', 'name="assigned_to"'):
+            self.assertNotContains(resp, name)
+
+    def test_get_boolean(self):
+        resp = self.client.get(self._url(self.bool_uti))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Currently: not set')
+        self.assertContains(resp, '<select name="reference_value"')
+        self.assertContains(resp, '<option value="1">Yes</option>')
+        self.assertContains(resp, '<option value="0">No</option>')
+        tols = set(resp.context['form'].fields['tolerance'].queryset)
+        self.assertEqual(tols, set(qa_models.Tolerance.objects.filter(type=qa_models.BOOLEAN)))
+        self.assertIn(self.bool_act, tols)
+        # Yes/No tolerances are fixed records: no New Tolerance button
+        self.assertNotContains(resp, 'id="tl-reftol-new-tolerance"')
+
+    def test_get_multiple_choice(self):
+        resp = self.client.get(self._url(self.mc_uti))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'type="hidden" name="reference_value"')
+        self.assertNotContains(resp, 'for="tl-reftol-reference_value"')
+        tols = set(resp.context['form'].fields['tolerance'].queryset)
+        self.assertEqual(tols, {self.mc_tol})
+
+    def test_get_wraparound(self):
+        resp = self.client.get(self._url(self.wrap_uti))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'type="text" name="reference_value"')
+        self.assertContains(resp, 'Between 0.0 and 360.0.')
+        tols = set(resp.context['form'].fields['tolerance'].queryset)
+        self.assertEqual(tols, {self.abs_tol})
+
+    def test_permission_and_404(self):
+        self.assertEqual(self.client.get(reverse('admin:qa_testlist_machine_ref_tol', args=[999999])).status_code, 404)
+
+        staff = create_user(is_superuser=False, uname='staff', pwd='pwd')
+        self.client.login(username='staff', password='pwd')
+        self._grant(staff, 'view_unittestinfo')
+        self.assertEqual(self.client.get(self._url(self.num_uti)).status_code, 403)
+        resp = self.client.post(self._url(self.num_uti), {'reference_value': '5', 'tolerance': self.abs_tol.pk})
+        self.assertEqual(resp.status_code, 403)
+        self.num_uti.refresh_from_db()
+        self.assertEqual(self.num_uti.reference, self.old_ref)
+
+        self._grant(staff, 'change_unittestinfo')
+        self.assertEqual(self.client.get(self._url(self.num_uti)).status_code, 200)
+
+    def test_post_numerical_saves_and_records_history(self):
+        resp = self.client.post(self._url(self.num_uti), {
+            'reference_value': '5',
+            'tolerance': self.pct_tol.pk,
+            'comment': 'New calibration',
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['test_id'], self.num_test.pk)
+        self.assertEqual(data['unit_id'], self.unit.pk)
+        self.assertEqual(data['message'], 'Saved for Output on Machine A.')
+
+        self.num_uti.refresh_from_db()
+        self.assertEqual(self.num_uti.reference.value, 5)
+        self.assertEqual(self.num_uti.reference.created_by, self.user)
+        self.assertEqual(self.num_uti.tolerance, self.pct_tol)
+
+        change = qa_models.UnitTestInfoChange.objects.get(unit_test_info=self.num_uti)
+        self.assertEqual(change.reference, self.old_ref)
+        self.assertEqual(change.tolerance, self.abs_tol)
+        self.assertTrue(change.reference_changed)
+        self.assertTrue(change.tolerance_changed)
+        self.assertEqual(change.comment, 'New calibration')
+        self.assertEqual(change.changed_by, self.user)
+
+        # same display strings as machine mode's table
+        values = self.client.get(
+            reverse('admin:qa_testlist_machine_values'), {'unit': self.unit.pk, 'tests': self.num_test.pk},
+        ).json()['tests'][str(self.num_test.pk)]
+        self.assertEqual(data['reference'], values['reference'])
+        self.assertEqual(data['tolerance'], values['tolerance'])
+        self.assertEqual(data['reference'], '5')
+
+    def test_post_unchanged_reference_keeps_it(self):
+        resp = self.client.post(self._url(self.num_uti), {'reference_value': '100', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.num_uti.refresh_from_db()
+        self.assertEqual(self.num_uti.reference, self.old_ref)
+        change = qa_models.UnitTestInfoChange.objects.get(unit_test_info=self.num_uti)
+        self.assertFalse(change.reference_changed)
+        self.assertTrue(change.tolerance_changed)
+
+    def test_post_boolean(self):
+        resp = self.client.post(self._url(self.bool_uti), {'reference_value': '1', 'tolerance': self.bool_act.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['reference'], 'Yes')
+        self.bool_uti.refresh_from_db()
+        self.assertEqual(self.bool_uti.reference.value, 1)
+        self.assertEqual(self.bool_uti.tolerance, self.bool_act)
+
+    def test_post_percent_with_zero_reference_422(self):
+        resp = self.client.post(self._url(self.num_uti), {'reference_value': '0', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, 'Reference value cannot be zero when using a percent tolerance', status_code=422)
+        self.assertContains(resp, 'id="tl-reftol-modal"', status_code=422)
+        # "Currently" still shows the saved values, not the rejected ones
+        self.assertContains(resp, 'Currently: 100 · %s' % self.abs_tol, status_code=422)
+        self.num_uti.refresh_from_db()
+        self.assertEqual(self.num_uti.reference, self.old_ref)
+        self.assertEqual(self.num_uti.tolerance, self.abs_tol)
+        self.assertFalse(qa_models.UnitTestInfoChange.objects.exists())
+
+    def test_post_wraparound_out_of_range_422(self):
+        resp = self.client.post(self._url(self.wrap_uti), {'reference_value': '400', 'tolerance': self.abs_tol.pk})
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, 'Reference value must be between 0.0 and 360.0', status_code=422)
+        self.wrap_uti.refresh_from_db()
+        self.assertIsNone(self.wrap_uti.reference)
+        self.assertIsNone(self.wrap_uti.tolerance)
+        self.assertFalse(qa_models.UnitTestInfoChange.objects.exists())
+
+    def test_post_cannot_change_unit_test_or_active(self):
+        resp = self.client.post(self._url(self.num_uti), {
+            'reference_value': '100',
+            'tolerance': self.abs_tol.pk,
+            'unit': self.other_unit.pk,
+            'test': self.bool_test.pk,
+            'active': '',
+            'assigned_to': '',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.num_uti.refresh_from_db()
+        self.assertEqual(self.num_uti.unit, self.unit)
+        self.assertEqual(self.num_uti.test, self.num_test)
+        self.assertTrue(self.num_uti.active)
+        self.assertIsNotNone(self.num_uti.assigned_to)
+        # nothing changed, so no history entry
+        self.assertFalse(qa_models.UnitTestInfoChange.objects.exists())
+
+    def test_admin_save_model_uses_shared_history_helper(self):
+        request = RequestFactory().get('/')
+        request.user = self.user
+        model_admin = qa_admin.UnitTestInfoAdmin(qa_models.UnitTestInfo, AdminSite())
+        data = {'reference_value': '7', 'tolerance': self.pct_tol.pk, 'comment': 'From admin'}
+        form = model_admin.get_form(request)(instance=self.num_uti, data=data)
+        self.assertTrue(form.is_valid(), form.errors)
+        with mock.patch.object(
+            qa_admin, 'record_unit_test_info_change', wraps=qa_admin.record_unit_test_info_change,
+        ) as helper:
+            model_admin.save_model(request, model_admin.save_form(request, form, True), form, True)
+        self.assertEqual(helper.call_count, 1)
+        change = qa_models.UnitTestInfoChange.objects.get(unit_test_info=self.num_uti)
+        self.assertEqual(change.reference, self.old_ref)
+        self.assertEqual(change.tolerance, self.abs_tol)
+        self.assertTrue(change.reference_changed)
+        self.assertTrue(change.tolerance_changed)
+        self.assertEqual(change.comment, 'From admin')
+        self.assertEqual(change.changed_by, self.user)
+
+    def test_machine_values_flags_types_without_limits(self):
+        no_uti_test = qa_utils.create_test(name='Not Yet Saved', test_type=qa_models.UPLOAD)
+        ids = [
+            self.num_test, self.bool_test, self.mc_test, self.upload_test, self.date_test, self.datetime_test,
+            no_uti_test,
+        ]
+        resp = self.client.get(reverse('admin:qa_testlist_machine_values'), {
+            'unit': self.unit.pk, 'tests': ','.join(str(t.pk) for t in ids),
+        })
+        data = resp.json()
+        limits = data['limits']
+        self.assertEqual(limits[str(self.num_test.pk)], {
+            'uses_limits': True, 'reference': 'required', 'tolerance': 'required',
+        })
+        self.assertEqual(limits[str(self.bool_test.pk)]['tolerance'], 'optional')
+        self.assertEqual(limits[str(self.mc_test.pk)]['reference'], 'unused')
+        for t in (self.upload_test, self.date_test, self.datetime_test, no_uti_test):
+            self.assertFalse(limits[str(t.pk)]['uses_limits'])
+        self.assertEqual(data['tests'][str(self.num_test.pk)]['uti_id'], self.num_uti.pk)
+        self.assertIsNone(data['tests'][str(no_uti_test.pk)])
+
+    def test_change_form_has_dialog_url_only_with_change_permission(self):
+        tl = qa_utils.create_test_list(name='Direct List')
+        qa_utils.create_test_list_membership(test_list=tl, test=self.num_test)
+        url = reverse('admin:qa_testlist_change', args=(tl.pk,))
+        base = reverse('admin:qa_testlist_machine_ref_tol', args=[0])
+        resp = self.client.get(url)
+        self.assertContains(resp, 'data-ref-tol-url="%s"' % base)
+        self.assertContains(resp, 'id="tl-reftol-container"')
+
+        staff = create_user(is_superuser=False, uname='staff', pwd='pwd')
+        self._grant(staff, 'change_testlist', 'view_unittestinfo')
+        self.client.login(username='staff', password='pwd')
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'data-ref-tol-url=')
+
+
+class TestTestListBuilderNewTolerance(TestCase):
+    """The New Tolerance dialog opened from machine mode's Reference and Tolerance dialog."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        get_bool_tols()
+        self.unit = qa_utils.create_unit(name='Machine A')
+        self.num_uti = qa_utils.create_unit_test_info(unit=self.unit, test=qa_utils.create_test(name='Output'))
+        self.wrap_uti = qa_utils.create_unit_test_info(unit=self.unit, test=qa_utils.create_test(
+            name='Gantry', test_type=qa_models.WRAPAROUND, wrap_low=0, wrap_high=360,
+        ))
+        self.mc_uti = qa_utils.create_unit_test_info(unit=self.unit, test=qa_utils.create_test(
+            name='Choice', test_type=qa_models.MULTIPLE_CHOICE, choices='a,b,c',
+        ))
+        self.str_uti = qa_utils.create_unit_test_info(unit=self.unit, test=qa_utils.create_test(
+            name='Notes', test_type=qa_models.STRING,
+        ))
+        self.bool_uti = qa_utils.create_unit_test_info(unit=self.unit, test=qa_utils.create_test(
+            name='Door', test_type=qa_models.BOOLEAN,
+        ))
+        self.url = reverse('admin:qa_testlist_new_tolerance')
+
+    def _types(self, uti):
+        resp = self.client.get(self.url, {'uti': uti.pk})
+        self.assertEqual(resp.status_code, 200)
+        return [value for value, label in resp.context['form'].fields['type'].choices], resp
+
+    def _post(self, uti, **data):
+        data['uti'] = uti.pk
+        return self.client.post(self.url, data)
+
+    def test_types_offered_per_test_type(self):
+        types, resp = self._types(self.num_uti)
+        self.assertEqual(types, [qa_models.ABSOLUTE, qa_models.PERCENT])
+        self.assertContains(resp, '<select name="type"')
+        self.assertContains(resp, 'name="tol_low"')
+        self.assertNotContains(resp, 'name="mc_pass_choices"')
+        self.assertContains(resp, "It isn't applied to this machine until you click Save in the previous dialog.")
+
+        types, resp = self._types(self.wrap_uti)
+        self.assertEqual(types, [qa_models.ABSOLUTE])
+        self.assertContains(resp, 'type="hidden" name="type" value="absolute"')
+        self.assertContains(resp, 'class="tl-newtol-type-value">Absolute<')
+
+        for uti in (self.mc_uti, self.str_uti):
+            types, resp = self._types(uti)
+            self.assertEqual(types, [qa_models.MULTIPLE_CHOICE])
+            self.assertContains(resp, 'name="mc_pass_choices"')
+            self.assertNotContains(resp, 'name="tol_low"')
+
+        self.assertEqual(self.client.get(self.url, {'uti': self.bool_uti.pk}).status_code, 400)
+        self.assertEqual(self.client.get(self.url, {'uti': 999999}).status_code, 404)
+
+    def test_create_absolute_percent_and_mc(self):
+        resp = self._post(self.num_uti, type='absolute', act_low='-3', tol_low='-2', tol_high='2', act_high='3')
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        tol = qa_models.Tolerance.objects.get(pk=data['id'])
+        self.assertEqual(data['label'], str(tol))
+        self.assertEqual((tol.type, tol.act_low, tol.tol_low, tol.tol_high, tol.act_high), ('absolute', -3, -2, 2, 3))
+        self.assertEqual(tol.created_by, self.user)
+        self.assertEqual(tol.modified_by, self.user)
+        # not applied to the unit until the Reference and Tolerance dialog is saved
+        self.num_uti.refresh_from_db()
+        self.assertIsNone(self.num_uti.tolerance)
+
+        resp = self._post(self.num_uti, type='percent', tol_low='-1', tol_high='1')
+        self.assertEqual(resp.status_code, 200)
+        tol = qa_models.Tolerance.objects.get(pk=resp.json()['id'])
+        self.assertEqual((tol.type, tol.act_low, tol.tol_high), ('percent', None, 1))
+
+        resp = self._post(self.mc_uti, type='multchoice', mc_pass_choices='a, b', mc_tol_choices='c')
+        self.assertEqual(resp.status_code, 200)
+        tol = qa_models.Tolerance.objects.get(pk=resp.json()['id'])
+        self.assertEqual((tol.type, tol.mc_pass_choices, tol.mc_tol_choices), ('multchoice', 'a,b', 'c'))
+
+    def test_type_not_offered_is_rejected(self):
+        before = qa_models.Tolerance.objects.count()
+        resp = self._post(self.wrap_uti, type='percent', tol_low='-1', tol_high='1')
+        self.assertEqual(resp.status_code, 422)
+        resp = self._post(self.num_uti, type='boolean')
+        self.assertEqual(resp.status_code, 422)
+        self.assertEqual(qa_models.Tolerance.objects.count(), before)
+
+    def test_invalid_limits_422(self):
+        before = qa_models.Tolerance.objects.count()
+        # the model's own check: at least one limit for absolute/percent
+        resp = self._post(self.num_uti, type='absolute')
+        self.assertContains(resp, 'You must set at least one Tolerance or Action level', status_code=422)
+        # the model's own check: multiple choice needs a passing choice
+        resp = self._post(self.mc_uti, type='multchoice', mc_pass_choices='')
+        self.assertContains(resp, 'You must give at least 1 passing choice', status_code=422)
+        # limits out of order
+        resp = self._post(self.num_uti, type='absolute', tol_low='2', tol_high='1')
+        self.assertContains(resp, 'Tolerance High must be at least Tolerance Low.', status_code=422)
+        self.assertEqual(qa_models.Tolerance.objects.count(), before)
+
+    def test_duplicate_names_existing(self):
+        existing = qa_utils.create_tolerance(act_low=-3, tol_low=-2, tol_high=2, act_high=3)
+        before = qa_models.Tolerance.objects.count()
+        resp = self._post(self.num_uti, type='absolute', act_low='-3', tol_low='-2', tol_high='2', act_high='3')
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, 'A tolerance with these values already exists: %s.' % existing, status_code=422)
+        self.assertContains(resp, 'data-tolerance-id="%d"' % existing.pk, status_code=422)
+        self.assertContains(resp, 'Use This One', status_code=422)
+        self.assertEqual(qa_models.Tolerance.objects.count(), before)
+
+    def test_permission(self):
+        staff = create_user(is_superuser=False, uname='staff', pwd='pwd')
+        uti_ct = ContentType.objects.get_for_model(qa_models.UnitTestInfo)
+        staff.user_permissions.add(Permission.objects.get(content_type=uti_ct, codename='change_unittestinfo'))
+        self.client.login(username='staff', password='pwd')
+        self.assertEqual(self.client.get(self.url, {'uti': self.num_uti.pk}).status_code, 403)
+        resp = self._post(self.num_uti, type='absolute', tol_low='-1', tol_high='1')
+        self.assertEqual(resp.status_code, 403)
+        # the Reference and Tolerance dialog has no New Tolerance button for them
+        resp = self.client.get(reverse('admin:qa_testlist_machine_ref_tol', args=[self.num_uti.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'id="tl-reftol-new-tolerance"')
+
+        tol_ct = ContentType.objects.get_for_model(qa_models.Tolerance)
+        staff.user_permissions.add(Permission.objects.get(content_type=tol_ct, codename='add_tolerance'))
+        self.assertEqual(self.client.get(self.url, {'uti': self.num_uti.pk}).status_code, 200)
 
 
 class TestTestListBuilderPerformPreview(TestCase):

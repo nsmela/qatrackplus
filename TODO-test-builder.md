@@ -53,7 +53,7 @@ Remove this file before the branch is merged.
       what staff will see.
     - In base list mode, offer a layout-only preview (order, sublists,
       descriptions) and say there that pass/fail needs a machine selected.
-- [ ] **Set a machine's reference and tolerance from the builder**
+- [x] **Set a machine's reference and tolerance from the builder**
   - Adding a test to a list assigned to machines creates that machine's
     settings with no reference or tolerance; Perform QC then records its
     results as "No Tol Set" with no warning (verified end to end).

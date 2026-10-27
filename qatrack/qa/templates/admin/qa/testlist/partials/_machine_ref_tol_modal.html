@@ -1,0 +1,99 @@
+{% load i18n %}
+{# "Reference and Tolerance" dialog for machine mode (TestListAdmin: testlist_machine_ref_tol). #}
+{# The builder JS puts it in #tl-dialogs-outside-form, after the change form, so none of its inputs #}
+{# are posted with the test list. Clicking Save saves the UnitTestInfo straight away. #}
+<div class="tl-modal-backdrop" id="tl-reftol-modal">
+  <div class="tl-modal-dialog tl-reftol-dialog" role="dialog" aria-modal="true"
+       aria-labelledby="tl-reftol-title" aria-describedby="tl-reftol-subtitle">
+    <div class="tl-modal-header">
+      <div class="tl-reftol-heading">
+        <h3 class="tl-modal-title" id="tl-reftol-title">
+          <i class="fa fa-sliders" aria-hidden="true"></i> {% trans "Reference and Tolerance" %}
+        </h3>
+        <p class="tl-reftol-subtitle" id="tl-reftol-subtitle">
+          {% blocktrans with test=test_name unit=uti.unit.name %}{{ test }} on {{ unit }}{% endblocktrans %}
+        </p>
+      </div>
+      <button type="button" class="tl-modal-close-btn" data-reftol-close
+              title="{% trans 'Close' %}" aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <form id="tl-reftol-form" method="post" action="{% url 'admin:qa_testlist_machine_ref_tol' uti.pk %}"
+          data-test-id="{{ uti.test_id }}" data-unit-id="{{ uti.unit_id }}" novalidate>
+      {% csrf_token %}
+      <div class="tl-modal-body">
+        <p class="tl-modal-note">
+          {% blocktrans with test=test_name unit=uti.unit.name %}Saved as soon as you click Save. It applies to {{ test }} on {{ unit }} in every test list that uses this test on that unit.{% endblocktrans %}
+        </p>
+
+        <div class="tl-reftol-current">
+          <div>
+            {% if current %}
+              {% blocktrans with values=current|join:" · " %}Currently: {{ values }}{% endblocktrans %}
+            {% else %}
+              {% trans "Currently: not set" %}
+            {% endif %}
+          </div>
+          {% if last_change %}
+            <div class="tl-reftol-meta">
+              {% blocktrans with user=last_change.changed_by date=last_change.changed|date:"DATETIME_FORMAT" %}Last changed by {{ user }} on {{ date }}{% endblocktrans %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="tl-assign-alert" id="tl-reftol-alert" role="alert"{% if not form.non_field_errors %} hidden{% endif %}>
+          <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+          <span id="tl-reftol-alert-text">{% for err in form.non_field_errors %}{{ err }} {% endfor %}</span>
+        </div>
+
+        {% if reference_hidden %}
+          {{ form.reference_value }}
+        {% else %}
+          <div class="tl-modal-field">
+            <label for="{{ form.reference_value.id_for_label }}">{{ form.reference_value.label }}</label>
+            {{ form.reference_value }}
+            {% for err in form.reference_value.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+            {% if uti.test.type == "wraparound" %}
+              <span class="tl-modal-hint">
+                {% blocktrans with low=uti.test.wrap_low high=uti.test.wrap_high %}Between {{ low }} and {{ high }}.{% endblocktrans %}
+              </span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <div class="tl-modal-field">
+          <label for="{{ form.tolerance.id_for_label }}">{{ form.tolerance.label }}</label>
+          <div class="tl-reftol-tol-row">
+            {{ form.tolerance }}
+            {% if can_add_tolerance %}
+              {# opens the New Tolerance dialog (testlist_new_tolerance) on top of this one #}
+              <button type="button" class="tl-btn-newtol" id="tl-reftol-new-tolerance" aria-haspopup="dialog"
+                      data-newtol-url="{% url 'admin:qa_testlist_new_tolerance' %}?uti={{ uti.pk }}">
+                <i class="fa fa-plus" aria-hidden="true"></i> {% trans "New Tolerance…" %}
+              </button>
+            {% endif %}
+          </div>
+          {% for err in form.tolerance.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+        </div>
+
+        <div class="tl-modal-field">
+          <label for="{{ form.comment.id_for_label }}">{{ form.comment.label }}</label>
+          {{ form.comment }}
+          {% for err in form.comment.errors %}<span class="tl-assign-error">{{ err }}</span>{% endfor %}
+          <span class="tl-modal-hint">{{ form.comment.help_text }}</span>
+        </div>
+
+        <p class="tl-reftol-history-link">
+          <a href="{% url 'admin:qa_unittestinfo_change' uti.pk %}" target="_blank" rel="noopener">
+            <i class="fa fa-external-link" aria-hidden="true"></i> {% trans "Open the full settings page (history)" %}
+          </a>
+        </p>
+      </div>
+      <div class="tl-modal-footer">
+        <button type="button" class="tl-btn-modal-cancel" data-reftol-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="tl-btn-modal-save" id="tl-reftol-submit">
+          <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

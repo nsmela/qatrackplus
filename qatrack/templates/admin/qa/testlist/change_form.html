@@ -75,6 +75,8 @@
 <div class="tl-control-card" id="tl-control-card"
      data-machine-values-url="{% url 'admin:qa_testlist_machine_values' %}"
      data-test-list-id="{{ original.pk|default:'' }}"
+     {# Reference and Tolerance dialog (testlist_machine_ref_tol); the JS swaps the 0 for a UnitTestInfo id #}
+     {% if tl_can_change_machine_values %}data-ref-tol-url="{% url 'admin:qa_testlist_machine_ref_tol' 0 %}"{% endif %}
      data-msg-base="{% trans "Changes apply to every machine this list is assigned to" %}"
      data-msg-loading="{% trans "Loading…" %}"
      data-msg-not-set="{% trans "Not set" %}"
@@ -153,6 +155,13 @@
 <div class="tl-machine-error" id="tl-machine-error" role="alert" hidden>
   <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
   <span>{% blocktrans %}Couldn't load <span class="tl-machine-unit-name"></span>'s settings. Nothing was changed. Try again.{% endblocktrans %}</span>
+</div>
+{# Reference and Tolerance dialog: "Saved for … on …." after a save, or why the dialog couldn't open #}
+<div class="tl-reftol-note" id="tl-reftol-note" role="status" hidden>
+  <i class="fa fa-check" id="tl-reftol-note-icon" aria-hidden="true"></i>
+  <span class="tl-reftol-note-text" id="tl-reftol-note-text"></span>
+  <button type="button" class="tl-assign-note-close" id="tl-reftol-note-close"
+          title="{% trans 'Dismiss' %}" aria-label="{% trans 'Dismiss' %}">&times;</button>
 </div>
 
 {# Live Preview View Container (Toggled via Preview Tab). With a directly assigned #}
@@ -453,6 +462,11 @@
 <div id="tl-dialogs-outside-form">
   {# Modal container for dynamic HTMX modals (Duplicate Test, Description) #}
   <div id="tl-modal-container"></div>
+
+  {# Machine mode's Reference and Tolerance dialog (loaded from testlist_machine_ref_tol) #}
+  <div id="tl-reftol-container"></div>
+  {# ...and the New Tolerance dialog stacked on it (testlist_new_tolerance); after it so it's on top #}
+  <div id="tl-newtol-container"></div>
 
   {# Search / Selection Modal for Tests and Sublists #}
   <div class="tl-modal-backdrop" id="tl-search-modal" hidden>

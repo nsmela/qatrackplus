@@ -13,10 +13,25 @@ written plan, then checked (tests, lint, screenshots) and committed on
 These are choices made during the work that you may want to change.
 
 ### Editing modes and machine values
-- **Machine mode is read-only for references and tolerances.** Picking a
-  unit shows that unit's values; a pencil on each row opens the existing
-  Unit Test Info admin page in a new tab, which already handles their
-  history and review. Inline editing would be a follow-up.
+- **References and tolerances are set in a dialog in machine mode.** It
+  uses the Unit Test Info admin form's rules and writes the same change
+  history (one shared helper, also used by the admin page). It saves
+  straight away, applies to that test on that unit in every list, and
+  updates every matching row in place. There's no review step, as on the
+  admin page. Needs `change_unittestinfo`; view-only users keep a link to
+  the admin page.
+  - The reference field starts filled with the current value; leaving it
+    unchanged keeps the existing Reference, so history doesn't record a
+    false change.
+  - "Not set" is highlighted only where it causes "No Tol Set" on Perform
+    QC: reference and tolerance for numerical types, reference for Yes/No,
+    tolerance for text and multiple-choice types. Text-type references,
+    Upload and Date tests show "Not used".
+- **New Tolerance dialog** (stacked on the first): only the types that fit
+  the test (none for Yes/No), saved through the Tolerance admin's form and
+  duplicate check, plus a limit-order check the admin lacks. A duplicate
+  offers "Use This One". The tolerance applies to the machine only when the
+  first dialog is saved.
 - **Shared settings are locked in machine mode.** Details become read-only
   and add/remove/reorder/outline controls are hidden, with a banner saying
   how to get back to the base list.
@@ -143,10 +158,21 @@ These are choices made during the work that you may want to change.
   inlined in `testlist_assets.html`. Looks safe to delete.
 - **Tolerance wording** ("Percent(-3.00%, …)", "M.C.(OK=a:b, …)") reads like
   code; clinical staff may prefer plainer wording.
-- **Possible follow-up:** edit references and tolerances inline in machine
-  mode.
 
 ## Open issues: elsewhere in QATrack+ (existed before this work)
+
+- `Tolerance` doesn't check limit order (`models.py` ~831), so the Tolerance
+  admin accepts e.g. Tolerance Low 2 / Tolerance High 1. The builder's New
+  Tolerance dialog now checks it.
+- `UnitTestInfo.clean` (`models.py` ~1456) checks percent tolerances
+  against the existing reference, not the new one, so changing a zero
+  reference to non-zero together with a percent tolerance may be rejected.
+  Not verified.
+- The Unit Test Info admin history shows changes as "current → old"
+  (e.g. "Absolute(…) → None"), which reads backwards.
+- Model help text spells "seperated" (Tolerance multiple-choice fields).
+- Perform QC renders duplicate element ids when a test appears both directly
+  and in a sublist (the seeded "Daily Linac QC" has this layout).
 
 - `UnitTestInfoForm.save` (`qa/admin.py`, ~line 212) stores Yes/No
   references with the numerical type, so the Unit Test Info admin and the
