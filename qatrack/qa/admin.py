@@ -2666,9 +2666,12 @@ def freq_name(obj):
 @admin.display(
     description=_l("Assigned To"),
     ordering="assigned_to__name",
+    empty_value=_l("Not assigned"),
 )
 def assigned_to_name(obj):
-    return obj.assigned_to.name
+    # assigned_to is nullable (SET_NULL when its group is deleted), so an
+    # assignment may have no group; returning None shows the empty_value text
+    return obj.assigned_to.name if obj.assigned_to_id else None
 
 
 class SiteFilter(admin.SimpleListFilter):
