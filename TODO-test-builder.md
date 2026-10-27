@@ -311,10 +311,16 @@ Remove this file before the branch is merged.
   - Rows with a long name, description or type value currently centre their
     other cells vertically; align every cell to the top, in test rows and
     sublist rows.
-- [ ] **Edit (pencil) link in its own last column**
-  - Move the "Edit Test in a New Tab" pencil out of `tl-cell-actions` into a
-    separate final column, after Duplicate/Remove. Update the header row,
-    sublist tables, colspans and the empty-state rows.
+- [ ] **Machine mode: the Reference & Tolerance pencil in its own last column**
+  - Machine mode only; the base list's actions column is already right.
+  - Today the pencil that opens the Set Reference & Tolerance dialog (or the
+    Unit Test Info page when the dialog isn't available) is appended inside
+    the Tolerance cell (`fillMachineCells` in `testlist_assets.html`), while
+    the actions column sits empty because its base-mode buttons are hidden.
+    Put the pencil in that last column instead, in test rows and sublist
+    test rows, with its current title/aria label.
+  - Fits with the combined Reference & Tolerance column above; keep the
+    column counts and `syncColumnSpans` right.
 - [ ] **Edit Test List header shows the test list's ID**
   - The page title reads "Edit Test List" (`h1.tl-header-title` in
     `change_form.html`). Add the ID there too (e.g. "Edit Test List · 123"),
