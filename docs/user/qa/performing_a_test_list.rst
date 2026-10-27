@@ -242,7 +242,7 @@ will also show any autosaved sessions which you can click to load and continue.
 
 Autosaved sessions will be automatically deleted either:
 
-a) When the QC session is submitted succesfully -or-
+a) When the QC session is submitted successfully -or-
 b) After 30 days has passed since the auto-saved session was last modified. (To
    change the 30 day interval, you may change the :ref:`AUTOSAVE_DAYS_TO_KEEP
    <autosave_days_to_keep>` setting).

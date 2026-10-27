@@ -6257,7 +6257,7 @@ msgstr "%(test)s a échoué avec l'erreur: %(error)s."
 
 #: qatrack/qa/views/perform.py:1141 qatrack/qa/views/perform.py:1165
 msgid ""
-"Data was not submitted succesfully. Please resolve the errors below and try "
+"Data was not submitted successfully. Please resolve the errors below and try "
 "again."
 msgstr ""
 "Les données n'ont pas été soumises avec succès. Veuillez résoudre les "
@@ -9942,7 +9942,8 @@ msgstr "Vous avez été déconnecté."
 #: qatrack/templates/registration/password_change_done.html:5
 #: qatrack/templates/registration/password_change_done.html:16
 #: qatrack/templates/registration/password_reset_complete.html:5
-msgid "Password Succesfully Changed"
+#: qatrack/templates/registration/password_reset_complete.html:8
+msgid "Password Successfully Changed"
 msgstr "Mot de passe modifié avec succès"
 
 #: qatrack/templates/registration/password_change_done.html:22
@@ -9980,10 +9981,6 @@ msgstr "Mot de passe supprimé"
 #: qatrack/templates/registration/password_delete_done.html:10
 msgid "Your password has been deleted."
 msgstr "Votre mot de passe a été supprimé."
-
-#: qatrack/templates/registration/password_reset_complete.html:8
-msgid "Password Successfuly Changed"
-msgstr "Mot de passe modifié avec succès"
 
 #: qatrack/templates/registration/password_reset_confirm.html:17
 msgid "Bad Token"

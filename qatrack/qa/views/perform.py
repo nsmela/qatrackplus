@@ -1148,7 +1148,7 @@ class PerformQA(PermissionRequiredMixin, CreateView):
         context['has_errors'] = True
         messages.error(
             self.request,
-            _("Data was not submitted succesfully. Please resolve the errors below and try again."),
+            _("Data was not submitted successfully. Please resolve the errors below and try again."),
         )
         return self.render_to_response(context)
 
@@ -1172,7 +1172,7 @@ class PerformQA(PermissionRequiredMixin, CreateView):
             context['has_errors'] = True
             messages.error(
                 self.request,
-                _("Data was not submitted succesfully. Please resolve the errors below and try again."),
+                _("Data was not submitted successfully. Please resolve the errors below and try again."),
             )
             return self.render_to_response(context)
 
