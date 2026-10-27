@@ -53,6 +53,15 @@ Remove this file before the branch is merged.
       what staff will see.
     - In base list mode, offer a layout-only preview (order, sublists,
       descriptions) and say there that pass/fail needs a machine selected.
+- [ ] **Set a machine's reference and tolerance from the builder**
+  - Adding a test to a list assigned to machines creates that machine's
+    settings with no reference or tolerance; Perform QC then records its
+    results as "No Tol Set" with no warning (verified end to end).
+  - In machine mode, a dialog on each row sets that machine's reference and
+    tolerance, with the same rules and change history as the Unit Test Info
+    admin page. Rows update in place.
+  - "Not set" is highlighted on test types that use limits; Upload and Date
+    tests show "Not used".
 - [x] **"Outline" checkbox on each sublist row**
   - `Sublist.outline` already exists, and the perform page already draws
     each outlined sublist in its own box, headed with the sublist's name and
