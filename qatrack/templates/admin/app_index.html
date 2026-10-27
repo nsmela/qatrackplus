@@ -3,6 +3,9 @@
 
 {% block bodyclass %}{{ block.super }} app-{{ app_label }}{% endblock %}
 
+{# No Recent Actions column on app pages (see the empty sidebar block below), so don't reserve room for it: colMS squeezed the model list to a sliver beside the nav sidebar on mid-width windows. #}
+{% block coltype %}colM{% endblock %}
+
 {% if not is_popup %}
 {% block breadcrumbs %}
 <div class="breadcrumbs">

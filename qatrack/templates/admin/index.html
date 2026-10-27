@@ -1,7 +1,17 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
 
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}" />{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}" />
+<style type="text/css">
+/* The open nav sidebar (Django's nav_sidebar.js adds .shifted) lists the same
+   apps; below 768px Django hides the sidebar, so the list shows there. */
+@media (min-width: 768px) {
+    .main.shifted .qa-home-app-list {
+        display: none;
+    }
+}
+</style>
+{% endblock %}
 
 {# colMS (as in Django's own index.html) reserves room for the Recent Actions column; colS let it hang off the right edge below 1025px wide. #}
 {% block coltype %}colMS{% endblock %}
@@ -10,7 +20,18 @@
 
 {% block breadcrumbs %}{% endblock %}
 
-{% block content %}{% endblock %}
+{% comment %}
+On the admin home page the nav sidebar already lists every app, so the app list
+here (qa-home-app-list) is hidden while the sidebar is open (see extrastyle).
+It still shows when the sidebar can't: on narrow screens Django hides the
+sidebar entirely, and a user may collapse it. App pages (/admin/<app>/, which
+extend this template and set app_label) always show their own model list.
+{% endcomment %}
+{% block content %}
+<div id="content-main"{% if not app_label %} class="qa-home-app-list"{% endif %}>
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+</div>
+{% endblock %}
 
 {% block sidebar %}
 <div id="content-related">
