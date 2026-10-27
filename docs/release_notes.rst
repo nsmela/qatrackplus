@@ -21,6 +21,14 @@ QATrack+ 4.0
 Bug Fixes
 ^^^^^^^^^
 
+* **Reports: Chrome makes each PDF with its own browser profile, and without a page
+  header.** Reports made at the same moment, such as a scheduled report while
+  someone downloads another, no longer share the browser's profile. Chrome 155 and
+  later ignore the switch QATrack+ used to turn off the page header and footer, so
+  a PDF made directly with Chrome showed the date and the temporary file's full
+  path; both switches are now passed. Report templates already hid these lines
+  behind their margins (from :issues:`#866 <866>` by Vincent Leduc).
+
 * **Forms no longer record the wrong date and time.** Where a date field arrives
   already filled in - the fault form's *Date & Time fault occurred*, a QC session's
   *Work Completed*, a service event's date - the server wrote that value in one format
