@@ -17,7 +17,7 @@ rather than about languages.
 
 from django.contrib.auth.models import User
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 from qatrack.faults.models import FaultType
 from qatrack.faults.tests import utils
@@ -158,3 +158,45 @@ class TestTheReportedPagesLoad(TestCase):
     def test_the_fault_type_page_loads(self):
         resp = self.client.get(reverse("fault_type_details", kwargs={'slug': self.first.slug}))
         assert resp.status_code == 200
+
+
+class TestARecordSavedBeforeTheFixIsRepairedFromTheAdmin(TestCase):
+    """
+    The fix only runs when a fault type is saved, so a record created before it
+    keeps its empty slug - and its pages keep returning 500 - after an upgrade.
+
+    The documented repair is to open the record in the admin and save it. The admin
+    pages do not use the URL patterns an empty slug breaks, so they still load, and
+    `save()` regenerates the slug. These tests pin that path, because it is what the
+    docs tell an administrator to do.
+    """
+
+    def setUp(self):
+        user = User.objects.create_superuser("faultadmin", "a@b.com", "password")
+        self.client.force_login(user)
+
+        # A record as versions before 4.0.1 left it: `update()` skips `save()`.
+        self.fault_type = FaultType.objects.create(code=BEAM_FAULT)
+        FaultType.objects.filter(pk=self.fault_type.pk).update(slug="")
+        self.fault = utils.create_fault(unit=qa_utils.create_unit(), fault_type=self.fault_type)
+
+    def test_an_old_record_still_breaks_the_fault_page(self):
+        """The upgrade alone does not repair it, which is why the docs have to say so."""
+
+        with self.assertRaises(NoReverseMatch):
+            self.client.get(reverse("fault_details", kwargs={'pk': self.fault.pk}))
+
+    def test_saving_it_in_the_admin_repairs_it(self):
+        change_url = reverse("admin:faults_faulttype_change", args=[self.fault_type.pk])
+        assert self.client.get(reverse("admin:faults_faulttype_changelist")).status_code == 200
+        assert self.client.get(change_url).status_code == 200
+
+        resp = self.client.post(change_url, {"code": BEAM_FAULT, "description": ""})
+        assert resp.status_code == 302, "the admin refused to save the record"
+
+        self.fault_type.refresh_from_db()
+        assert self.fault_type.slug
+        assert self.client.get(reverse("fault_details", kwargs={'pk': self.fault.pk})).status_code == 200
+        assert self.client.get(
+            reverse("fault_type_details", kwargs={'slug': self.fault_type.slug}),
+        ).status_code == 200

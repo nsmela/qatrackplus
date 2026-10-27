@@ -29,8 +29,27 @@ existing fault type by clicking the link in the **Code** column of the table.
 The Fault Type fields are as follows:
 
 * **Code**  The fault type code or fault type number.
-* **Description** A description that will be shown alongside the fault 
+* **Description** A description that will be shown alongside the fault
   type when viewing fault details.
+
+.. _fault_type_empty_address:
+
+Repairing a fault type whose pages show a server error
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each fault type gets a web address made from its code, reduced to plain ASCII
+letters and numbers. Before version 4.0.1, a code with nothing left after that
+reduction - one written in Chinese, Cyrillic, Greek or Arabic, for example, or
+made only of letters such as ``Ø`` or ``Ł`` - was given an empty address. The
+fault type's own page, the page of every fault that uses it, and the **All
+Fault Types** table then stop with a server error.
+
+Version 4.0.1 and later give these codes a working address, but only when the
+fault type is saved, so a fault type created on an earlier version keeps its
+empty address after an upgrade. To repair it, open it from the **Fault types**
+section of the admin, which still works for these records, and click **Save**
+without changing anything. Its code, description and faults are left as they
+were.
 
 .. _faults:
 

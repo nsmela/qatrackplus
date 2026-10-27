@@ -229,6 +229,14 @@ Deployment and Upgrade Notes
   until the files are checked out again; see
   :ref:`checking out deploy/docker again <docker_line_endings>`.
 
+* **A fault type created before 4.0.1 with a code that has no ASCII form needs one
+  save in the admin.** 4.0.1 gives such a code a working web address, but only when
+  the fault type is saved, so one created on an earlier version still has an empty
+  address after the upgrade - and the pages that link to it, including each fault
+  that uses it, still show a server error. To repair it, open it under **Fault
+  types** in the admin and click **Save**; nothing else about it changes. See
+  :ref:`fault_type_empty_address` (:issues:`#677 <677>`).
+
 4.0.1
 ------
 
