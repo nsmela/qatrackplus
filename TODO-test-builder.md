@@ -346,7 +346,7 @@ Remove this file before the branch is merged.
     `change_form.html`). Check the add page and the narrow-window layout,
     and that the unsaved-changes tracking and Browse/Remove handlers still
     find the card.
-- [ ] **Tests table fits its card at 800px**
+- [x] **Tests table fits its card at 800px**
   - At 800px the tests table is wider than its card, so the last columns
     (base-mode Edit/Duplicate/Remove, machine-mode Reference & Tolerance
     pencil) only show after scrolling sideways inside the card. Make whole
@@ -354,7 +354,7 @@ Remove this file before the branch is merged.
 - [x] **Parent Test List Memberships above Tests & Sublists**
   - Edit page card order becomes Details, Attachments, Parent Test List
     Memberships, Tests & Sublists.
-- [ ] **Machine mode: pencil in front of the Reference & Tolerance values**
+- [x] **Machine mode: pencil in front of the Reference & Tolerance values**
   - Replaces the R5 layout: no separate pencil column. The Set Reference &
     Tolerance pencil sits at the start of the Reference & Tolerance cell,
     before the values; the empty actions column is dropped in machine mode.

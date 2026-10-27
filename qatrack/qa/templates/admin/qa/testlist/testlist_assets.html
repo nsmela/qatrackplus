@@ -483,20 +483,33 @@ body.tl-mode-machine .tl-col-type-value {
   display: none;
 }
 .tl-th-reftol { width: 320px; }
-/* The Reference & Tolerance pencil sits in the row's last (actions) column,
-   in place of the base list's buttons; sublist tables only get that column in machine mode */
-.tl-machine-actions,
-.tl-col-machine-actions {
+/* Machine mode has no actions column: the base list's buttons don't apply there,
+   and the Reference & Tolerance pencil sits in its own cell */
+body.tl-mode-machine .tl-col-actions {
   display: none;
 }
-body.tl-mode-machine .tl-machine-actions {
-  display: inline;
+/* The pencil leads the cell, beside the first line of values. Its slot keeps
+   its width on rows with no pencil (No limits needed, Save the test list
+   first, view only), so the values start at the same place on every row. */
+.tl-reftol-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
-body.tl-mode-machine .tl-col-machine-actions {
-  display: table-cell;
+.tl-reftol-edit {
+  flex: 0 0 24px; /* room for the pencil's 24px tap target on narrow cards */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* the first value line's height: the pencil is centred on that line, even
+     when its tap target is taller */
+  height: 18px;
 }
-.tl-sublist-table .tl-th-actions { width: 40px; }
-.tl-machine-actions .tl-machine-edit {
+.tl-reftol-values {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tl-reftol-edit .tl-machine-edit {
   margin-left: 0;
 }
 /* One line each for the reference and the tolerance, when the type uses both */
@@ -723,7 +736,6 @@ button.tl-machine-edit:focus-visible {
 body.tl-mode-machine #tl-tests-card .tl-drag-handle,
 body.tl-mode-machine #tl-header-add-test-btn,
 body.tl-mode-machine #tl-header-add-sublist-btn,
-body.tl-mode-machine #tl-tests-card .tl-cell-actions > *:not(.tl-machine-actions),
 body.tl-mode-machine #tl-tests-card .tl-btn-change-sublist,
 body.tl-mode-machine #tl-tests-card .tl-btn-remove-sublist,
 body.tl-mode-machine #tl-tests-card .tl-remove-locked,
@@ -1566,9 +1578,10 @@ a.tl-btn-sublist:hover {
    Narrower cards trade fixed column widths for flexible ones, so every column
    (including Reference and Tolerance in machine mode) fits without scrolling
    sideways: long names wrap, the type name goes under its badge, the row's
-   action icons wrap onto two lines. Below about 450px (base list) or 560px
-   (machine mode, with its Reference and Tolerance columns) the table scrolls
-   inside the card as a last resort. */
+   action icons wrap onto two lines. Two tighter steps follow (560px and 420px
+   cards, e.g. an 800px window with the nav sidebar open) so the last column,
+   with the row's action icons or the Reference & Tolerance pencil, stays in view.
+   Only very narrow cards (under about 370px, e.g. a phone) still scroll sideways inside the card. */
 @container tlb-table (max-width: 900px) {
   .tlb-table thead th {
     white-space: normal;
@@ -1608,6 +1621,62 @@ a.tl-btn-sublist:hover {
     margin-left: auto;
   }
   .tl-sublist-outline { white-space: normal; }
+}
+/* Tighter step: smaller paddings and minimum widths, values wrap (up to three
+   lines, full text in the tooltip) instead of holding the column open, and
+   the row's icons keep a 24px tap target. Nothing is hidden. */
+@container tlb-table (max-width: 560px) {
+  .tlb-table thead th { padding: 7px 4px; }
+  .tlb-table tbody td { padding: 8px 4px; }
+  .tl-th-drag, .tl-th-lock,
+  .tl-cell-drag, .tl-cell-lock { width: 24px; }
+  .tl-th-test { min-width: 88px; }
+  .tl-cell-test { min-width: 80px; }
+  .tl-cat-pill,
+  .tl-type-chip { padding: 1px 5px; }
+  .tl-cell-type-value { max-width: 120px; }
+  .tl-type-value {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .tl-cell-reftol { min-width: 0; }
+  /* Two icons on the first line, the third under them */
+  .tl-cell-actions {
+    min-width: 56px;
+    max-width: 64px;
+  }
+  .tl-cell-actions .tl-action-icon {
+    box-sizing: border-box; /* the Edit link is an <a>: same 24px box as the buttons */
+    min-width: 24px;
+    min-height: 24px;
+    padding: 4px;
+  }
+  /* Machine mode: the Reference & Tolerance pencil (or link) keeps a 24px tap target */
+  .tlb-table .tl-machine-edit {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 4px;
+  }
+}
+/* Narrowest step: the base list's action icons stack in one column */
+@container tlb-table (max-width: 420px) {
+  .tlb-table thead th { padding: 7px 3px; }
+  .tlb-table tbody td { padding: 8px 3px; }
+  .tl-th-test { min-width: 76px; }
+  .tl-cell-test { min-width: 70px; }
+  .tl-cat-pill,
+  .tl-type-chip { padding: 1px 3px; }
+  .tl-cell-actions {
+    min-width: 24px;
+    max-width: 28px;
+  }
 }
 /* The tests card header (Expand All, Add Sublist, Add Test) wraps on narrow windows. */
 @media (max-width: 767px) {
@@ -4470,28 +4539,16 @@ ul.messagelist li.error {
     return "";
   }
 
-  // This row's own machine-mode pencil holder, in its last (actions) column.
-  function machineActionsBox(r) {
-    var box = null;
-    Array.prototype.forEach.call(r.children, function (td) {
-      if (!box && td.classList.contains("tl-cell-actions")) {
-        Array.prototype.forEach.call(td.children, function (el) {
-          if (!box && el.classList.contains("tl-machine-actions")) { box = el; }
-        });
-      }
-    });
-    return box;
-  }
-
-  // Fill one row's own Reference & Tolerance cell, and put its pencil in the
-  // row's last column.
+  // Fill one row's own Reference & Tolerance cell: the pencil first, then the
+  // values. The pencil's slot is there (empty) on rows without one, so the
+  // values line up down the column.
   function fillMachineRow(r, info, limits) {
     var cell = machineRefTolCell(r);
     if (!cell) { return; }
     limits = limits || { uses_limits: true, reference: "required", tolerance: "required" };
-    cell.innerHTML = machineRefTolHtml(info, limits);
-    var box = machineActionsBox(r);
-    if (box) { box.innerHTML = machineRefTolEditHtml(r, info, limits); }
+    cell.innerHTML = '<div class="tl-reftol-wrap">' +
+      '<span class="tl-reftol-edit">' + machineRefTolEditHtml(r, info, limits) + '</span>' +
+      '<div class="tl-reftol-values">' + machineRefTolHtml(info, limits) + '</div></div>';
   }
 
   // data: testlist_machine_values' JSON ({tests, limits}).
@@ -4511,7 +4568,7 @@ ul.messagelist li.error {
   }
 
   function clearMachineCells() {
-    document.querySelectorAll("#tl-tests-card td.tl-col-reftol, #tl-tests-card .tl-machine-actions").forEach(function (el) {
+    document.querySelectorAll("#tl-tests-card td.tl-col-reftol").forEach(function (el) {
       el.innerHTML = "";
     });
   }
@@ -4763,8 +4820,8 @@ ul.messagelist li.error {
     var opener = refTolState.opener;
     refTolState.opener = null;
     if (!opener || !opener.row || !document.contains(opener.row)) { return; }
-    var box = machineActionsBox(opener.row);
-    var btn = box ? box.querySelector(".tl-machine-reftol-btn") : null;
+    var cell = machineRefTolCell(opener.row);
+    var btn = cell ? cell.querySelector(".tl-machine-reftol-btn") : null;
     if (btn) { btn.focus(); }
   }
 

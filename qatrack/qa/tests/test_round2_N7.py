@@ -27,8 +27,8 @@ ASSETS = 'admin/qa/testlist/testlist_assets.html'
 # Which header cells the builder CSS hides in each mode (see the
 # "Reference / Tolerance columns replace Type Value" rules, checked below).
 HIDDEN_IN = {
-    'base': {'tl-col-reftol', 'tl-col-machine-actions'},  # R5: sublist tables' machine-only pencil column
-    'machine': {'tl-col-type-value'},
+    'base': {'tl-col-reftol'},
+    'machine': {'tl-col-type-value', 'tl-col-actions'},  # R11: the builder table's actions column
 }
 
 
@@ -68,7 +68,7 @@ class TestSublistRowSpans(TestCase):
     def test_builder_table_visible_column_counts(self):
         table = self._soup(self.url).find('table', id='tl-tests-table')
         assert _visible_columns(table, 'base') == 6
-        assert _visible_columns(table, 'machine') == 6
+        assert _visible_columns(table, 'machine') == 5  # R11: machine mode hides the actions column
 
     def test_sublist_rows_span_the_base_mode_columns(self):
         soup = self._soup(self.url)
@@ -89,7 +89,7 @@ class TestSublistRowSpans(TestCase):
         table = _owning_table(td)
         assert 'tl-sublist-table' in table['class']
         assert int(td['colspan']) == _visible_columns(table, 'base') == 5
-        assert _visible_columns(table, 'machine') == 6  # R5: plus the pencil column; syncColumnSpans() recounts
+        assert _visible_columns(table, 'machine') == 5  # R11: no pencil column; syncColumnSpans() recounts
         assert 'tl-span-visible-cols' in td['class']
 
     def test_no_cell_spans_past_the_shown_columns(self):

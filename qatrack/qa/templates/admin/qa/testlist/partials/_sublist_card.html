@@ -5,7 +5,7 @@
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
     data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ sublist_meta.order }}{% endif %}">
-  {# spans the builder table's visible columns: 6 in base mode and in machine mode (Reference & Tolerance replaces Type Value); syncColumnSpans() (testlist_assets.html) recounts them when the mode changes #}
+  {# spans the builder table's visible columns: 6 in base mode, 5 in machine mode (Reference & Tolerance replaces Type Value, and the actions column is hidden); syncColumnSpans() (testlist_assets.html) recounts them when the mode changes #}
   <td colspan="6" class="tl-sublist-cell tl-span-visible-cols">
     {# a sublist the user removed before a failed save: hidden exactly as the Remove button leaves it #}
     <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}"{% if inline_admin_form.form.DELETE.value %} style="opacity: 0; display: none;"{% endif %}>
@@ -95,8 +95,6 @@
                 <th class="tl-th-type">{% trans "Type" %}</th>
                 <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
                 <th class="tl-th-reftol tl-col-reftol">{% trans "Reference & Tolerance" %}</th>
-                {# machine mode only: the Reference & Tolerance pencil #}
-                <th class="tl-th-actions tl-col-machine-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -117,11 +115,10 @@
                   </td>
                   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
                   {% include "admin/qa/testlist/partials/_machine_cells.html" %}
-                  <td class="tl-cell-actions tl-col-machine-actions"><span class="tl-machine-actions"></span></td>
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  {# 5 visible columns in base mode, 6 in machine mode (the pencil column); syncColumnSpans() recounts them #}
+                  {# 5 visible columns in both modes (Reference & Tolerance replaces Type Value); syncColumnSpans() recounts them #}
                   <td colspan="5" class="tl-empty-sublist-msg tl-span-visible-cols">{% trans "This sublist has no tests yet." %}</td>
                 </tr>
               {% endfor %}

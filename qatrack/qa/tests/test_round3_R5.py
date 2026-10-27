@@ -1,11 +1,12 @@
-"""Round 3, R5: machine mode's Reference & Tolerance pencil sits in the row's last column.
+"""Round 3, R5 (since replaced by R11): where machine mode's Reference & Tolerance pencil goes.
 
-The pencil that opens the Set Reference & Tolerance dialog (or links to the
-Unit Test Info page) used to be appended to the Reference & Tolerance cell.
-It now goes in a ``.tl-machine-actions`` holder inside the row's actions cell,
-which is shown only in machine mode, in place of the base list's buttons.
-Sublist test rows get a machine-only actions column for it. These tests check
-the rendered markup, the column counts, and the JS and CSS that drive it.
+R5 moved the pencil that opens the Set Reference & Tolerance dialog (or links
+to the Unit Test Info page) into a ``.tl-machine-actions`` holder in the row's
+actions cell, with a machine-only actions column in sublist tables. R11
+replaced that layout: the pencil leads the Reference & Tolerance cell and
+machine mode has no actions column at all (see test_round3_R11.py). The tests
+below were updated to check that the R5 holder and column are gone, and that
+the base list's actions column is unchanged.
 """
 
 import re
@@ -44,19 +45,15 @@ class TestMachinePencilColumnMarkup(TestCase):
         assert resp.status_code == 200
         return BeautifulSoup(resp.content.decode(), 'html.parser')
 
-    def test_every_test_row_has_the_holder_in_its_last_cell(self):
+    def test_no_test_row_has_a_pencil_holder_in_its_actions_cell(self):
         soup = self._soup()
         rows = soup.select('tr.tl-test-row[data-test-id], tr.tl-sublist-test-row[data-test-id]')
         assert len(rows) == 2
+        assert not soup.select('.tl-machine-actions')
         for row in rows:
-            last = row.find_all('td', recursive=False)[-1]
-            assert 'tl-cell-actions' in last['class']
-            holders = last.find_all(class_='tl-machine-actions', recursive=False)
-            assert len(holders) == 1
-            assert holders[0].get_text(strip=True) == ''  # filled in by the builder JS
-            # the pencil is no longer rendered or kept in the Reference & Tolerance cell
+            # the Reference & Tolerance cell is rendered empty; the builder JS fills it, pencil first (R11)
             reftol = row.find('td', class_='tl-col-reftol', recursive=False)
-            assert not reftol.select('.tl-machine-edit')
+            assert reftol.get_text(strip=True) == ''
 
     def test_base_list_buttons_are_unchanged(self):
         soup = self._soup()
@@ -65,14 +62,12 @@ class TestMachinePencilColumnMarkup(TestCase):
         assert actions.select_one('.tl-duplicate-test-btn')
         assert actions.select_one('.tl-delete-test-btn')
 
-    def test_sublist_table_has_a_machine_only_actions_column(self):
+    def test_sublist_table_has_no_actions_column(self):
         soup = self._soup()
         sub = soup.select_one('table.tl-sublist-table')
         last_th = sub.find('thead').find('tr').find_all('th', recursive=False)[-1]
-        assert {'tl-th-actions', 'tl-col-machine-actions'} <= set(last_th['class'])
-        assert last_th.select_one('.tl-visually-hidden').get_text(strip=True) == 'Actions'
-        cell = sub.select_one('tr.tl-sublist-test-row td.tl-cell-actions')
-        assert 'tl-col-machine-actions' in cell['class']
+        assert 'tl-col-reftol' in last_th['class']
+        assert not sub.select('.tl-th-actions, .tl-cell-actions, .tl-col-machine-actions')
 
     def test_column_counts_and_spans(self):
         soup = self._soup()
@@ -82,12 +77,13 @@ class TestMachinePencilColumnMarkup(TestCase):
                        if not hidden & set(th.get('class', [])))
 
         main = soup.find('table', id='tl-tests-table')
-        # the builder table's actions column is there in both modes
-        assert visible(main, {'tl-col-reftol'}) == visible(main, {'tl-col-type-value'}) == 6
+        # R11: the builder table's actions column is hidden in machine mode
+        assert visible(main, {'tl-col-reftol'}) == 6
+        assert visible(main, {'tl-col-type-value', 'tl-col-actions'}) == 5
         assert soup.select_one('td.tl-sublist-cell')['colspan'] == '6'
         for sub in soup.select('table.tl-sublist-table'):
-            assert visible(sub, {'tl-col-reftol', 'tl-col-machine-actions'}) == 5  # base list
-            assert visible(sub, {'tl-col-type-value'}) == 6  # machine mode
+            assert visible(sub, {'tl-col-reftol'}) == 5  # base list
+            assert visible(sub, {'tl-col-type-value'}) == 5  # machine mode
         # an empty sublist's message spans the base count; syncColumnSpans() recounts it
         empty = soup.select_one('td.tl-empty-sublist-msg')
         assert empty['colspan'] == '5'
@@ -104,15 +100,15 @@ class TestMachinePencilColumnScript(TestCase):
         assert match, name
         return match.group(0)
 
-    def test_pencil_goes_in_the_actions_holder(self):
+    def test_pencil_no_longer_goes_in_an_actions_holder(self):
         fill = self._function('fillMachineRow')
-        assert 'machineActionsBox(r)' in fill
-        assert 'box.innerHTML = machineRefTolEditHtml(r, info, limits)' in fill
-        assert 'cell.innerHTML = machineRefTolHtml(info, limits)' in fill
-        # no longer appended to the Reference & Tolerance cell's last line
+        assert 'machineActionsBox' not in self.assets
+        assert 'tl-machine-actions' not in self.assets
+        # R11: pencil and values both go in the Reference & Tolerance cell
+        assert 'machineRefTolEditHtml(r, info, limits)' in fill
+        assert 'machineRefTolHtml(info, limits)' in fill
+        # not appended to the Reference & Tolerance cell's last line either
         assert 'html.replace' not in fill
-        box = self._function('machineActionsBox')
-        assert 'tl-cell-actions' in box and 'tl-machine-actions' in box
 
     def test_pencil_keeps_its_labels_and_save_first_case(self):
         edit = self._function('machineRefTolEditHtml')
@@ -120,16 +116,13 @@ class TestMachinePencilColumnScript(TestCase):
         assert 'title="\' + escapeHtml(setLabel) + \'" aria-label="\' + escapeHtml(setLabel)' in edit
         assert 'Set reference and tolerance for %(test)s on %(unit)s' in edit
 
-    def test_cleared_and_focused_in_the_holder(self):
-        assert '.tl-machine-actions' in self._function('clearMachineCells')
+    def test_cleared_and_focused_in_the_reftol_cell(self):
+        assert '.tl-machine-actions' not in self._function('clearMachineCells')
         focus = self._function('focusRefTolOpener')
-        assert 'machineActionsBox(opener.row)' in focus
-        assert 'machineRefTolCell' not in focus
+        assert 'machineRefTolCell(opener.row)' in focus
 
-    def test_css_hides_base_buttons_but_not_the_holder(self):
+    def test_css_hides_the_whole_actions_column_in_machine_mode(self):
         css = re.sub(r'\s+', ' ', self.assets)
-        assert 'body.tl-mode-machine #tl-tests-card .tl-cell-actions > *:not(.tl-machine-actions),' in css
-        assert 'body.tl-mode-machine #tl-tests-card .tl-cell-actions > *,' not in css
-        assert '.tl-machine-actions, .tl-col-machine-actions { display: none; }' in css
-        assert 'body.tl-mode-machine .tl-machine-actions { display: inline; }' in css
-        assert 'body.tl-mode-machine .tl-col-machine-actions { display: table-cell; }' in css
+        assert 'body.tl-mode-machine .tl-col-actions { display: none; }' in css
+        assert '.tl-cell-actions > *:not(.tl-machine-actions)' not in css
+        assert '.tl-col-machine-actions' not in css

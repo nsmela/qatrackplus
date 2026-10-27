@@ -392,9 +392,10 @@ All eight Round 3 items in `TODO-test-builder.md` are built (one agent each).
   their tolerance only (they pass/fail by choices, like Multiple Choice);
   Boolean shows "Expected Yes/No", plus a tolerance line when one is set;
   Upload/Date types show "No limits needed".
-- **Machine-mode pencil (R5)** keeps its blue machine style, distinct from
-  the base list's grey "Edit Test" pencil. Sublist tables only get the extra
-  column in machine mode.
+- **Machine-mode pencil** (R5, then R11) sits at the start of the Reference &
+  Tolerance cell in a fixed 24px slot (empty when there's no pencil, so
+  values line up), in its blue machine style. Machine mode has no actions
+  column.
 - **Sublist headers top-align (R4)** like test rows, so the drag handle stays
   by the first line when a long name wraps.
 - **Heading (R6)** reads "Edit Test List · ID 123"; the browser tab title is
@@ -404,9 +405,11 @@ All eight Round 3 items in `TODO-test-builder.md` are built (one agent each).
   machine mode since it only opens another page.
 
 ### Open issues found in round 3
-- At 800px the builder table is wider than its card (about 530px in 461px),
-  so the last columns scroll sideways inside the card; in machine mode the
-  pencils are only visible after scrolling.
+- Fixed since: the tests table now fits its card down to a ~370px card
+  (cells compact and wrap; nothing hidden). Below that (360px phones) it
+  still scrolls inside the card; a card-style row layout would fix it.
+- Base-list action icons and the machine pencil are under 24px at wide
+  widths (only the narrow steps enforce 24px tap targets).
 - `UnitTestInfoForm`'s class-level labels ("New reference value", "Set by",
   …) use eager `gettext`, so they don't follow the request language.
 - `test_round2_N7.py`'s docstring and a comment near `test_admin.py:2096`
