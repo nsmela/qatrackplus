@@ -4,7 +4,9 @@ from django import template
 from django.conf import settings
 from django.template.loader import get_template
 from django.utils import timezone
+from django.utils.html import conditional_escape, format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext as _
 
 from qatrack.qa import models
 from qatrack.qatrack_core import scheduling
@@ -35,44 +37,66 @@ def qa_table_colspan(perms, offset=0):
     return "%d" % (span)
 
 
+def _interpolate(message, **values):
+    """Fill a translated message's named placeholders, escaping the message and the values.
+
+    The message comes from a translation catalogue and the values can be user data (choices,
+    reference values), so neither is trusted as HTML. Returns a SafeString ready for format_html.
+    """
+    return mark_safe(conditional_escape(message) % {k: conditional_escape(v) for k, v in values.items()})
+
+
+def _tolerance_limits(tol):
+    """The four limits of an Absolute/Percent tolerance, e.g. "(-2.000, -1.000, 1.000, 2.000)".
+
+    Formatted the same way as the stored tolerance name, without its type prefix.
+    """
+    vals = (tol.act_low, tol.tol_low, tol.tol_high, tol.act_high)
+    fmt = "%.2f%%" if tol.type == models.PERCENT else "%.3f"
+    return "(%s)" % ", ".join(fmt % v if v is not None else "--" for v in vals)
+
+
 @register.simple_tag
 def reference_tolerance_span(test, ref, tol):
 
     if ref is None and not (test.is_mult_choice() or test.is_string_type()):
-        return mark_safe("<span>No Ref</span>")
+        # Translators: shown on Perform QC when a test has no reference value
+        return format_html("<span>{}</span>", _("No Ref"))
 
     if test.is_boolean():
         ref_display = ref.value_display(test)
-        return mark_safe('<span title="Passing value = %s">%s</span>' % (ref_display, ref_display))
+        return format_html(
+            '<span title="{}">{}</span>',
+            _("Passing value = %(value)s") % {"value": ref_display},
+            ref_display,
+        )
 
     if not tol:
+        title = _("No Tolerance Set")
         if ref:
-            return mark_safe('<span title="No Tolerance Set">%s</span>' % (ref.value_display()))
-        return mark_safe('<span title="No Tolerance Set">No Tol</span>')
+            return format_html('<span title="{}">{}</span>', title, ref.value_display())
+        # Translators: short form of "No Tolerance Set" shown on Perform QC
+        return format_html('<span title="{}">{}</span>', title, _("No Tol"))
 
     tsd = settings.TEST_STATUS_DISPLAY
     if tol.type == models.MULTIPLE_CHOICE:
-        params = (tsd['ok'], ", ".join(tol.pass_choices()), tsd['tolerance'], ', '.join(tol.tol_choices()))
-        return mark_safe((
-            '<span><abbr title="%s Values: %s;  %s Values: %s; All other choices are failing">'
-            '<em>Choice</em></abbr></span>'
-        ) % params)
+        title = "%s;  %s; %s" % (
+            _("%(status)s Values: %(choices)s") % {"status": tsd['ok'], "choices": ", ".join(tol.pass_choices())},
+            _("%(status)s Values: %(choices)s") % {"status": tsd['tolerance'], "choices": ", ".join(tol.tol_choices())},
+            _("All other choices are failing"),
+        )
+        # Translators: short label for a multiple choice test's tolerance on Perform QC
+        return format_html('<span><abbr title="{}"><em>{}</em></abbr></span>', title, _("Choice"))
 
-    tsds = settings.TEST_STATUS_DISPLAY_SHORT
-    if tol.type == models.ABSOLUTE:
-        return mark_safe(
-            '<span> <abbr title="(%s L, %s L, %s H, %s H) = %s ">%s</abbr></span>' % (
-                tsds["action"], tsds["tolerance"], tsds["tolerance"], tsds["action"], str(tol).replace("Absolute", ""),
-                ref.value_display() if ref else ""
-            )
-        )
-    elif tol.type == models.PERCENT:
-        return mark_safe(
-            '<span> <abbr title="(%s L, %s L, %s H, %s H) = %s ">%s</abbr></span>' % (
-                tsds["action"], tsds["tolerance"], tsds["tolerance"], tsds["action"], str(tol).replace("Percent", ""),
-                ref.value_display() if ref else ""
-            )
-        )
+    if tol.type in (models.ABSOLUTE, models.PERCENT):
+        tsds = settings.TEST_STATUS_DISPLAY_SHORT
+        # Translators: L and H stand for Low and High; e.g. "(ACT L, TOL L, TOL H, ACT H) = (-2, -1, 1, 2)"
+        title = _("(%(act)s L, %(tol)s L, %(tol)s H, %(act)s H) = %(limits)s") % {
+            "act": tsds["action"],
+            "tol": tsds["tolerance"],
+            "limits": _tolerance_limits(tol),
+        }
+        return format_html('<span> <abbr title="{} ">{}</abbr></span>', title, ref.value_display() if ref else "")
 
 
 @register.filter
@@ -95,27 +119,40 @@ def tolerance_for_reference(tol, ref, test=None):
     tsd = settings.TEST_STATUS_DISPLAY
     if ref and (ref.type == models.BOOLEAN or (test is not None and test.is_boolean())):
         expected = ref.value_display(test)
-        return mark_safe(
-            '<span>%s: %s; %s: %s</span>' % (tsd['ok'], expected, tsd['action'], "Yes" if expected == "No" else "No")
+        failing = _("No") if int(ref.value) == 1 else _("Yes")
+        return format_html(
+            "<span>{}; {}</span>",
+            _interpolate(_("%(status)s: %(value)s"), status=tsd['ok'], value=expected),
+            _interpolate(_("%(status)s: %(value)s"), status=tsd['action'], value=failing),
         )
 
     if not tol:
-        return mark_safe('<span><em>N/A</em></span>')
+        return format_html("<span><em>{}</em></span>", _("N/A"))
 
     if tol.type == models.MULTIPLE_CHOICE:
-        params = (tsd['ok'], ", ".join(tol.pass_choices()), tsd['tolerance'], ', '.join(tol.tol_choices()))
-        return mark_safe('<span>%s: %s</br>  %s: %s</br> All others fail</span>' % params)
+        return format_html(
+            "<span>{}<br>  {}<br> {}</span>",
+            _interpolate(_("%(status)s: %(choices)s"), status=tsd['ok'], choices=", ".join(tol.pass_choices())),
+            _interpolate(_("%(status)s: %(choices)s"), status=tsd['tolerance'], choices=", ".join(tol.tol_choices())),
+            _("All others fail"),
+        )
 
-    tols = tol.tolerances_for_value(ref.value)
-    for key in tols:
-        tols[key] = "-" if tols[key] is None else "%.4g" % tols[key]
-    tols["ok_disp"] = tsd['ok']
-    tols["tol_disp"] = tsd['tolerance']
-    tols["act_disp"] = tsd['action']
-    return mark_safe(
-        '<span>%(ok_disp)s: Between %(tol_low)s &amp; %(tol_high)s</br> '
-        '%(tol_disp)s Between %(act_low)s &amp; %(act_high)s</br> '
-        '%(act_disp)s: < %(act_low)s or > %(act_high)s</span>' % tols
+    tols = {k: "-" if v is None else "%.4g" % v for k, v in tol.tolerances_for_value(ref.value).items()}
+    return format_html(
+        "<span>{}<br> {}<br> {}</span>",
+        _interpolate(
+            _("%(status)s: Between %(low)s & %(high)s"),
+            status=tsd['ok'], low=tols[models.TOL_LOW], high=tols[models.TOL_HIGH],
+        ),
+        _interpolate(
+            # Translators: there is no colon after the status here, matching the long-standing display
+            _("%(status)s Between %(low)s & %(high)s"),
+            status=tsd['tolerance'], low=tols[models.ACT_LOW], high=tols[models.ACT_HIGH],
+        ),
+        _interpolate(
+            _("%(status)s: < %(low)s or > %(high)s"),
+            status=tsd['action'], low=tols[models.ACT_LOW], high=tols[models.ACT_HIGH],
+        ),
     )
 
 
