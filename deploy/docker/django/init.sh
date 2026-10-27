@@ -11,6 +11,10 @@
 #   - one location is inside another, or is the same folder (QATRACK_BACKUPS_DIR
 #     included): the web server would show the logs or the secret key to anyone,
 #     or the backups would be handed to QATrack+'s user;
+#   - a folder holds something that is clearly not QATrack+'s data for that
+#     location alone, marked or not: a .qatrackplus-data file below its top
+#     (another of QATrack+'s folders, so the setting names a folder above the
+#     one meant), or a file named like a backup;
 #   - a folder is not empty and has no .qatrackplus-data file to mark it as
 #     QATrack+'s. An empty folder is marked here, so a new site needs no step.
 # Docker volumes are always QATrack+'s own, so they are never checked or marked,
@@ -29,6 +33,12 @@ user_data=$app/deploy/docker/user-data
 logs=$app/logs
 # Mounted read-only, only to check that nothing else is inside it.
 backups=/backups
+# The names backup.sh gives its archives, db_YYYYMMDD_HHMMSS.dump and
+# media_YYYYMMDD_HHMMSS.tar.gz (each written first with .tmp added). Uploaded
+# files never have these names: QATrack+ adds the date as YYYY-MM-DD and a
+# random suffix to the name of every file it saves.
+d4='[0-9][0-9][0-9][0-9]'
+stamp="${d4}${d4}_[0-9][0-9]${d4}"
 
 # The .env setting (or "") behind a location, and the volume or folder used
 # when it is unset.
@@ -50,6 +60,14 @@ default_of() {
         "$backups") echo "the backups folder beside compose.yaml" ;;
     esac
 }
+# What QATrack+ keeps in a location, for messages.
+what_of() {
+    case $1 in
+        "$media") echo "uploaded files" ;;
+        "$user_data") echo "user data (its secret key)" ;;
+        "$logs") echo "log files" ;;
+    esac
+}
 # The folder on the server set for a location, or "" for the default.
 folder_of() {
     setting=$(setting_of "$1")
@@ -59,6 +77,26 @@ folder_of() {
 describe() {
     folder=$(folder_of "$1")
     if [ -n "$folder" ]; then echo "$(setting_of "$1")=$folder"; else default_of "$1"; fi
+}
+# Path $2, inside location $1, as it is named on the server when the location is
+# a folder there.
+on_server() {
+    folder=$(folder_of "$1")
+    if [ -n "$folder" ]; then echo "$folder${2#"$1"}"; else echo "$2"; fi
+}
+# The first thing in location $1 that shows it is not QATrack+'s data for that
+# location alone: a marker below its top (so it holds another of QATrack+'s
+# folders, or a copy of one), or a file named like a backup. find stops at the
+# first. restore-media's .restore.* working folders, at the top of the media
+# folder, are QATrack+'s own and can hold the marker from a backup, so they are
+# not looked in.
+not_qatracks() {
+    find "$1" -xdev -mindepth 1 \
+        \( -path "$media/.restore.*" -prune \) -o \
+        \( \( -path "$1/*/$marker" \
+            -o -name "db_$stamp.dump" -o -name "db_$stamp.dump.tmp" \
+            -o -name "media_$stamp.tar.gz" -o -name "media_$stamp.tar.gz.tmp" \) \
+        -print -quit \)
 }
 
 tmp=$(mktemp -d)
@@ -108,10 +146,30 @@ to the QATrack+ user.
 EOF
     fi
 
-    # Folders that are not empty must already be marked as QATrack+'s.
+    # Folders must hold nothing that is clearly not QATrack+'s, and, unless they
+    # are empty, must already be marked as QATrack+'s.
     for location in "$media" "$user_data" "$logs"; do
         folder=$(folder_of "$location")
         if [ -z "$folder" ]; then continue; fi
+        found=$(not_qatracks "$location")
+        if [ -n "$found" ]; then
+            if [ "${found##*/}" = "$marker" ]; then
+                why="another of QATrack+'s folders (a $marker file below its top)"
+            else
+                why="what looks like a QATrack+ backup"
+            fi
+            cat >>"$problems" <<EOF
+$(setting_of "$location")=$folder
+holds $why:
+    $(on_server "$location" "$found")
+It is not a folder of QATrack+'s $(what_of "$location") alone, so QATrack+ will
+not use it, marked or not: each time it starts it gives everything in its
+folders to its own user (uid $uid), which cannot be undone. Check the path
+first: it may name a folder above the one you meant. Set it to the folder that
+holds only QATrack+'s $(what_of "$location"), or to a new, empty one.
+EOF
+            continue
+        fi
         if [ -f "$location/$marker" ] && [ ! -h "$location/$marker" ]; then continue; fi
         if [ -z "$(ls -A "$location")" ]; then
             to_mark="$to_mark $location"
@@ -122,9 +180,11 @@ $(setting_of "$location")=$folder
 is not empty, and has no $marker file to mark it as QATrack+'s.
 Each time QATrack+ starts it gives everything in its folders to its own user
 (uid $uid), which cannot be undone, so it will not use a folder that may hold
-anyone else's files. Choose an empty folder (Docker creates one that does not
-exist yet). If this folder holds only QATrack+'s own data, copied from its
-volume for example, mark it with:
+anyone else's files. Check the path first: it may name the wrong folder, or a
+folder above the one you meant. For a new site, choose an empty folder (Docker
+creates one that does not exist yet). Only once you have checked that this
+folder holds QATrack+'s $(what_of "$location") and nothing else (copied
+from its volume, for example), mark it as QATrack+'s with:
     sudo touch $folder/$marker
 EOF
     done

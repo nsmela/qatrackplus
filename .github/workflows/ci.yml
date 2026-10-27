@@ -777,6 +777,18 @@ jobs:
           done
           [ "$(owners_of "$data")" = "$before" ] || { echo "FAIL: init changed owners"; exit 1; }
           [ "$(sudo stat -c %u:%a "$data/backups/$new")" = 0:600 ]
+          # A parent folder, marked by mistake, holding an old database dump that
+          # is not in the backups folder: marking does not make it QATrack+'s.
+          sudo mkdir "$shared/old"
+          sudo install -m 600 /dev/null "$shared/old/db_20240101_020000.dump"
+          sudo touch "$shared/.qatrackplus-data"
+          sed -i "s|^QATRACK_MEDIA_DIR=.*|QATRACK_MEDIA_DIR=$shared|" .env
+          before=$(owners_of "$shared")
+          refused "a marked folder holding a backup"
+          grep -qxF "    $shared/old/db_20240101_020000.dump" <<<"$out"
+          if grep -qF "sudo touch" <<<"$out"; then echo "FAIL: suggested marking it"; exit 1; fi
+          [ "$(owners_of "$shared")" = "$before" ] || { echo "FAIL: init changed owners"; exit 1; }
+          [ "$(sudo stat -c %u:%g:%a "$shared/old/db_20240101_020000.dump")" = 0:0:600 ]
           # Back as the site uses it.
           sed -i "s|^QATRACK_MEDIA_DIR=.*|QATRACK_MEDIA_DIR=$data/media|" .env
           sudo rm -rf "$data/.qatrackplus-data" "$data/media/ci-root-owned-later.txt" "$shared"
