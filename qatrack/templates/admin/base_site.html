@@ -189,14 +189,21 @@ never render the header block, so they have no pinned bar.
             // gettext() calls inside .html templates.
             var submittingLabel = "{% filter escapejs %}{% translate 'Submitting…' %}{% endfilter %}";
 
-            django.jQuery("form").submit(function() {
+            // Double-submit guard. It listens on the document, so it runs after
+            // every handler bound to the form itself. If one of those cancelled
+            // the submit (e.g. a validation check or a confirm dialog), the form
+            // isn't marked as submitted and the user can still submit it again.
+            django.jQuery(document).on("submit", "form", function(e) {
 
                 if (this.beenSubmitted){
                     return false;
-                } else {
-                    django.jQuery(this).find("input[type=submit]").val(submittingLabel);
-                    this.beenSubmitted = true;
                 }
+                var nativeEvent = e.originalEvent;
+                if (e.isDefaultPrevented() || (nativeEvent && nativeEvent.defaultPrevented)){
+                    return;
+                }
+                django.jQuery(this).find("input[type=submit]").val(submittingLabel);
+                this.beenSubmitted = true;
 
             });
 

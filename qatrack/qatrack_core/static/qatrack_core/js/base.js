@@ -44,11 +44,14 @@ require(['jquery'], function ($) {
 
 
     $.fn.preventDoubleSubmit = function() {
+      // site_base.html loads Django's JS catalogue (jsi18n) before RequireJS,
+      // so window.gettext is normally there; fall back to English just in case.
+      var gettext = window.gettext || function(s) { return s; };
       $(this).submit(function() {
         if (this.beenSubmitted)
           return false;
         else{
-          $(this).find("button[type=submit]").prop('disabled', true).addClass(".disabled").text("Submitting...");
+          $(this).find("button[type=submit]").prop('disabled', true).addClass("disabled").text(gettext("Submitting…"));
           this.beenSubmitted = true;
         }
       });
