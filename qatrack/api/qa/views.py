@@ -115,7 +115,7 @@ class TestListViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class UnitTestInfoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = models.UnitTestInfo.objects.all()
+    queryset = models.UnitTestInfo.objects.select_related("test", "reference").all()
     serializer_class = serializers.UnitTestInfoSerializer
     filterset_class = filters.UnitTestInfoFilter
     filter_backends = (

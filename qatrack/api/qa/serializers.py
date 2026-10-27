@@ -99,9 +99,17 @@ class TestListSerializer(serializers.HyperlinkedModelSerializer):
 
 class UnitTestInfoSerializer(serializers.HyperlinkedModelSerializer):
 
+    # Read-only, display only. `reference` stays a link to the raw Reference
+    # (whose `type`/`value` are unchanged); this adds the friendly text, read
+    # with the test so older Yes/No references stored as numerical show Yes/No.
+    reference_display = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = models.UnitTestInfo
         fields = "__all__"
+
+    def get_reference_display(self, obj):
+        return obj.reference.value_display(obj.test) if obj.reference else ""
 
 
 class TestListMembershipSerializer(serializers.HyperlinkedModelSerializer):
@@ -789,6 +797,7 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
                 "comment": ti.comment,
                 "status": status,
                 "reference": ref,
+                "reference_display": ti.reference.value_display(ti.unit_test_info.test) if ti.reference else "",
                 "tolerance": tol,
                 "attachments": [a.attachment.url for a in ti.attachment_set.all()],
             }

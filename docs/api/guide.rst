@@ -333,6 +333,7 @@ A script that will find the above test list, and submit the data is shown here:
                 'diff_display': '',
                 'pass_fail': ['no_tol', 'No Tol Set'],
                 'reference': None,
+                'reference_display': '',
                 'skipped': False,
                 'status': '/api/qa/testinstancestatus/1/',
                 'string_value': '',
@@ -347,6 +348,7 @@ A script that will find the above test list, and submit the data is shown here:
                 'diff_display': '',
                 'pass_fail': ['no_tol', 'No Tol Set'],
                 'reference': None,
+                'reference_display': '',
                 'skipped': False,
                 'status': '/api/qa/testinstancestatus/1/',
                 'string_value': '',
@@ -361,6 +363,7 @@ A script that will find the above test list, and submit the data is shown here:
                 'diff_display': '',
                 'pass_fail': ['no_tol', 'No Tol Set'],
                 'reference': None,
+                'reference_display': '',
                 'skipped': False,
                 'status': '/api/qa/testinstancestatus/1/',
                 'string_value': '',
@@ -386,6 +389,13 @@ A few things to note:
     }
 
 * You don't need to submit data for `sum_of_two` since it is a composite test and calculated automatically.
+* Each test's `reference` is a link to the reference record, whose `type` and
+  `value` are returned exactly as stored. `reference_display` is a read-only,
+  human-friendly version of the reference value (empty when the test has no
+  reference). It takes the test into account, so a Boolean test always shows
+  `Yes` or `No`, even for older references that were saved with the numerical
+  type and a value of 1 or 0. Unit test info results (`/api/qa/unittestinfo/`)
+  include the same `reference_display` field.
 * The `url` key contains the hyperlink where you can view the completed TestListInstance online.
 
 Performing A Test List Cycle
