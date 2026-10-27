@@ -6,7 +6,7 @@ maintainer to review. Remove before merging.
 Every item in `TODO-test-builder.md` is done. No task needed more than three
 attempts, so nothing was skipped. Each task was done by an agent with a
 written plan, then checked (tests, lint, screenshots) and committed on
-`feat/test-builder`. The whole `qatrack/qa` suite passes (551 tests).
+`feat/test-builder`. The whole project test suite passes (1547 tests).
 
 ## Decisions to review
 
@@ -170,7 +170,6 @@ These are choices made during the work that you may want to change.
 - Model help text spells "seperated" (Tolerance multiple-choice fields).
 - Perform QC renders duplicate element ids when a test appears both directly
   and in a sublist (the seeded "Daily Linac QC" has this layout).
-
 - `UnitTestInfoForm.save` (`qa/admin.py`, ~line 212) stores Yes/No
   references with the numerical type, so the Unit Test Info admin and the
   Perform QC Reference column show "1"/"0" instead of Yes/No.
