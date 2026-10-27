@@ -726,6 +726,9 @@ jobs:
           [ -n "$(sudo find "$data/logs" -name '*.log' -user 1000)" ]
           got=$(curl -fsSk --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/uploads/ci-host-folder.txt)
           [ "$got" = "on the server" ] || { echo "FAIL: nginx served: $got"; exit 1; }
+          # The marker is in the media folder, but it is not an uploaded file.
+          got=$(curl -sk -o /dev/null -w '%{http_code}' --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/.qatrackplus-data)
+          [ "$got" = 404 ] || { echo "FAIL: nginx answered $got for the marker"; exit 1; }
 
           # Back up and restore the uploaded files in the folders.
           $dc exec -T backup backup
