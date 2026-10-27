@@ -177,7 +177,7 @@ QATrack+ documentation.  Thanks a lot Gaspar!  You can find the translation on
 Here's a list of some of the changes in this release:
 
 * The documentation has been split into different versions (corresponding to
-  QATrack+ releases) to accomodate users who are not running the latest version
+  QATrack+ releases) to accommodate users who are not running the latest version
   of QATrack+.
 
 * You can now `embed uploaded images right on the test list page

@@ -662,7 +662,7 @@ Writing Documentation
 ---------------------
 
 As well as writing tests for your new code, it will be extremely helpful for
-you to include documenation for the features you have built.  The documentation
+you to include documentation for the features you have built.  The documentation
 for QATrack+ is located in the `docs/` folder and is separated into the
 following sections:
 

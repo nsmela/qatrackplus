@@ -40,7 +40,7 @@ There are a number of chart options which you can change:
   zero, otherwise the percent difference is plotted.
 
 - **Show Service Events** If checked, then charts will show markers along the
-  x-axis for Service Events that occured on a Unit.
+  x-axis for Service Events that occurred on a Unit.
 
 - **Service Types** Select the types of Service Events you want to show on the
   chart.
