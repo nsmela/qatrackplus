@@ -428,8 +428,18 @@ Nginx to serve:
 
     python manage.py collectstatic
 
-If you want to enable internationalization, then you need to compile the
-messages catalogs for the languages you need:
+QATrack+ comes with its French, Canadian French and Spanish translations
+already compiled, so there is nothing to do here to use them. You only need to
+compile the message catalogues if you change a translation (a ``.po`` file under
+``qatrack/locale``) yourself. ``compilemessages`` uses GNU gettext's ``msgfmt``
+program, which is not part of Python, so install it first:
+
+.. code-block:: bash
+
+    sudo apt install gettext
+
+Without it the command stops with ``CommandError: Can't find msgfmt`` and
+nothing is compiled. Then compile the languages you changed:
 
 .. code-block:: bash
 

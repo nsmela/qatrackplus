@@ -32,12 +32,18 @@ patches is in the next section.
 Running the upgrade
 -------------------
 
-Stop the background services first, so no task runs mid-upgrade:
+Stop the services first, so nothing runs mid-upgrade:
 
 .. code-block:: bash
 
-    sudo supervisorctl stop django-q2
     sudo service nginx stop
+    sudo supervisorctl stop gunicorn django-q2
+
+Stopping ``gunicorn`` matters as much as stopping ``django-q2``. Supervisor runs
+it separately, so stopping nginx leaves it running with the old code already
+loaded while the new code and templates are put in place underneath it. That
+mix of old and new fails in confusing ways that don't look like an upgrade
+problem.
 
 Fetch the new version. If you installed from the ``releases/4.0`` branch — which is
 what the installation guide uses — this is a ``pull``, and you do not name a version at
@@ -89,11 +95,19 @@ optional: this release changes JavaScript and templates.
     python manage.py migrate
     python manage.py collectstatic
 
-Restart:
+Restart, starting the application first so nginx has something to pass
+requests to as soon as it comes back:
 
 .. code-block:: bash
 
+    sudo supervisorctl start gunicorn django-q2
     sudo service nginx start
-    sudo supervisorctl start django-q2
+
+Confirm that both ``gunicorn`` and ``django-q2`` show ``RUNNING`` before you
+call the upgrade done:
+
+.. code-block:: bash
+
+    sudo supervisorctl status
 
 .. include:: _upgrade_4_0_after.rst

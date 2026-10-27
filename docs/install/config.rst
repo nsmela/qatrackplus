@@ -86,7 +86,12 @@ On Linux, set allowed hosts either to your server name or IP address (e.g. for N
 
 .. code-block:: python
 
+    # by IP address
     ALLOWED_HOSTS = ['52.123.4.9']
+    # or by server name
+    ALLOWED_HOSTS = ['qatrack.yourhospital.com']
+    # or both
+    ALLOWED_HOSTS = ['qatrack.yourhospital.com', '52.123.4.9']
 
 On Windows using CherryPy/IIS (or if you are running QATrack+ behind a reverse proxy on Linux):
 
