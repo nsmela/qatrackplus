@@ -753,6 +753,20 @@ def EXPLORER_PERMISSION_VIEW(request):
 
 
 
+# Which engine renders report PDFs: "auto", "weasyprint" or "chrome".
+#
+# "auto" means WeasyPrint everywhere except Windows, and Chrome on Windows.
+# WeasyPrint is pure Python but lays out pages through pango, cairo and
+# gdk-pixbuf. Those are ordinary system packages on Linux, but on Windows they
+# only arrive with MSYS2, a second software stack an administrator has to
+# choose to install and keep up to date. So Windows defaults to Chrome, which
+# the Windows install guide already requires.
+#
+# Set this to "weasyprint" on Windows after installing pango to opt in, or to
+# "chrome" anywhere to use Chrome whatever the platform. If WeasyPrint is
+# chosen but cannot load, Chrome is used instead.
+PDF_RENDERER = "auto"
+
 CHROME_PATH = ""
 if os.name.lower() == "nt":
     user = os.getlogin()

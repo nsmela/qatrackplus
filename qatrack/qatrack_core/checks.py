@@ -226,3 +226,59 @@ def check_translation_catalogues(app_configs, **kwargs):
         )
         for problem in problems
     ]
+
+
+@register()
+def check_pdf_renderer(app_configs, **kwargs):
+    """Report an unusable PDF_RENDERER, and a WeasyPrint opt-in that did not take.
+
+    Both are configuration problems that otherwise surface one report at a time,
+    in the logs, on the day somebody needs a PDF.
+
+    Warnings rather than Errors on purpose: a failed `manage.py check` blocks
+    `migrate` and makes `manage.py qcluster` exit, so a typo in this setting
+    would stop every scheduled report and notification while the web server
+    carried on rendering reports through the fallback.
+    """
+    from qatrack.qatrack_core.utils import PDF_RENDERERS, pdf_renderer
+
+    configured = str(getattr(settings, 'PDF_RENDERER', 'auto') or 'auto').strip().lower()
+    allowed = ('auto',) + PDF_RENDERERS
+
+    if configured not in allowed:
+        return [
+            Warning(
+                "PDF_RENDERER is %r, which is not one of %s." % (
+                    getattr(settings, 'PDF_RENDERER', None),
+                    ', '.join(repr(value) for value in allowed),
+                ),
+                hint=(
+                    "Reports will be rendered as though it were 'auto'. Set it in "
+                    "qatrack/local_settings.py to one of the values above, or remove it."
+                ),
+                id='qatrack.W015',
+            )
+        ]
+
+    if pdf_renderer() != 'weasyprint':
+        return []
+
+    try:
+        import weasyprint  # noqa: F401
+    except Exception as e:  # noqa: BLE001
+        # Deliberately broad: a missing pango raises OSError from the import,
+        # not ImportError, and that is the case an administrator most needs to
+        # hear about - they installed the libraries, and it did not take.
+        return [
+            Warning(
+                "PDF_RENDERER selects WeasyPrint, but it cannot be loaded: %s: %s" % (type(e).__name__, e),
+                hint=(
+                    "Every report will be rendered by Chrome instead. On Windows, "
+                    "WeasyPrint needs the pango libraries from MSYS2; see the Windows "
+                    "install guide. Check with `python -m weasyprint --info`."
+                ),
+                id='qatrack.W016',
+            )
+        ]
+
+    return []

@@ -87,6 +87,17 @@ Other Changes
       typed by someone used to the other, and silently is the whole problem this release
       is fixing. Add it where you know which convention your users type in.
 
+* **Reports: a new ``PDF_RENDERER`` setting chooses which engine makes PDF reports.**
+  The default, ``auto``, uses WeasyPrint on Linux, as before, and Chrome on Windows.
+  A Windows server without the Pango libraries could never load WeasyPrint, so its
+  reports already came from Chrome; they no longer log a WeasyPrint error each time.
+  A Windows server that *does* have Pango installed moves from WeasyPrint to Chrome,
+  and its reports may break across pages differently; set
+  ``PDF_RENDERER = 'weasyprint'`` to keep WeasyPrint. ``manage.py check`` now warns
+  about an unknown value (``qatrack.W015``) and about WeasyPrint being selected but
+  unable to load (``qatrack.W016``). See :ref:`PDF_RENDERER <pdf_renderer>` (from
+  :issues:`#866 <866>` by Vincent Leduc).
+
 Deployment and Upgrade Notes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

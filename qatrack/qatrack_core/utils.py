@@ -96,6 +96,26 @@ def site_base_url(site=None):
     return "%s://%s" % (settings.HTTP_OR_HTTPS, domain)
 
 
+PDF_RENDERERS = ('weasyprint', 'chrome')
+
+
+def pdf_renderer():
+    """The engine that should render report PDFs here: 'weasyprint' or 'chrome'.
+
+    Resolves `settings.PDF_RENDERER`, whose default of 'auto' means WeasyPrint
+    on every platform except Windows - see that setting for why Windows differs.
+
+    An unrecognised value resolves the same way 'auto' does rather than
+    raising: `qatrack.W015` reports it at `manage.py check` time, which is where
+    a configuration mistake belongs, instead of failing a report at the moment
+    someone asks for one.
+    """
+    configured = str(getattr(settings, 'PDF_RENDERER', 'auto') or 'auto').strip().lower()
+    if configured in PDF_RENDERERS:
+        return configured
+    return 'chrome' if os.name == 'nt' else 'weasyprint'
+
+
 def weasyprint_to_pdf(html, name="", paper_size="letter"):
     """Convert HTML to PDF using WeasyPrint with proper paper size support
 
