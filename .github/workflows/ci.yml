@@ -766,6 +766,9 @@ jobs:
           [ -n "$(sudo find "$data/logs" -name '*.log' -user 1000)" ]
           got=$(curl -fsSk --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/uploads/ci-host-folder.txt)
           [ "$got" = "on the server" ] || { echo "FAIL: nginx served: $got"; exit 1; }
+          # The marker is in the media folder, but it is not an uploaded file.
+          got=$(curl -sk -o /dev/null -w '%{http_code}' --resolve qatrack.test:443:127.0.0.1 https://qatrack.test/media/.qatrackplus-data)
+          [ "$got" = 404 ] || { echo "FAIL: nginx answered $got for the marker"; exit 1; }
 
           # Back up and restore the uploaded files in the folders.
           $dc exec -T backup backup
@@ -817,10 +820,29 @@ jobs:
           done
           [ "$(owners_of "$data")" = "$before" ] || { echo "FAIL: init changed owners"; exit 1; }
           [ "$(sudo stat -c %u:%a "$data/backups/$new")" = 0:600 ]
-          # Back as the site uses it.
+          # A parent folder, marked by mistake, holding an old database dump that
+          # is not in the backups folder: marking does not make it QATrack+'s.
+          sudo mkdir "$shared/old"
+          sudo install -m 600 /dev/null "$shared/old/db_20240101_020000.dump"
+          sudo touch "$shared/.qatrackplus-data"
+          sed -i "s|^QATRACK_MEDIA_DIR=.*|QATRACK_MEDIA_DIR=$shared|" .env
+          before=$(owners_of "$shared")
+          refused "a marked folder holding a backup"
+          grep -qxF "    $shared/old/db_20240101_020000.dump" <<<"$out"
+          if grep -qF "sudo touch" <<<"$out"; then echo "FAIL: suggested marking it"; exit 1; fi
+          [ "$(owners_of "$shared")" = "$before" ] || { echo "FAIL: init changed owners"; exit 1; }
+          [ "$(sudo stat -c %u:%g:%a "$shared/old/db_20240101_020000.dump")" = 0:0:600 ]
+          # Back as the site uses it, with a file from outside linked into the
+          # media folder: init leaves it as it is, and says so.
           sed -i "s|^QATRACK_MEDIA_DIR=.*|QATRACK_MEDIA_DIR=$data/media|" .env
           sudo rm -rf "$data/.qatrackplus-data" "$data/media/ci-root-owned-later.txt" "$shared"
-          $dc run --rm init
+          sudo install -m 664 /dev/null "$RUNNER_TEMP/ci-elsewhere.txt"
+          sudo ln "$RUNNER_TEMP/ci-elsewhere.txt" "$data/media/ci-hard-link.txt"
+          out=$($dc run --rm -T init 2>&1)
+          grep -qF "Warning: not re-owned to 1000:1000 in QATRACK_MEDIA_DIR=$data/media:" <<<"$out"
+          grep -qxF "    $data/media/ci-hard-link.txt" <<<"$out"
+          [ "$(sudo stat -c %u:%g "$RUNNER_TEMP/ci-elsewhere.txt")" = 0:0 ]
+          sudo rm "$data/media/ci-hard-link.txt" "$RUNNER_TEMP/ci-elsewhere.txt"
           echo "PASS: data kept in folders on the server, owned by the app user, backed up and restored; unsafe folders refused"
 
       - name: Verify a site package that conflicts with QATrack+ stops the build

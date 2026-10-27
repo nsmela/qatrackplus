@@ -185,6 +185,14 @@ class TestSecretKey(DockerSettingsTestCase):
         self.apply()
         self.assertEqual(os.listdir(self.key_file.parent), ['secret_key.txt'])
 
+    def test_key_file_has_one_name(self):
+        # The key is linked into place from a temporary file, which is then
+        # removed. The Docker init service never re-owns a file with more than
+        # one name (a hard link), so a second name left behind would leave the
+        # key as it is on every start.
+        self.apply()
+        self.assertEqual(os.stat(self.key_file).st_nlink, 1)
+
     def test_key_published_by_another_process_first_is_used(self):
         # Another container process publishes its key between our check for the
         # file and our link: both must end up with the same key.

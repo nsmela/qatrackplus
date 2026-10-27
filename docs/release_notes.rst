@@ -233,9 +233,11 @@ Deployment and Upgrade Notes
   the same folder, and the ``init`` service gives the folder to the QATrack+ user
   each time the site starts. So that it never does this to anyone else's files,
   ``init`` only uses a folder that is empty (which it marks with a
-  ``.qatrackplus-data`` file) or already marked, and one that is not inside another
-  of QATrack+'s folders; otherwise the site does not start, nothing is changed, and
-  ``docker compose logs init`` says why. For a site already in use, copy the data
+  ``.qatrackplus-data`` file) or already marked, that is not inside another of
+  QATrack+'s folders, and that holds neither another of them nor a backup;
+  otherwise the site does not start, nothing is changed, and
+  ``docker compose logs init`` says why. A file with a second name (a hard link)
+  is never handed over. For a site already in use, copy the data
   across first: :ref:`docker_data_dirs` shows how, step by step. The database stays
   in its volume. ``init`` also no longer follows symbolic links or crosses into
   another disk when it re-owns files, so a link can neither change a file outside
