@@ -98,6 +98,13 @@ services:
       # QATrack+'s log files (debug.log, auth.log, ...), kept across rebuilds and
       # shared with django-q, as on a Linux install.
       - logs-volume:/usr/src/qatrackplus/logs
+      # The CA certificate for Active Directory sign-in over LDAPS
+      # (AD_CERT_FILE=/etc/qatrack/ldap/ca.pem in .env). Only needed when the
+      # directory's certificate comes from your organization's own CA; one from
+      # a public CA is trusted without it. A CA certificate is public, not
+      # secret. Docker creates the empty folder, owned by root, on first start.
+      # Only django signs users in, so django-q does not mount it.
+      - ./user-data/ldap:/etc/qatrack/ldap:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
       interval: 30s

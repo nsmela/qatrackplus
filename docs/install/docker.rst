@@ -308,7 +308,8 @@ Both are applied every time QATrack+ starts, and replace any change made to them
 in the admin's *Websites* page; leave them unset to manage them there instead.
 
 Everything else is optional and documented in ``.env.example``: email, time
-zone, HTTPS, Active Directory / LDAP sign-in, and the QC display options. Leave
+zone, HTTPS, Active Directory / LDAP sign-in (see :ref:`docker_ldaps` for an
+encrypted connection), and the QC display options. Leave
 a setting commented out to keep its default. ``SECRET_KEY`` is generated and
 kept for you if you do not set one, but it is not in the nightly backup; see
 :ref:`docker_secret_key`. After changing ``.env``, apply it with
@@ -520,6 +521,108 @@ cookies secure. If nginx cannot read the certificate or key, it stops, and
 ``docker compose logs nginx`` says which file is missing. To renew the
 certificate, replace the files and run ``docker compose restart nginx``.
 
+.. _docker_ldaps:
+
+Signing in with Active Directory over LDAPS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+QATrack+ can let people sign in with their usual network user name and password,
+by checking them with your Active Directory (see :ref:`active_directory`; the
+``AD_`` settings in ``.env.example`` set it up). With ``AD_LDAP_PROTOCOL=ldaps``
+and ``AD_LDAP_PORT=636``, the connection to the directory is encrypted, and
+QATrack+ checks the directory server's certificate before it sends anyone's
+password, much as a web browser checks a website's.
+
+To check that certificate, QATrack+ has to trust the certificate authority (CA)
+that issued it:
+
+* **A public CA**, the kind that issues website certificates: there is nothing to
+  do. QATrack+ trusts the same public CAs as the operating system in its
+  container. Leave ``AD_CERT_FILE`` unset.
+* **Your organization's own CA**, which is what most hospital directory servers
+  use: QATrack+ needs a copy of that CA's certificate. Ask your IT department for
+  the root CA certificate, plus any intermediate CA certificates, in PEM format.
+
+A CA certificate is public, not secret: it holds no private key, and it is safe
+to copy and email.
+
+To add your CA, run these in ``deploy/docker``:
+
+1. Make sure the file is in PEM format: a text file starting with
+   ``-----BEGIN CERTIFICATE-----``. A ``.cer`` file exported from Windows is
+   often in DER (binary) format instead; convert it with:
+
+   .. code-block:: console
+
+       openssl x509 -inform der -in ca.cer -out ca.pem
+
+   If you were given a root and an intermediate certificate, convert each one,
+   then put them one after the other in a single file:
+   ``cat root.pem intermediate.pem > ca.pem``.
+
+2. Copy it into ``user-data/ldap``. Docker creates that folder, owned by root,
+   the first time QATrack+ starts, so use ``sudo``. This also makes the file
+   readable by QATrack+:
+
+   .. code-block:: console
+
+       sudo install -D -m 644 ca.pem user-data/ldap/ca.pem
+
+3. In ``.env``, set:
+
+   .. code-block:: shell
+
+       AD_LDAP_PROTOCOL=ldaps
+       AD_LDAP_PORT=636
+       AD_DNS_NAME=ad.myclinic.ca
+       AD_CERT_FILE=/etc/qatrack/ldap/ca.pem
+
+   ``/etc/qatrack/ldap`` is where the ``django`` container sees the server's
+   ``deploy/docker/user-data/ldap`` folder, so ``AD_CERT_FILE`` always uses that
+   path, not the folder's path on the server.
+
+4. Apply the change:
+
+   .. code-block:: console
+
+       docker compose up -d
+
+**The name must match the certificate.** ``AD_DNS_NAME`` must be a name written
+on the directory server's certificate, such as ``ad.myclinic.ca``: not its IP
+address, and not a short name the certificate doesn't list. To see the names on
+the certificate, run this on the server:
+
+.. code-block:: console
+
+    openssl s_client -connect ad.myclinic.ca:636 </dev/null 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName
+
+**Check that it works.** This connects to your directory the way sign-in does,
+and prints ``OK``, or ``FAILED:`` and the reason:
+
+.. code-block:: console
+
+    docker compose exec django python manage.py shell -c "import sys, ldap; from django.conf import settings; from qatrack.accounts.backends import ActiveDirectoryGroupMembershipSSLBackend as AD; sys.excepthook = lambda *e: print('FAILED:', e[1]); AD(); ldap.initialize(settings.AD_LDAP_URL).simple_bind_s('', ''); print('OK')"
+
+A missing or unreadable CA file, a DER file, a certificate from a CA you have
+not added, or a name that doesn't match all fail the same way, as
+``Can't contact LDAP server``; QATrack+'s ``auth.log`` says ``Unable to contact
+LDAP server``. When the file itself is the problem, ``docker compose logs django``
+also shows a warning saying what is wrong with it each time QATrack+ starts.
+Local QATrack+ accounts keep working while you fix it.
+
+.. warning::
+
+    Advice on the internet often suggests ``TLS_REQCERT never`` (or
+    ``LDAPTLS_REQCERT=never``) to make this error go away. Never use it: it
+    turns off the certificate check, so QATrack+ would send people's passwords to
+    anything that answers on that name. Fix the CA file or the name instead.
+
+When IT renews the directory server's certificate from the same CA, there is
+nothing to do. If the CA itself changes, replace ``user-data/ldap/ca.pem`` the
+same way and run ``docker compose restart django``. The nightly backup does not
+include ``user-data/ldap``, so keep a copy of the CA file with your settings
+(see :ref:`docker_backups`).
+
 .. _docker_secret_key:
 
 Keeping the secret key safe
@@ -529,7 +632,7 @@ QATrack+ signs everyone's sign-in sessions and password-reset links with a
 secret key. If ``SECRET_KEY`` is not set in ``.env``, QATrack+ generates a key
 the first time it starts and saves it in the ``user-data-volume`` Docker volume,
 as ``deploy/docker/user-data/secret_key.txt`` inside the containers (the
-``deploy/docker/user-data`` folder on the server holds only your HTTPS
+``deploy/docker/user-data`` folder on the server holds only your HTTPS and LDAPS
 certificates). The key is kept when the containers are rebuilt or upgraded, and
 each time QATrack+ starts, ``docker compose logs django`` shows a notice saying
 where it is.
@@ -745,9 +848,10 @@ you have:
     docker compose exec backup ls -lh /backups
 
 A backup does not contain your ``.env`` file, which holds the database password
-and your settings, nor the certificates in ``user-data/ssl``. Keep copies of
-those as well. If you have not set ``SECRET_KEY`` in ``.env``, QATrack+ keeps a
-generated one in a Docker volume, which a backup does not contain: restoring on
+and your settings, nor the certificates in ``user-data/ssl`` and
+``user-data/ldap``. Keep copies of those as well. If you have not set
+``SECRET_KEY`` in ``.env``, QATrack+ keeps a generated one in a Docker volume,
+which a backup does not contain: restoring on
 another server signs everyone out once and voids password-reset links.
 :ref:`docker_secret_key` shows how to copy it into ``.env``, so it is kept with
 your settings.

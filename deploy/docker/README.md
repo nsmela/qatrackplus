@@ -31,6 +31,7 @@ This folder contains the Docker configuration for running QATrack+ in a modern, 
    ```
    This runs the QATrack+ code built into the image, as an unprivileged user. The `django-q` service runs scheduled notifications and reports.
 3. To serve over HTTPS, copy `cert.pem` (full chain) and `key.pem` into `user-data/ssl` (with `sudo`: Docker creates that folder as root), set `HTTP_OR_HTTPS=https` in `.env`, and run `docker compose up -d`.
+4. For Active Directory sign-in over LDAPS with a certificate from your organization's own CA, copy the CA (PEM) to `user-data/ldap/ca.pem` (again with `sudo`), set `AD_CERT_FILE=/etc/qatrack/ldap/ca.pem` in `.env`, and run `docker compose up -d`. A directory with a certificate from a public CA needs no file. See "Signing in with Active Directory over LDAPS" in the Docker installation guide.
 
 ### 3. Development
 `compose.dev.yaml` mounts your checkout into the container so code changes show up without rebuilding. It is not applied automatically. QATrack+ writes into your checkout, so it runs as your own user: add your ids to `.env` once, then use both files on every command.
