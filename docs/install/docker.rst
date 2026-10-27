@@ -792,8 +792,11 @@ server does not show it. Marking does not help a folder that clearly holds more
 than QATrack+'s data for that one setting: ``init`` refuses it, marked or not,
 if anywhere inside it there is another ``.qatrackplus-data`` file (it holds
 another of QATrack+'s folders) or a file named like a QATrack+ backup
-(``db_YYYYMMDD_HHMMSS.dump`` or ``media_YYYYMMDD_HHMMSS.tar.gz``). Point the
-setting at the right folder instead.
+(``db_YYYYMMDD_HHMMSS.dump`` or ``media_YYYYMMDD_HHMMSS.tar.gz``, also with
+anything added to the end, such as ``.gz``). Point the setting at the right
+folder instead. Uploaded files, which QATrack+ keeps in the media folder's
+``uploads`` folder, are not checked for backup names, so an old upload with a
+name like that does not stop QATrack+.
 
 While ``init`` refuses to start, the site stays offline until the setting is
 fixed, even if QATrack+ was running before you changed ``.env``: browsers get
@@ -923,7 +926,8 @@ the backup into a temporary ``.restore.*`` folder inside the media folder, then
 swaps the files in by renaming them, so the media folder needs room for a second
 copy of the uploaded files while it runs, and should not have another disk
 mounted inside it. If your own backup system also copies the media folder, it can
-leave out any ``.restore.*`` folder: it is not part of the uploaded files. Keep
+leave out any ``.restore.*`` folder: it is not part of the uploaded files, and
+the web server does not show what is in it. Keep
 the database and the uploaded files from the same night together: a restore
 needs both. ``docker compose down -v`` removes QATrack+'s volumes, but never
 deletes a folder on the server.

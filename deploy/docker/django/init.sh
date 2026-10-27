@@ -14,7 +14,8 @@
 #   - a folder holds something that is clearly not QATrack+'s data for that
 #     location alone, marked or not: a .qatrackplus-data file below its top
 #     (another of QATrack+'s folders, so the setting names a folder above the
-#     one meant), or a file named like a backup;
+#     one meant), or a file named like a backup (anywhere but among the
+#     uploaded files, in media/uploads);
 #   - a folder is not empty and has no .qatrackplus-data file to mark it as
 #     QATrack+'s. An empty folder is marked here, so a new site needs no step.
 # Docker volumes are always QATrack+'s own, so they are never checked or marked,
@@ -39,11 +40,15 @@ logs=$app/logs
 # Mounted read-only, only to check that nothing else is inside it.
 backups=/backups
 # The names backup.sh gives its archives, db_YYYYMMDD_HHMMSS.dump and
-# media_YYYYMMDD_HHMMSS.tar.gz (each written first with .tmp added). Uploaded
-# files never have these names: QATrack+ adds the date as YYYY-MM-DD and a
-# random suffix to the name of every file it saves.
+# media_YYYYMMDD_HHMMSS.tar.gz, with anything added after them: .tmp while
+# backup.sh writes one, or .gz, .gpg and the like from a job that copies them.
 d4='[0-9][0-9][0-9][0-9]'
 stamp="${d4}${d4}_[0-9][0-9]${d4}"
+# Uploaded files, which are not looked at for those names. QATrack+ keeps every
+# uploaded file under media/uploads, and backups are never there. It adds the
+# date and a random suffix to each name, but files uploaded before 2016 can
+# keep the name they were uploaded with, whatever it was.
+uploads=$media/uploads
 
 # The .env setting (or "") behind a location, and the volume or folder used
 # when it is unset.
@@ -91,16 +96,15 @@ on_server() {
 }
 # The first thing in location $1 that shows it is not QATrack+'s data for that
 # location alone: a marker below its top (so it holds another of QATrack+'s
-# folders, or a copy of one), or a file named like a backup. find stops at the
-# first. restore-media's .restore.* working folders, at the top of the media
-# folder, are QATrack+'s own and can hold the marker from a backup, so they are
-# not looked in.
+# folders, or a copy of one), or a file named like a backup outside the uploaded
+# files. find stops at the first. restore-media's .restore.* working folders, at
+# the top of the media folder, are QATrack+'s own and can hold the marker from a
+# backup, so they are not looked in.
 not_qatracks() {
     find "$1" -xdev -mindepth 1 \
         \( -path "$media/.restore.*" -prune \) -o \
         \( \( -path "$1/*/$marker" \
-            -o -name "db_$stamp.dump" -o -name "db_$stamp.dump.tmp" \
-            -o -name "media_$stamp.tar.gz" -o -name "media_$stamp.tar.gz.tmp" \) \
+            -o \( ! -path "$uploads/*" \( -name "db_$stamp.dump*" -o -name "media_$stamp.tar.gz*" \) \) \) \
         -print -quit \)
 }
 
