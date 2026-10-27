@@ -48,11 +48,10 @@ services:
   # compose.dev.yaml, which runs the app as the developer's own user.
   #
   # The same goes for a folder on the server set by QATRACK_MEDIA_DIR,
-  # QATRACK_USER_DATA_DIR or QATRACK_LOGS_DIR in .env, which Docker creates
-  # owned by root if it is missing: everything inside it is given to the app
-  # user. find stays inside the four mounts below, and chown -h re-owns a
-  # symbolic link itself, never the file it points to (which may be outside the
-  # folder, or missing).
+  # QATRACK_USER_DATA_DIR or QATRACK_LOGS_DIR in .env. Since that cannot be
+  # undone, init first refuses to start, changing nothing, if a folder is not
+  # empty and not marked as QATrack+'s, or if one location is inside another
+  # (the backups folder included). See deploy/docker/django/init.sh.
   init:
     # The image the django service builds; never pulled from a registry.
     image: ${COMPOSE_PROJECT_NAME:-qatrackplus}-django
@@ -60,15 +59,23 @@ services:
     user: "0"
     restart: "no"
     logging: *logging
-    command:
-      - sh
-      - -c
-      - find /usr/src/qatrackplus/qatrack/media /usr/src/qatrackplus/qatrack/static /usr/src/qatrackplus/deploy/docker/user-data /usr/src/qatrackplus/logs \( ! -user ${QATRACK_UID:-1000} -o ! -group ${QATRACK_GID:-1000} \) -exec chown -h ${QATRACK_UID:-1000}:${QATRACK_GID:-1000} {} +
+    command: [ "/init.sh" ]
+    # Only what init needs: which locations are folders on the server.
+    environment:
+      QATRACK_UID: ${QATRACK_UID:-1000}
+      QATRACK_GID: ${QATRACK_GID:-1000}
+      QATRACK_MEDIA_DIR: ${QATRACK_MEDIA_DIR:-}
+      QATRACK_USER_DATA_DIR: ${QATRACK_USER_DATA_DIR:-}
+      QATRACK_LOGS_DIR: ${QATRACK_LOGS_DIR:-}
+      QATRACK_BACKUPS_DIR: ${QATRACK_BACKUPS_DIR:-}
     volumes:
       - ${QATRACK_MEDIA_DIR:-media-volume}:/usr/src/qatrackplus/qatrack/media
       - static-volume:/usr/src/qatrackplus/qatrack/static
       - ${QATRACK_USER_DATA_DIR:-user-data-volume}:/usr/src/qatrackplus/deploy/docker/user-data
       - ${QATRACK_LOGS_DIR:-logs-volume}:/usr/src/qatrackplus/logs
+      # Read-only, and never re-owned: only so init can check that no other
+      # location is inside the backups folder, or contains it.
+      - ${QATRACK_BACKUPS_DIR:-./backups}:/backups:ro
 
   django:
     build:
