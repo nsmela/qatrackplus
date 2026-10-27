@@ -43,9 +43,9 @@
 </style>
 {% endblock %}
 
-{% block coltype %}{% if ordered_objects %}colMS{% else %}colM{% endif %}{% endblock %}
+{% block coltype %}colM{% endblock %}
 
-{% block bodyclass %}{{ opts.app_label }}-{{ opts.object_name.lower }} change-form{% endblock %}
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} change-form{% endblock %}
 
 {% if not is_popup %}
 {% block breadcrumbs %}
@@ -61,25 +61,25 @@
     {% endif %}
   </a> &rsaquo;
   {% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{% if app_label == 'sites' and opts.verbose_name_plural == 'sites' %}{% trans "Websites" %}{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}
-&rsaquo; {% if add %}{% trans 'Add' %} {{ opts.verbose_name }}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+&rsaquo; {% if add %}{% blocktranslate with name=opts.verbose_name %}Add {{ name }}{% endblocktranslate %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
 </div>
 {% endblock %}
 {% endif %}
 
 {% block content %}<div id="content-main">
 {% block object-tools %}
-{% if change %}{% if not is_popup %}
+{% if change and not is_popup %}
   <ul class="object-tools">
     {% block object-tools-items %}
-    <li><a href="{% url opts|admin_urlname:'history' adminform.form.instance.pk %}" class="historylink">{% trans "History" %}</a></li>
-    {% if has_absolute_url %}<li><a href="{% firstof original.get_absolute_url absolute_url %}" class="viewsitelink">{% trans "View on site" %}</a></li>{% endif %}
+      {% change_form_object_tools %}
     {% endblock %}
   </ul>
-{% endif %}{% endif %}
+{% endif %}
 {% endblock %}
 <form {% if has_file_field %}enctype="multipart/form-data" {% endif %}action="{{ form_url }}" method="post" id="{{ opts.model_name }}_form" novalidate="novalidate">{% csrf_token %}{% block form_top %}{% endblock %}
 <div>
-{% if is_popup %}<input type="hidden" name="_popup" value="1" />{% endif %}
+{% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+{% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
 {% if save_on_top %}{% block submit_buttons_top %}{% submit_row %}{% endblock %}{% endif %}
 {% if errors %}
     <p class="errornote">
