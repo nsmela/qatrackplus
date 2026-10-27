@@ -321,3 +321,22 @@ Remove this file before the branch is merged.
     edit page only. The "ID: 123" label was removed from the Details card
     earlier and the ID is in the breadcrumbs; this puts it back in the
     pinned title row.
+- [ ] **Remove the test description dialog from the builder**
+  - Editing a test belongs on the Test's own page (the pencil). Remove the
+    description dialog: `_test_desc_modal.html`, the
+    `testlist_test_desc_modal` endpoint and URL (`admin.py`), its JS/CSS
+    (including the `tl-desc-submit` class from N11) and the tests that cover
+    it.
+  - The description text in each row (`_test_desc_cell.html`) becomes a link
+    to the Test's edit page, opening in a new tab like the pencil, with the
+    same title/aria wording ("… (opens in a new tab)"). Users without
+    change_test keep the plain read-only text.
+  - "Add Description" on tests without one: also link to the Test edit page
+    (or drop it; decide when building).
+  - Rows added in the browser (add/duplicate) render the same link.
+- [ ] **Attachments card above Tests & Sublists**
+  - Edit page card order becomes Details, Attachments, Tests & Sublists,
+    Parent Memberships (`#tl-attachments-card` currently sits last in
+    `change_form.html`). Check the add page and the narrow-window layout,
+    and that the unsaved-changes tracking and Browse/Remove handlers still
+    find the card.
