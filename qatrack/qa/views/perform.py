@@ -1641,9 +1641,10 @@ class EditTestListInstance(PermissionRequiredMixin, BaseEditTestListInstance):
             ti.value = None
             ti.save()
 
+            # Log messages stay in English for admins; the user-facing message below is translated.
             logger.error(
-                _("Tried to calculate percent diff with a zero reference value. UTI=%(unit_test_info_id)d") %
-                {'unit_test_info_id': ti.unit_test_info.pk}
+                "Tried to calculate percent diff with a zero reference value. UTI=%d",
+                ti.unit_test_info.pk,
             )
             msg = _(
                 "Please call physics. Test %(test_name)s is configured incorrectly on this unit. "
