@@ -10,8 +10,18 @@ Installing & Deploying QATrack+ with Docker
 
     This install method has not yet been updated for version 3.1.X
 
+This page covers running QATrack+ with Docker Compose: setting it up,
+configuring it, looking after its data and backups, running it day to day, and
+developing QATrack+ with it. If you are upgrading a Docker site from QATrack+
+4.0.0 or 4.0.1, start with :ref:`docker_upgrade_from_4_0`.
 
-Prerequisites by OS
+.. contents:: On this page
+    :local:
+    :depth: 2
+
+.. _docker_setup:
+
+Setting up QATrack+
 -------------------
 
 Docker installations are supported on Ubuntu 24.04 LTS, and the instructions
@@ -203,10 +213,6 @@ following:
 On other systems follow the instructions at
 https://www.atlassian.com/git/tutorials/install-git.
 
-
-Installing QATrack+
--------------------
-
 This part is OS independent. The language used will be tuned for a Windows 10
 user, but equivalent steps can be followed on Ubuntu.
 
@@ -235,34 +241,8 @@ the following:
     git clone https://github.com/qatrackplus/qatrackplus.git
     cd qatrackplus
 
-.. _docker_line_endings:
-
-.. note::
-
-    Files under ``deploy/docker`` run inside Linux containers and must have LF line
-    endings. Git checks them out that way on every platform. A clone made before
-    QATrack+ 4.0.2 on Windows may still have CRLF copies. To check them out again,
-    run the following from the ``qatrackplus`` folder. It replaces the tracked files
-    under ``deploy/docker`` with fresh copies, so the first and last lines save your
-    own changes to them (your ``.env``, and any edits to ``nginx.conf`` or the
-    compose files) and put them back. These are git commands only, so they work the
-    same in Command Prompt, PowerShell or a Linux terminal. Untracked folders such
-    as ``user-data`` and ``backups`` are not touched.
-
-    .. code-block:: console
-
-        git diff HEAD --output=../qatrack-docker-local.patch -- deploy/docker
-        git rm -r --cached -q deploy/docker
-        git checkout HEAD -- deploy/docker
-        git apply --allow-empty ../qatrack-docker-local.patch
-
-    ``--allow-empty`` needs git 2.35 or newer. The patch file holds your ``.env``,
-    including the database password, so delete ``qatrack-docker-local.patch`` once
-    you have checked that QATrack+ starts.
-
-
-Installation
-~~~~~~~~~~~~
+Creating your settings file
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To run any `docker compose` commands you need to be within the
 `qatrackplus\\deploy\\docker` directory. So lets change to there now:
@@ -270,11 +250,6 @@ To run any `docker compose` commands you need to be within the
 .. code-block:: console
 
     cd deploy\docker
-
-.. _docker_configuration:
-
-Configuring QATrack+
-....................
 
 All of QATrack+'s Docker settings live in a file called ``.env`` in this
 directory. It holds your passwords, so it is never part of the QATrack+
@@ -301,18 +276,8 @@ At minimum, set:
   also used for the links in QATrack+'s emails and reports, unless you set
   ``SITE_DOMAIN``.
 
-If people reach QATrack+ on a port other than 80 (or 443 with HTTPS), set
-``SITE_DOMAIN`` to the name with the port, e.g. ``qatrack.myclinic.ca:8080``, so
-links in emails work. ``SITE_NAME`` sets the name shown at the top of each page.
-Both are applied every time QATrack+ starts, and replace any change made to them
-in the admin's *Websites* page; leave them unset to manage them there instead.
-
-Everything else is optional and documented in ``.env.example``: email, time
-zone, HTTPS, Active Directory / LDAP sign-in, and the QC display options. Leave
-a setting commented out to keep its default. ``SECRET_KEY`` is generated and
-kept for you if you do not set one, but it is not in the nightly backup; see
-:ref:`docker_secret_key`. After changing ``.env``, apply it with
-``docker compose up -d``.
+Starting QATrack+ for the first time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To build and start the server run the following:
 
@@ -356,6 +321,9 @@ initialising. The first time QATrack+ starts up initialisation can take about
     then run ``docker compose up -d`` to start the rest. Migrations that have
     already run are not repeated.
 
+Creating your first user
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 No user account is created for you, so create one before your first login.
 The `django` service runs the application, so run `createsuperuser` there and
 answer its prompts:
@@ -366,121 +334,35 @@ answer its prompts:
 
 You can then sign in at http://localhost with the credentials you just chose.
 
-Scheduled notifications, scheduled reports and the emails they send run in the
-``django-q`` service. ``docker compose ps`` shows it, with the other services, as
-``healthy``, and ``docker compose logs django-q`` shows what it has run.
-``docker compose logs`` keeps at most 50 MB of each service's output, and starts
-again empty when a container is recreated, for example by an upgrade.
-QATrack+'s own log files (``debug.log``, ``auth.log`` and the others) are kept in
-the ``logs-volume`` volume and survive upgrades; read them with
-``docker compose exec django ls logs``.
+.. _docker_configuration:
 
-.. _docker_development:
+Configuring QATrack+
+--------------------
 
-Developing with Docker
-~~~~~~~~~~~~~~~~~~~~~~
+Everything else is optional and documented in ``.env.example``: email, time
+zone, HTTPS, Active Directory / LDAP sign-in, and the QC display options. Leave
+a setting commented out to keep its default. ``SECRET_KEY`` is generated and
+kept for you if you do not set one, but it is not in the nightly backup; see
+:ref:`docker_secret_key`. After changing ``.env``, apply it with
+``docker compose up -d``.
 
-The commands above run the QATrack+ code built into the image. To work on
-QATrack+ itself, run your checkout instead, so code changes show up without
-rebuilding. QATrack+ then writes into your checkout (its log files, for
-example), so it runs as your own user. Add your user and group ids to ``.env``
-once, then start with the development overlay:
+Host names and the site's address
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: console
+If people reach QATrack+ on a port other than 80 (or 443 with HTTPS), set
+``SITE_DOMAIN`` to the name with the port, e.g. ``qatrack.myclinic.ca:8080``, so
+links in emails work. ``SITE_NAME`` sets the name shown at the top of each page.
+Both are applied every time QATrack+ starts, and replace any change made to them
+in the admin's *Websites* page; leave them unset to manage them there instead.
 
-    printf '\nQATRACK_UID=%s\nQATRACK_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
-    docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+Changing from port 80 to a different port
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use the same ``-f compose.yaml -f compose.dev.yaml`` on every ``docker compose``
-command for that stack. QATrack+'s log files go to your checkout's ``logs``
-folder, which is given to your user when the stack starts, even if an earlier
-QATrack+ container created it as root.
-
-
-Advanced usage tips
--------------------
-
-Accessing the Django shell
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you need to access the Django shell run the following in another terminal:
-
-.. code-block:: console
-
-    docker exec -ti docker_qatrack-django_1 /bin/bash
-    source deploy/docker/user-data/python-virtualenv/bin/activate
-    python manage.py shell
-
-This requires that the containers are already running.
-
-Making QATrack+ start on boot and run in the background
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To have QATrack+ start on boot run the following command:
-
-.. code-block:: console
-
-    docker compose up -d
-
-.. _docker_site_packages:
-
-Adding Python packages
-~~~~~~~~~~~~~~~~~~~~~~
-
-Calculation procedures can import Python packages that QATrack+ does not
-include. QATrack+ already includes numpy, scipy, pandas, matplotlib, pydicom,
-pylinac and others; the versions it uses are in ``uv.lock`` at the top of your
-QATrack+ folder. To add another package, list it in
-``deploy/docker/site-requirements/requirements.txt``, one per line, with its
-version:
-
-.. code-block:: text
-
-    pint==0.24.4
-
-Then rebuild the image and restart:
-
-.. code-block:: console
-
-    docker compose build
-    docker compose up -d
-
-The packages are installed alongside QATrack+'s own, at versions that work with
-them. If a package needs a different version of something QATrack+ uses (Django
-or numpy, for example), ``docker compose build`` stops and names the conflict,
-and your running QATrack+ is left as it was. Choose a version of the package
-that works with QATrack+'s, or ask on the QATrack+ mailing list.
-
-``requirements.txt`` and any wheel files beside it are yours: git ignores them,
-so ``git pull`` leaves them alone.
-Docker remembers the installed packages between builds and only installs them
-again when something in ``deploy/docker/site-requirements`` or QATrack+'s own
-dependencies changes. Packages that yours depend on, and that QATrack+ doesn't
-already include, are picked when they are installed, so a later rebuild can get
-newer versions of them. If you need every rebuild to be identical, pin those in
-``requirements.txt`` too, or use wheel files as below. To install everything
-afresh, run ``docker compose build --no-cache django``.
-
-On a server without internet access, use wheel (``.whl``) files. They must suit
-the image rather than the computer you download them on: Linux, CPython 3.12 and
-the server's processor (``x86_64`` on most servers; ``aarch64`` on ARM). On any
-computer with internet access and Python, pip can fetch the right ones, along
-with everything they depend on:
-
-.. code-block:: console
-
-    pip download --only-binary=:all: --python-version 3.12 --implementation cp --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 -d site-wheels pint==0.24.4
-
-Copy everything in ``site-wheels`` into ``deploy/docker/site-requirements`` (any
-copies of packages QATrack+ already has do no harm), and add a line
-``--no-index`` at the top of ``requirements.txt`` so your packages come only from
-those files. If pip finds no wheel for a package, it needs building from source;
-ask on the mailing list.
-
-The rest of the build still needs the internet, to download the Python base
-image and QATrack+'s own packages. Build the image once while the server is
-connected, so Docker has those steps saved; or build it on a connected computer
-and move the finished image with ``docker save`` and ``docker load``.
+The first number of the `ports` item within `compose.yaml` can be changed
+to use a port that is different to port 80. For example, if `80:80` was changed
+to `8080:80` then you would need to type http://localhost:8080 within your
+browser to see QATrack+. After editing `compose.yaml` you need to rerun
+`docker compose up`.
 
 .. _docker_https:
 
@@ -571,14 +453,65 @@ in use signs everyone out once.
 If you are upgrading from QATrack+ 4.0.0 or 4.0.1, which kept the key in a
 different place, see :ref:`docker_upgrade_keep_secret_key`.
 
-Changing from port 80 to a different port
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _docker_site_packages:
 
-The first number of the `ports` item within `compose.yaml` can be changed
-to use a port that is different to port 80. For example, if `80:80` was changed
-to `8080:80` then you would need to type http://localhost:8080 within your
-browser to see QATrack+. After editing `compose.yaml` you need to rerun
-`docker compose up`.
+Adding Python packages
+~~~~~~~~~~~~~~~~~~~~~~
+
+Calculation procedures can import Python packages that QATrack+ does not
+include. QATrack+ already includes numpy, scipy, pandas, matplotlib, pydicom,
+pylinac and others; the versions it uses are in ``uv.lock`` at the top of your
+QATrack+ folder. To add another package, list it in
+``deploy/docker/site-requirements/requirements.txt``, one per line, with its
+version:
+
+.. code-block:: text
+
+    pint==0.24.4
+
+Then rebuild the image and restart:
+
+.. code-block:: console
+
+    docker compose build
+    docker compose up -d
+
+The packages are installed alongside QATrack+'s own, at versions that work with
+them. If a package needs a different version of something QATrack+ uses (Django
+or numpy, for example), ``docker compose build`` stops and names the conflict,
+and your running QATrack+ is left as it was. Choose a version of the package
+that works with QATrack+'s, or ask on the QATrack+ mailing list.
+
+``requirements.txt`` and any wheel files beside it are yours: git ignores them,
+so ``git pull`` leaves them alone.
+Docker remembers the installed packages between builds and only installs them
+again when something in ``deploy/docker/site-requirements`` or QATrack+'s own
+dependencies changes. Packages that yours depend on, and that QATrack+ doesn't
+already include, are picked when they are installed, so a later rebuild can get
+newer versions of them. If you need every rebuild to be identical, pin those in
+``requirements.txt`` too, or use wheel files as below. To install everything
+afresh, run ``docker compose build --no-cache django``.
+
+On a server without internet access, use wheel (``.whl``) files. They must suit
+the image rather than the computer you download them on: Linux, CPython 3.12 and
+the server's processor (``x86_64`` on most servers; ``aarch64`` on ARM). On any
+computer with internet access and Python, pip can fetch the right ones, along
+with everything they depend on:
+
+.. code-block:: console
+
+    pip download --only-binary=:all: --python-version 3.12 --implementation cp --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 -d site-wheels pint==0.24.4
+
+Copy everything in ``site-wheels`` into ``deploy/docker/site-requirements`` (any
+copies of packages QATrack+ already has do no harm), and add a line
+``--no-index`` at the top of ``requirements.txt`` so your packages come only from
+those files. If pip finds no wheel for a package, it needs building from source;
+ask on the mailing list.
+
+The rest of the build still needs the internet, to download the Python base
+image and QATrack+'s own packages. Build the image once while the server is
+connected, so Docker has those steps saved; or build it on a connected computer
+and move the finished image with ``docker save`` and ``docker load``.
 
 .. _docker_postgres_access:
 
@@ -680,49 +613,13 @@ tunnel, and the connection is encrypted all the way.
     another system really must connect over the network, ask your IT department
     to help limit who can reach it.
 
-Shutdown the server
-~~~~~~~~~~~~~~~~~~~
+.. _docker_data:
 
-To shutdown the server run:
+Data and backups
+----------------
 
-.. code-block:: console
-
-    docker compose stop
-
-You can also single press `Ctrl + C` within the server terminal that you ran
-`docker compose up` to gracefully shutdown the server.
-
-Update server
-~~~~~~~~~~~~~
-
-Before you update, check that your Docker still meets
-:ref:`the minimum versions <docker_minimum_versions>` (Compose 2.17, Engine
-23.0). An older Compose can't build or start the new release, so if you find out
-first, your site keeps running while you update Docker:
-
-.. code-block:: console
-
-    docker compose version
-    docker version --format '{{.Server.Version}}'
-
-Then get the new code and build it. Your site keeps running while you do this:
-
-.. code-block:: console
-
-    git pull
-    docker compose build
-
-Once the build has finished without errors, swap the running containers for the
-new ones:
-
-.. code-block:: console
-
-    docker compose up -d
-
-There's no need to stop the site first: ``up -d`` replaces each container that
-has changed, so QATrack+ is only unavailable while they restart. If the build
-stops with an error instead, nothing has been stopped and your site carries on
-running the version it had before.
+QATrack+'s records are its database and the files people upload. This section
+covers how they are backed up and restored, and where they are kept.
 
 .. _docker_backups:
 
@@ -1033,6 +930,114 @@ the database and the uploaded files from the same night together: a restore
 needs both. ``docker compose down -v`` removes QATrack+'s volumes, but never
 deletes a folder on the server.
 
+.. _docker_operation:
+
+Running QATrack+ day to day
+---------------------------
+
+Making QATrack+ start on boot and run in the background
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To have QATrack+ start on boot run the following command:
+
+.. code-block:: console
+
+    docker compose up -d
+
+Shutdown the server
+~~~~~~~~~~~~~~~~~~~
+
+To shutdown the server run:
+
+.. code-block:: console
+
+    docker compose stop
+
+You can also single press `Ctrl + C` within the server terminal that you ran
+`docker compose up` to gracefully shutdown the server.
+
+Background tasks and logs
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Scheduled notifications, scheduled reports and the emails they send run in the
+``django-q`` service. ``docker compose ps`` shows it, with the other services, as
+``healthy``, and ``docker compose logs django-q`` shows what it has run.
+``docker compose logs`` keeps at most 50 MB of each service's output, and starts
+again empty when a container is recreated, for example by an upgrade.
+QATrack+'s own log files (``debug.log``, ``auth.log`` and the others) are kept in
+the ``logs-volume`` volume and survive upgrades; read them with
+``docker compose exec django ls logs``.
+
+Update server
+~~~~~~~~~~~~~
+
+Before you update, check that your Docker still meets
+:ref:`the minimum versions <docker_minimum_versions>` (Compose 2.17, Engine
+23.0). An older Compose can't build or start the new release, so if you find out
+first, your site keeps running while you update Docker:
+
+.. code-block:: console
+
+    docker compose version
+    docker version --format '{{.Server.Version}}'
+
+Then get the new code and build it. Your site keeps running while you do this:
+
+.. code-block:: console
+
+    git pull
+    docker compose build
+
+Once the build has finished without errors, swap the running containers for the
+new ones:
+
+.. code-block:: console
+
+    docker compose up -d
+
+There's no need to stop the site first: ``up -d`` replaces each container that
+has changed, so QATrack+ is only unavailable while they restart. If the build
+stops with an error instead, nothing has been stopped and your site carries on
+running the version it had before.
+
+.. _docker_line_endings:
+
+.. note::
+
+    Files under ``deploy/docker`` run inside Linux containers and must have LF line
+    endings. Git checks them out that way on every platform. A clone made before
+    QATrack+ 4.0.2 on Windows may still have CRLF copies. To check them out again,
+    run the following from the ``qatrackplus`` folder. It replaces the tracked files
+    under ``deploy/docker`` with fresh copies, so the first and last lines save your
+    own changes to them (your ``.env``, and any edits to ``nginx.conf`` or the
+    compose files) and put them back. These are git commands only, so they work the
+    same in Command Prompt, PowerShell or a Linux terminal. Untracked folders such
+    as ``user-data`` and ``backups`` are not touched.
+
+    .. code-block:: console
+
+        git diff HEAD --output=../qatrack-docker-local.patch -- deploy/docker
+        git rm -r --cached -q deploy/docker
+        git checkout HEAD -- deploy/docker
+        git apply --allow-empty ../qatrack-docker-local.patch
+
+    ``--allow-empty`` needs git 2.35 or newer. The patch file holds your ``.env``,
+    including the database password, so delete ``qatrack-docker-local.patch`` once
+    you have checked that QATrack+ starts.
+
+Accessing the Django shell
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you need to access the Django shell run the following in another terminal:
+
+.. code-block:: console
+
+    docker exec -ti docker_qatrack-django_1 /bin/bash
+    source deploy/docker/user-data/python-virtualenv/bin/activate
+    python manage.py shell
+
+This requires that the containers are already running.
+
 Delete docker data
 ~~~~~~~~~~~~~~~~~~
 
@@ -1054,3 +1059,24 @@ To just delete all postgres database data do the following:
 .. code-block:: console
 
     docker stop docker_qatrack-postgres_1 && docker rm docker_qatrack-postgres_1 && docker volume rm docker_qatrack-postgres-volume
+
+.. _docker_development:
+
+Developing with Docker
+----------------------
+
+The commands above run the QATrack+ code built into the image. To work on
+QATrack+ itself, run your checkout instead, so code changes show up without
+rebuilding. QATrack+ then writes into your checkout (its log files, for
+example), so it runs as your own user. Add your user and group ids to ``.env``
+once, then start with the development overlay:
+
+.. code-block:: console
+
+    printf '\nQATRACK_UID=%s\nQATRACK_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
+    docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+
+Use the same ``-f compose.yaml -f compose.dev.yaml`` on every ``docker compose``
+command for that stack. QATrack+'s log files go to your checkout's ``logs``
+folder, which is given to your user when the stack starts, even if an earlier
+QATrack+ container created it as root.
