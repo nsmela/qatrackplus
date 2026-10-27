@@ -8,6 +8,13 @@ register = template.Library()
 @register.simple_tag
 def part_list_in_storage(s):
 
+    # Blank inline rows (extra forms and the empty "add another" template) hold
+    # unsaved Storage instances. Since Django 4.1 using a reverse manager on an
+    # unsaved instance raises ValueError, and an unsaved storage can't hold any
+    # parts anyway, so there's nothing to list.
+    if s is None or s.pk is None:
+        return ''
+
     psc = s.partstoragecollection_set.all()
 
     if len(psc) == 0:
