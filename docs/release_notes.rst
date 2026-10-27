@@ -37,6 +37,15 @@ Bug Fixes
 Other Changes
 ^^^^^^^^^^^^^
 
+* **Attachments: a new ``clean_staged_attachments`` command clears out abandoned
+  uploads.** A file attached while performing QC waits in ``uploads/tmp`` until the
+  test list is submitted, and files from forms that were never submitted stayed
+  there for good. The command lists them, and removes them only when run with
+  ``--delete``. It never touches anything outside ``uploads/tmp``, never follows a
+  link out of it, and keeps any file a saved record or a resumable autosave still
+  refers to. See :ref:`clean_staged_attachments` (from :issues:`#866 <866>` by
+  Vincent Leduc).
+
 * **Dates are now shown as ``YYYY-MM-DD`` by default, in every language.** Two things
   changed, and an upgrading installation will see both.
 

@@ -22,6 +22,7 @@ Release notes are located at http://docs.qatrackplus.com/en/latest/release_notes
 * **Docker**: Database dumps in `deploy/docker/backups/` and `.env` files (other than the `.env.example` templates) are now ignored by git.
 * **Docker**: Files under `deploy/docker` always check out with LF line endings, including on Windows.
 * **QA**: Superusers and users with "Can view tli and utc not visible to user's groups" now see QC from all groups in the Perform QC lists, trees and unit chooser ([#883](https://github.com/qatrackplus/qatrackplus/pull/883)).
+* **Attachments**: New `clean_staged_attachments` command lists, and with `--delete` removes, abandoned uploads in `uploads/tmp`. It never touches anything outside that folder, or any file a saved record or resumable autosave refers to.
 
 ## v4.0.0 Recent Fixes
 
