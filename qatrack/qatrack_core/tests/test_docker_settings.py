@@ -249,6 +249,18 @@ class TestSecretKeyNotice(DockerSettingsTestCase):
         self.assertIn('user-data-volume', notice)
         self.assertIn(f'cat {docker_settings.DEFAULT_SECRET_KEY_FILE})', notice)
 
+    def test_default_file_in_a_folder_on_the_server(self):
+        # QATRACK_USER_DATA_DIR in .env puts the default file in a folder on the
+        # server instead of the volume; the notice names that folder.
+        notice = docker_settings.secret_key_notice({'QATRACK_USER_DATA_DIR': '/srv/qatrack/user-data'})
+        self.assertIn(f'{docker_settings.DEFAULT_SECRET_KEY_FILE}, in the folder /srv/qatrack/user-data', notice)
+        self.assertNotIn('user-data-volume', notice)
+        self.assertIn(f'cat {docker_settings.DEFAULT_SECRET_KEY_FILE})', notice)
+
+    def test_blank_user_data_dir_means_the_volume(self):
+        notice = docker_settings.secret_key_notice({'QATRACK_USER_DATA_DIR': '  '})
+        self.assertIn('user-data-volume', notice)
+
     def test_default_file_keeps_forward_slashes_on_windows(self):
         # On Windows, Path renders /usr/src/... with backslashes; the file is in
         # the Linux container, so the notice must not.
