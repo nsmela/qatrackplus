@@ -36,7 +36,8 @@
   {% with tli=test_list_instance %}
   <form class="review-test-list" id="qa-review" method="POST" action="">
     {% csrf_token %}
-    {{ form }}
+    {# as_table (not a bare form) keeps the same markup without Django 4.2's default.html deprecation warning #}
+    {{ form.as_table }}
 
     <div id="box-details" class="row">
       <div class="col-md-12">
