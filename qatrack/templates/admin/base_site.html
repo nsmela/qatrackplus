@@ -83,8 +83,12 @@ html {
 /* Narrow windows: keep the page itself from scrolling sideways. */
 /* Long names with no spaces (e.g. task paths, password hashes) wrap instead
    of widening the page. */
-#content {
+#content,
+div.breadcrumbs {
     overflow-wrap: break-word;
+}
+.form-row .readonly {
+    min-width: 0;
 }
 /* Django gives the paginator width: 100% plus side padding, which pokes 20px
    past the results table. */

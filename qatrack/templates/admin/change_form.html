@@ -22,11 +22,17 @@
 .selector {
     width: 980px;
     max-width: 100%;
+    min-width: 0;
 }
 
 .selector-available, .selector-chosen {
     flex: 1 1 0;
     min-width: 0;
+}
+
+.selector .selector-filter input {
+    min-width: 0;
+    max-width: calc(100% - 26px);
 }
 
 .selector select {
