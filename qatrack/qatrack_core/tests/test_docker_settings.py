@@ -90,7 +90,7 @@ class TestDefaults(DockerSettingsTestCase):
 
         compose.yaml gives the backup service TZ from TIME_ZONE, falling back to a
         default of its own, which must stay the same as settings.py's, or the
-        nightly backup's 2 AM and its file names drift from QATrack+'s clock.
+        nightly backup's 4 AM and its file names drift from QATrack+'s clock.
         """
         settings_py = ast.parse((REPO_ROOT / 'qatrack' / 'settings.py').read_text(encoding='utf-8'))
         settings_default = [
@@ -99,8 +99,12 @@ class TestDefaults(DockerSettingsTestCase):
         ]
         compose = (REPO_ROOT / 'deploy' / 'docker' / 'compose.yaml').read_text(encoding='utf-8')
         compose_default = re.findall(r'^ +TZ: \$\{TIME_ZONE:-([^}]+)\}$', compose, re.MULTILINE)
+        # start-cron.sh warns when the backups' zone differs from QATrack+'s default.
+        start_cron = (REPO_ROOT / 'deploy' / 'docker' / 'backup' / 'start-cron.sh').read_text(encoding='utf-8')
+        start_cron_default = re.findall(r'^default_zone=(\S+)$', start_cron, re.MULTILINE)
         self.assertEqual(len(settings_default), 1)
         self.assertEqual(compose_default, settings_default)
+        self.assertEqual(start_cron_default, settings_default)
 
     def test_database_from_environment(self):
         g = self.apply(

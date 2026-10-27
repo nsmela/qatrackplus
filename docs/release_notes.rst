@@ -207,17 +207,21 @@ Deployment and Upgrade Notes
   read them. The image now installs just those client tools on Alpine, rather
   than starting from the PostgreSQL server image.
 
-* **Docker: the nightly backup runs at 2 AM local time.** It ran at 2 AM UTC,
+* **Docker: the nightly backup moves to 4 AM local time.** It ran at 2 AM UTC,
   which is the evening before across the Americas (10 PM in Toronto in summer),
-  and named its files in UTC. It now uses QATrack+'s own time zone, ``TIME_ZONE``
-  in ``.env``, for both. If ``TIME_ZONE`` is not set, that is QATrack+'s default,
-  America/Toronto, which QATrack+ already shows dates in: set it if your site is
-  elsewhere. ``docker compose logs backup`` shows the zone in use. Backups from
-  before the upgrade keep their UTC names, so for a day or so the names do not
-  sort in the order the backups were made; ``ls -lt`` lists them newest first.
-  The first backup after the upgrade may come up to a day sooner or later than
-  usual. On the night clocks jump from 2 AM to 3 AM there is no backup, and where
-  they go back from 3 AM to 2 AM there are two (see :ref:`docker_backups`).
+  and named its files in UTC. It now runs at 4 AM in QATrack+'s own time zone,
+  ``TIME_ZONE`` in ``.env``, and names its files in that local time. If
+  ``TIME_ZONE`` is not set, that is QATrack+'s default, America/Toronto, which
+  QATrack+ already shows dates in: set it if your site is elsewhere.
+  ``docker compose logs backup`` shows the zone in use. 4 AM rather than 2 AM
+  because no time zone changes its clocks for daylight saving time at 4 AM, so the
+  backup runs once every night, all year round (see :ref:`docker_backups`).
+  Backups from before the upgrade keep their UTC names, so for a day or so the
+  names do not sort in the order the backups were made; ``ls -lt`` lists them
+  newest first. The first backup after the upgrade may come up to a day sooner or
+  later than usual. **If a job copies the backups off the server** at a time
+  chosen to follow the old 2 AM UTC backup, move it to after 4 AM local time, or
+  it will copy the previous night's backup.
 
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to

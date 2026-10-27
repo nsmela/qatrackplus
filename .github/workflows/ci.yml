@@ -684,7 +684,7 @@ jobs:
           echo "PASS: backup restored the user and the uploaded file"
 
       - name: Verify backups follow TIME_ZONE
-        # The nightly 2 AM and the backups' file names are in TIME_ZONE from .env,
+        # The nightly 4 AM and the backups' file names are in TIME_ZONE from .env,
         # or QATrack+'s default zone (America/Toronto) when it is unset.
         working-directory: deploy/docker
         run: |
@@ -697,7 +697,9 @@ jobs:
           [ "$($dc exec -T backup printenv TZ)" = America/Toronto ]
           abbreviation=$($dc exec -T backup date +%Z)
           [[ "$abbreviation" =~ ^E[SD]T$ ]] || { echo "FAIL: the backup service's zone is $abbreviation"; exit 1; }
-          $dc logs backup | grep -F "Backups run every night at 2 AM, America/Toronto time"
+          $dc logs backup | grep -F "Backups run every night at 4 AM, America/Toronto time"
+          # The schedule itself, which that message describes.
+          $dc exec -T backup cat /etc/crontabs/root | grep -E '^0 4 \* \* \* /usr/local/bin/backup '
 
           # Backups named in UTC by an earlier release: one an hour old, whose
           # name sorts after one named in Toronto time now, and one 8 days old.
