@@ -8,7 +8,7 @@ upgrade is a code update, a dependency sync and a restart:
 
 1. Stop the scheduled task and the web service
 2. ``git fetch`` and ``git pull``
-3. ``uv sync --exact --extra win --extra mssql``
+3. ``uv sync --exact --extra win --extra mssql``, then activate ``.venv``
 4. ``python manage.py check``
 5. ``python manage.py migrate`` and ``python manage.py collectstatic``
 6. Start the service and scheduled task again
@@ -48,6 +48,18 @@ Fetch the new version and update the environment. You do not name a version — 
     >>  git fetch origin
     >>  git pull
     >>  uv sync --exact --extra win --extra mssql
+
+Activate the environment, so that the commands below run with QATrack+'s own
+Python. ``uv sync`` updates ``.venv`` but does not activate it:
+
+.. code-block:: console
+
+    >>  .\.venv\Scripts\Activate.ps1
+
+Your command prompt should now be prefixed with ``(qatrackplus)`` or ``(.venv)``.
+In a new PowerShell window without this step, ``python`` is the system Python -
+or a shortcut that opens the Microsoft Store - and the commands below fail or
+run against the wrong environment while your services are stopped.
 
 Check the installation, then run the migration step and collect static files:
 

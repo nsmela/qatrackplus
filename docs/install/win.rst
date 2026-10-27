@@ -259,14 +259,24 @@ Now run the following commands to set up your database and load the default conf
    >>  python manage.py collectstatic
    >>  Get-ChildItem .\fixtures\defaults\*\*json | foreach {python manage.py loaddata $_.FullName}
 
-If you want to enable internationalization, then you need to compile the
-messages catalogs for the languages you need:
+QATrack+ comes with its French, Canadian French and Spanish translations
+already compiled, so there is nothing to do here to use them. You only need to
+compile the message catalogues if you change a translation (a ``.po`` file under
+``qatrack\locale``) yourself:
 
 .. code-block:: powershell
 
    >>  python manage.py compilemessages -l fr
    >>  python manage.py compilemessages -l fr_CA
    >>  python manage.py compilemessages -l es
+
+``compilemessages`` uses GNU gettext's ``msgfmt`` program, which neither Windows
+nor Python includes. Without it the command stops with ``CommandError: Can't
+find msgfmt`` and nothing is compiled. The standalone `gettext binaries for
+Windows <https://mlocati.github.io/articles/gettext-iconv-windows.html>`__
+provide it; make sure their folder is on your ``PATH``, then open a new
+PowerShell window. If you have already installed MSYS2 (for WeasyPrint, for
+example), ``pacman -S gettext`` provides it too, in ``C:\msys64\usr\bin``.
 
 We now have a database, we have configured QATrack+ to use it, and we've loaded the default configuration data. Next, we should test that everything is working correctly by running the development server with `python manage.py runserver` and navigating to http://localhost:8000/ in a browser on the server. You should see a poor approximation of the QATrack+ login page (it won't look like this once we're finished!). If you see any errors, check the terminal output for details on what went wrong.  If you can log in successfully, then we know our database is configured correctly and we can move on to the next step.
 
@@ -443,8 +453,17 @@ Group...` button and in the `Enter the object name to select` box put
    QCluster Task
 
 On the `Triggers` tab, click
-`New...` and in the `Begin the task:` dropdown select `At startup` and then
+`New...` and in the `Begin the task:` dropdown select `At startup`. Under
+`Advanced settings`, tick `Delay task for:` and choose or type `5 minutes`, then
 click `OK`.
+
+.. note::
+
+    The delay matters most when SQL Server runs on the same machine. SQL Server
+    can still be starting when Windows runs this task, and the delay gives the
+    database time to be ready before the task cluster connects to it. If
+    scheduled reports or notices ever stop after the server restarts, restarting
+    this task is the first thing to try.
 
 .. figure:: images/win/qcluster_trigger.png
    :alt: QCluster Trigger
