@@ -848,6 +848,21 @@ class Tolerance(models.Model):
                     ]
                 })
 
+            # Limits must run low to high; a blank limit isn't used, so only
+            # the limits that are set are compared with each other.
+            limits = [(f, getattr(self, f)) for f in (ACT_LOW, TOL_LOW, TOL_HIGH, ACT_HIGH)]
+            limits = [(f, v) for f, v in limits if v is not None]
+            for (low_field, low), (high_field, high) in zip(limits, limits[1:]):
+                if low > high:
+                    raise ValidationError({
+                        high_field: [
+                            _("%(high)s must be at least %(low)s.") % {
+                                'high': self._meta.get_field(high_field).verbose_name,
+                                'low': self._meta.get_field(low_field).verbose_name,
+                            }
+                        ]
+                    })
+
     def clean_fields(self, exclude=None):
         """extra validation for Tests"""
         super().clean_fields(exclude)

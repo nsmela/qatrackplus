@@ -221,6 +221,14 @@ class TestToleranceAdmin(TestCase):
         qa_utils.create_tolerance(act_high=4)
         self.client.get(self.url_list)
 
+    def test_limits_out_of_order_rejected(self):
+        before = qa_models.Tolerance.objects.count()
+        data = dict(self.data, tol_low='2', tol_high='1')
+        resp = self.client.post(self.url_add, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Tolerance High must be at least Tolerance Low.')
+        self.assertEqual(qa_models.Tolerance.objects.count(), before)
+
 
 class TestTestInstanceAdmin(TestCase):
 

@@ -2874,11 +2874,11 @@ class ToleranceForm(forms.ModelForm):
 class MachineNewToleranceForm(ToleranceForm):
     """ToleranceForm for the builder's New Tolerance dialog.
 
-    Same model validation and duplicate check as the Tolerance admin; the types
-    are limited to the ones that fit the test (new_tolerance_types). It also
-    checks the limits are in order (Action Low ≤ Tolerance Low ≤ Tolerance High ≤
-    Action High), which the admin page doesn't. ``duplicate`` holds the existing
-    tolerance when the duplicate check fails, so the dialog can offer it.
+    Same model validation (including the limit order check in
+    Tolerance.clean_tols) and duplicate check as the Tolerance admin; the types
+    are limited to the ones that fit the test (new_tolerance_types).
+    ``duplicate`` holds the existing tolerance when the duplicate check fails,
+    so the dialog can offer it.
     """
 
     LIMIT_FIELDS = ("act_low", "tol_low", "tol_high", "act_high")
@@ -2904,19 +2904,6 @@ class MachineNewToleranceForm(ToleranceForm):
                 field.widget.attrs["class"] = "tl-modal-input"
         for name in self.LIMIT_FIELDS:
             self.fields[name].widget.attrs["step"] = "any"
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if cleaned_data.get("type") in (models.ABSOLUTE, models.PERCENT):
-            values = [(name, cleaned_data.get(name)) for name in self.LIMIT_FIELDS]
-            values = [(name, v) for name, v in values if v is not None]
-            for (low_name, low), (high_name, high) in zip(values, values[1:]):
-                if low > high:
-                    self.add_error(high_name, _("%(high)s must be at least %(low)s.") % {
-                        "high": self.fields[high_name].label, "low": self.fields[low_name].label,
-                    })
-                    break
-        return cleaned_data
 
     def validate_unique(self):
         super().validate_unique()

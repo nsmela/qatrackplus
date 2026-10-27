@@ -29,7 +29,7 @@ These are choices made during the work that you may want to change.
     Upload and Date tests show "Not used".
 - **New Tolerance dialog** (stacked on the first): only the types that fit
   the test (none for Yes/No), saved through the Tolerance admin's form and
-  duplicate check, plus a limit-order check the admin lacks. A duplicate
+  duplicate check, which now includes the limit-order check. A duplicate
   offers "Use This One". The tolerance applies to the machine only when the
   first dialog is saved.
 - **Shared settings are locked in machine mode.** Details become read-only
@@ -161,9 +161,6 @@ These are choices made during the work that you may want to change.
 
 ## Open issues: elsewhere in QATrack+ (existed before this work)
 
-- `Tolerance` doesn't check limit order (`models.py` ~831), so the Tolerance
-  admin accepts e.g. Tolerance Low 2 / Tolerance High 1. The builder's New
-  Tolerance dialog now checks it.
 - `UnitTestInfo.clean` (`models.py` ~1456) checks percent tolerances
   against the existing reference, not the new one, so changing a zero
   reference to non-zero together with a percent tolerance may be rejected.
@@ -217,3 +214,8 @@ These are choices made during the work that you may want to change.
 - Search used hard-coded `/admin/` URLs (broken under a sub-path).
 - The builder's dialogs and the description text weren't keyboard
   accessible.
+- Tolerances accepted limits out of order (e.g. Tolerance Low 2, Tolerance
+  High 1). `Tolerance.clean_tols` now requires Action Low ≤ Tolerance Low ≤
+  Tolerance High ≤ Action High (blank limits skipped), for the Tolerance
+  admin and the builder alike. Existing tolerances out of order aren't
+  changed, but can't be saved again until fixed.

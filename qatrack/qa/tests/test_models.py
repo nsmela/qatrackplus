@@ -181,6 +181,34 @@ class TestTolerance(TestCase):
         t = models.Tolerance(type=models.ABSOLUTE)
         self.assertRaises(ValidationError, t.clean_tols)
 
+    def test_limits_in_order(self):
+        t = models.Tolerance(type=models.ABSOLUTE, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        t.clean_tols()
+
+    def test_equal_limits_allowed(self):
+        t = models.Tolerance(type=models.ABSOLUTE, act_low=-1, tol_low=-1, tol_high=1, act_high=1)
+        t.clean_tols()
+
+    def test_tol_low_above_tol_high(self):
+        t = models.Tolerance(type=models.ABSOLUTE, tol_low=2, tol_high=1)
+        with self.assertRaises(ValidationError) as cm:
+            t.clean_tols()
+        self.assertIn(models.TOL_HIGH, cm.exception.message_dict)
+
+    def test_act_low_above_tol_low(self):
+        t = models.Tolerance(type=models.PERCENT, act_low=-1, tol_low=-2, tol_high=1, act_high=2)
+        with self.assertRaises(ValidationError) as cm:
+            t.clean_tols()
+        self.assertIn(models.TOL_LOW, cm.exception.message_dict)
+
+    def test_order_skips_blank_limits(self):
+        t = models.Tolerance(type=models.ABSOLUTE, act_low=-2, act_high=2)
+        t.clean_tols()
+        t = models.Tolerance(type=models.ABSOLUTE, act_low=3, act_high=2)
+        with self.assertRaises(ValidationError) as cm:
+            t.clean_tols()
+        self.assertIn(models.ACT_HIGH, cm.exception.message_dict)
+
     def test_invalid_mc_choices(self):
         t = models.Tolerance(mc_pass_choices="a", type=models.ABSOLUTE)
         self.assertRaises(ValidationError, t.clean_choices)
