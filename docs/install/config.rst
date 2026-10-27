@@ -437,6 +437,49 @@ Default is `ACCOUNTS_CLEAN_USERNAME = False`.
 Set `AUTOSAVE_DAYS_TO_KEEP` to control the maximum number of days that auto-saved
 QC data will be kept for.  The default settings is 30 days.
 
+.. _clean_staged_attachments:
+
+Cleaning up abandoned staged uploads
+....................................
+
+When someone attaches a file while performing QC, QATrack+ saves it straight
+away to a staging folder, `MEDIA_ROOT/uploads/tmp`, and only moves it to its
+permanent place when the test list is submitted. If the form is abandoned
+instead, the file stays in the staging folder, and nothing removes it, so over
+the years that folder can grow quite large.
+
+The `clean_staged_attachments` command finds those abandoned uploads. Run on
+its own, it only lists what it found and removes nothing:
+
+.. code-block:: console
+
+    python manage.py clean_staged_attachments
+
+Once you are happy with the list, add `--delete` to remove them:
+
+.. code-block:: console
+
+    python manage.py clean_staged_attachments --delete
+
+**Uploaded files are part of your clinical record, and this command never
+touches them.** It only ever looks at plain files sitting directly inside
+`uploads/tmp`. It does not go into folders, it never follows a symbolic link or
+junction out of the staging folder, and it leaves everything else under the
+media folder exactly as it is. Inside the staging folder it still keeps a file
+if:
+
+* a saved attachment (one that belongs to a test, test list, service event,
+  fault or part) still points at it. The command prints a warning for these,
+  as it means a file was never moved to its permanent place and is worth a look;
+* an autosaved session that someone could still resume refers to it; or
+* it is newer than the cut-off, which is `AUTOSAVE_DAYS_TO_KEEP` (or the
+  login session length, if that is longer) plus a 7 day margin, so 37 days
+  with the default settings. Use `--margin-days` to change the margin.
+
+Every file and staged attachment record it removes is written to the QATrack+
+log. We recommend running it without `--delete` first, and making sure your
+:ref:`backups <qatrack_backup>` are current before you remove anything.
+
 
 CHROME_PATH
 ...........
