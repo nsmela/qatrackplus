@@ -39,14 +39,11 @@ Stop the services first, so nothing runs mid-upgrade:
     sudo service nginx stop
     sudo supervisorctl stop gunicorn django-q2
 
-.. warning::
-
-    ``gunicorn`` matters as much as ``django-q2`` here, and earlier versions of
-    this page did not mention it. Supervisor runs it as its own program, so
-    stopping nginx does not stop it: it keeps its Python already imported while
-    you replace the dependencies and the templates underneath it. What you get
-    is old code serving new templates and new static files, which fails in ways
-    that look nothing like an upgrade problem.
+Stopping ``gunicorn`` matters as much as stopping ``django-q2``. Supervisor runs
+it separately, so stopping nginx leaves it running with the old code already
+loaded while the new code and templates are put in place underneath it. That
+mix of old and new fails in confusing ways that don't look like an upgrade
+problem.
 
 Fetch the new version. If you installed from the ``releases/4.0`` branch — which is
 what the installation guide uses — this is a ``pull``, and you do not name a version at
@@ -98,15 +95,16 @@ optional: this release changes JavaScript and templates.
     python manage.py migrate
     python manage.py collectstatic
 
-Restart - the application servers first, so nginx has something to proxy to
-the moment it comes back:
+Restart, starting the application first so nginx has something to pass
+requests to as soon as it comes back:
 
 .. code-block:: bash
 
     sudo supervisorctl start gunicorn django-q2
     sudo service nginx start
 
-Confirm both are running before you call the upgrade done:
+Confirm that both ``gunicorn`` and ``django-q2`` show ``RUNNING`` before you
+call the upgrade done:
 
 .. code-block:: bash
 
