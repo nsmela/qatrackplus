@@ -84,7 +84,9 @@ class TestReferenceToleranceColumn(TestCase):
         main = soup.find('table', id='tl-tests-table')
         assert visible(main, {'tl-col-reftol'}) == visible(main, {'tl-col-type-value'}) == 6
         sub = soup.select_one('table.tl-sublist-table')
-        assert visible(sub, {'tl-col-reftol'}) == visible(sub, {'tl-col-type-value'}) == 5
+        # R5: the sublist table gains a machine-only pencil column
+        assert visible(sub, {'tl-col-reftol', 'tl-col-machine-actions'}) == 5
+        assert visible(sub, {'tl-col-type-value'}) == 6
         assert soup.select_one('td.tl-sublist-cell')['colspan'] == '6'
 
     def test_limits_data_still_drives_the_column(self):
@@ -145,8 +147,8 @@ class TestReferenceToleranceScript(TestCase):
         assert 'machineRefTolCell(r)' in fill
         assert 'machineRefTolHtml(info, limits)' in fill
         assert 'machineRefTolEditHtml(r, info, limits)' in fill
-        # focus goes back to the pencil in the combined cell after a save
-        assert 'machineRefTolCell(opener.row)' in self._function('focusRefTolOpener')
+        # focus goes back to the pencil (in the row's last column since R5) after a save
+        assert 'machineActionsBox(opener.row)' in self._function('focusRefTolOpener')
         assert 'td.tl-col-reftol' in self._function('clearMachineCells')
 
     def test_new_strings_are_translatable(self):

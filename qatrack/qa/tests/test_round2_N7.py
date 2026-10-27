@@ -27,7 +27,7 @@ ASSETS = 'admin/qa/testlist/testlist_assets.html'
 # Which header cells the builder CSS hides in each mode (see the
 # "Reference / Tolerance columns replace Type Value" rules, checked below).
 HIDDEN_IN = {
-    'base': {'tl-col-reftol'},
+    'base': {'tl-col-reftol', 'tl-col-machine-actions'},  # R5: sublist tables' machine-only pencil column
     'machine': {'tl-col-type-value'},
 }
 
@@ -89,7 +89,7 @@ class TestSublistRowSpans(TestCase):
         table = _owning_table(td)
         assert 'tl-sublist-table' in table['class']
         assert int(td['colspan']) == _visible_columns(table, 'base') == 5
-        assert _visible_columns(table, 'machine') == 5
+        assert _visible_columns(table, 'machine') == 6  # R5: plus the pencil column; syncColumnSpans() recounts
         assert 'tl-span-visible-cols' in td['class']
 
     def test_no_cell_spans_past_the_shown_columns(self):

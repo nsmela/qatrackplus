@@ -375,6 +375,45 @@ Elsewhere:
 - `initAttachmentsSection` re-binds its document-level Remove listeners each
   time it runs.
 
+## Round 3: decisions and open issues
+
+All eight Round 3 items in `TODO-test-builder.md` are built (one agent each).
+
+### Decisions to review
+- **Blank reference keeps it (R1):** the Unit Test Info admin page has no way
+  to clear a reference on purpose (the builder dialog still can, by emptying
+  its filled-in field). A "Clear reference" checkbox would be the follow-up
+  if needed. String-type tests no longer drop a stale reference on save
+  (they never read it).
+- **Type chip (R2)** uses the Category pill's neutral look; no colour per
+  type (colour means QC status). The old short-badge translations go
+  obsolete at `makemessages`.
+- **Reference & Tolerance column (R3):** String and String Composite show
+  their tolerance only (they pass/fail by choices, like Multiple Choice);
+  Boolean shows "Expected Yes/No", plus a tolerance line when one is set;
+  Upload/Date types show "No limits needed".
+- **Machine-mode pencil (R5)** keeps its blue machine style, distinct from
+  the base list's grey "Edit Test" pencil. Sublist tables only get the extra
+  column in machine mode.
+- **Sublist headers top-align (R4)** like test rows, so the drag handle stays
+  by the first line when a long name wraps.
+- **Heading (R6)** reads "Edit Test List · ID 123"; the browser tab title is
+  unchanged (it already leads with the name).
+- **Description links (R7):** "Add Description" stays as a link to the Test
+  page (hidden in machine mode); an existing description stays clickable in
+  machine mode since it only opens another page.
+
+### Open issues found in round 3
+- At 800px the builder table is wider than its card (about 530px in 461px),
+  so the last columns scroll sideways inside the card; in machine mode the
+  pencils are only visible after scrolling.
+- `UnitTestInfoForm`'s class-level labels ("New reference value", "Set by",
+  …) use eager `gettext`, so they don't follow the request language.
+- `test_round2_N7.py`'s docstring and a comment near `test_admin.py:2096`
+  still describe separate Reference / Tolerance columns.
+- The dev database has throwaway objects from agents' browser checks (e.g.
+  "R3 Demo List", "R5 Span Check", "R7 dup …", "N18 throwaway output").
+
 ## Before merging
 
 - Run `makemessages -l fr -l fr_CA -l es` (django and djangojs domains) and

@@ -95,6 +95,8 @@
                 <th class="tl-th-type">{% trans "Type" %}</th>
                 <th class="tl-th-type-value tl-col-type-value">{% trans "Type Value" %}</th>
                 <th class="tl-th-reftol tl-col-reftol">{% trans "Reference & Tolerance" %}</th>
+                {# machine mode only: the Reference & Tolerance pencil #}
+                <th class="tl-th-actions tl-col-machine-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -115,10 +117,11 @@
                   </td>
                   {% include "admin/qa/testlist/partials/_type_value_cell.html" %}
                   {% include "admin/qa/testlist/partials/_machine_cells.html" %}
+                  <td class="tl-cell-actions tl-col-machine-actions"><span class="tl-machine-actions"></span></td>
                 </tr>
               {% empty %}
                 <tr class="tl-sublist-empty-row">
-                  {# 5 visible columns in base mode and in machine mode (see syncColumnSpans()) #}
+                  {# 5 visible columns in base mode, 6 in machine mode (the pencil column); syncColumnSpans() recounts them #}
                   <td colspan="5" class="tl-empty-sublist-msg tl-span-visible-cols">{% trans "This sublist has no tests yet." %}</td>
                 </tr>
               {% endfor %}

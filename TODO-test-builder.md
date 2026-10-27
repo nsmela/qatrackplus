@@ -311,7 +311,7 @@ Remove this file before the branch is merged.
   - Rows with a long name, description or type value currently centre their
     other cells vertically; align every cell to the top, in test rows and
     sublist rows.
-- [ ] **Machine mode: the Reference & Tolerance pencil in its own last column**
+- [x] **Machine mode: the Reference & Tolerance pencil in its own last column**
   - Machine mode only; the base list's actions column is already right.
   - Today the pencil that opens the Set Reference & Tolerance dialog (or the
     Unit Test Info page when the dialog isn't available) is appended inside

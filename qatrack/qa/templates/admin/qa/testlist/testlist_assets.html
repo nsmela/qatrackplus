@@ -483,6 +483,22 @@ body.tl-mode-machine .tl-col-type-value {
   display: none;
 }
 .tl-th-reftol { width: 320px; }
+/* The Reference & Tolerance pencil sits in the row's last (actions) column,
+   in place of the base list's buttons; sublist tables only get that column in machine mode */
+.tl-machine-actions,
+.tl-col-machine-actions {
+  display: none;
+}
+body.tl-mode-machine .tl-machine-actions {
+  display: inline;
+}
+body.tl-mode-machine .tl-col-machine-actions {
+  display: table-cell;
+}
+.tl-sublist-table .tl-th-actions { width: 40px; }
+.tl-machine-actions .tl-machine-edit {
+  margin-left: 0;
+}
 /* One line each for the reference and the tolerance, when the type uses both */
 .tl-reftol-line {
   display: block;
@@ -707,7 +723,7 @@ button.tl-machine-edit:focus-visible {
 body.tl-mode-machine #tl-tests-card .tl-drag-handle,
 body.tl-mode-machine #tl-header-add-test-btn,
 body.tl-mode-machine #tl-header-add-sublist-btn,
-body.tl-mode-machine #tl-tests-card .tl-cell-actions > *,
+body.tl-mode-machine #tl-tests-card .tl-cell-actions > *:not(.tl-machine-actions),
 body.tl-mode-machine #tl-tests-card .tl-btn-change-sublist,
 body.tl-mode-machine #tl-tests-card .tl-btn-remove-sublist,
 body.tl-mode-machine #tl-tests-card .tl-remove-locked,
@@ -4454,18 +4470,28 @@ ul.messagelist li.error {
     return "";
   }
 
-  // Fill one row's own Reference & Tolerance cell.
+  // This row's own machine-mode pencil holder, in its last (actions) column.
+  function machineActionsBox(r) {
+    var box = null;
+    Array.prototype.forEach.call(r.children, function (td) {
+      if (!box && td.classList.contains("tl-cell-actions")) {
+        Array.prototype.forEach.call(td.children, function (el) {
+          if (!box && el.classList.contains("tl-machine-actions")) { box = el; }
+        });
+      }
+    });
+    return box;
+  }
+
+  // Fill one row's own Reference & Tolerance cell, and put its pencil in the
+  // row's last column.
   function fillMachineRow(r, info, limits) {
     var cell = machineRefTolCell(r);
     if (!cell) { return; }
     limits = limits || { uses_limits: true, reference: "required", tolerance: "required" };
-    var html = machineRefTolHtml(info, limits);
-    var edit = machineRefTolEditHtml(r, info, limits);
-    if (edit) {
-      // the pencil follows the last line instead of wrapping onto its own
-      html = html.replace(/<\/span>$/, edit + '</span>');
-    }
-    cell.innerHTML = html;
+    cell.innerHTML = machineRefTolHtml(info, limits);
+    var box = machineActionsBox(r);
+    if (box) { box.innerHTML = machineRefTolEditHtml(r, info, limits); }
   }
 
   // data: testlist_machine_values' JSON ({tests, limits}).
@@ -4485,8 +4511,8 @@ ul.messagelist li.error {
   }
 
   function clearMachineCells() {
-    document.querySelectorAll("#tl-tests-card td.tl-col-reftol").forEach(function (td) {
-      td.innerHTML = "";
+    document.querySelectorAll("#tl-tests-card td.tl-col-reftol, #tl-tests-card .tl-machine-actions").forEach(function (el) {
+      el.innerHTML = "";
     });
   }
 
@@ -4737,8 +4763,8 @@ ul.messagelist li.error {
     var opener = refTolState.opener;
     refTolState.opener = null;
     if (!opener || !opener.row || !document.contains(opener.row)) { return; }
-    var cell = machineRefTolCell(opener.row);
-    var btn = cell ? cell.querySelector(".tl-machine-reftol-btn") : null;
+    var box = machineActionsBox(opener.row);
+    var btn = box ? box.querySelector(".tl-machine-reftol-btn") : null;
     if (btn) { btn.focus(); }
   }
 
