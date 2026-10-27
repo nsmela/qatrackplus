@@ -34,6 +34,9 @@ timestamped directory.
 
     **It can only back up the database on SQL Server and SQLite.** On PostgreSQL,
     MySQL, or any other engine it reports that it cannot, and skips the database.
+    It still backs up your uploaded files, but because the backup is incomplete it
+    never removes old backups on these engines, so clear them out yourself from time
+    to time. Before 4.0.2 it skipped the uploaded files on these engines too.
 
     **The command exits zero either way.** There is no non-zero exit path in it, so
     a scheduled task that checks only the exit status will record a success. Check

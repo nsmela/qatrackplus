@@ -26,12 +26,29 @@ class Command(BaseCommand):
                     shutil.rmtree(path)
 
     def run_backup(self, backup_dir, backup_type, db_name):
+        """Back up the database and the uploads, and say whether both worked.
+
+        The two steps are independent on purpose. They used to be one, and the
+        database half returns early on PostgreSQL, on MySQL and on any engine
+        it does not implement - so those sites got no uploads archive either,
+        with nothing said about it. A site reading "Please use pg_dump" would
+        reasonably take the rest of the backup to have happened.
+
+        The return value still requires both, because it is what gates the
+        retention step: nothing old is deleted on the strength of a backup that
+        was not completely written.
+        """
         today_str = datetime.date.today().strftime("%Y-%m-%d")
         backup_loc = os.path.join(backup_dir, f"{today_str}-{backup_type}")
-        
+
         if not os.path.exists(backup_loc):
             os.makedirs(backup_loc)
 
+        database = self.backup_database(backup_loc, backup_type, db_name, today_str)
+        uploads = self.backup_uploads(backup_loc)
+        return database and uploads
+
+    def backup_database(self, backup_loc, backup_type, db_name, today_str):
         # 1. Database Backup
         db_dir_override = self.get_setting('BACKUP_DB_DIR', None)
         
@@ -74,7 +91,10 @@ class Command(BaseCommand):
             finally:
                 connection.set_autocommit(old_autocommit)
         elif 'postgresql' in engine:
-            self.stdout.write(self.style.WARNING("PostgreSQL backup not natively implemented in this script yet. Please use pg_dump."))
+            self.stdout.write(self.style.WARNING(
+                "Your PostgreSQL database was NOT backed up: this command cannot back up PostgreSQL. "
+                "Please back up your database separately with pg_dump. Your uploaded files are still backed up below."
+            ))
             return False
         elif 'mysql' in engine:
             self.stdout.write(self.style.WARNING("MySQL backup not natively implemented in this script yet. Please use mysqldump."))
@@ -87,19 +107,45 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"Database backup not implemented in this script for engine '{engine}'."))
             return False
 
+        return True
+
+    def backup_uploads(self, backup_loc):
         # 2. Uploads Zip
         uploads_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
         zip_file_path = os.path.join(backup_loc, 'uploads.zip')
         if os.path.exists(zip_file_path):
             os.remove(zip_file_path)
-            
-        if os.path.exists(uploads_dir):
-            shutil.make_archive(zip_file_path.replace('.zip', ''), 'zip', uploads_dir)
-            self.stdout.write(self.style.SUCCESS(f"Successfully backed up uploads to {zip_file_path}"))
-        else:
-            self.stdout.write(self.style.WARNING(f"Uploads directory {uploads_dir} does not exist. Skipping uploads backup."))
 
+        if not os.path.exists(uploads_dir):
+            # Not a failure: a site that has never had an upload has nothing
+            # here, and refusing to rotate old backups over that would be
+            # wrong.
+            self.stdout.write(self.style.WARNING(
+                f"Uploads directory {uploads_dir} does not exist. Skipping uploads backup."
+            ))
+            return True
+
+        try:
+            shutil.make_archive(zip_file_path.replace('.zip', ''), 'zip', uploads_dir)
+        except OSError as e:
+            # Said out loud, and it costs the retention step, for the same
+            # reason the database half does: a backup that is missing the
+            # uploads must not license deleting an older one that has them.
+            self.stdout.write(self.style.ERROR(f"Failed to back up uploads: {e}"))
+            return False
+
+        self.stdout.write(self.style.SUCCESS(f"Successfully backed up uploads to {zip_file_path}"))
         return True
+
+    def backup_and_rotate(self, backup_dir, backup_type, db_name, limit_date):
+        """Run one backup, and remove old ones only if it was complete."""
+        if self.run_backup(backup_dir, backup_type, db_name):
+            self.remove_old(backup_dir, backup_type, limit_date)
+        else:
+            self.stdout.write(self.style.WARNING(
+                f"Old {backup_type} backups have been kept, because today's {backup_type} backup is incomplete. "
+                "Nothing is removed until a backup includes both the database and the uploaded files."
+            ))
 
     def handle(self, *args, **options):
         backup_dir = self.get_setting('BACKUP_DIR', 'C:\\deploy\\backups')
@@ -120,18 +166,15 @@ class Command(BaseCommand):
         # Monthly Backup
         if today.day == monthly_day:
             limit_date = today - datetime.timedelta(days=30 * months_to_keep)
-            if self.run_backup(backup_dir, 'monthly', db_name):
-                self.remove_old(backup_dir, 'monthly', limit_date)
+            self.backup_and_rotate(backup_dir, 'monthly', db_name, limit_date)
 
         # Weekly Backup
         if today.weekday() == weekly_day:
             limit_date = today - datetime.timedelta(days=7 * weeks_to_keep)
-            if self.run_backup(backup_dir, 'weekly', db_name):
-                self.remove_old(backup_dir, 'weekly', limit_date)
+            self.backup_and_rotate(backup_dir, 'weekly', db_name, limit_date)
 
         # Daily Backup
         limit_date = today - datetime.timedelta(days=days_to_keep)
-        if self.run_backup(backup_dir, 'daily', db_name):
-            self.remove_old(backup_dir, 'daily', limit_date)
+        self.backup_and_rotate(backup_dir, 'daily', db_name, limit_date)
 
         self.stdout.write(self.style.SUCCESS("Backup process completed."))
