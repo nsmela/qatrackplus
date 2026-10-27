@@ -21,6 +21,14 @@ QATrack+ 4.0
 Bug Fixes
 ^^^^^^^^^
 
+* **Backups: ``backup_site`` now backs up uploaded files on PostgreSQL and MySQL.**
+  The command cannot back up the database on those engines, and says so, but it
+  then stopped before the uploads step too, so no ``uploads.zip`` was written and
+  nothing said that either. Uploaded files are now archived whatever the database.
+  Because those backups still have no database in them, old backups are not removed
+  automatically on these engines: clear them out from time to time
+  (see :ref:`qatrack_backup`; from :issues:`#866 <866>` by Vincent Leduc).
+
 * **Forms no longer record the wrong date and time.** Where a date field arrives
   already filled in - the fault form's *Date & Time fault occurred*, a QC session's
   *Work Completed*, a service event's date - the server wrote that value in one format

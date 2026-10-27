@@ -22,6 +22,7 @@ Release notes are located at http://docs.qatrackplus.com/en/latest/release_notes
 * **Docker**: Database dumps in `deploy/docker/backups/` and `.env` files (other than the `.env.example` templates) are now ignored by git.
 * **Docker**: Files under `deploy/docker` always check out with LF line endings, including on Windows.
 * **QA**: Superusers and users with "Can view tli and utc not visible to user's groups" now see QC from all groups in the Perform QC lists, trees and unit chooser ([#883](https://github.com/qatrackplus/qatrackplus/pull/883)).
+* **Backups**: `backup_site` now backs up uploaded files on PostgreSQL and MySQL; it used to skip them along with the database. Old backups are not removed automatically on these engines, so clear them out from time to time.
 
 ## v4.0.0 Recent Fixes
 
