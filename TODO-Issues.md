@@ -216,9 +216,14 @@ agent. Commits: `211c7e1`, `9f9a7ec`, `aded961`, `00feb64`, `e931c05`,
   operations syncing field options (verbose names, help text, related names,
   Python defaults). They produce no SQL on SQLite (not checked on
   PostgreSQL/SQL Server). They belong on `develop`.
-- **"seperated" typo** in the Tolerance multiple-choice help text. Fixing it
-  needs a qa migration, which would fold in all of qa's pending changes
-  above, so it waits for those migrations.
+- **"seperated" typo**: fixed (Tolerance multiple-choice help text and
+  `Test.choices`), without a migration. The help-text change just joins the
+  pending metadata migrations above. The fr, fr_CA and es `.po` files hold
+  the old msgids; carry the French translations over when running
+  `makemessages`. The Spanish one for `Test.choices` is a different
+  sentence ("Debe dar al menos 1 opción…") and needs retranslating.
+  `docs/developer/guide.rst:666` has the same typo. `Test.choices` also has
+  `verbose_name="Description"`, which looks like a copy-paste error.
 
 ## Open issues found in this round
 

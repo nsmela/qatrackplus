@@ -754,7 +754,7 @@ class Tolerance(models.Model):
     mc_pass_choices = models.CharField(
         verbose_name=_l("Multiple Choice %s Values" % OK_DISP),
         max_length=2048,
-        help_text=_l("Comma seperated list of choices that are considered passing"),
+        help_text=_l("Comma separated list of choices that are considered passing"),
         blank=True,
         default='',
     )
@@ -762,7 +762,7 @@ class Tolerance(models.Model):
     mc_tol_choices = models.CharField(
         verbose_name=_l("Multiple Choice %s Values" % TOL_DISP),
         max_length=2048,
-        help_text=_l("Comma seperated list of choices that are considered at tolerance"),
+        help_text=_l("Comma separated list of choices that are considered at tolerance"),
         blank=True,
         default='',
     )
@@ -1133,7 +1133,7 @@ class Test(models.Model, TestPackMixin):
     choices = models.CharField(
         verbose_name=_l("Description"),
         max_length=2048,
-        help_text=_l("Comma seperated list of choices for multiple choice test types"),
+        help_text=_l("Comma separated list of choices for multiple choice test types"),
         null=True,
         blank=True,
     )
