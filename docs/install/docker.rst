@@ -558,7 +558,10 @@ To add your CA, run these in ``deploy/docker``:
 
    If you were given a root and an intermediate certificate, convert each one,
    then put them one after the other in a single file:
-   ``cat root.pem intermediate.pem > ca.pem``.
+   ``cat root.pem intermediate.pem > ca.pem``. A file with only the root works
+   only if the directory server sends its intermediate certificate when
+   QATrack+ connects, and not every server does. If you're not sure, include
+   the root and every intermediate in the one file; it does no harm.
 
 2. Copy it into ``user-data/ldap``. Docker creates that folder, owned by root,
    the first time QATrack+ starts, so use ``sudo``. This also makes the file
@@ -577,9 +580,11 @@ To add your CA, run these in ``deploy/docker``:
        AD_DNS_NAME=ad.myclinic.ca
        AD_CERT_FILE=/etc/qatrack/ldap/ca.pem
 
-   ``/etc/qatrack/ldap`` is where the ``django`` container sees the server's
-   ``deploy/docker/user-data/ldap`` folder, so ``AD_CERT_FILE`` always uses that
-   path, not the folder's path on the server.
+   ``/etc/qatrack/ldap`` is where the ``django`` and ``django-q`` containers
+   see the server's ``deploy/docker/user-data/ldap`` folder, so ``AD_CERT_FILE``
+   always uses that path, not the folder's path on the server. Only ``django``
+   signs people in; ``django-q`` sees the file too so that its startup check
+   finds it and doesn't warn that it is missing.
 
 4. Apply the change:
 
@@ -619,9 +624,9 @@ Local QATrack+ accounts keep working while you fix it.
 
 When IT renews the directory server's certificate from the same CA, there is
 nothing to do. If the CA itself changes, replace ``user-data/ldap/ca.pem`` the
-same way and run ``docker compose restart django``. The nightly backup does not
-include ``user-data/ldap``, so keep a copy of the CA file with your settings
-(see :ref:`docker_backups`).
+same way and run ``docker compose restart django django-q``. The nightly backup
+does not include ``user-data/ldap``, so keep a copy of the CA file with your
+settings (see :ref:`docker_backups`).
 
 .. _docker_secret_key:
 

@@ -506,8 +506,8 @@ jobs:
         # A directory server whose certificate comes from the site's own CA, as
         # most hospital Active Directory servers have, set up the way
         # docs/install/docker.rst says: the CA in user-data/ldap and
-        # AD_CERT_FILE in .env. The next step recreates django from the cleaned
-        # .env, so nothing here carries over.
+        # AD_CERT_FILE in .env. Later steps recreate django and django-q from
+        # the cleaned .env, so nothing here carries over.
         working-directory: deploy/docker
         run: |
           set -euo pipefail
@@ -527,19 +527,27 @@ jobs:
           printf 'TLSCACertificateFile /tls/ca.pem\nTLSCertificateFile /tls/server.pem\nTLSCertificateKeyFile /tls/server.key\n' \
             > "$tls/slapd.conf"
           # slapd with no database: an anonymous bind needs none, and the TLS
-          # handshake, where the certificate is checked, comes first.
+          # handshake, where the certificate is checked, comes first. It comes
+          # from Debian's mirrors, so a brief mirror hiccup is retried rather
+          # than failing the job.
           trap 'docker rm -f ci-slapd >/dev/null 2>&1 || true' EXIT
           docker run -d --name ci-slapd --network qatrackplus_default --network-alias "$name" \
             -v "$tls:/tls:ro" debian:bookworm-slim sh -c '
-              apt-get update -qq
-              DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --no-install-recommends slapd >/dev/null
+              for attempt in 1 2 3; do
+                apt-get -o Acquire::Retries=3 update -qq &&
+                  DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -qq -y \
+                    --no-install-recommends slapd >/dev/null &&
+                  break
+                [ "$attempt" = 3 ] && exit 1
+                sleep 10
+              done
               exec slapd -d 0 -f /tls/slapd.conf -h ldaps:///'
           # Docker created user-data/ldap, owned by root, when django first
           # started: copy the CA in with sudo, as the docs say.
           sudo install -D -m 644 "$tls/ca.pem" user-data/ldap/ca.pem
           printf 'AD_LDAP_PROTOCOL=ldaps\nAD_LDAP_PORT=636\nAD_DNS_NAME=%s\nAD_CERT_FILE=/etc/qatrack/ldap/ca.pem\n' \
             "$name" >> .env
-          $dc up -d --wait --wait-timeout 300 django
+          $dc up -d --wait --wait-timeout 300 django django-q
           ready=0
           for _ in $(seq 90); do
             if $dc exec -T django python -c "import socket; socket.create_connection(('$name', 636), 2)" 2>/dev/null; then
@@ -587,6 +595,19 @@ jobs:
           out=$($dc exec -T -e AD_CERT_FILE=/etc/qatrack/ldap/missing.pem django python manage.py check 2>&1)
           grep -q 'qatrack.W011' <<<"$out" || { echo "FAIL: no warning for a missing AD_CERT_FILE"; echo "$out"; exit 1; }
           echo "PASS: a missing AD_CERT_FILE is a startup warning"
+          # django-q reads AD_CERT_FILE from .env too, and qcluster runs the same
+          # check when it starts, so it mounts the folder as well. Without it,
+          # every start would warn that a good file is missing.
+          [ "$($dc exec -T django-q printenv AD_CERT_FILE)" = /etc/qatrack/ldap/ca.pem ] \
+            || { echo "FAIL: django-q was not started with AD_CERT_FILE"; exit 1; }
+          if $dc logs django-q 2>&1 | grep -E 'qatrack\.W01[123]'; then
+            echo "FAIL: django-q warned at startup about a good AD_CERT_FILE"; exit 1
+          fi
+          out=$($dc exec -T django-q python manage.py check 2>&1)
+          if grep -E 'qatrack\.W01[123]' <<<"$out"; then
+            echo "FAIL: django-q warns about a good AD_CERT_FILE"; exit 1
+          fi
+          echo "PASS: django-q sees the CA file, and does not warn about it"
           sed -i '/^AD_LDAP_PROTOCOL=/d; /^AD_LDAP_PORT=/d; /^AD_DNS_NAME=/d; /^AD_CERT_FILE=/d' .env
           sudo rm -f user-data/ldap/ca.pem
 
