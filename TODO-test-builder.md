@@ -62,6 +62,9 @@ Remove this file before the branch is merged.
     admin page. Rows update in place.
   - "Not set" is highlighted on test types that use limits; Upload and Date
     tests show "Not used".
+  - A "New Tolerance…" dialog, opened from that dialog, creates a missing
+    tolerance on the page (only types that fit the test; same validation and
+    duplicate check as the Tolerance admin) and selects it.
 - [x] **"Outline" checkbox on each sublist row**
   - `Sublist.outline` already exists, and the perform page already draws
     each outlined sublist in its own box, headed with the sublist's name and
