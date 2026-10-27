@@ -1,5 +1,9 @@
 import django.forms.widgets as widgets
 import rest_framework_filters as filters
+from django.utils.functional import lazy
+from django.utils.text import capfirst
+from django.utils.translation import gettext_lazy as _l
+from django_filters.utils import verbose_lookup_expr
 
 from qatrack.api.attachments.filters import AttachmentFilter
 from qatrack.api.auth.filters import Group, GroupFilter, User, UserFilter
@@ -161,6 +165,18 @@ class TestFilter(filters.FilterSet):
             "created": ['exact'],
             "modified": ['exact'],
         }
+
+    @classmethod
+    def filter_for_field(cls, field, field_name, lookup_expr=None):
+        """Label the choices filters "Choices ..." rather than "Description ...".
+
+        Test.choices has verbose_name "Description" (a copy/paste slip) which django-filter
+        would otherwise use for these labels. Remove this once the model metadata migration lands.
+        """
+        f = super().filter_for_field(field, field_name, lookup_expr)
+        if f is not None and field_name == 'choices':
+            f.label = lazy(lambda: capfirst('%s %s' % (_l("Choices"), verbose_lookup_expr(f.lookup_expr))), str)()
+        return f
 
 
 class TestListFilter(filters.FilterSet):

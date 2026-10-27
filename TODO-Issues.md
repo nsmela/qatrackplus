@@ -224,8 +224,8 @@ agent. Commits: `211c7e1`, `9f9a7ec`, `aded961`, `00feb64`, `e931c05`,
   sentence ("Debe dar al menos 1 opción…") and needs retranslating.
   The docs typo is fixed too. `Test.choices` has `verbose_name="Description"`;
   the Test admin form now labels it "Choices", but the model's
-  `verbose_name` (and the API label, which reads it) should be fixed with the
-  pending migrations, after which the form's `labels` override can go.
+  `verbose_name` should be fixed with the pending migrations, after which
+  the label overrides listed under N30 can go.
 
 ## Round 2: what each fix did
 
@@ -292,7 +292,10 @@ Elsewhere:
   queryset checks; 404 for a bad id. No data was exposed beyond what the Test
   admin already shows.
 - **N29** Developer guide typos fixed.
-- **N30** Test admin labels `choices` "Choices" (model fix pending, above).
+- **N30** `choices` is labelled "Choices" in the Test admin form, the API
+  filter form and the API serializer. The model fix is pending (above);
+  after it, remove `TestForm.Meta.labels`, `TestFilter.filter_for_field` and
+  `TestSerializer.Meta.extra_kwargs`.
 - **N31** (found by N5) Saving a test list no longer wipes the comments on
   its saved attachments (the cards now post them back as hidden inputs).
   Browse… only shows with add_attachment.
@@ -366,6 +369,8 @@ Elsewhere:
 - `qa_utils.create_test_list` makes slugs the change form rejects.
 - `SaveInlineAttachmentUserMixin.save_formset` sets `created_by` on every
   changed attachment, not just new ones.
+- API filter forms show duplicate labels where a field has both `contains`
+  and `icontains` ("Name contains" twice).
 - `initAttachmentsSection` re-binds its document-level Remove listeners each
   time it runs.
 

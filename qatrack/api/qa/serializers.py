@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db.transaction import atomic
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _l
 from django_comments.models import Comment
 from rest_framework import serializers
 from rest_framework.reverse import reverse
@@ -81,6 +82,12 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = models.Test
         fields = "__all__"
+        # Test.choices has verbose_name "Description" (a copy/paste slip); label it properly here
+        # until the model metadata migration lands. (The tests endpoint is read-only today, so no form
+        # shows this yet; it keeps the label right if that changes.)
+        extra_kwargs = {
+            'choices': {'label': _l("Choices")},
+        }
 
 
 class SublistSerializer(serializers.HyperlinkedModelSerializer):
