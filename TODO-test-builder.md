@@ -346,3 +346,11 @@ Remove this file before the branch is merged.
     `change_form.html`). Check the add page and the narrow-window layout,
     and that the unsaved-changes tracking and Browse/Remove handlers still
     find the card.
+- [ ] **Tests table fits its card at 800px**
+  - At 800px the tests table is wider than its card, so the last columns
+    (base-mode Edit/Duplicate/Remove, machine-mode Reference & Tolerance
+    pencil) only show after scrolling sideways inside the card. Make whole
+    rows fit, in both modes and in sublists; 1440px unchanged.
+- [ ] **Parent Test List Memberships above Tests & Sublists**
+  - Edit page card order becomes Details, Attachments, Parent Test List
+    Memberships, Tests & Sublists.
