@@ -584,9 +584,15 @@ browser to see QATrack+. After editing `compose.yaml` you need to rerun
 Connecting to the database directly
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Out of the box, only the other QATrack+ containers can reach QATrack+'s
-PostgreSQL database: nothing on the server or on your network can connect to
-it. That is the safest arrangement, and most sites never need to change it.
+Out of the box, QATrack+'s PostgreSQL database isn't published on any of the
+server's network addresses, so there is nothing for other computers on your
+network to connect to. Most sites never need to change that.
+
+That doesn't make it unreachable from the server itself. On Linux, the server
+can reach Docker's internal network directly, so anyone with an account on the
+server who knows the database password can connect. Whether or not you turn on
+the option below, it's ``POSTGRES_PASSWORD`` in ``.env`` that protects the
+database, so make it long and hard to guess, and don't reuse it anywhere else.
 
 For a quick look, you don't need to change anything. This opens ``psql`` inside
 the database container (replace ``POSTGRES_USER`` and ``POSTGRES_DB`` with the
@@ -628,10 +634,14 @@ the warning below). These are not the same as ``POSTGRES_HOST`` and
 ``POSTGRES_PORT``, which tell QATrack+ how to reach the database inside Docker;
 leave those alone.
 
-Turning it on or off recreates the ``postgres`` container, so the database
-restarts for a few seconds. Do it at a quiet time, not while people are saving
-QC results. **To turn it off**, remove the two lines (or put a ``#`` in front of
-them) and run ``docker compose up -d`` again.
+Turning it on or off restarts the whole site, not just the database. Every
+QATrack+ service reads its settings from ``.env``, so any change to ``.env``
+(this one included) makes ``docker compose up -d`` recreate the ``django``,
+``django-q``, ``backup`` and ``postgres`` containers. Expect QATrack+ to be
+unavailable for about half a minute, with the browser showing a *502 Bad
+Gateway* page until it's back. Do it at a quiet time, not while people are
+saving QC results. **To turn it off**, remove the two lines (or put a ``#`` in
+front of them) and run ``docker compose up -d`` again.
 
 If you use the :ref:`development overlay <docker_development>`, which is chosen
 with ``-f``, add the file to your ``-f`` options instead, for example
