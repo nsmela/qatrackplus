@@ -354,3 +354,7 @@ Remove this file before the branch is merged.
 - [ ] **Parent Test List Memberships above Tests & Sublists**
   - Edit page card order becomes Details, Attachments, Parent Test List
     Memberships, Tests & Sublists.
+- [ ] **Machine mode: pencil in front of the Reference & Tolerance values**
+  - Replaces the R5 layout: no separate pencil column. The Set Reference &
+    Tolerance pencil sits at the start of the Reference & Tolerance cell,
+    before the values; the empty actions column is dropped in machine mode.
