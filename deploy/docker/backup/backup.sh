@@ -46,6 +46,7 @@ fi
 
 restrict_backups
 
+# Named in local time: TZ, which compose.yaml sets from TIME_ZONE in .env.
 DATE=$(date +%Y%m%d_%H%M%S)
 dump_file="$BACKUP_DIR/db_$DATE.dump"
 media_file="$BACKUP_DIR/media_$DATE.tar.gz"
@@ -57,7 +58,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Starting backup at $DATE"
+echo "Starting backup at $DATE ($(date +%Z))"
 
 # A backup killed outright (power cut, docker kill) cannot remove its own .tmp
 # file. Holding the lock means no other backup is writing one now.
