@@ -1,11 +1,6 @@
 Installing & Deploying QATrack+ with Docker
 ===========================================
 
-.. warning::
-
-    This is a developmental install method. It is quite simple to get up and
-    running but has not been battle tested in production yet!
-
 This page covers running QATrack+ with Docker Compose: setting it up,
 configuring it, looking after its data and backups, running it day to day, and
 developing QATrack+ with it. If you are upgrading a Docker site from QATrack+
@@ -143,7 +138,8 @@ and fetches QATrack+ from its git repository into it:
 
 The ``releases/4.0`` branch is the 4.0 series including its patch releases, so
 :ref:`updating later <docker_updating>` is a ``git pull``: you never name a
-version.
+version. A ``git pull`` brings in the fixes for 4.0 but never moves you on to
+the next major version, so that upgrade only happens when you choose to make it.
 
 Creating your settings file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
