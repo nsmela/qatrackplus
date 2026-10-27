@@ -606,15 +606,14 @@ If a database client, a GUI tool such as pgAdmin, or a reporting tool needs to
 connect, you can publish the database on the server with the optional
 ``compose.db-port.yaml`` file. It stays off until you turn it on.
 
-**To turn it on**, add these two lines to ``.env`` (they are in
-``.env.example``, commented out):
+**To turn it on**, add this line to ``.env`` (it is in ``.env.example``,
+commented out):
 
 .. code-block:: text
 
-    COMPOSE_PATH_SEPARATOR=:
     COMPOSE_FILE=compose.yaml:compose.db-port.yaml
 
-then apply them:
+then apply it:
 
 .. code-block:: console
 
@@ -623,8 +622,7 @@ then apply them:
 ``COMPOSE_FILE`` tells every ``docker compose`` command run in
 ``deploy/docker`` to use ``compose.db-port.yaml`` as well as ``compose.yaml``,
 so the commands you run don't change, and it carries on across restarts and
-upgrades. The first line makes the second read the same way on Windows and
-Linux.
+upgrades.
 
 PostgreSQL then listens on ``127.0.0.1``, port ``5434``: on the server itself
 only, on a port that doesn't clash with a PostgreSQL that may already be
@@ -640,8 +638,8 @@ QATrack+ service reads its settings from ``.env``, so any change to ``.env``
 ``django-q``, ``backup`` and ``postgres`` containers. Expect QATrack+ to be
 unavailable for about half a minute, with the browser showing a *502 Bad
 Gateway* page until it's back. Do it at a quiet time, not while people are
-saving QC results. **To turn it off**, remove the two lines (or put a ``#`` in
-front of them) and run ``docker compose up -d`` again.
+saving QC results. **To turn it off**, remove the line (or put a ``#`` back in
+front of it) and run ``docker compose up -d`` again.
 
 If you use the :ref:`development overlay <docker_development>`, which is chosen
 with ``-f``, add the file to your ``-f`` options instead, for example

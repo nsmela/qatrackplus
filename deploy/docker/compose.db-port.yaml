@@ -4,13 +4,12 @@
 # protects it: on Linux, programs on the server can reach Docker's internal
 # network directly.
 #
-# It is not applied automatically. To use it, add these two lines to .env (they
-# are in .env.example, commented out) and run `docker compose up -d`:
+# It is not applied automatically. To use it, add this line to .env (it is in
+# .env.example, commented out) and run `docker compose up -d`:
 #
-#     COMPOSE_PATH_SEPARATOR=:
 #     COMPOSE_FILE=compose.yaml:compose.db-port.yaml
 #
-# To stop publishing the database, remove them and run `docker compose up -d`
+# To stop publishing the database, remove it and run `docker compose up -d`
 # again. Every service reads .env, so either change restarts the whole site for
 # about half a minute. See "Connecting to the database directly" in
 # docs/install/docker.rst.
