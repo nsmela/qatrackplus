@@ -25,6 +25,15 @@ step. The live description preview and test list builder are driven by htmx.
   --link-fg: #317399; --link-hover-color: #285f80; --hairline-color: #f4f4f4;
   --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
 }
+/* The builder dialogs are always white too (same values as above): .tl-modal-dialog
+   covers every one of them wherever it is mounted (#tl-dialogs-outside-form after the
+   change form, Save As and Unsaved Changes inside it, #tl-assign-container appended to
+   <body>), so their inputs, selects and textareas stay light with dark text. */
+#tl-dialogs-outside-form, #tl-assign-container, .tl-modal-dialog {
+  --body-fg: #333; --body-bg: #fff; --body-quiet-color: #6b6b6b; --body-loud-color: #111;
+  --link-fg: #317399; --link-hover-color: #285f80; --hairline-color: #f4f4f4;
+  --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
+}
 
 /* ---- Top Header Bar ---- */
 .tl-header-bar {
