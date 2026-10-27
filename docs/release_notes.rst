@@ -199,6 +199,20 @@ Deployment and Upgrade Notes
   read them. The image now installs just those client tools on Alpine, rather
   than starting from the PostgreSQL server image.
 
+* **Docker: QATrack+'s data can be kept in folders on the server.** Nothing changes
+  unless you ask for it: the uploaded files, log files and generated secret key stay
+  in their Docker volumes, and the backups in ``deploy/docker/backups``. To keep any
+  of them in a folder you already back up or watch, set ``QATRACK_MEDIA_DIR``,
+  ``QATRACK_LOGS_DIR``, ``QATRACK_USER_DATA_DIR`` or ``QATRACK_BACKUPS_DIR`` in
+  ``.env``. Every service, the nightly backup and ``restore-media`` included, uses
+  the same folder, and the ``init`` service gives the folder to the QATrack+ user
+  each time the site starts. For a site already in use, copy the data across first:
+  :ref:`docker_data_dirs` shows how, step by step. The database stays in its
+  volume. ``init`` also no longer follows symbolic links when it re-owns files, so a
+  link can neither change a file outside QATrack+'s folders nor, if it points
+  nowhere, stop the site from starting. Based on the ``/app_data`` layout proposed
+  in :issues:`#866 <866>`.
+
 * **Docker: container output is capped** at 50 MB per service, so what
   ``docker compose logs`` keeps can no longer fill the disk. That output belongs to
   each container and starts again empty when the container is recreated, for
