@@ -65,11 +65,20 @@
       <i class="fa fa-clone" aria-hidden="true"></i>
     </button>
     {% endif %}
+    {# a saved row is only deleted on save with the inline's delete permission; a row added since loading can always go #}
+    {% if can_remove or not inline_admin_form.original %}
     <button type="button" class="tl-action-icon tl-delete-test-btn"
             title="{% trans "Remove Test" %}"
             aria-label="{% blocktrans with name=test_name %}Remove {{ name }} from this test list{% endblocktrans %}">
       <i class="fa fa-trash-o" aria-hidden="true"></i>
     </button>
+    {% else %}
+    <button type="button" class="tl-action-icon tl-remove-locked" aria-disabled="true"
+            title="{% trans "You don't have permission to remove saved tests from test lists." %}"
+            aria-label="{% blocktrans with name=test_name %}Can't remove {{ name }}: you don't have permission to remove saved tests from test lists{% endblocktrans %}">
+      <i class="fa fa-trash-o" aria-hidden="true"></i>
+    </button>
+    {% endif %}
     {% endwith %}
   </td>
 </tr>

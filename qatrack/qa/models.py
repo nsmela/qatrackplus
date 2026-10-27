@@ -893,6 +893,67 @@ class Tolerance(models.Model):
                 tols[attr] = value * (1. + tv / 100.) if tv is not None else None
         return tols
 
+    def _plain_limit(self, value):
+        """One limit for plain_display: no trailing zeros, a real minus sign, and % for percent."""
+        text = ("%.6g" % value).replace("-", "−")
+        return text + "%" if self.type == PERCENT else text
+
+    def _plain_range(self, low, high):
+        """'−1 to 1', 'below −1', 'above 1', or None when neither limit is set."""
+        if low is not None and high is not None:
+            return _("%(low)s to %(high)s") % {"low": self._plain_limit(low), "high": self._plain_limit(high)}
+        if low is not None:
+            return _("below %(low)s") % {"low": self._plain_limit(low)}
+        if high is not None:
+            return _("above %(high)s") % {"high": self._plain_limit(high)}
+        return None
+
+    def plain_display(self):
+        """A short, plain-language version of this tolerance for clinical staff.
+
+        e.g. "Tolerance −1 to 1 · Action −2 to 2", "Tolerance −1% to 1%",
+        "OK: a, b · Tolerance: c" or "Action if wrong". Status names come from
+        TEST_STATUS_DISPLAY, as on Perform QC. ``name``/``__str__`` stay as they
+        are (they're stored, unique and used in test packs); plain_display_title
+        explains this text and includes the stored name.
+        """
+        if self.type in (ABSOLUTE, PERCENT):
+            parts = []
+            for label, low, high in ((TOL_DISP, self.tol_low, self.tol_high), (ACT_DISP, self.act_low, self.act_high)):
+                limits = self._plain_range(low, high)
+                if limits:
+                    parts.append("%s %s" % (label, limits))
+            return " · ".join(parts) or str(self)
+        if self.type == MULTIPLE_CHOICE:
+            parts = [_("%(status)s: %(choices)s") % {"status": OK_DISP, "choices": ", ".join(self.pass_choices())}]
+            if self.tol_choices():
+                parts.append(_("%(status)s: %(choices)s") % {"status": TOL_DISP, "choices": ", ".join(self.tol_choices())})
+            return " · ".join(parts)
+        if self.type == BOOLEAN:
+            return _("%(status)s if wrong") % {"status": TOL_DISP if self.bool_warning_only else ACT_DISP}
+        return str(self)
+
+    def plain_display_title(self):
+        """Tooltip for plain_display: how to read it, then the stored tolerance name."""
+        if self.type == ABSOLUTE:
+            how = _(
+                "Limits are differences from the reference. A result beyond the %(tol)s limits shows %(tol)s; "
+                "beyond the %(act)s limits, %(act)s."
+            )
+        elif self.type == PERCENT:
+            how = _(
+                "Limits are percentage differences from the reference. A result beyond the %(tol)s limits shows "
+                "%(tol)s; beyond the %(act)s limits, %(act)s."
+            )
+        elif self.type == MULTIPLE_CHOICE:
+            how = _("Any other choice shows %(act)s.")
+        elif self.type == BOOLEAN:
+            how = _("A result that doesn't match the reference shows %(status)s.")
+        else:
+            return str(self)
+        how = how % {"tol": TOL_DISP, "act": ACT_DISP, "status": TOL_DISP if self.bool_warning_only else ACT_DISP}
+        return _("%(explanation)s Stored as: %(name)s") % {"explanation": how, "name": str(self)}
+
     def natural_key(self):
         return (self.name,)
 

@@ -28,7 +28,8 @@
         <div class="tl-reftol-current">
           <div>
             {% if current %}
-              {% blocktrans with values=current|join:" · " %}Currently: {{ values }}{% endblocktrans %}
+              {# "; " between reference and tolerance: the tolerance's own parts are joined with " · " #}
+              {% blocktrans with values=current|join:"; " %}Currently: {{ values }}{% endblocktrans %}
             {% else %}
               {% trans "Currently: not set" %}
             {% endif %}

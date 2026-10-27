@@ -63,9 +63,17 @@
                   title="{% trans "Swap for a different sublist" %}">
             <i class="fa fa-exchange" aria-hidden="true"></i> {% trans "Change" %}
           </button>
+          {# a saved sublist row is only deleted on save with the inline's delete permission; a new one can always go #}
+          {% if can_remove or not inline_admin_form.original and not sublist_meta.sublist_pk %}
           <button type="button" class="tl-btn-sublist tl-btn-remove-sublist" title="{% trans "Remove this sublist from this test list" %}">
             <i class="fa fa-trash-o" aria-hidden="true"></i> {% trans "Remove" %}
           </button>
+          {% else %}
+          <button type="button" class="tl-btn-sublist tl-remove-locked" aria-disabled="true"
+                  title="{% trans "You don't have permission to remove saved sublists from test lists." %}">
+            <i class="fa fa-trash-o" aria-hidden="true"></i> {% trans "Remove" %}
+          </button>
+          {% endif %}
         </div>
       </div>
 

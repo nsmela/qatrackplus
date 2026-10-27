@@ -30,14 +30,15 @@
           <span>
             <span id="tl-newtol-alert-text">
               {% if form.duplicate %}
-                {% blocktrans with name=form.duplicate %}A tolerance with these values already exists: {{ name }}. Nothing was saved.{% endblocktrans %}
+                {% blocktrans with name=form.duplicate.plain_display %}A tolerance with these values already exists: {{ name }}. Nothing was saved.{% endblocktrans %}
               {% else %}
                 {% for err in form.non_field_errors %}{{ err }} {% endfor %}
               {% endif %}
             </span>
             {% if form.duplicate %}
               <button type="button" class="tl-btn-newtol tl-newtol-use" id="tl-newtol-use"
-                      data-tolerance-id="{{ form.duplicate.pk }}" data-tolerance-label="{{ form.duplicate }}">
+                      data-tolerance-id="{{ form.duplicate.pk }}" data-tolerance-label="{{ form.duplicate.plain_display }}"
+                      data-tolerance-title="{{ form.duplicate.plain_display_title }}">
                 <i class="fa fa-check" aria-hidden="true"></i> {% trans "Use This One" %}
               </button>
             {% endif %}

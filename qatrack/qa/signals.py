@@ -167,14 +167,29 @@ def update_unit_test_infos(collection):
 
 @receiver(pre_save, sender=models.Test)
 def on_test_save(*args, **kwargs):
-    """Ensure that model validates on save"""
+    """Refuse to save a Boolean test that still has a non-Boolean reference on some unit.
+
+    Boolean results are stored as 0 / 1, so a reference like 5.0 could never be
+    met. The Test admin form reports this as a form error first; this is the
+    safety net for every other way a Test gets saved.
+    """
     if not loaded_from_fixture(kwargs):
 
         test = kwargs["instance"]
-        if test.type is not models.BOOLEAN:
+        if test.type != models.BOOLEAN:
             return
 
-        unit_assignments = models.UnitTestInfo.objects.filter(test=test)
+        # A test that hasn't been saved yet has no unit assignments to check.
+        if test.pk is None:
+            return
+
+        # Saves limited to other fields (e.g. the test list builder only saving
+        # the description) can't change the type, so there's nothing to check.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "type" not in update_fields:
+            return
+
+        unit_assignments = models.UnitTestInfo.objects.filter(test=test).select_related("reference", "unit")
 
         for ua in unit_assignments:
             if ua.reference and ua.reference.value not in (

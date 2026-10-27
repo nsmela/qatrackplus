@@ -672,18 +672,37 @@ class TestListAdminForm(forms.ModelForm):
             )
         return slug
 
+    # {formset prefix: whether saving deletes the saved rows marked for removal}.
+    # TestListAdmin.get_form fills this in from the inlines' delete permission;
+    # None means every removal is honoured.
+    rows_can_delete = None
+
+    def _removal_honoured(self, row_prefix, formset_prefix):
+        """True when the row posted as `<row_prefix>-...` will really be left out on save.
+
+        A row the user just added (no id yet) is always discarded. A saved row is
+        only deleted when the user may delete rows of that inline; otherwise
+        Django ignores its DELETE box and keeps the row.
+        """
+        if not _posted_delete(self.data, row_prefix):
+            return False
+        if self.rows_can_delete is None or not self.data.get("%s-id" % row_prefix):
+            return True
+        return self.rows_can_delete.get(formset_prefix, False)
+
     def _posted_ids(self, prefix, field):
         """Return the ids posted in `<prefix>-<n>-<field>`, leaving out rows marked for removal.
 
         A row the user removed in the builder is still posted (with its DELETE
         box ticked) so Django can delete it; it must not count towards the
-        duplicate-name and maximum-size checks.
+        duplicate-name and maximum-size checks, unless the user isn't allowed
+        to delete it (then it is saved again, so it still counts).
         """
         pattern = re.compile(r"^%s-(\d+)-%s$" % (re.escape(prefix), re.escape(field)))
         ids = []
         for key, value in self.data.items():
             match = pattern.match(key)
-            if match and value and not _posted_delete(self.data, "%s-%s" % (prefix, match.group(1))):
+            if match and value and not self._removal_honoured("%s-%s" % (prefix, match.group(1)), prefix):
                 ids.append(value)
         return ids
 
@@ -973,7 +992,19 @@ def _unsaved_and_deleted(form):
     return form.is_bound and not form.instance.pk and _posted_delete(form.data, form.prefix)
 
 
-class TestListMembershipForm(forms.ModelForm):
+class DiscardRemovedNewRowMixin:
+    """Treat a new builder row the user removed before saving as an untouched blank row.
+
+    Django only skips rows marked DELETE when the formset can delete, which needs
+    the inline's delete permission. A row that was never saved isn't a deletion,
+    though, so it's discarded (not validated, not saved) either way.
+    """
+
+    def has_changed(self):
+        return not _unsaved_and_deleted(self) and super().has_changed()
+
+
+class TestListMembershipForm(DiscardRemovedNewRowMixin, forms.ModelForm):
 
     model = models.TestListMembership
 
@@ -1009,7 +1040,7 @@ class TestListMembershipForm(forms.ModelForm):
         self._test_meta_cache = value
 
 
-class SublistForm(forms.ModelForm):
+class SublistForm(DiscardRemovedNewRowMixin, forms.ModelForm):
 
     model = models.Sublist
 
@@ -1398,6 +1429,9 @@ def testlist_add_sublist_card(request):
         "index": index,
         "parent_id": parent_id,
         "inline_admin_form": None,
+        # a swapped-in card keeps its saved Sublist row, which only users who may
+        # delete sublist rows can remove (SublistInline's delete permission)
+        "can_remove": request.user.has_perm("qa.delete_sublist"),
     })
 
 
@@ -1690,12 +1724,27 @@ def machine_values_display(uti):
     """The Reference and Tolerance text machine mode shows for one UnitTestInfo.
 
     Used by testlist_machine_values and the Reference and Tolerance dialog, so a
-    saved value reads exactly as it does after a reload.
+    saved value reads exactly as it does after a reload. The tolerance is the
+    plain wording (Tolerance.plain_display); ``tolerance_title`` explains it and
+    keeps the stored name, for the cell's tooltip.
     """
+    tol = uti.tolerance if uti.tolerance_id else None
     return {
         "reference": _machine_reference_display(uti.test, uti.reference),
-        "tolerance": str(uti.tolerance) if uti.tolerance_id else None,
+        "tolerance": tol.plain_display() if tol else None,
+        "tolerance_title": tol.plain_display_title() if tol else None,
     }
+
+
+class PlainToleranceSelect(forms.Select):
+    """Tolerance select whose options carry Tolerance.plain_display_title as a tooltip."""
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        instance = getattr(value, "instance", None)
+        if isinstance(instance, models.Tolerance):
+            option["attrs"]["title"] = instance.plain_display_title()
+        return option
 
 
 # Types TestInstance.calculate_pass_fail never judges against a reference or
@@ -1830,6 +1879,11 @@ class MachineRefTolForm(UnitTestInfoForm):
         self.fields["reference_value"].label = _("Reference")
         self.fields["tolerance"].label = _("Tolerance")
         self.fields["tolerance"].empty_label = _("No tolerance")
+        if not isinstance(self.fields["tolerance"].widget, forms.HiddenInput):
+            self.fields["tolerance"].widget = PlainToleranceSelect()
+            # a lazy ModelChoiceIterator, as ModelChoiceField itself gives its widget
+            self.fields["tolerance"].widget.choices = self.fields["tolerance"].choices
+        self.fields["tolerance"].label_from_instance = lambda tol: tol.plain_display()
         self.fields["comment"].label = _("Comment")
         self.fields["comment"].help_text = _("Why are you changing this? Saved with the history.")
         self.fields["comment"].widget.attrs.update({"rows": 3, "class": "tl-modal-textarea"})
@@ -2114,6 +2168,22 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             inlines = [inline for inline in inlines if not issubclass(inline, TestListAttachmentInline)]
         return inlines
 
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change=change, **kwargs)
+        if self._is_save_as_new(request):
+            # every row of a Save As copy is new, so a removed row is simply left out
+            return form
+        # A saved test or sublist row is only deleted when the user may delete
+        # rows of that inline (the same check Django uses for the formset's
+        # can_delete); the form's checks must count the rows that will be kept.
+        prefixes = {TestListMembershipInline: "testlistmembership_set", SublistInline: "children"}
+        rows_can_delete = {}
+        for inline in self.get_inline_instances(request, obj):
+            prefix = prefixes.get(type(inline))
+            if prefix:
+                rows_can_delete[prefix] = inline.can_delete and inline.has_delete_permission(request, obj)
+        return type(form.__name__, (form,), {"rows_can_delete": rows_can_delete})
+
     def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
         save_as_retry = self._is_save_as_new(request)
         if save_as_retry:
@@ -2354,7 +2424,11 @@ class TestForm(forms.ModelForm):
 
         test_type = cleaned_data.get("type")
         user_changing_type = self.instance.type != test_type
-        has_history = models.TestInstance.objects.filter(unit_test_info__test=self.instance).exists()
+        # A new (unsaved) test can't have been performed yet.
+        has_history = (
+            self.instance.pk is not None
+            and models.TestInstance.objects.filter(unit_test_info__test=self.instance).exists()
+        )
         if user_changing_type and has_history and not models.Test.allow_type_transition(self.instance.type, test_type):
             msg = _(
                 "You can't change the test type from %(old_test_type)s to %(new_test_type)s for a test that "
@@ -2406,6 +2480,27 @@ class TestForm(forms.ModelForm):
                     "and tolerances for this test on the following units before making it hidden: "
                 ) + html_links
                 self.add_error("hidden", mark_safe(msg))
+
+        # Boolean results are 0 / 1, so a Boolean test can't keep a reference
+        # like 5.0 on any unit. Report it here rather than letting the on_test_save
+        # signal refuse the save with a server error.
+        if test_type == models.BOOLEAN and self.instance.pk is not None:
+            bad_units = list(
+                models.UnitTestInfo.objects.filter(
+                    test=self.instance,
+                    reference__isnull=False,
+                ).exclude(
+                    reference__value__in=(0., 1.),
+                ).order_by("unit__name").values_list("unit__name", flat=True)
+            )
+            if bad_units:
+                self.add_error("type", forms.ValidationError(
+                    _(
+                        "This test can't be Boolean while it has a reference other than Yes / No on these "
+                        "units: %(units)s. Change those references first, then change the test type. "
+                        "Nothing was saved."
+                    ) % {"units": ", ".join(bad_units)}
+                ))
         return cleaned_data
 
 
@@ -3106,8 +3201,9 @@ def testlist_new_tolerance(request):
             return JsonResponse({
                 "ok": True,
                 "id": tol.pk,
-                "label": str(tol),
-                "message": _("Created %(tolerance)s.") % {"tolerance": tol},
+                "label": tol.plain_display(),
+                "title": tol.plain_display_title(),
+                "message": _("Created %(tolerance)s.") % {"tolerance": tol.plain_display()},
             })
         status = 422
     else:

@@ -518,9 +518,10 @@ class ServiceEventForm(BetterModelForm):
             group_q = Q(groups=g_link.group, is_active=True) if g_link.group else Q(is_active=True)
 
             try:
+                # a new (unsaved) service event has no group linker instances yet
                 g_link_instances = models.GroupLinkerInstance.objects.filter(
                     group_linker=g_link, service_event=self.instance
-                )
+                ) if self.instance.pk else models.GroupLinkerInstance.objects.none()
                 g_link_users = [gli.user for gli in g_link_instances]
                 self.initial[field_name] = g_link_users
 

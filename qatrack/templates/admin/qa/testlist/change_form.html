@@ -283,7 +283,7 @@
                 {% if not inline_admin_form.form.test_meta and forloop.last %}
                   {# empty form template #}
                 {% elif inline_admin_form.form.test_meta %}
-                  {% include "admin/qa/testlist/partials/_test_row.html" with test_meta=inline_admin_form.form.test_meta prefix="testlistmembership_set" index=forloop.counter0 inline_admin_form=inline_admin_form %}
+                  {% include "admin/qa/testlist/partials/_test_row.html" with test_meta=inline_admin_form.form.test_meta prefix="testlistmembership_set" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
                 {% endif %}
               {% endfor %}
             {% elif inline_admin_formset.formset.prefix == "children" %}
@@ -293,7 +293,7 @@
                 {% if not inline_admin_form.form.sublist_meta and forloop.last %}
                   {# empty form template #}
                 {% elif inline_admin_form.form.sublist_meta %}
-                  {% include "admin/qa/testlist/partials/_sublist_card.html" with sublist_meta=inline_admin_form.form.sublist_meta prefix="children" index=forloop.counter0 inline_admin_form=inline_admin_form %}
+                  {% include "admin/qa/testlist/partials/_sublist_card.html" with sublist_meta=inline_admin_form.form.sublist_meta prefix="children" index=forloop.counter0 inline_admin_form=inline_admin_form can_remove=inline_admin_formset.formset.can_delete %}
                 {% endif %}
               {% endfor %}
             {% endif %}

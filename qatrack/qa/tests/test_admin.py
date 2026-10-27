@@ -1998,6 +1998,89 @@ class TestTestListBuilderDescAudit(TestCase):
         self.assertFalse(self._entries().exists())
 
 
+class TestBooleanTestNonBooleanReference(TestCase):
+    """A Boolean test can't keep a reference other than 0 / 1 on any unit.
+
+    The ``on_test_save`` signal refuses such saves; the Test admin form reports
+    it as a form error, and saves that can't change the type (the builder's
+    description dialog) aren't blocked.
+    """
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='booladmin', pwd='pwd')
+        self.test = qa_utils.create_test(name='bool_ref_test')
+        self.uti = qa_utils.create_unit_test_info(
+            test=self.test, ref=qa_utils.create_reference(value=5.0),
+        )
+
+    def _make_boolean_in_db(self):
+        """Put the test in the bad state directly, bypassing the signal (as legacy data might be)."""
+        qa_models.Test.objects.filter(pk=self.test.pk).update(type=qa_models.BOOLEAN)
+        self.test.refresh_from_db()
+
+    def test_boolean_with_numerical_reference_rejected(self):
+        # Build the type string at runtime so it isn't interned: the old check
+        # compared with ``is not`` and silently skipped values like this one.
+        self.test.type = ''.join(['bool', 'ean'])
+        with self.assertRaises(ValidationError):
+            self.test.save()
+
+    def test_boolean_with_yes_no_reference_allowed(self):
+        self.uti.reference.value = 1.0
+        self.uti.reference.save()
+        self.test.type = qa_models.BOOLEAN
+        self.test.save()
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.type, qa_models.BOOLEAN)
+
+    def test_non_boolean_test_unaffected(self):
+        self.test.type = qa_models.WRAPAROUND
+        self.test.wrap_low = 0
+        self.test.wrap_high = 10
+        self.test.save()
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.type, qa_models.WRAPAROUND)
+
+    def test_description_only_save_not_blocked(self):
+        self._make_boolean_in_db()
+        self.client.login(username='booladmin', password='pwd')
+        url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%d&index=0' % self.test.pk
+        resp = self.client.post(url, {'description': 'New text'})
+        self.assertEqual(resp.status_code, 200)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'New text')
+
+    def test_admin_form_reports_error_instead_of_raising(self):
+        data = {
+            'name': self.test.name, 'slug': self.test.slug, 'type': qa_models.BOOLEAN,
+            'category': self.test.category_id, 'description': '', 'procedure': '',
+            'constant_value': '', 'calculation_procedure': '', 'choices': '', 'chart_visibility': 'on',
+        }
+        form = modelform_factory(qa_models.Test, form=qa_admin.TestForm, fields='__all__')(
+            data=data, instance=self.test,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn(self.uti.unit.name, ' '.join(form.errors['type']))
+
+    def test_new_test_form_does_not_filter_by_unsaved_instance(self):
+        import warnings
+
+        from django.utils.deprecation import RemovedInDjango50Warning
+        data = {
+            'name': 'brand new', 'slug': 'brand_new', 'type': qa_models.COMPOSITE,
+            'category': self.test.category_id, 'description': '', 'procedure': '',
+            'constant_value': '', 'calculation_procedure': 'result = 1', 'choices': '',
+            'chart_visibility': 'on',
+        }
+        form = modelform_factory(qa_models.Test, form=qa_admin.TestForm, fields='__all__')(data=data)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error', message='Passing unsaved model instances', category=RemovedInDjango50Warning)
+            self.assertTrue(form.is_valid(), form.errors)
+            test = form.save(commit=False)
+            test.created_by = test.modified_by = self.user
+            test.save()
+
+
 class TestTestListBuilderTypeValue(TestCase):
     """The base list builder shows a "Type Value" column (constant value,
     choices, wraparound range or calculation) instead of per-machine
@@ -2502,6 +2585,173 @@ class TestTestListBuilderChangeSublist(TestCase):
         self.assertGreater(content.index('id="tl-search-input"'), form_end)
 
 
+class TestTestListBuilderRemovePermission(TestCase):
+    """Removing saved test and sublist rows needs the inlines' delete permission.
+
+    Without it Django keeps the row on save, so the builder mustn't offer to
+    remove it and the form's checks must still count it.
+    """
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='super', pwd='pwd')
+        self.nodelete = create_user(is_superuser=False, uname='nodelete', pwd='pwd')
+        codenames = [
+            'view_testlist', 'change_testlist',
+            'view_testlistmembership', 'add_testlistmembership', 'change_testlistmembership',
+            'view_sublist', 'add_sublist', 'change_sublist',
+        ]
+        self.nodelete.user_permissions.add(
+            *Permission.objects.filter(content_type__app_label='qa', codename__in=codenames)
+        )
+        self.parent = qa_utils.create_test_list(name='Parent List')
+        self.t1 = qa_utils.create_test(name='test one')
+        self.t2 = qa_utils.create_test(name='test two')
+        self.membership = qa_utils.create_test_list_membership(test_list=self.parent, test=self.t1, order=0)
+        self.child = qa_utils.create_test_list(name='Child List')
+        qa_utils.create_test_list_membership(test_list=self.child, test=self.t2)
+        self.sublist = qa_utils.create_sublist(parent_test_list=self.parent, child_test_list=self.child)
+        self.url = reverse('admin:qa_testlist_change', args=(self.parent.pk,))
+
+    def _login(self, uname):
+        self.client.login(username=uname, password='pwd')
+
+    def _buttons(self, content, cls):
+        return re.findall(r'<button[^>]*class="[^"]*\b%s\b[^"]*"[^>]*>' % re.escape(cls), content)
+
+    def _post_data(self, delete_test=False, delete_sublist=False, new_test=None, new_test_deleted=False):
+        data = {
+            'name': self.parent.name,
+            'slug': 'parent-list',
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-TOTAL_FORMS': 1,
+            'testlistmembership_set-INITIAL_FORMS': 1,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-0-id': self.membership.pk,
+            'testlistmembership_set-0-test_list': self.parent.pk,
+            'testlistmembership_set-0-test': self.t1.pk,
+            'testlistmembership_set-0-order': 0,
+            'children-TOTAL_FORMS': 1,
+            'children-INITIAL_FORMS': 1,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'children-0-id': self.sublist.pk,
+            'children-0-parent': self.parent.pk,
+            'children-0-child': self.child.pk,
+            'children-0-order': 1,
+        }
+        if delete_test:
+            data['testlistmembership_set-0-DELETE'] = 'on'
+        if delete_sublist:
+            data['children-0-DELETE'] = 'on'
+        if new_test:
+            data.update({
+                'testlistmembership_set-TOTAL_FORMS': 2,
+                'testlistmembership_set-1-id': '',
+                'testlistmembership_set-1-test_list': self.parent.pk,
+                'testlistmembership_set-1-test': new_test.pk,
+                'testlistmembership_set-1-order': 2,
+            })
+            if new_test_deleted:
+                data['testlistmembership_set-1-DELETE'] = 'on'
+        return data
+
+    def _errors(self, resp):
+        return " ".join(str(e) for e in resp.context['errors']) if resp.context else ""
+
+    def test_no_remove_controls_on_saved_rows_without_permission(self):
+        self._login('nodelete')
+        content = self.client.get(self.url).content.decode()
+        self.assertEqual(self._buttons(content, 'tl-delete-test-btn'), [])
+        self.assertEqual(self._buttons(content, 'tl-btn-remove-sublist'), [])
+        locked = self._buttons(content, 'tl-remove-locked')
+        self.assertEqual(len(locked), 2)
+        for tag in locked:
+            self.assertIn('aria-disabled="true"', tag)
+            self.assertIn("permission", tag)
+        # Change keeps the same Sublist row (a change, not a removal), so it stays
+        self.assertEqual(len(self._buttons(content, 'tl-btn-change-sublist')), 1)
+
+    def test_remove_controls_with_permission(self):
+        self._login('super')
+        content = self.client.get(self.url).content.decode()
+        self.assertEqual(len(self._buttons(content, 'tl-delete-test-btn')), 1)
+        self.assertEqual(len(self._buttons(content, 'tl-btn-remove-sublist')), 1)
+        self.assertEqual(self._buttons(content, 'tl-remove-locked'), [])
+
+    def test_new_rows_can_still_be_removed_without_permission(self):
+        self._login('nodelete')
+        row = self.client.get(reverse('admin:qa_testlist_add_test_row'), {'test_id': self.t2.pk, 'index': 3})
+        self.assertEqual(len(self._buttons(row.content.decode(), 'tl-delete-test-btn')), 1)
+        other = qa_utils.create_test_list(name='Other List')
+        card = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), {'child_id': other.pk, 'index': 2})
+        self.assertEqual(len(self._buttons(card.content.decode(), 'tl-btn-remove-sublist')), 1)
+
+    def test_swapped_sublist_card_keeps_saved_row_locked(self):
+        other = qa_utils.create_test_list(name='Other List')
+        params = {'swap': '1', 'child_id': other.pk, 'index': 0, 'sublist_id': self.sublist.pk, 'order': 1}
+        self._login('nodelete')
+        content = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), params).content.decode()
+        self.assertEqual(self._buttons(content, 'tl-btn-remove-sublist'), [])
+        self.assertEqual(len(self._buttons(content, 'tl-remove-locked')), 1)
+        self.client.logout()
+        self._login('super')
+        content = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), params).content.decode()
+        self.assertEqual(len(self._buttons(content, 'tl-btn-remove-sublist')), 1)
+
+    def test_posted_delete_without_permission_keeps_rows(self):
+        self._login('nodelete')
+        resp = self.client.post(self.url, data=self._post_data(delete_test=True, delete_sublist=True))
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(qa_models.TestListMembership.objects.filter(pk=self.membership.pk).exists())
+        self.assertTrue(qa_models.Sublist.objects.filter(pk=self.sublist.pk).exists())
+
+    def test_kept_row_still_counts_for_duplicates(self):
+        # the "removed" test is saved again, so adding it a second time is a duplicate
+        self._login('nodelete')
+        resp = self.client.post(self.url, data=self._post_data(delete_test=True, new_test=self.t1))
+        self.assertEqual(resp.status_code, 200)
+        # the same test twice directly is caught by the formset's own unique check
+        self.assertIn("duplicate", self._errors(resp))
+        self.assertEqual(qa_models.TestListMembership.objects.filter(test_list=self.parent).count(), 1)
+
+    def test_kept_sublist_still_counts_for_duplicates(self):
+        # t2 is already in the sublist the user tried to remove
+        self._login('nodelete')
+        resp = self.client.post(self.url, data=self._post_data(delete_sublist=True, new_test=self.t2))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("appear more than once", self._errors(resp))
+
+    @override_settings(MAX_TESTS_PER_TESTLIST=2)
+    def test_kept_row_still_counts_for_limit(self):
+        t3 = qa_utils.create_test(name='test three')
+        self._login('nodelete')
+        resp = self.client.post(self.url, data=self._post_data(delete_test=True, new_test=t3))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("A test list can have at most 2", self._errors(resp))
+
+    @override_settings(MAX_TESTS_PER_TESTLIST=2)
+    def test_with_permission_removed_rows_are_deleted_and_not_counted(self):
+        self._login('super')
+        resp = self.client.post(self.url, data=self._post_data(delete_test=True, new_test=self.t1))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(qa_models.TestListMembership.objects.filter(pk=self.membership.pk).exists())
+        tests = list(qa_models.TestListMembership.objects.filter(test_list=self.parent).values_list('test', flat=True))
+        self.assertEqual(tests, [self.t1.pk])
+
+    def test_removed_new_row_is_discarded_without_permission(self):
+        self._login('nodelete')
+        resp = self.client.post(self.url, data=self._post_data(new_test=self.t1, new_test_deleted=True))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(qa_models.TestListMembership.objects.filter(test_list=self.parent).count(), 1)
+
+
 def _limited_testlist_user(can_add):
     """A staff (non-superuser) user who can view/change test lists, and add them only if `can_add`."""
     user = create_user(is_superuser=False, uname='limited', pwd='pwd')
@@ -2853,8 +3103,8 @@ class TestTestListBuilderMachineMode(TestCase):
 
         num = tests[str(self.num_test.pk)]
         self.assertEqual(num['reference'], '100')
-        self.assertEqual(num['tolerance'], str(self.num_uti.tolerance))
-        self.assertIn('Absolute', num['tolerance'])
+        self.assertEqual(num['tolerance'], 'Tolerance −2 to 2 · Action −3 to 3')
+        self.assertIn(str(self.num_uti.tolerance), num['tolerance_title'])
         self.assertEqual(num['uti_url'], reverse('admin:qa_unittestinfo_change', args=[self.num_uti.pk]))
 
         self.assertEqual(tests[str(self.bool_test.pk)]['reference'], 'Yes')
@@ -2862,7 +3112,7 @@ class TestTestListBuilderMachineMode(TestCase):
 
         mc = tests[str(self.mc_test.pk)]
         self.assertIsNone(mc['reference'])
-        self.assertIn('a:b', mc['tolerance'])
+        self.assertEqual(mc['tolerance'], 'OK: a, b · Tolerance: c')
 
         # bad ids ignored; a valid id with no UnitTestInfo comes back as null
         self.assertNotIn('bad', tests)
@@ -3031,7 +3281,7 @@ class TestTestListBuilderMachineRefTol(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Reference and Tolerance')
         self.assertContains(resp, 'Output on Machine A')
-        self.assertContains(resp, 'Currently: 100 · %s' % self.abs_tol)
+        self.assertContains(resp, 'Currently: 100; %s' % self.abs_tol.plain_display())
         # the current reference is filled in so saving without touching it keeps it
         self.assertContains(resp, 'type="text" name="reference_value" value="100"')
         tols = set(resp.context['form'].fields['tolerance'].queryset)
@@ -3147,7 +3397,7 @@ class TestTestListBuilderMachineRefTol(TestCase):
         self.assertContains(resp, 'Reference value cannot be zero when using a percent tolerance', status_code=422)
         self.assertContains(resp, 'id="tl-reftol-modal"', status_code=422)
         # "Currently" still shows the saved values, not the rejected ones
-        self.assertContains(resp, 'Currently: 100 · %s' % self.abs_tol, status_code=422)
+        self.assertContains(resp, 'Currently: 100; %s' % self.abs_tol.plain_display(), status_code=422)
         self.num_uti.refresh_from_db()
         self.assertEqual(self.num_uti.reference, self.old_ref)
         self.assertEqual(self.num_uti.tolerance, self.abs_tol)
@@ -3238,6 +3488,83 @@ class TestTestListBuilderMachineRefTol(TestCase):
         self.assertNotContains(resp, 'data-ref-tol-url=')
 
 
+class TestTestListBuilderToleranceWording(TestCase):
+    """Tolerance.plain_display: the builder's plain wording for tolerances (machine mode and its dialogs)."""
+
+    def _tol(self, tol_type=qa_models.ABSOLUTE, **kwargs):
+        tol = qa_models.Tolerance(type=tol_type, **kwargs)
+        tol.name = qa_models.get_tolerance_name(tol)
+        return tol
+
+    def test_absolute(self):
+        tol = self._tol(act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        self.assertEqual(tol.plain_display(), 'Tolerance −1 to 1 · Action −2 to 2')
+        tol = self._tol(act_low=-3, tol_low=-0.5, tol_high=1.25, act_high=2)
+        self.assertEqual(tol.plain_display(), 'Tolerance −0.5 to 1.25 · Action −3 to 2')
+
+    def test_absolute_missing_limits(self):
+        self.assertEqual(self._tol(tol_low=-1, tol_high=1).plain_display(), 'Tolerance −1 to 1')
+        self.assertEqual(self._tol(act_low=-2, act_high=2).plain_display(), 'Action −2 to 2')
+        self.assertEqual(self._tol(act_high=2).plain_display(), 'Action above 2')
+        self.assertEqual(self._tol(tol_low=-1, act_low=-2).plain_display(), 'Tolerance below −1 · Action below −2')
+
+    def test_percent(self):
+        tol = self._tol(qa_models.PERCENT, act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        self.assertEqual(tol.plain_display(), 'Tolerance −1% to 1% · Action −2% to 2%')
+        self.assertIn('percentage differences from the reference', tol.plain_display_title())
+
+    def test_multiple_choice(self):
+        tol = self._tol(qa_models.MULTIPLE_CHOICE, mc_pass_choices='a,b', mc_tol_choices='c')
+        self.assertEqual(tol.plain_display(), 'OK: a, b · Tolerance: c')
+        self.assertIn('Any other choice shows Action.', tol.plain_display_title())
+        tol = self._tol(qa_models.MULTIPLE_CHOICE, mc_pass_choices='a,b')
+        self.assertEqual(tol.plain_display(), 'OK: a, b')
+
+    def test_boolean(self):
+        self.assertEqual(self._tol(qa_models.BOOLEAN, bool_warning_only=False).plain_display(), 'Action if wrong')
+        self.assertEqual(self._tol(qa_models.BOOLEAN, bool_warning_only=True).plain_display(), 'Tolerance if wrong')
+
+    def test_title_keeps_stored_name(self):
+        tol = self._tol(act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        self.assertTrue(tol.plain_display_title().endswith('Stored as: %s' % tol.name))
+        self.assertIn('Absolute(', tol.plain_display_title())
+
+    def test_str_unchanged(self):
+        tol = qa_utils.create_tolerance(act_low=-2, tol_low=-1, tol_high=1, act_high=2)
+        self.assertEqual(str(tol), 'Absolute(-2.000, -1.000, 1.000, 2.000)')
+
+    def _machine_setup(self):
+        user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        unit = qa_utils.create_unit(name='Machine A')
+        test = qa_utils.create_test(name='Output')
+        tol = qa_utils.create_tolerance(act_low=-2, tol_low=-1, tol_high=1, act_high=2, created_by=user)
+        uti = qa_utils.create_unit_test_info(unit=unit, test=test, ref=qa_utils.create_reference(value=100), tol=tol)
+        return unit, test, tol, uti
+
+    def test_machine_values_json(self):
+        unit, test, tol, uti = self._machine_setup()
+        data = self.client.get(
+            reverse('admin:qa_testlist_machine_values'), {'unit': unit.pk, 'tests': test.pk},
+        ).json()['tests'][str(test.pk)]
+        self.assertEqual(data['tolerance'], 'Tolerance −1 to 1 · Action −2 to 2')
+        self.assertEqual(data['tolerance_title'], tol.plain_display_title())
+
+    def test_dialog_select(self):
+        from django.utils.html import escape
+        unit, test, tol, uti = self._machine_setup()
+        pct = qa_utils.create_tolerance(tol_type=qa_models.PERCENT, act_low=None, tol_low=-3, tol_high=3, act_high=None)
+        resp = self.client.get(reverse('admin:qa_testlist_machine_ref_tol', args=[uti.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(
+            resp, '<option value="%d" title="%s" selected>Tolerance −1 to 1 · Action −2 to 2</option>'
+            % (tol.pk, escape(tol.plain_display_title())), html=True,
+        )
+        self.assertContains(resp, '>Tolerance −3% to 3%</option>')
+        self.assertNotContains(resp, '>%s</option>' % pct.name)
+        self.assertContains(resp, 'Currently: 100; Tolerance −1 to 1')
+
+
 class TestTestListBuilderNewTolerance(TestCase):
     """The New Tolerance dialog opened from machine mode's Reference and Tolerance dialog."""
 
@@ -3297,7 +3624,9 @@ class TestTestListBuilderNewTolerance(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         tol = qa_models.Tolerance.objects.get(pk=data['id'])
-        self.assertEqual(data['label'], str(tol))
+        self.assertEqual(data['label'], tol.plain_display())
+        self.assertEqual(data['title'], tol.plain_display_title())
+        self.assertEqual(data['message'], 'Created %s.' % tol.plain_display())
         self.assertEqual((tol.type, tol.act_low, tol.tol_low, tol.tol_high, tol.act_high), ('absolute', -3, -2, 2, 3))
         self.assertEqual(tol.created_by, self.user)
         self.assertEqual(tol.modified_by, self.user)
@@ -3341,8 +3670,11 @@ class TestTestListBuilderNewTolerance(TestCase):
         before = qa_models.Tolerance.objects.count()
         resp = self._post(self.num_uti, type='absolute', act_low='-3', tol_low='-2', tol_high='2', act_high='3')
         self.assertEqual(resp.status_code, 422)
-        self.assertContains(resp, 'A tolerance with these values already exists: %s.' % existing, status_code=422)
+        self.assertContains(
+            resp, 'A tolerance with these values already exists: %s.' % existing.plain_display(), status_code=422,
+        )
         self.assertContains(resp, 'data-tolerance-id="%d"' % existing.pk, status_code=422)
+        self.assertContains(resp, 'data-tolerance-label="%s"' % existing.plain_display(), status_code=422)
         self.assertContains(resp, 'Use This One', status_code=422)
         self.assertEqual(qa_models.Tolerance.objects.count(), before)
 
@@ -4080,6 +4412,82 @@ class TestTestListBuilderDesignSpec(TestCase):
         content = self._get(self.change_url)
         self.assertNotIn('btn-xs', content)
         self.assertNotIn('margin-right-5', content)
+
+
+class TestTestListBuilderLinkContrast(TestCase):
+    """Text links and quiet text on the Test List admin pages reach WCAG AA (4.5:1) on
+    the background they actually sit on, hovered rows (#f5f7fa) included. AdminLTE's
+    link blue #3c8dbc (3.67:1 on white) is kept only for focus outlines and borders."""
+
+    WHITE, ROW_HOVER, NOTE_BG = '#ffffff', '#f5f7fa', '#f4f4f4'
+
+    @staticmethod
+    def _luminance(hex_colour):
+        channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    def _ratio(self, fg, bg):
+        hi, lo = sorted((self._luminance(fg), self._luminance(bg)), reverse=True)
+        return (hi + 0.05) / (lo + 0.05)
+
+    def _style(self):
+        origin = get_template('admin/qa/testlist/testlist_assets.html').origin
+        with open(origin.name, encoding='utf-8') as f:
+            source = f.read()
+        style = source[source.index('<style>'):source.index('</style>')]
+        return re.sub(r'/\*.*?\*/', '', style, flags=re.S)
+
+    def _colour(self, style, selector, prop='color'):
+        """The literal colour `prop` is set to in a rule whose selector list ends with `selector`."""
+        rules = re.findall(r'(?:^|[},])\s*%s\s*\{([^}]*)\}' % re.escape(selector), style, flags=re.M)
+        self.assertTrue(rules, selector)
+        for body in rules:
+            value = re.search(r'(?<![\w-])%s:\s*(#[0-9a-fA-F]{6})' % re.escape(prop), body)
+            if value:
+                return value.group(1).lower()
+        self.fail('%s { %s } not found' % (selector, prop))
+
+    def test_link_blue_is_not_a_text_colour(self):
+        style = self._style()
+        self.assertNotRegex(style, r'(?i)(?<![\w-])color:\s*#3c8dbc')
+        self.assertNotRegex(style, r'(?i)--link(?:-fg|-hover-color):\s*#3c8dbc')
+
+    def test_767676_is_gone(self):
+        # #767676 is 4.54:1 on white but 4.23:1 on a hovered list row
+        self.assertNotIn('#767676', self._style().lower())
+
+    def test_text_on_hoverable_rows_passes_on_white_and_hover(self):
+        style = self._style()
+        selectors = [
+            '.tl-cell-id', '.tl-cell-name .tl-slug', '.tl-cell-name:hover .tl-name', '.tl-cell-units',
+            '.tl-cell-modified .tl-mod-by', 'a.tl-editlink:focus', '.tl-machine-edit',
+        ]
+        for selector in selectors:
+            colour = self._colour(style, selector)
+            for bg in (self.WHITE, self.ROW_HOVER):
+                self.assertGreaterEqual(self._ratio(colour, bg), 4.5, '%s %s on %s' % (selector, colour, bg))
+        for prop in ('--body-quiet-color', '--link-fg', '--link-hover-color'):
+            colour = self._colour(style, '#changelist', prop)
+            for bg in (self.WHITE, self.ROW_HOVER):
+                self.assertGreaterEqual(self._ratio(colour, bg), 4.5, '%s %s on %s' % (prop, colour, bg))
+
+    def test_links_on_white_and_grey_pass(self):
+        style = self._style()
+        on_white = [
+            '#changelist-filter #changelist-filter-clear a', '.paginator a:visited', '.tl-html-preview a',
+            '.tl-reftol-history-link a', '.tl-scope-info-text a',
+        ]
+        for selector in on_white:
+            colour = self._colour(style, selector)
+            self.assertGreaterEqual(self._ratio(colour, self.WHITE), 4.5, selector)
+        colour = self._colour(style, '.tl-preview-note a')
+        self.assertGreaterEqual(self._ratio(colour, self.NOTE_BG), 4.5)
+
+    def test_focus_outlines_reach_ui_contrast(self):
+        for colour in set(re.findall(r'(?i)outline:\s*2px solid (#[0-9a-f]{6})', self._style())):
+            for bg in (self.WHITE, self.ROW_HOVER, '#ecf0f5'):
+                self.assertGreaterEqual(self._ratio(colour, bg), 3.0, '%s on %s' % (colour, bg))
 
 
 class TestTestListBuilderSearchDuplicates(TestCase):
