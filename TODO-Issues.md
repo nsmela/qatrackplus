@@ -6,7 +6,7 @@ maintainer to review. Remove before merging.
 Every item in `TODO-test-builder.md` is done. No task needed more than three
 attempts, so nothing was skipped. Each task was done by an agent with a
 written plan, then checked (tests, lint, screenshots) and committed on
-`feat/test-builder`. The whole project test suite passes (1547 tests).
+`feat/test-builder`. The whole project test suite passes (1652 tests).
 
 ## Decisions to review
 
@@ -122,82 +122,168 @@ These are choices made during the work that you may want to change.
   in `.html` files. New JS strings must be added there.
 - **Type badges are translated with the context "test type badge".**
 
-## Open issues: Test List builder
+## Issue round: what each fix did
 
-- **"Change" on an existing sublist** swaps in a card built as if the
-  sublist were new (empty id, outline unchecked), so its outline setting and
-  its pairing with the saved row are lost. Focus also can't return to the
-  Change button. Existed before this work.
-- **Adding a sublist that repeats a test** already in the list is allowed;
-  saving then fails with the duplicate-tests error. Better to warn when
-  adding.
-- **Duplicate Test copies references and tolerances on every unit** with no
-  `change_unittestinfo` check, and the copies share the same Reference
-  objects.
-- **The description dialog saves with `update_fields=["description"]`**, so
-  the Test's `modified`/`modified_by` aren't updated.
-- **The Duplicate click handler doesn't check `res.ok`**, so a 403/500 page
-  would appear as raw text. Hidden today because the button is hidden
-  without permission.
-- **A generic click handler hides any clicked dialog backdrop directly**,
-  bypassing that dialog's own close logic (focus isn't returned then).
-- **A user without delete permission on the inlines** can mark a row removed;
-  validation ignores the row but the formset won't delete it. Edge case.
-- **Save As in browsers without `requestSubmit`** triggers the browser's
-  leave prompt. Old browsers only.
-- **Link blue `#3c8dbc` is still 3.67:1** for text links, as the spec has it;
-  the spec's proposed `#357da7` is still open. `#767676` on a hovered list
-  row is about 4.27:1.
-- **Narrow screens:** at about 800px the builder table and the list page's
-  results scroll sideways inside their cards.
-- **List page:** the filter card (~860px) is taller than a 900px window, so
-  the page scrolls a little and the results card's top goes under the pinned
-  header. `initResultsScroll` only recalculates on window resize.
-- **Stale JS:** `qatrack/admin_media/js/m2m_drag_admin_testlist.js` (changed
-  heavily on this branch) isn't loaded by any template; the builder JS is
-  inlined in `testlist_assets.html`. Looks safe to delete.
-- **Tolerance wording** ("Percent(-3.00%, …)", "M.C.(OK=a:b, …)") reads like
-  code; clinical staff may prefer plainer wording.
+Every open item from the previous version of this file was given to its own
+agent. Commits: `211c7e1`, `9f9a7ec`, `aded961`, `00feb64`, `e931c05`,
+`f2cc15f`.
 
-## Open issues: elsewhere in QATrack+ (existed before this work)
+### Builder items (all fixed)
+- **Change on a sublist** keeps its saved row (same id, order and outline)
+  instead of nesting a new row; focus returns to Change. Typing in the
+  search box now filters (the input had no `name`).
+- **Repeated tests** are blocked in the Add Test / Add Sublist / Change
+  dialogs (warning and disabled button, re-checked at click time).
+- **Duplicate Test** copies references only with `change_unittestinfo`,
+  makes new Reference rows (tolerances stay shared) and records history.
+  Without the permission the copy starts with no unit settings.
+- **Description edits** update `modified`/`modified_by` and add a History
+  entry; unchanged saves do nothing.
+- **Duplicate errors** (403/500/network/expired session) show a short
+  message, never raw HTML.
+- **Dialog backdrops** close through each dialog's own close function;
+  dragging a text selection out of a dialog no longer closes it.
+- **Delete permission**: saved rows show a locked remove button with a
+  tooltip; validation only skips rows that will really be removed. Also
+  fixed: a row added then removed was saved anyway without the permission.
+- **Save As** in old browsers no longer triggers the leave prompt.
+- **Contrast**: on the Test List pages links are `#357da7` (white only) or
+  `#317399` (anywhere the background changes) and grey text `#6b6b6b`.
+- **Narrow screens**: the builder table and list results fit down to 800px
+  (sidebar collapsed) / 1024px (open) using container queries.
+- **List filter card** scrolls inside itself; the page no longer scrolls at
+  1440×900; results resize with the pinned header and filter toggles.
+- **Stale JS**: `m2m_drag_admin_testlist.js` deleted, with a guard test.
+- **Tolerance wording** in the builder is plain ("Tolerance −1 to 1 ·
+  Action −2 to 2", "OK: a, b · Tolerance: c", "Action if wrong"); the
+  stored name stays as a tooltip. `Tolerance.__str__`/`name` unchanged.
 
-- `UnitTestInfo.clean` (`models.py` ~1456) checks percent tolerances
-  against the existing reference, not the new one, so changing a zero
-  reference to non-zero together with a percent tolerance may be rejected.
-  Not verified.
-- The Unit Test Info admin history shows changes as "current → old"
-  (e.g. "Absolute(…) → None"), which reads backwards.
-- Model help text spells "seperated" (Tolerance multiple-choice fields).
-- Perform QC renders duplicate element ids when a test appears both directly
-  and in a sublist (the seeded "Daily Linac QC" has this layout).
-- `UnitTestInfoForm.save` (`qa/admin.py`, ~line 212) stores Yes/No
-  references with the numerical type, so the Unit Test Info admin and the
-  Perform QC Reference column show "1"/"0" instead of Yes/No.
-- `PerformQA.set_unit_test_infos` passes an already-formatted "Do not
-  treat…" string to `_()`, so it can't be translated.
-- `RemovedInDjango50Warning` (filtering by an unsaved instance) from
-  `TestForm.clean` (`qa/admin.py`), `qa/signals.py` (`on_test_save`), the
-  PerformQA GET path and test helpers.
-- `TestListAdmin.actions` lists `export_test_lists`, which isn't defined, so
-  the action is dead.
-- `qatrack/templates/admin/change_form.html` uses `{{ opts.module_name }}`
-  (gone in Django 4), so every admin change form gets `id="_form"`; its
-  breadcrumbs show the changelist link only with `has_change_permission`
-  (Django 4.2 uses `has_view_permission`).
-- `qatrack/templates/admin/change_list.html` never renders Django 4.2's
-  "Clear all filters" link.
-- `base_site.html`: "Submitting..." is untranslated and uses "...".
-- Below 1024px wide, admin pages in general scroll sideways.
-- `/admin/password_change/` logs 404s and RequireJS errors for
-  `zxcvbn`/`password_strength`.
-- `makemigrations --dry-run` lists pending migrations for faults, parts,
-  units, attachments, qa, reports and service_log at the commit this work
-  started from. Worth checking on `develop`.
+### Elsewhere in QATrack+ (fixed)
+- **Percent tolerance with a changed reference** (bug confirmed): the form
+  now validates against the new reference.
+- **Unit Test Info history** reads Before → After, newest first, with
+  "Not set" and "(No change)".
+- **Yes/No references** are saved with the boolean type; older 1/0 ones read
+  Yes/No everywhere a test is known (admin, Perform QC, reports, history).
+  Display fix only, no data migration.
+- **Perform QC repeated tests** (real bug): a test both direct and in a
+  sublist made two rows and saved two conflicting values; composites used
+  the last. `TestList.ordered_tests()` now lists each test once (first
+  position), which also affects the API, history, charts and reports for
+  such lists only.
+- **"Do not treat…"** is one translatable string with a placeholder.
+- **Deprecation warnings** (filtering by unsaved instances) are gone from
+  the whole suite. Found on the way: `on_test_save` compared the test type
+  with `is not`, so its Boolean-reference check rarely ran. It now runs (see
+  Decisions) and the admin form reports it instead of a 500.
+- **Dead `export_test_lists` action** removed.
+- **Admin change forms** get `id="<model>_form"`; breadcrumbs follow view
+  permission.
+- **Admin list pages** show "Clear all filters", and results fill their
+  column (Django 4's `changelist-form-container`).
+- **"Submitting…"**, the home tooltip and calendar month names are
+  translatable.
+- **Admin pages on narrow windows** no longer scroll sideways (index layout,
+  filter-horizontal selectors, long names, paginator, wide inlines).
+- **Password pages** no longer request the removed zxcvbn library (404s and
+  RequireJS errors; their focus code works again).
+
+### Decisions from this round to review
+- **Boolean reference check now enforced:** with `is not` fixed, a full save
+  of a Boolean test is refused while any unit has a reference other than
+  0/1. Old data in that state now blocks full saves of those tests until the
+  references are fixed (description-only saves still work).
+- **Repeated tests**, first occurrence wins. Sessions saved before the fix
+  can still hold two TestInstances for one test; their review/edit pages
+  will show duplicate rows. No data repair was done.
+- **Duplicate Test without `change_unittestinfo`** creates no unit settings
+  at all; the usual signals create empty ones when the list is saved.
+- **Locked remove buttons** rather than hidden ones, so users see why.
+- **Two link blues** on the Test List pages (could be unified on
+  `#317399`).
+- **Backdrop clicks** still close dialogs with typed input, as Cancel does.
+- **Tolerance wording** uses the site's status names (not "Tol"/"Act") and
+  shows limits as differences from the reference; numbers aren't
+  locale-formatted.
+- **Filter-horizontal selectors** keep their 980px desktop width.
+- **No password strength meter**: zxcvbn wasn't vendored back.
+
+## Left out on purpose
+
+- **Pending migrations** (you chose to leave them out of this branch).
+  `makemigrations --check` fails at the starting commit for attachments,
+  faults, parts, qa, reports, service_log and units: about 200 `AlterField`
+  operations syncing field options (verbose names, help text, related names,
+  Python defaults). They produce no SQL on SQLite (not checked on
+  PostgreSQL/SQL Server). They belong on `develop`.
+- **"seperated" typo** in the Tolerance multiple-choice help text. Fixing it
+  needs a qa migration, which would fold in all of qa's pending changes
+  above, so it waits for those migrations.
+
+## Open issues found in this round
+
+Builder:
+- The list page is 449px wide at a 400px window because the Export /
+  Import / New Test List buttons don't wrap.
+- Admin dark theme: inputs inside builder dialogs render black
+  (`#tl-dialogs-outside-form` isn't in the light-variable re-set list).
+- `#6d7787`/`#6e7785` text is about 4.22:1 where it sits on hovered rows.
+- `TestListAdminForm.clean` uses `filter(id__in=…)`, so the same test added
+  twice directly is only caught by Django's generic duplicate message.
+- The attachments delete control may not check the attachment inline's
+  delete permission (not checked).
+- A saved sublist card renders its `-id` hidden input twice (harmless).
+- Machine mode: a sublist row's colspan spans hidden columns.
+- On narrow screens the list page scrolls ~520px because the filter sits
+  above the results; filter groups could start collapsed there.
+- `#result_list thead th` padding never applies (Django's rule wins).
+- "and N more" in the repeat warning isn't plural-aware.
+- The description dialog's submit shares a class with Save As's.
+
+Elsewhere:
+- `/admin/qa/unittestcollection/` returns 500 when an assignment has no
+  `assigned_to` (`assigned_to_name`).
+- `/admin/parts/room/add/` returns 500 ("'Storage' instance needs to have a
+  primary key value…").
+- The admin index renders no app list (empty content block).
+- Perform QC: `id="<slug>-procedure"` and `id="toggle-options"` repeat;
+  one test type renders `string_value`/`json_value` inputs twice.
+- Perform QC's tolerance text (`qa_tags.py`) has untranslated "Between",
+  "All others fail", "No Ref", "No Tol" and uses `</br>`; it could reuse
+  `Tolerance.plain_display`.
+- `qatrack/static/qatrack_core/js/base.js:51`: untranslated "Submitting..."
+  and `.addClass(".disabled")` (stray dot). The admin submit guard blocks
+  later submits if a handler cancels the first one.
+- `record_unit_test_info_change` stores `reference_changed=True` whenever a
+  reference is submitted, even unchanged (the history display works around
+  it).
+- `templates/admin/qa/test/change_form.html:13` "Ref=… & Tolerance = …" can
+  print None.
+- The API returns raw reference type, so older Boolean references show
+  "numerical".
+- `templates/admin/change_form.html` drift from Django 4.2: hard-coded
+  object tools, no `to_field_var`, `bodyclass` without app/model classes,
+  "Add {{ verbose_name }}" word order, dead CSS.
+- `templates/admin/change_list.html`: no `filters.js` (open/closed filter
+  groups not remembered); error count not plural-aware.
+- `testpack-export.js` has untranslated strings and exists twice
+  (`qatrack/static/js/` and `qatrack/admin_media/js/`); `export.html` uses
+  "...".
+- `admin_media/js/drag_admin.js` and `jquery-1.7.1.min.js` are unused.
+- "Succesfully" typo in `password_change_done.html` and
+  `password_reset_complete.html` (translated string; .po files too).
+- `perform.py` ~1637 translates a log message.
+- Another `RemovedInDjango50Warning` (forms `default.html` templates)
+  remains.
+- `testlist_duplicate_test` has no per-object visibility check (any user
+  with `add_test` can duplicate any test by id).
 
 ## Before merging
 
 - Run `makemessages -l fr -l fr_CA -l es` (django and djangojs domains) and
   `compilemessages`; there are many new and changed strings.
+- Run `collectstatic` on deployment: the collected RequireJS config still
+  lists the removed zxcvbn entries until then.
 - Remove `TODO-test-builder.md` and this file.
 - Per `AGENTS.md`, a person needs to read the full diff, run the tests, and
   own the change before a PR is opened.
