@@ -503,10 +503,11 @@ body.tl-mode-machine .tl-col-type-value {
   color: #8a6420;
   margin-right: 3px;
 }
+/* #5f6773, not the #6e7785 meta grey: test rows turn #f5f7fa on hover (5.33:1 there; the meta grey is 4.22) */
 .tl-machine-unused,
 .tl-machine-hint {
   font-size: 12px;
-  color: #6e7785;
+  color: #5f6773;
 }
 .tl-machine-hint {
   display: block;
@@ -1523,9 +1524,10 @@ a.tl-btn-sublist:hover {
   color: #6d7787;
 }
 
+/* Sits in a sublist table row that turns #f5f7fa on hover: #5f6773 is 5.33:1 there */
 .tl-empty-sublist-msg {
   padding: 16px 14px;
-  color: #6d7787;
+  color: #5f6773;
   font-style: italic;
   font-size: 13px;
 }
@@ -2355,7 +2357,9 @@ ul.messagelist li.error {
    keep it readable in both the light and the dark admin theme. */
 .tl-index-title { font-size:22px; font-weight:400; line-height:1.1; color:var(--body-fg, #444); margin:0; }
 .tl-index-title small { font-size:14px; color:var(--body-quiet-color, #666); margin-left:8px; }
-.tl-object-tools { margin:0; padding:0; display:flex; gap:6px; list-style:none; }
+/* The buttons wrap onto a second line in narrow windows instead of widening the page;
+   right-aligned so "New Test List" stays at the end where it sits on wide screens. */
+.tl-object-tools { margin:0; padding:0; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; list-style:none; min-width:0; max-width:100%; }
 .tl-object-tools li { list-style:none; margin:0; float:none; }
 .tl-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; line-height:1.4; padding:6px 12px; border:1px solid #d2d6de; border-radius:3px; box-shadow:2px 2px 2px #ddd; text-decoration:none; white-space:nowrap; }
 /* a.tl-btn-*:link etc. outrank Django admin's a:link/a:visited/a:hover colours. */
