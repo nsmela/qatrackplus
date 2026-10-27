@@ -1,4 +1,5 @@
 
+import os
 import unittest
 
 from django.contrib.auth.models import User
@@ -269,6 +270,55 @@ class TestChromeCommandQuoting(TestCase):
                     chrometopdf("<html><body>x</body></html>")
 
         return captured['command']
+
+    def test_input_document_is_passed_as_a_well_formed_file_uri(self):
+        """"file://" + a Windows path names a host of "D:\\..." and an empty path.
+
+        Chrome happens to tolerate that form; the one that works everywhere is
+        the one to pass.
+        """
+        command = self._capture_command("/usr/bin/chromium")
+        inputs = [a for a in command if str(a).startswith("file:")]
+        assert len(inputs) == 1, command
+        assert inputs[0].startswith("file:///"), inputs[0]
+
+    def test_both_header_suppression_switches_are_passed(self):
+        """Chrome 155 ignores --print-to-pdf-no-header and honours --no-pdf-header-footer.
+
+        With only the old switch, a direct chrometopdf() call prints a date
+        header and a footer holding the temporary file's full path.
+        """
+        command = self._capture_command("/usr/bin/chromium")
+        assert "--print-to-pdf-no-header" in command, command
+        assert "--no-pdf-header-footer" in command, command
+
+    def test_each_run_gets_its_own_profile_removed_after_the_browser_exits(self):
+        """Concurrent reports must not share a browser profile, and none may be left behind."""
+        import subprocess
+        from unittest import mock
+
+        from qatrack.qatrack_core.utils import ChromePdfFailed, chrometopdf
+
+        seen = []
+
+        def fake_call(command, *args, **kwargs):
+            profile = [a for a in command if str(a).startswith("--user-data-dir=")]
+            assert len(profile) == 1, command
+            profile_dir = profile[0].split("=", 1)[1]
+            # Still there while the browser runs: removing it early would pull
+            # the profile out from under a browser that is still writing.
+            assert os.path.isdir(profile_dir)
+            seen.append(profile_dir)
+            return 0
+
+        with override_settings(CHROME_PATH="/usr/bin/chromium"):
+            with mock.patch.object(subprocess, "call", fake_call):
+                for _ in range(2):
+                    with self.assertRaises(ChromePdfFailed):
+                        chrometopdf("<html><body>x</body></html>")
+
+        assert len(seen) == 2 and seen[0] != seen[1], seen
+        assert not any(os.path.exists(p) for p in seen), seen
 
     def test_command_is_a_sequence_not_a_string(self):
         command = self._capture_command("/usr/bin/chromium")

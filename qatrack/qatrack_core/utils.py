@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -179,59 +180,76 @@ def chrometopdf(html, name="", paper_size="letter"):
                 "qatrack/local_settings.py to the browser to use for PDF generation."
             )
 
-        # Passed as a sequence on every platform. On Windows this was
-        # collapsed with ' '.join() first, which quotes nothing: every Chrome
-        # location settings.py probes is under "C:\Program Files (x86)", and
-        # TMP_REPORT_ROOT can sit under a profile directory with a space in
-        # it, so both the executable and --print-to-pdf= were split on their
-        # spaces before Chrome saw them. subprocess quotes a sequence itself
-        # with list2cmdline(), which is what it is for. Likely a second cause
-        # of #835 - a service account's temp directory is not the one a
-        # deployer tests from by hand.
-        command = [
-            settings.CHROME_PATH,
-            '--headless',
-            '--disable-gpu',
-            '--no-sandbox',
-            '--print-to-pdf=%s' % out_path,
-            '--print-to-pdf-no-header',
-            "file://%s" % tmp_html.name,
-        ]
+        # The profile folder is removed only once the browser has exited:
+        # subprocess.call waits for it, and the folder outlives the call.
+        # ignore_cleanup_errors because a report that rendered should not fail
+        # over a profile file Windows has not yet released.
+        with tempfile.TemporaryDirectory(prefix='qatrack-chrome-', ignore_cleanup_errors=True) as profile_dir:
+            # Passed as a sequence on every platform. On Windows this was
+            # collapsed with ' '.join() first, which quotes nothing: every Chrome
+            # location settings.py probes is under "C:\Program Files (x86)", and
+            # TMP_REPORT_ROOT can sit under a profile directory with a space in
+            # it, so both the executable and --print-to-pdf= were split on their
+            # spaces before Chrome saw them. subprocess quotes a sequence itself
+            # with list2cmdline(), which is what it is for. Likely a second cause
+            # of #835 - a service account's temp directory is not the one a
+            # deployer tests from by hand.
+            command = [
+                settings.CHROME_PATH,
+                '--headless',
+                '--disable-gpu',
+                '--no-sandbox',
+                '--print-to-pdf=%s' % out_path,
+                # Both switches, deliberately: Chrome and Edge 155 print a date
+                # header and a footer holding the temporary file's path despite
+                # --print-to-pdf-no-header, and drop them for --no-pdf-header-footer.
+                # Chrome ignores a switch it does not recognise, so keeping the old
+                # one costs nothing on older builds that still honour it.
+                '--print-to-pdf-no-header',
+                '--no-pdf-header-footer',
+                # A fresh profile for every run. Reports rendered at the same time
+                # (a scheduled report while someone downloads another) would
+                # otherwise share the browser's default profile and can collide.
+                '--user-data-dir=%s' % profile_dir,
+                # file_uri, not "file://" + path: on Windows that names a host of
+                # "D:\..." and an empty path. Chrome happens to tolerate it.
+                file_uri(tmp_html.name),
+            ]
 
-        stderr_path = os.path.join(settings.LOG_ROOT, 'report-stderr.txt')
-        stdout = open(os.path.join(settings.LOG_ROOT, 'report-stdout.txt'), 'a')
-        stderr = open(stderr_path, 'a')
-        try:
-            status = subprocess.call(command, stdout=stdout, stderr=stderr)
-        except OSError as e:
-            raise ChromeNotFound(
-                "Could not run '%s': %s. Check CHROME_PATH in "
-                "qatrack/local_settings.py." % (settings.CHROME_PATH, e)
-            )
-        finally:
-            stdout.close()
-            stderr.close()
+            stderr_path = os.path.join(settings.LOG_ROOT, 'report-stderr.txt')
+            stdout = open(os.path.join(settings.LOG_ROOT, 'report-stdout.txt'), 'a')
+            stderr = open(stderr_path, 'a')
+            try:
+                status = subprocess.call(command, stdout=stdout, stderr=stderr)
+            except OSError as e:
+                raise ChromeNotFound(
+                    "Could not run '%s': %s. Check CHROME_PATH in "
+                    "qatrack/local_settings.py." % (settings.CHROME_PATH, e)
+                )
+            finally:
+                stdout.close()
+                stderr.close()
 
-        # The exit status and the output file are checked separately: they
-        # fail differently, and the difference is what tells a deployer
-        # whether the browser is wrong or its environment is. Neither was
-        # checked before - a browser that ran but produced nothing left
-        # open(out_path) to raise FileNotFoundError, which the handler below
-        # reported as "executable not found", pointing at the one thing that
-        # was demonstrably fine. That is the symptom described in #835.
-        if status != 0:
-            raise ChromePdfFailed(
-                "'%s' exited with status %d without producing a report. Its output "
-                "is in %s." % (settings.CHROME_PATH, status, stderr_path)
-            )
+            # The exit status and the output file are checked separately: they
+            # fail differently, and the difference is what tells a deployer
+            # whether the browser is wrong or its environment is. Neither was
+            # checked before - a browser that ran but produced nothing left
+            # open(out_path) to raise FileNotFoundError, which the handler below
+            # reported as "executable not found", pointing at the one thing that
+            # was demonstrably fine. That is the symptom described in #835.
+            if status != 0:
+                raise ChromePdfFailed(
+                    "'%s' exited with status %d without producing a report. Its output "
+                    "is in %s." % (settings.CHROME_PATH, status, stderr_path)
+                )
 
-        if not os.path.exists(out_path):
-            raise ChromePdfFailed(
-                "'%s' exited cleanly but wrote no PDF to %s. A browser that does "
-                "not support --print-to-pdf, or cannot write to that directory, "
-                "fails exactly this way. Its output is in %s."
-                % (settings.CHROME_PATH, out_path, stderr_path)
-            )
+            if not os.path.exists(out_path):
+                raise ChromePdfFailed(
+                    "'%s' exited cleanly but wrote no PDF to %s. A browser that does "
+                    "not support --print-to-pdf, or cannot write to that directory, "
+                    "fails exactly this way. Its output is in %s."
+                    % (settings.CHROME_PATH, out_path, stderr_path)
+                )
 
         out_file = open(out_path, 'r+b')
         pdf = out_file.read()
