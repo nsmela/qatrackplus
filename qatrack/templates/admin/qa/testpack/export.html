@@ -46,7 +46,7 @@
           <hr/>
           <h2>{% trans "Test Lists To Export" %}</h2>
 
-          <em class="loading">{% trans "Loading Test List table" %}...</em>
+          <em class="loading">{% trans "Loading Test List table" %}…</em>
           <table id="testlists-table" style="display: none">
             <thead>
               <tr>
@@ -74,7 +74,7 @@
           <hr/>
           <h2>{% trans "Test List Cycles To Export" %}</h2>
 
-          <em class="loading">{% trans "Loading Test List Cycle table" %}...</em>
+          <em class="loading">{% trans "Loading Test List Cycle table" %}…</em>
           <table id="testlistcycles-table" style="display: none">
             <thead>
               <tr>
@@ -111,7 +111,7 @@
             </em>
           </p>
 
-          <em class="loading">{% trans "Loading Test table" %}...</em>
+          <em class="loading">{% trans "Loading Test table" %}…</em>
           <table id="tests-table" style="display: none">
             <thead>
               <tr>
@@ -206,6 +206,8 @@
 
 {% block footer %}
 
+{# Django's JavaScript catalogue: gives testpack-export.js gettext() and friends #}
+<script src="{% url 'admin:jsi18n' %}"></script>
 <script src="{% static "jquery/js/jquery.min.js" %}"></script>
 
 <script src="{% static "datatables/1.10/js/datatables.min.js" %}"></script>

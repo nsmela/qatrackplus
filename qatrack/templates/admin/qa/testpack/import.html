@@ -45,7 +45,7 @@
           <hr/>
           <h2>{% trans "Test Lists To Include" %}</h2>
 
-          <em class="loading">{% trans "Loading Test List table" %}...</em>
+          <em class="loading">{% trans "Loading Test List table" %}…</em>
           <table id="testlists-table" style="display: none">
             <thead>
               <tr>
@@ -73,7 +73,7 @@
           <hr/>
           <h2>{% trans "Test List Cycles To Include" %}</h2>
 
-          <em class="loading">{% trans "Loading Test List Cycle table" %}...</em>
+          <em class="loading">{% trans "Loading Test List Cycle table" %}…</em>
           <table id="testlistcycles-table" style="display: none">
             <thead>
               <tr>
@@ -110,7 +110,7 @@
             </em>
           </p>
 
-          <em class="loading">{% trans "Loading Test table" %}...</em>
+          <em class="loading">{% trans "Loading Test table" %}…</em>
           <table id="tests-table" style="display: none">
             <thead>
               <tr>
@@ -214,6 +214,8 @@
 {% endblock %}
 
 {% block footer %}
+{# Django's JavaScript catalogue: gives testpack-import.js gettext() and friends #}
+<script src="{% url 'admin:jsi18n' %}"></script>
 <script src="{% static "lodash/js/lodash.js" %}"></script>
 <script type="text/javascript">
     window.parseVersion = function(v){
