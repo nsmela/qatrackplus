@@ -1,16 +1,20 @@
 {% extends "admin/change_form.html" %}
+{% load i18n qa_tags %}
 {% block after_field_sets %}{{ block.super }}
-<h3>Member of the following TestLists:</h3>
+<h3>{% trans "Member of the following TestLists:" %}</h3>
 <ul>
     {% for test_list in original.testlist_set.all %}
 
         <li><a href="{%url 'admin:qa_testlist_change' test_list.pk%}">{{ test_list.name }}</a></li>
     {% endfor %}
 </ul>
-<h3>Assigned to the following Units:</h3>
+<h3>{% trans "Assigned to the following Units:" %}</h3>
+{% trans "Not set" as not_set %}
 <ul>
     {% for uti in original.unittestinfo_set.all %}
-        <li><a href="{% url 'admin:qa_unittestinfo_change' uti.pk %}">{{ uti.unit }} with Ref={{uti.reference }} &amp; Tolerance = {{uti.tolerance}}</a></li>
+        {% with ref=uti.reference|reference_display:original|default:not_set tol=uti.tolerance.plain_display|default:not_set %}
+        <li><a href="{% url 'admin:qa_unittestinfo_change' uti.pk %}">{% blocktrans with unit=uti.unit %}{{ unit }} with Ref={{ ref }} &amp; Tolerance = {{ tol }}{% endblocktrans %}</a></li>
+        {% endwith %}
     {% endfor %}
 </ul>
 
