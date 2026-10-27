@@ -206,11 +206,16 @@ Deployment and Upgrade Notes
   ``QATRACK_LOGS_DIR``, ``QATRACK_USER_DATA_DIR`` or ``QATRACK_BACKUPS_DIR`` in
   ``.env``. Every service, the nightly backup and ``restore-media`` included, uses
   the same folder, and the ``init`` service gives the folder to the QATrack+ user
-  each time the site starts. For a site already in use, copy the data across first:
-  :ref:`docker_data_dirs` shows how, step by step. The database stays in its
-  volume. ``init`` also no longer follows symbolic links when it re-owns files, so a
-  link can neither change a file outside QATrack+'s folders nor, if it points
-  nowhere, stop the site from starting. Based on the ``/app_data`` layout proposed
+  each time the site starts. So that it never does this to anyone else's files,
+  ``init`` only uses a folder that is empty (which it marks with a
+  ``.qatrackplus-data`` file) or already marked, and one that is not inside another
+  of QATrack+'s folders; otherwise the site does not start, nothing is changed, and
+  ``docker compose logs init`` says why. For a site already in use, copy the data
+  across first: :ref:`docker_data_dirs` shows how, step by step. The database stays
+  in its volume. ``init`` also no longer follows symbolic links or crosses into
+  another disk when it re-owns files, so a link can neither change a file outside
+  QATrack+'s folders nor, if it points nowhere, stop the site from starting, and it
+  logs how many files it re-owned. Based on the ``/app_data`` layout proposed
   in :issues:`#866 <866>`.
 
 * **Docker: container output is capped** at 50 MB per service, so what
