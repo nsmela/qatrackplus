@@ -80,6 +80,23 @@ html {
     margin-bottom: 10px;
 }
 
+/* Narrow windows: keep the page itself from scrolling sideways. */
+/* Long names with no spaces (e.g. task paths, password hashes) wrap instead
+   of widening the page. */
+#content {
+    overflow-wrap: break-word;
+}
+/* Django gives the paginator width: 100% plus side padding, which pokes 20px
+   past the results table. */
+#changelist .paginator {
+    box-sizing: border-box;
+}
+/* Wide tabular inlines (e.g. a unit's available hours) scroll inside their
+   own box rather than widening the page. */
+.inline-group .tabular {
+    overflow-x: auto;
+}
+
 /* Fix oversized delete button in submit-row */
 .submit-row .deletelink {
     display: inline-block !important;
@@ -98,7 +115,7 @@ html {
 {% block title %}{{ title }} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'home' %}" title="QATrack+ Home">{% trans 'QATrack+ administration' %}</a></h1>
+<h1 id="site-name"><a href="{% url 'home' %}" title="{% trans 'QATrack+ Home' %}">{% trans 'QATrack+ administration' %}</a></h1>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
@@ -164,12 +181,16 @@ never render the header block, so they have no pinned bar.
     if (window.django){
         django.jQuery(function(){
 
+            // Translated by the template engine: makemessages doesn't pick up
+            // gettext() calls inside .html templates.
+            var submittingLabel = "{% filter escapejs %}{% translate 'Submitting…' %}{% endfilter %}";
+
             django.jQuery("form").submit(function() {
 
                 if (this.beenSubmitted){
                     return false;
                 } else {
-                    django.jQuery(this).find("input[type=submit]").val("Submitting...");
+                    django.jQuery(this).find("input[type=submit]").val(submittingLabel);
                     this.beenSubmitted = true;
                 }
 
@@ -191,7 +212,10 @@ never render the header block, so they have no pinned bar.
     window.DYNAMIC_RAW_ID_MOUNT_URL = "{% url 'admin:index' %}";
 
     function initCalendar(){
-        window.CalendarNamespace.monthsOfYearShort = [
+        // Django's calendar.js already has translated short month names
+        // (pgettext with an "abbrev. month January" style context); plain gettext("Jan")
+        // finds no translation, so it is only the fallback.
+        window.CalendarNamespace.monthsOfYearShort = window.CalendarNamespace.monthsOfYearAbbrev ? window.CalendarNamespace.monthsOfYearAbbrev.slice() : [
             gettext("Jan"),
             gettext("Feb"),
             gettext("Mar"),

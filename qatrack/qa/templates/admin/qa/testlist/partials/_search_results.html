@@ -39,7 +39,9 @@
     {% for s in results %}
       <div class="tl-search-item tl-search-sublist-item"
            data-child-id="{{ s.id }}"
-           data-child-name="{{ s.name }}">
+           data-child-name="{{ s.name }}"
+           data-child-test-ids="{{ s.child_test_ids }}"
+           data-child-test-names="{{ s.child_test_names }}">
         <div class="tl-search-item-left">
           <div class="tl-search-item-title">
             <i class="fa fa-folder-o tl-sublist-folder-icon" aria-hidden="true"></i>

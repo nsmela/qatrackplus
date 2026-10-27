@@ -3,7 +3,8 @@
 
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}" />{% endblock %}
 
-{% block coltype %}colS{% endblock %}
+{# colMS (as in Django's own index.html) reserves room for the Recent Actions column; colS let it hang off the right edge below 1025px wide. #}
+{% block coltype %}colMS{% endblock %}
 
 {% block bodyclass %}dashboard{% endblock %}
 

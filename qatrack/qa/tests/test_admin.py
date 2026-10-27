@@ -497,6 +497,97 @@ class TestTestAdmin(TestCase):
         self.assertTrue('type' in form.errors)
 
 
+class TestAdminChangeFormTemplate(TestCase):
+    """The project-wide admin/change_form.html override keeps up with Django 4.2."""
+
+    def setUp(self):
+        self.test = qa_utils.create_test(name='change_form_test')
+        self.unit = qa_utils.create_unit()
+        self.test_url = reverse('admin:qa_test_change', args=(self.test.pk,))
+        self.test_list_url = reverse('admin:qa_test_changelist')
+
+    def test_form_id_uses_model_name(self):
+        create_user(is_superuser=True, uname='super', pwd='pwd')
+        self.client.login(username='super', password='pwd')
+        resp = self.client.get(self.test_url)
+        self.assertContains(resp, 'id="test_form"')
+        self.assertNotContains(resp, 'id="_form"')
+
+        resp = self.client.get(reverse('admin:units_unit_change', args=(self.unit.pk,)))
+        self.assertContains(resp, 'id="unit_form"')
+
+        resp = self.client.get(reverse('admin:qa_test_add'))
+        self.assertContains(resp, 'id="test_form"')
+
+    def test_testlist_form_id(self):
+        create_user(is_superuser=True, uname='super', pwd='pwd')
+        self.client.login(username='super', password='pwd')
+        tl = qa_utils.create_test_list(name='change_form_tl')
+        resp = self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,)))
+        self.assertContains(resp, 'id="testlist_form"')
+
+    def test_view_only_user_sees_changelist_breadcrumb(self):
+        viewer = create_user(is_superuser=False, uname='viewer', pwd='pwd')
+        viewer.user_permissions.add(Permission.objects.get(content_type__app_label='qa', codename='view_test'))
+        self.client.login(username='viewer', password='pwd')
+        resp = self.client.get(self.test_url)
+        self.assertEqual(resp.status_code, 200)
+        crumbs = re.search(r'<div class="breadcrumbs">(.*?)</div>', resp.content.decode(), re.S).group(1)
+        self.assertIn('href="%s"' % self.test_list_url, crumbs)
+
+
+class TestAdminChangeListTemplate(TestCase):
+    """The project-wide admin/change_list.html override keeps up with Django 4.2."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='super', pwd='pwd')
+        self.client.login(username='super', password='pwd')
+        self.test = qa_utils.create_test(name='change_list_test')
+        self.test_list = qa_utils.create_test_list(name='change_list_tl')
+        qa_utils.create_test_list_membership(self.test_list, self.test)
+        self.category = self.test.category
+        # Django hides the "By Category" filter (and so ignores it for "Clear all filters") with only one choice.
+        qa_utils.create_test(name='change_list_test2', category=qa_utils.create_category(name='Second Category', slug='cat2'))
+
+    def clear_link(self, resp):
+        m = re.search(
+            r'<h3 id="changelist-filter-clear">\s*<a href="([^"]*)">(.*?)</a>', resp.content.decode(), re.S
+        )
+        return m and (m.group(1), m.group(2))
+
+    def test_no_clear_link_without_filters(self):
+        for url in (reverse('admin:qa_test_changelist'), reverse('admin:qa_testlist_changelist')):
+            resp = self.client.get(url)
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, 'id="changelist-filter"')
+            self.assertNotContains(resp, 'id="changelist-filter-clear"')
+            self.assertNotContains(resp, 'Clear all filters')
+
+    def test_clear_link_with_active_filter(self):
+        resp = self.client.get(reverse('admin:qa_test_changelist'), {'category__id__exact': self.category.pk})
+        href, text = self.clear_link(resp)
+        self.assertEqual(href, '?')
+        self.assertIn('Clear all filters', text)
+
+    def test_clear_link_keeps_search_term(self):
+        resp = self.client.get(
+            reverse('admin:qa_test_changelist'), {'category__id__exact': self.category.pk, 'q': 'change'}
+        )
+        self.assertEqual(self.clear_link(resp)[0], '?q=change')
+
+    def test_testlist_clear_link_with_active_filter(self):
+        resp = self.client.get(reverse('admin:qa_testlist_changelist'), {'category': self.category.pk})
+        self.assertContains(resp, 'change_list_tl')
+        href, text = self.clear_link(resp)
+        self.assertEqual(href, '?')
+        self.assertIn('Clear all filters', text)
+
+    def test_results_use_django_form_container_class(self):
+        # Django 4's changelists.css sizes .changelist-form-container; .changelist-inner is QATrack+'s own hook.
+        resp = self.client.get(reverse('admin:qa_test_changelist'))
+        self.assertContains(resp, 'class="changelist-inner changelist-form-container"')
+
+
 class TestTestListAdmin(TestCase):
 
     def setUp(self):
@@ -1112,6 +1203,335 @@ class TestUnitTestInfoAdmin(TestCase):
         self.assertEqual(changes[1].tolerance, self.tol_2)
 
 
+class TestUnitTestInfoPercentToleranceNewReference(TestCase):
+    """The percent / zero reference check uses the reference about to be saved.
+
+    UnitTestInfo.clean used to check a percent tolerance against the reference
+    already stored on the UnitTestInfo, so changing a zero reference to a
+    non-zero one together with a percent tolerance was wrongly rejected.
+    """
+
+    ZERO_MSG = "Percentage based tolerances can not be used with reference value of zero (0)"
+    FORM_ZERO_MSG = "Reference value cannot be zero when using a percent tolerance"
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        get_internal_user()
+        self.unit = qa_utils.create_unit()
+        self.test = qa_utils.create_test(test_type=qa_models.SIMPLE)
+        self.test2 = qa_utils.create_test(test_type=qa_models.SIMPLE)
+        self.abs_tol = qa_utils.create_tolerance()
+        self.pct_tol = qa_utils.create_tolerance(tol_type=qa_models.PERCENT)
+        self.zero_uti = qa_utils.create_unit_test_info(
+            unit=self.unit, test=self.test, ref=qa_utils.create_reference(value=0),
+        )
+        self.hundred_uti = qa_utils.create_unit_test_info(
+            unit=self.unit, test=self.test2, ref=qa_utils.create_reference(value=100),
+        )
+
+    def _form(self, uti, data):
+        return qa_admin.UnitTestInfoForm(data, instance=uti, initial={'modified_by': self.user})
+
+    def _admin_post(self, uti, data):
+        data = dict({'unit': uti.unit_id, 'test': uti.test_id, 'comment': ''}, **data)
+        return self.client.post(reverse('admin:qa_unittestinfo_change', args=[uti.pk]), data)
+
+    def _builder_post(self, uti, data):
+        return self.client.post(reverse('admin:qa_testlist_machine_ref_tol', args=[uti.pk]), data)
+
+    def test_form_zero_to_nonzero_with_percent_accepted(self):
+        form = self._form(self.zero_uti, {
+            'unit': self.unit.pk, 'test': self.test.pk, 'reference_value': '100', 'tolerance': self.pct_tol.pk,
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        saved.refresh_from_db()
+        self.assertEqual(saved.reference.value, 100)
+        self.assertEqual(saved.tolerance, self.pct_tol)
+
+    def test_admin_zero_to_nonzero_with_percent_accepted(self):
+        resp = self._admin_post(self.zero_uti, {'reference_value': '100', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 302)
+        self.zero_uti.refresh_from_db()
+        self.assertEqual(self.zero_uti.reference.value, 100)
+        self.assertEqual(self.zero_uti.tolerance, self.pct_tol)
+
+    def test_builder_zero_to_nonzero_with_percent_accepted(self):
+        resp = self._builder_post(self.zero_uti, {'reference_value': '100', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['ok'])
+        self.zero_uti.refresh_from_db()
+        self.assertEqual(self.zero_uti.reference.value, 100)
+        self.assertEqual(self.zero_uti.tolerance, self.pct_tol)
+
+    def test_form_nonzero_to_zero_with_percent_rejected(self):
+        form = self._form(self.hundred_uti, {
+            'unit': self.unit.pk, 'test': self.test2.pk, 'reference_value': '0', 'tolerance': self.pct_tol.pk,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn(self.FORM_ZERO_MSG, form.errors['reference_value'])
+
+    def test_admin_nonzero_to_zero_with_percent_rejected(self):
+        resp = self._admin_post(self.hundred_uti, {'reference_value': '0', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, self.FORM_ZERO_MSG, count=1)
+        # the form's message only, not the model's as well
+        self.assertNotContains(resp, self.ZERO_MSG)
+        self.hundred_uti.refresh_from_db()
+        self.assertEqual(self.hundred_uti.reference.value, 100)
+        self.assertIsNone(self.hundred_uti.tolerance)
+
+    def test_builder_nonzero_to_zero_with_percent_rejected(self):
+        resp = self._builder_post(self.hundred_uti, {'reference_value': '0', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 422)
+        self.assertContains(resp, self.FORM_ZERO_MSG, status_code=422)
+        self.assertNotContains(resp, self.ZERO_MSG, status_code=422)
+        self.hundred_uti.refresh_from_db()
+        self.assertEqual(self.hundred_uti.reference.value, 100)
+        self.assertIsNone(self.hundred_uti.tolerance)
+
+    def test_builder_keep_zero_reference_with_percent_rejected(self):
+        # unchanged reference (pre-filled "0") still goes through the check
+        resp = self._builder_post(self.zero_uti, {'reference_value': '0', 'tolerance': self.pct_tol.pk})
+        self.assertEqual(resp.status_code, 422)
+        self.zero_uti.refresh_from_db()
+        self.assertIsNone(self.zero_uti.tolerance)
+
+    def test_numerical_tolerance_unaffected(self):
+        for uti, value in ((self.zero_uti, '100'), (self.hundred_uti, '0')):
+            form = self._form(uti, {
+                'unit': uti.unit_id, 'test': uti.test_id, 'reference_value': value, 'tolerance': self.abs_tol.pk,
+            })
+            self.assertTrue(form.is_valid(), form.errors)
+
+    def test_model_clean_still_uses_stored_reference(self):
+        # other code paths (no form) keep the model-level protection
+        self.zero_uti.tolerance = self.pct_tol
+        with self.assertRaisesMessage(ValidationError, self.ZERO_MSG):
+            self.zero_uti.clean()
+        self.hundred_uti.tolerance = self.pct_tol
+        self.hundred_uti.clean()
+
+    def test_model_clean_uses_pending_reference(self):
+        self.zero_uti.tolerance = self.pct_tol
+        self.zero_uti.reference = qa_models.Reference(value=100, type=qa_models.NUMERICAL, name='100')
+        self.zero_uti.clean()
+        self.hundred_uti.tolerance = self.pct_tol
+        self.hundred_uti.reference = qa_models.Reference(value=0, type=qa_models.NUMERICAL, name='0')
+        with self.assertRaisesMessage(ValidationError, self.ZERO_MSG):
+            self.hundred_uti.clean()
+
+
+class TestUnitTestInfoBooleanReferences(TestCase):
+    """Yes/No references are saved with the boolean type and read Yes/No everywhere.
+
+    References saved by older versions of UnitTestInfoForm kept the numerical
+    type even for Boolean tests; those must read Yes/No too, without changing
+    how pass/fail is calculated.
+    """
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        get_internal_user()
+        get_bool_tols()
+        qa_utils.create_status()
+        self.site = AdminSite()
+        self.admin = qa_admin.UnitTestInfoAdmin(qa_models.UnitTestInfo, self.site)
+
+        self.unit = qa_utils.create_unit()
+        self.t_bool = qa_utils.create_test(name='bool test', test_type=qa_models.BOOLEAN)
+        self.t_simple = qa_utils.create_test(name='simple test', test_type=qa_models.SIMPLE)
+        self.test_list = qa_utils.create_test_list()
+        qa_utils.create_test_list_membership(test_list=self.test_list, test=self.t_bool, order=0)
+        qa_utils.create_test_list_membership(test_list=self.test_list, test=self.t_simple, order=1)
+        self.utc = qa_utils.create_unit_test_collection(unit=self.unit, test_collection=self.test_list)
+        self.user.groups.add(self.utc.assigned_to)
+        self.uti_bool = qa_models.UnitTestInfo.objects.get(unit=self.unit, test=self.t_bool)
+        self.uti_simple = qa_models.UnitTestInfo.objects.get(unit=self.unit, test=self.t_simple)
+        self.bool_tol = qa_models.Tolerance.objects.filter(type=qa_models.BOOLEAN, bool_warning_only=False).first()
+
+    def _save_form(self, uti, reference_value, tolerance=None):
+        request = self.factory.get('/')
+        request.user = self.user
+        data = {
+            'unit': uti.unit_id,
+            'test': uti.test_id,
+            'reference_value': reference_value,
+            'tolerance': tolerance.pk if tolerance else '',
+        }
+        form = self.admin.get_form(request, uti)(instance=uti, data=data)
+        self.assertTrue(form.is_valid(), form.errors)
+        uti = form.save()
+        uti.refresh_from_db()
+        return uti
+
+    def test_form_saves_boolean_type(self):
+        uti = self._save_form(self.uti_bool, '1', self.bool_tol)
+        self.assertEqual(uti.reference.type, qa_models.BOOLEAN)
+        self.assertEqual(uti.reference.value, 1.0)
+        self.assertEqual(uti.reference.value_display(), 'Yes')
+        self.assertEqual(str(uti.reference), 'Yes')
+
+        uti = self._save_form(self.uti_bool, '0', self.bool_tol)
+        self.assertEqual(uti.reference.type, qa_models.BOOLEAN)
+        self.assertEqual(uti.reference.value, 0.0)
+        self.assertEqual(str(uti.reference), 'No')
+
+    def test_form_numerical_unchanged(self):
+        uti = self._save_form(self.uti_simple, '1')
+        self.assertEqual(uti.reference.type, qa_models.NUMERICAL)
+        self.assertEqual(uti.reference.value_display(), '1')
+        self.assertEqual(uti.reference.value_display(uti.test), '1')
+
+    def test_set_multiple_action_saves_boolean_type(self):
+        request = self.client.post('/').wsgi_request
+        request.user = self.user
+        request.POST = QueryDict('', mutable=True)
+        request.POST.update({
+            'tolerance': self.bool_tol.id,
+            'reference': '1',
+            'post': 'yes',
+            'apply': 'Set tolerances and references',
+        })
+        self.admin.set_multiple_references_and_tolerances(
+            request, qa_models.UnitTestInfo.objects.filter(pk=self.uti_bool.pk)
+        )
+        self.uti_bool.refresh_from_db()
+        self.assertEqual(self.uti_bool.reference.type, qa_models.BOOLEAN)
+        self.assertEqual(str(self.uti_bool.reference), 'Yes')
+
+    def _set_legacy_refs(self):
+        """A Boolean test with a numerical-typed 1/0 reference, as older versions saved them."""
+        self.legacy_yes = qa_utils.create_reference(name='True', ref_type=qa_models.NUMERICAL, value=1.0)
+        self.uti_bool.reference = self.legacy_yes
+        self.uti_bool.tolerance = self.bool_tol
+        self.uti_bool.save()
+        self.simple_ref = qa_utils.create_reference(name='1', ref_type=qa_models.NUMERICAL, value=1.0)
+        self.uti_simple.reference = self.simple_ref
+        self.uti_simple.save()
+
+    def test_value_display_legacy(self):
+        legacy_no = qa_utils.create_reference(name='False', ref_type=qa_models.NUMERICAL, value=0.0)
+        self.assertEqual(legacy_no.value_display(self.t_bool), 'No')
+        self.assertEqual(legacy_no.value_display(self.t_simple), '0')
+        self.assertEqual(legacy_no.value_display(), '0')
+
+    def test_admin_list_and_change_form_legacy(self):
+        self._set_legacy_refs()
+        self.assertEqual(self.admin.reference_display(self.uti_bool), 'Yes')
+        self.assertEqual(self.admin.reference_display(self.uti_simple), '1')
+
+        resp = self.client.get(reverse('admin:qa_unittestinfo_changelist'))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertRegex(content, r'<td class="field-reference_display">Yes</td>')
+        self.assertRegex(content, r'<td class="field-reference_display">1</td>')
+
+        resp = self.client.get(reverse('admin:qa_unittestinfo_change', args=[self.uti_bool.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertRegex(resp.content.decode(), r'<div class="readonly">Yes</div>')
+
+    def test_perform_qc_reference_column_legacy(self):
+        self._set_legacy_refs()
+        resp = self.client.get(reverse('perform_qa', kwargs={'pk': self.utc.pk}))
+        self.assertEqual(resp.status_code, 200)
+        cells = [
+            re.sub(r'<[^>]+>', ' ', c).split() for c in
+            re.findall(r'<td class="qa-reference">(.*?)</td>', resp.content.decode(), re.S)
+        ]
+        self.assertEqual(cells[0][0], 'Yes')
+        self.assertEqual(cells[1][0], '1')
+
+    def test_pass_fail_unchanged_for_legacy_and_new(self):
+        self._set_legacy_refs()
+        new_yes = qa_utils.create_reference(name='True', ref_type=qa_models.BOOLEAN, value=1.0)
+        for ref in (self.legacy_yes, new_yes):
+            for value, expected in ((1.0, qa_models.OK), (0.0, qa_models.ACTION)):
+                ti = qa_models.TestInstance(
+                    unit_test_info=self.uti_bool, reference=ref, tolerance=self.bool_tol, value=value
+                )
+                ti.calculate_pass_fail()
+                self.assertEqual(ti.pass_fail, expected)
+
+
+class TestUnitTestInfoAdminHistoryDisplay(TestCase):
+    """The history table reads "before → after", newest first, with "Not set" for empty values."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.unit = qa_utils.create_unit()
+        self.test = qa_utils.create_test(test_type=qa_models.SIMPLE)
+        self.tol_1 = qa_utils.create_tolerance(act_low=-5, tol_low=-3, tol_high=3, act_high=5)
+        self.tol_2 = qa_utils.create_tolerance(act_low=-10, tol_low=-8, tol_high=8, act_high=10)
+        self.uti = qa_utils.create_unit_test_info(unit=self.unit, test=self.test)
+        self.uti.reference = None
+        self.uti.tolerance = None
+        self.uti.save()
+        self.admin = qa_admin.UnitTestInfoAdmin(qa_models.UnitTestInfo, AdminSite())
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+    def _save(self, ref, tol, comment):
+        data = {
+            'unit': self.unit.id,
+            'test': self.test.id,
+            'test_type': self.test.type,
+            'reference_value': ref,
+            'tolerance': tol.id if tol else '',
+            'comment': comment,
+        }
+        form = self.admin.get_form(self.request, self.uti)(instance=self.uti, data=data)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.admin.save_model(self.request, self.admin.save_form(self.request, form, True), form, True)
+        self.uti.refresh_from_db()
+
+    def _rows(self):
+        html = str(self.admin.history(self.uti))
+        body = html.split('<tbody>')[1].split('</tbody>')[0]
+        return [re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '|', r)) for r in body.split('</tr>')[:-1]]
+
+    def test_two_changes_show_before_and_after_newest_first(self):
+        self._save('1.5', self.tol_1, 'First change')
+        self._save('2.5', self.tol_2, 'Second change')
+
+        rows = self._rows()
+        self.assertEqual(len(rows), 2)
+        newest, oldest = rows
+
+        # newest row: 1.5 -> 2.5, tol_1 -> tol_2
+        self.assertIn('Second change', newest)
+        self.assertLess(newest.index('1.5'), newest.index('2.5'))
+        self.assertLess(newest.index(self.tol_1.name), newest.index(self.tol_2.name))
+
+        # oldest row: Not set -> 1.5, Not set -> tol_1
+        self.assertIn('First change', oldest)
+        self.assertEqual(oldest.count('Not set'), 2)
+        self.assertLess(oldest.index('Not set'), oldest.index('1.5'))
+        self.assertNotIn('None', oldest)
+        self.assertNotIn('2.5', oldest)
+
+    def test_headers_and_unchanged_parts(self):
+        self._save('1.5', self.tol_1, 'Set both')
+        self._save('1.5', self.tol_2, 'Tolerance only')
+
+        html = str(self.admin.history(self.uti))
+        for label in ('When', 'Changed by', 'Before', 'After', 'Reason'):
+            self.assertIn('>%s</th>' % label, html)
+
+        newest = self._rows()[0]
+        # reference didn't change: shown once, marked, no arrow before it
+        self.assertEqual(newest.count('1.5'), 1)
+        self.assertIn('No change', newest)
+        self.assertEqual(newest.count('→'), 1)
+
+    def test_no_history(self):
+        self.assertEqual(str(self.admin.history(self.uti)), 'No history available')
+
+
 class TestTestListAdminBuilderUI(TestCase):
     """Smoke tests for the Test List Builder pass-1 admin UI (Details card +
     restyled changelist columns)."""
@@ -1398,6 +1818,186 @@ class TestTestListBuilderQuickFixes(TestCase):
         self.assertNotContains(resp, 'tl-card-id')
 
 
+class TestTestListBuilderDuplicateRefsTols(TestCase):
+    """Duplicate Test copies references/tolerances only with change_unittestinfo,
+    into new Reference rows, with a history entry for each copy."""
+
+    NO_REFS_MSG = "Your account can't set references and tolerances, so the new test starts without them on every unit."
+
+    def setUp(self):
+        self.user = create_user(is_superuser=False, uname='dupper', pwd='pwd')
+        test_ct = ContentType.objects.get_for_model(qa_models.Test)
+        self.user.user_permissions.add(Permission.objects.get(content_type=test_ct, codename='add_test'))
+        self.source = qa_utils.create_test(name='dup_source')
+        self.unit1 = qa_utils.create_unit(name='dup unit 1')
+        self.unit2 = qa_utils.create_unit(name='dup unit 2')
+        self.unit3 = qa_utils.create_unit(name='dup unit 3')
+        self.ref = qa_utils.create_reference(name='dup ref', value=12.5)
+        self.tol = qa_utils.create_tolerance()
+        self.uti1 = qa_utils.create_unit_test_info(unit=self.unit1, test=self.source, ref=self.ref, tol=self.tol)
+        self.uti2 = qa_utils.create_unit_test_info(unit=self.unit2, test=self.source, tol=self.tol)
+        self.uti3 = qa_utils.create_unit_test_info(unit=self.unit3, test=self.source)  # nothing set
+        self.url = reverse('admin:qa_testlist_duplicate_test')
+        self.client.login(username='dupper', password='pwd')
+
+    def _grant_change_uti(self):
+        uti_ct = ContentType.objects.get_for_model(qa_models.UnitTestInfo)
+        self.user.user_permissions.add(Permission.objects.get(content_type=uti_ct, codename='change_unittestinfo'))
+
+    def _duplicate(self):
+        resp = self.client.post(self.url, {'source_test_id': self.source.pk, 'new_name': 'dup copy'})
+        self.assertEqual(resp.status_code, 200)
+        return qa_models.Test.objects.get(name='dup copy')
+
+    def _assert_source_untouched(self):
+        for uti, ref, tol in ((self.uti1, self.ref, self.tol), (self.uti2, None, self.tol), (self.uti3, None, None)):
+            uti.refresh_from_db()
+            self.assertEqual(uti.reference, ref)
+            self.assertEqual(uti.tolerance, tol)
+            self.assertFalse(qa_models.UnitTestInfoChange.objects.filter(unit_test_info=uti).exists())
+        self.ref.refresh_from_db()
+        self.assertEqual(self.ref.value, 12.5)
+
+    def test_with_permission_copies_into_new_references(self):
+        self._grant_change_uti()
+        refs_before = qa_models.Reference.objects.count()
+        new = self._duplicate()
+        new_utis = {u.unit_id: u for u in qa_models.UnitTestInfo.objects.filter(test=new)}
+        self.assertEqual(set(new_utis), {self.unit1.pk, self.unit2.pk, self.unit3.pk})
+
+        copy1 = new_utis[self.unit1.pk]
+        self.assertNotEqual(copy1.reference_id, self.ref.pk)
+        self.assertEqual(copy1.reference.value, self.ref.value)
+        self.assertEqual(copy1.reference.type, self.ref.type)
+        self.assertEqual(copy1.reference.name, self.ref.name)
+        self.assertEqual(copy1.reference.created_by, self.user)
+        self.assertEqual(copy1.reference.modified_by, self.user)
+        self.assertEqual(copy1.tolerance, self.tol)  # tolerances are shared records by design
+        self.assertIsNone(new_utis[self.unit2.pk].reference)
+        self.assertEqual(new_utis[self.unit2.pk].tolerance, self.tol)
+        self.assertIsNone(new_utis[self.unit3.pk].reference)
+        self.assertIsNone(new_utis[self.unit3.pk].tolerance)
+        self.assertEqual(qa_models.Reference.objects.count(), refs_before + 1)
+
+        # editing the copy's reference leaves the source alone
+        copy1.reference.value = 99
+        copy1.reference.save()
+        self._assert_source_untouched()
+
+        changes = qa_models.UnitTestInfoChange.objects.filter(unit_test_info__test=new)
+        self.assertEqual(changes.count(), 2)  # unit 3 had nothing to copy
+        for change in changes:
+            self.assertEqual(change.comment, 'Copied from dup_source when duplicating')
+            self.assertEqual(change.changed_by, self.user)
+            self.assertIsNone(change.reference)
+            self.assertIsNone(change.tolerance)
+        c1 = changes.get(unit_test_info=copy1)
+        self.assertTrue(c1.reference_changed)
+        self.assertTrue(c1.tolerance_changed)
+        c2 = changes.get(unit_test_info=new_utis[self.unit2.pk])
+        self.assertFalse(c2.reference_changed)
+        self.assertTrue(c2.tolerance_changed)
+
+    def test_with_permission_dialog_promises_copy(self):
+        self._grant_change_uti()
+        resp = self.client.get(self.url, {'test_id': self.source.pk})
+        self.assertContains(resp, 'its references and tolerances on every unit')
+        self.assertNotContains(resp, self.NO_REFS_MSG)
+
+    def test_without_permission_creates_test_without_refs_tols(self):
+        refs_before = qa_models.Reference.objects.count()
+        new = self._duplicate()
+        self.assertEqual(new.created_by, self.user)
+        self.assertFalse(
+            qa_models.UnitTestInfo.objects.filter(test=new).filter(
+                Q(reference__isnull=False) | Q(tolerance__isnull=False)
+            ).exists()
+        )
+        self.assertEqual(qa_models.Reference.objects.count(), refs_before)
+        self.assertFalse(qa_models.UnitTestInfoChange.objects.filter(unit_test_info__test=new).exists())
+        self._assert_source_untouched()
+
+    def test_without_permission_dialog_says_so(self):
+        resp = self.client.get(self.url, {'test_id': self.source.pk})
+        self.assertContains(resp, self.NO_REFS_MSG)
+        self.assertNotContains(resp, 'its references and tolerances on every unit')
+
+    def test_saving_list_afterwards_adds_no_duplicate_utis(self):
+        self._grant_change_uti()
+        new = self._duplicate()
+        tl = qa_utils.create_test_list(name='dup tl')
+        qa_utils.create_test_list_membership(test_list=tl, test=new, order=0)
+        qa_utils.create_unit_test_collection(unit=self.unit1, test_collection=tl)
+        self.assertEqual(qa_models.UnitTestInfo.objects.filter(test=new, unit=self.unit1).count(), 1)
+        uti = qa_models.UnitTestInfo.objects.get(test=new, unit=self.unit1)
+        self.assertEqual(uti.reference.value, 12.5)
+
+
+class TestTestListBuilderDescAudit(TestCase):
+    """The description dialog records who changed the test, and when."""
+
+    def setUp(self):
+        self.creator = create_user(is_superuser=True, uname='creator', pwd='pwd')
+        self.editor = create_user(is_superuser=False, uname='editor', pwd='pwd')
+        self.viewer = create_user(is_superuser=False, uname='viewer', pwd='pwd')
+        test_ct = ContentType.objects.get_for_model(qa_models.Test)
+        self.editor.user_permissions.add(Permission.objects.get(content_type=test_ct, codename='change_test'))
+        self.test = qa_utils.create_test(name='desc_audit_test')
+        qa_models.Test.objects.filter(pk=self.test.pk).update(
+            description='Line one\nLine two', created_by=self.creator, modified_by=self.creator,
+        )
+        self.test.refresh_from_db()
+        self.url = reverse('admin:qa_testlist_test_desc_modal') + '?test_id=%d&index=0' % self.test.pk
+        self.test_ct = test_ct
+
+    def _entries(self):
+        from django.contrib.admin.models import LogEntry
+        return LogEntry.objects.filter(content_type=self.test_ct, object_id=str(self.test.pk))
+
+    def test_change_updates_modified_and_logs(self):
+        from django.contrib.admin.models import CHANGE
+        old_modified = self.test.modified
+        self.client.login(username='editor', password='pwd')
+        resp = self.client.post(self.url, {'description': 'New text'})
+        self.assertEqual(resp.status_code, 200)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'New text')
+        self.assertEqual(self.test.modified_by, self.editor)
+        self.assertGreater(self.test.modified, old_modified)
+        self.assertEqual(self.test.created_by, self.creator)
+        entries = list(self._entries())
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].action_flag, CHANGE)
+        self.assertEqual(entries[0].user, self.editor)
+        self.assertEqual(entries[0].get_change_message(), 'Changed description from the test list builder.')
+
+    def test_change_does_not_overwrite_other_fields(self):
+        self.client.login(username='editor', password='pwd')
+        qa_models.Test.objects.filter(pk=self.test.pk).update(name='renamed elsewhere')
+        self.client.post(self.url, {'description': 'New text'})
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.name, 'renamed elsewhere')
+
+    def test_unchanged_description_does_not_save_or_log(self):
+        old_modified = self.test.modified
+        self.client.login(username='editor', password='pwd')
+        # browsers send textarea line breaks as \r\n
+        resp = self.client.post(self.url, {'description': 'Line one\r\nLine two'})
+        self.assertEqual(resp.status_code, 200)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.modified, old_modified)
+        self.assertEqual(self.test.modified_by, self.creator)
+        self.assertFalse(self._entries().exists())
+
+    def test_forbidden_without_change_test(self):
+        self.client.login(username='viewer', password='pwd')
+        resp = self.client.post(self.url, {'description': 'Hacked'})
+        self.assertEqual(resp.status_code, 403)
+        self.test.refresh_from_db()
+        self.assertEqual(self.test.description, 'Line one\nLine two')
+        self.assertFalse(self._entries().exists())
+
+
 class TestTestListBuilderTypeValue(TestCase):
     """The base list builder shows a "Type Value" column (constant value,
     choices, wraparound range or calculation) instead of per-machine
@@ -1578,6 +2178,41 @@ class TestTestListAdminBreadcrumbs(TestCase):
         self.assertEqual(hrefs, [self.index_url, self.app_url, self.changelist_url])
 
 
+class TestTestListAdminActions(TestCase):
+    """TestListAdmin only declares actions that exist (the dead 'export_test_lists' name was removed)."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.changelist_url = reverse('admin:qa_testlist_changelist')
+
+    def test_declared_actions_all_resolve(self):
+        ma = qa_admin.TestListAdmin(qa_models.TestList, qa_admin.admin.site)
+        for action in ma.actions or []:
+            self.assertIsNotNone(ma.get_action(action), action)
+
+    def test_changelist_action_dropdown(self):
+        qa_utils.create_test_list()
+        resp = self.client.get(self.changelist_url)
+        self.assertEqual(resp.status_code, 200)
+        # delete_selected is disabled site-wide, so the Test List changelist has no actions
+        # and Django renders no action dropdown or selection checkboxes at all.
+        self.assertIsNone(resp.context['action_form'])
+        self.assertNotContains(resp, 'name="action"')
+        self.assertNotContains(resp, 'export_test_lists')
+
+    def test_posting_removed_action_does_nothing(self):
+        tl = qa_utils.create_test_list()
+        resp = self.client.post(self.changelist_url, {
+            'action': 'export_test_lists',
+            '_selected_action': [tl.pk],
+            'index': 0,
+        })
+        # Django treats an unknown action as "no action selected" and redisplays the list
+        self.assertIn(resp.status_code, (200, 302))
+        self.assertTrue(qa_models.TestList.objects.filter(pk=tl.pk).exists())
+
+
 class TestAdminPinnedHeader(TestCase):
     """base_site.html wraps the admin header and breadcrumbs in one sticky .qa-admin-top box."""
 
@@ -1625,6 +2260,46 @@ class TestAdminPinnedHeader(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'id="qa-admin-top"')
         self.assertNotContains(resp, 'class="breadcrumbs"')
+
+
+class TestAdminBaseSiteStrings(TestCase):
+    """base_site.html's own user-facing strings go through the template's translation tags."""
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+
+    def _assert_submitting_label(self, resp):
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'var submittingLabel = "Submitting…";', count=1)
+        self.assertContains(resp, '.val(submittingLabel)', count=1)
+        self.assertNotContains(resp, 'Submitting...')
+        # no template syntax leaks into the inline script
+        self.assertNotContains(resp, '{% translate')
+
+    def test_ordinary_change_form(self):
+        self._assert_submitting_label(self.client.get(reverse('admin:qa_frequency_add')))
+
+    def test_testlist_change_form(self):
+        tl = qa_utils.create_test_list()
+        self._assert_submitting_label(self.client.get(reverse('admin:qa_testlist_change', args=(tl.pk,))))
+
+    def test_home_link_title(self):
+        resp = self.client.get(reverse('admin:index'))
+        self.assertContains(resp, 'title="QATrack+ Home"', count=1)
+
+    def test_submitting_label_is_translated(self):
+        # {% translate %} looks its string up through django.template.base.gettext_lazy
+        def fake_gettext(msgid):
+            return 'Envoi…' if msgid == 'Submitting…' else msgid
+
+        with mock.patch('django.template.base.gettext_lazy', side_effect=fake_gettext):
+            resp = self.client.get(reverse('admin:qa_frequency_add'))
+        self.assertContains(resp, 'var submittingLabel = "Envoi…";')
+
+    def test_month_names_reuse_djangos_translations(self):
+        resp = self.client.get(reverse('admin:qa_frequency_add'))
+        self.assertContains(resp, 'window.CalendarNamespace.monthsOfYearAbbrev.slice()')
 
 
 class TestTestListBuilderSublistOutline(TestCase):
@@ -1710,6 +2385,121 @@ class TestTestListBuilderSublistOutline(TestCase):
         self.assertNotIn('display:none', tag)
         self.assertNotIn('checked', tag)
         self.assertNotContains(resp, 'tl-sublist-card tl-sublist-outlined')
+
+
+class TestTestListBuilderChangeSublist(TestCase):
+    """The builder's Change button: a saved Sublist row now points at a different list."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.parent = qa_utils.create_test_list(name='Parent List')
+        self.child = qa_utils.create_test_list(name='Old Child')
+        self.other = qa_utils.create_test_list(name='New Child')
+        qa_utils.create_test_list_membership(test_list=self.other, test=qa_utils.create_test(name='new child test'))
+        self.sublist = qa_utils.create_sublist(parent_test_list=self.parent, child_test_list=self.child)
+        self.sublist.outline = True
+        self.sublist.order = 3
+        self.sublist.save()
+        self.url = reverse('admin:qa_testlist_change', args=(self.parent.pk,))
+
+    def _input(self, content, name):
+        tags = re.findall(r'<input[^>]*name="%s"[^>]*>' % re.escape(name), content)
+        self.assertEqual(len(tags), 1, name)
+        return tags[0]
+
+    def test_swap_card_keeps_row_index_id_order_and_outline(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), {
+            'swap': '1', 'child_id': self.other.pk, 'index': 2, 'parent_id': self.parent.pk,
+            'sublist_id': self.sublist.pk, 'order': 3, 'outline': '1',
+        })
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertIn('id="children-2"', content)
+        self.assertIn('data-index="2"', content)
+        self.assertIn('data-order="3"', content)
+        self.assertIn('data-child-id="%d"' % self.other.pk, content)
+        self.assertIn('value="%d"' % self.sublist.pk, self._input(content, 'children-2-id'))
+        self.assertIn('value="%d"' % self.other.pk, self._input(content, 'children-2-child'))
+        self.assertIn('value="3"', self._input(content, 'children-2-order'))
+        self.assertIn('checked', self._input(content, 'children-2-outline'))
+        self.assertIn('tl-sublist-card tl-sublist-outlined', content)
+        self.assertIn('New Child', content)
+        self.assertIn('new child test', content)
+
+    def test_swap_card_outline_off(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), {
+            'swap': '1', 'child_id': self.other.pk, 'index': 0, 'sublist_id': self.sublist.pk,
+            'order': 0, 'outline': '0',
+        })
+        self.assertNotIn('checked', self._input(resp.content.decode(), 'children-0-outline'))
+
+    def test_new_card_has_no_id(self):
+        resp = self.client.get(reverse('admin:qa_testlist_add_sublist_card'), {
+            'child_id': self.other.pk, 'index': 4, 'sublist_id': self.sublist.pk,
+        })
+        content = resp.content.decode()
+        self.assertIn('value=""', self._input(content, 'children-4-id'))
+        self.assertIn('value="4"', self._input(content, 'children-4-order'))
+
+    def _post_data(self, **extra):
+        data = {
+            'name': self.parent.name,
+            'slug': 'parent-list',
+            'description': '',
+            'warning_message': '',
+            'javascript': '',
+            'attachment_set-TOTAL_FORMS': 0,
+            'attachment_set-INITIAL_FORMS': 0,
+            'attachment_set-MIN_NUM_FORMS': 0,
+            'attachment_set-MAX_NUM_FORMS': 1000,
+            'testlistmembership_set-TOTAL_FORMS': 0,
+            'testlistmembership_set-INITIAL_FORMS': 0,
+            'testlistmembership_set-MIN_NUM_FORMS': 0,
+            'testlistmembership_set-MAX_NUM_FORMS': 1000,
+            'children-TOTAL_FORMS': 1,
+            'children-INITIAL_FORMS': 1,
+            'children-MIN_NUM_FORMS': 0,
+            'children-MAX_NUM_FORMS': 1000,
+            'children-0-id': self.sublist.pk,
+            'children-0-parent': self.parent.pk,
+            'children-0-child': self.other.pk,
+            'children-0-order': 3,
+            'children-0-outline': 'on',
+        }
+        data.update(extra)
+        return data
+
+    def test_post_changed_child_updates_same_sublist(self):
+        resp = self.client.post(self.url, data=self._post_data())
+        self.assertEqual(resp.status_code, 302)
+        sublists = list(qa_models.Sublist.objects.filter(parent=self.parent))
+        self.assertEqual(len(sublists), 1)
+        self.assertEqual(sublists[0].pk, self.sublist.pk)
+        self.assertEqual(sublists[0].child_id, self.other.pk)
+        self.assertTrue(sublists[0].outline)
+        self.assertEqual(sublists[0].order, 3)
+
+    def test_failed_save_rerenders_changed_child(self):
+        # a validation error elsewhere must not quietly put the old child back
+        resp = self.client.post(self.url, data=self._post_data(name=''))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        child_inputs = re.findall(r'<input[^>]*name="children-0-child"[^>]*>', content)
+        self.assertTrue(child_inputs)
+        for tag in child_inputs:
+            self.assertIn('value="%d"' % self.other.pk, tag)
+        self.assertIn('data-child-id="%d"' % self.other.pk, content)
+        self.sublist.refresh_from_db()
+        self.assertEqual(self.sublist.child_id, self.child.pk)
+
+    def test_search_input_sends_q_and_sits_outside_main_form(self):
+        resp = self.client.get(self.url)
+        content = resp.content.decode()
+        tag = re.search(r'<input[^>]*id="tl-search-input"[^>]*>', content).group(0)
+        self.assertIn('name="q"', tag)
+        form_end = content.index('</form>', content.index('id="tl-tests-card"'))
+        self.assertGreater(content.index('id="tl-search-input"'), form_end)
 
 
 def _limited_testlist_user(can_add):
@@ -3058,8 +3848,7 @@ class TestTestListBuilderWordingAndAccessibility(TestCase):
         self.assertIn('<span class="tl-sublist-count">1 test</span>', content)
 
     def test_no_capitalised_or_three_dot_strings(self):
-        # base_site.html's admin-wide double-submit guard ("Submitting...") isn't part of the builder
-        content = self._change_form().replace('"Submitting..."', '')
+        content = self._change_form()
         self.assertNotIn('...', content)
         for old in ('TEST / SUBLIST', '>TEST<', '>CATEGORY<', '>TYPE<', '>SUBLIST<', '>INPUT<'):
             self.assertNotIn(old, content)
@@ -3291,3 +4080,71 @@ class TestTestListBuilderDesignSpec(TestCase):
         content = self._get(self.change_url)
         self.assertNotIn('btn-xs', content)
         self.assertNotIn('margin-right-5', content)
+
+
+class TestTestListBuilderSearchDuplicates(TestCase):
+    """The Add Test / Add Sublist search results carry what the builder needs to
+    block tests and sublists that would appear twice in a test list."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.t_a = qa_utils.create_test(name='Alpha test')
+        self.t_b = qa_utils.create_test(name='Beta test')
+        self.t_c = qa_utils.create_test(name='Gamma test')
+        self.current = qa_utils.create_test_list(name='current list')
+        qa_utils.create_test_list_membership(test_list=self.current, test=self.t_a)
+        self.other = qa_utils.create_test_list(name='other list')
+        qa_utils.create_test_list_membership(test_list=self.other, test=self.t_b, order=0)
+        qa_utils.create_test_list_membership(test_list=self.other, test=self.t_c, order=1)
+        self.empty = qa_utils.create_test_list(name='empty list')
+
+    def _items(self, content):
+        return re.findall(r'<div class="tl-search-item tl-search-sublist-item"(.*?)>', content, re.S)
+
+    def test_sublist_results_include_child_test_ids_and_names(self):
+        url = reverse('admin:qa_testlist_search_sublists')
+        resp = self.client.get(url, {'current_id': self.current.pk})
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        items = self._items(content)
+        self.assertEqual(len(items), 2)
+        other = [i for i in items if 'data-child-id="%d"' % self.other.pk in i][0]
+        self.assertIn('data-child-test-ids="%d,%d"' % (self.t_b.pk, self.t_c.pk), other)
+        names = re.search(r'data-child-test-names="([^"]*)"', other).group(1)
+        self.assertEqual(json.loads(names.replace('&quot;', '"')), ['Beta test', 'Gamma test'])
+        empty = [i for i in items if 'data-child-id="%d"' % self.empty.pk in i][0]
+        self.assertIn('data-child-test-ids=""', empty)
+        self.assertIn('data-child-test-names="[]"', empty)
+
+    def test_sublist_results_count_tests_of_the_lists_own_sublists(self):
+        """Matches TestListAdminForm.clean, which counts child.all_tests()."""
+        nested = qa_utils.create_test_list(name='nested list')
+        qa_utils.create_test_list_membership(test_list=nested, test=self.t_a)
+        qa_utils.create_sublist(parent_test_list=self.other, child_test_list=nested)
+        resp = self.client.get(reverse('admin:qa_testlist_search_sublists'), {'q': 'other list'})
+        other = self._items(resp.content.decode())[0]
+        ids = re.search(r'data-child-test-ids="([^"]*)"', other).group(1).split(',')
+        self.assertEqual(sorted(ids), sorted(str(t.pk) for t in (self.t_a, self.t_b, self.t_c)))
+
+    def test_sublist_search_excludes_current_list(self):
+        resp = self.client.get(reverse('admin:qa_testlist_search_sublists'), {'current_id': self.current.pk})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn('data-child-id="%d"' % self.current.pk, resp.content.decode())
+
+    def test_sublist_search_with_query_excludes_current_list(self):
+        resp = self.client.get(
+            reverse('admin:qa_testlist_search_sublists'), {'current_id': self.current.pk, 'q': 'list'},
+        )
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        self.assertNotIn('data-child-id="%d"' % self.current.pk, content)
+        self.assertIn('data-child-id="%d"' % self.other.pk, content)
+
+    def test_test_search_returns_every_test(self):
+        """Blocking happens in the browser, so tests already in a list are still listed."""
+        resp = self.client.get(reverse('admin:qa_testlist_search_tests'), {'q': 'test'})
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode()
+        for t in (self.t_a, self.t_b, self.t_c):
+            self.assertIn('data-test-id="%d"' % t.pk, content)

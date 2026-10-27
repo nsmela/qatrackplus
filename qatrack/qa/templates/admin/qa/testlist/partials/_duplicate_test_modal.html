@@ -22,8 +22,14 @@
               <span class="tl-type-badge" title="{{ source_meta.type_label }}">{{ source_meta.type_badge }}</span>
               {% if source.calculation_procedure %}<span class="tl-dup-badge"><i class="fa fa-calculator" aria-hidden="true"></i> {% trans "Calculation copied" %}</span>{% endif %}
             </div>
+            {% if can_copy_refs_tols %}
             <p class="tl-dup-note">{% trans "The new test copies this test's type, category, calculation, and its references and tolerances on every unit." %}
               {% trans "It's created as soon as you click Create & Add Test, even if you don't save this test list." %}</p>
+            {% else %}
+            <p class="tl-dup-note">{% trans "The new test copies this test's type, category and calculation." %}
+              {% trans "Your account can't set references and tolerances, so the new test starts without them on every unit." %}
+              {% trans "It's created as soon as you click Create & Add Test, even if you don't save this test list." %}</p>
+            {% endif %}
           </div>
         </div>
 

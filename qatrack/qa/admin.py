@@ -1,3 +1,4 @@
+import json
 import re
 
 from django import VERSION, forms
@@ -6,11 +7,12 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin import helpers, options, widgets
 from django.contrib.admin.helpers import flatten_fieldsets
-from django.contrib.admin.models import ADDITION, LogEntry
+from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.admin.options import IS_POPUP_VAR
 from django.contrib.admin.templatetags.admin_urls import add_preserved_filters
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import NON_FIELD_ERRORS
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.http import (
     Http404,
@@ -189,6 +191,44 @@ class UnitTestInfoForm(forms.ModelForm):
 
         return cleaned_data
 
+    _KEEP_REFERENCE = object()
+
+    def _reference_for_validation(self):
+        """The reference save() is about to attach, as an unsaved Reference (or None).
+
+        Returns _KEEP_REFERENCE when save() leaves the stored reference alone.
+        Only the value matters here: it's what UnitTestInfo.clean checks.
+        """
+        if 'reference_value' not in self.cleaned_data:
+            return self._KEEP_REFERENCE
+        reference_value = self.cleaned_data['reference_value']
+        if reference_value is None or reference_value == '':
+            return None
+        try:
+            value = float(reference_value)
+        except (TypeError, ValueError):
+            # not a number: clean() has already reported it where it matters
+            return None
+        return models.Reference(value=value, name=str(reference_value), type=models.NUMERICAL)
+
+    def _post_clean(self):
+        # UnitTestInfo.clean checks the tolerance against instance.reference, but
+        # the new Reference is only attached in save(). Show the model the pending
+        # reference while it validates, then put the stored one back so nothing
+        # changes on the instance if the form is invalid.
+        stored = self.instance.reference if self.instance.reference_id else None
+        pending = self._reference_for_validation() if self.instance.test_id else self._KEEP_REFERENCE
+        if self.has_error('reference_value'):
+            # clean() already said what's wrong with the reference; don't repeat it
+            pending = None
+        if pending is not self._KEEP_REFERENCE:
+            self.instance.reference = pending
+        try:
+            super()._post_clean()
+        finally:
+            if pending is not self._KEEP_REFERENCE and self.instance.reference is pending:
+                self.instance.reference = stored
+
     def save(self, commit=True):
         instance = super().save(commit=False)
 
@@ -221,6 +261,7 @@ class UnitTestInfoForm(forms.ModelForm):
             ref = models.Reference(
                 value=value,
                 name=str(value),
+                type=models.BOOLEAN if instance.test.type == models.BOOLEAN else models.NUMERICAL,
                 created_by=user,
                 modified_by=user,
             )
@@ -334,7 +375,7 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
             'fields': (
                 'unit',
                 'test',
-                'reference',
+                'reference_display',
                 'tolerance',
             )
         }),
@@ -354,11 +395,13 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
         }),
     )
 
-    list_display = [test_name, "unit", test_type, "reference", "tolerance"]
+    list_display = [test_name, "unit", test_type, "reference_display", "tolerance"]
     list_filter = [
         ActiveUnitTestInfoFilter, "unit__site", "unit", "test__category", "test__testlistmembership__test_list"
     ]
-    readonly_fields = ("reference", "test", "unit", "history")
+    # "reference" stays read-only (so the form never edits it) though the page
+    # shows reference_display, which reads Yes/No for Boolean tests.
+    readonly_fields = ("reference", "reference_display", "test", "unit", "history")
     search_fields = ("test__name", "test__display_name", "test__slug", "unit__name")
 
     def get_fields(self, request, obj=None):
@@ -382,6 +425,17 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
 
         return FormWithRequest
 
+    @admin.display(description=_l("Reference"), ordering="reference__value")
+    def reference_display(self, obj):
+        """The reference as the list column and the read-only field show it.
+
+        Used in place of the plain str(reference) so Boolean tests read Yes/No
+        even for older references stored with the numerical type.
+        """
+        if obj is None or obj.reference is None:
+            return None
+        return obj.reference.value_display(obj.test)
+
     @admin.display(description=_("Reference & Tolerance History"))
     def history(self, obj):
         """Display history of reference and tolerance changes"""
@@ -393,19 +447,33 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
         if not changes:
             return _("No history available")
 
-        # Create pairs of changes to show old and new values
-        history = []
-        current = {
-            'reference': obj.reference,
-            'tolerance': obj.tolerance,
-        }
+        # Each UnitTestInfoChange stores the values from *before* that change.
+        # The values *after* a change are the ones stored on the next newer
+        # change, or the current values on the UnitTestInfo for the newest
+        # change.  Walk back from the present (newest first) pairing them up.
+        def display(value):
+            if value is None:
+                return ""
+            if isinstance(value, models.Reference):
+                # pass the test so older Yes/No references stored as 1/0 read Yes/No
+                return value.value_display(obj.test)
+            return str(value)
 
+        def part(before, after, flagged):
+            before, after = display(before), display(after)
+            # a new Reference object is created on every save, so only call it a
+            # change when the flag is set *and* the displayed value differs
+            return {'before': before, 'after': after, 'changed': bool(flagged) and before != after}
+
+        history = []
+        after_ref, after_tol = obj.reference, obj.tolerance
         for change in changes:
-            history.append((current, change))
-            current = {
-                'reference': change.reference,
-                'tolerance': change.tolerance,
-            }
+            history.append({
+                'change': change,
+                'reference': part(change.reference, after_ref, change.reference_changed),
+                'tolerance': part(change.tolerance, after_tol, change.tolerance_changed),
+            })
+            after_ref, after_tol = change.reference, change.tolerance
 
         t = loader.get_template("admin/qa/unittestinfo/history.html")
         return t.render({'history': history})
@@ -511,6 +579,7 @@ class UnitTestInfoAdmin(BaseQATrackAdmin):
                     ref = models.Reference(
                         value=value,
                         name=str(value),
+                        type=models.BOOLEAN if uti.test.type == models.BOOLEAN else models.NUMERICAL,
                         created_by=request.user,
                         modified_by=request.user,
                     )
@@ -843,8 +912,14 @@ class SublistInlineFormSet(forms.models.BaseInlineFormSet):
 
         for form in self.forms:
             if getattr(form.instance, "child_id", None):
+                child = form.instance.child
+                # a saved row the user pointed at another list (Change): show
+                # the posted child on a re-render, or the next save would undo it
+                posted_child = form.data.get(form.add_prefix("child")) if form.is_bound else None
+                if posted_child and str(posted_child) != str(form.instance.child_id):
+                    child = models.TestList.objects.filter(pk=_int_param(posted_child, 0)).first() or child
                 form.sublist_meta = get_sublist_metadata(
-                    form.instance.child,
+                    child,
                     sublist_pk=form.instance.pk,
                     order=form.instance.order,
                     # use the bound value so a re-rendered form (after a
@@ -1251,11 +1326,17 @@ def testlist_search_sublists(request):
         qs = qs.order_by("name")[:25]
     results = []
     for tl in qs:
+        # Every test the list would bring in, counted the way TestListAdminForm.clean
+        # counts them (all_tests: its own tests plus its sublists'), so the builder
+        # can mark lists that would repeat a test without another request.
+        child_tests = list(tl.all_tests().order_by("name").values_list("id", "name"))
         results.append({
             "id": tl.id,
             "name": tl.name,
             "slug": tl.slug,
             "test_count": tl.tests.count(),
+            "child_test_ids": ",".join(str(test_id) for test_id, name in child_tests),
+            "child_test_names": json.dumps([name for test_id, name in child_tests]),
         })
     return render(request, "admin/qa/testlist/partials/_search_results.html", {
         "results": results,
@@ -1280,13 +1361,37 @@ def testlist_add_test_row(request):
     })
 
 
+def _int_param(value, default=None):
+    """``value`` as a non-negative int, or ``default`` if it isn't one."""
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return value if value >= 0 else default
+
+
 def testlist_add_sublist_card(request):
-    """HTMX endpoint to render a new sublist card."""
+    """HTMX endpoint to render a sublist card.
+
+    By default the card is a new sublist at formset row ``index``. With
+    ``swap=1`` it's for the builder's Change button: the same saved Sublist row
+    (``sublist_id``, ``order`` and ``outline`` are carried over) now pointing at
+    a different child list, so saving updates that row instead of deleting it
+    and adding a new one.
+    """
     child_id = request.GET.get("child_id")
-    index = request.GET.get("index", "0")
+    index = _int_param(request.GET.get("index"), 0)
     parent_id = request.GET.get("parent_id", "")
     child = get_object_or_404(models.TestList, pk=child_id)
-    sublist_meta = get_sublist_metadata(child, order=index)
+    if request.GET.get("swap") == "1":
+        sublist_meta = get_sublist_metadata(
+            child,
+            sublist_pk=_int_param(request.GET.get("sublist_id")),
+            order=_int_param(request.GET.get("order"), index),
+            outline=request.GET.get("outline") in ("1", "true", "on"),
+        )
+    else:
+        sublist_meta = get_sublist_metadata(child, order=index)
     return render(request, "admin/qa/testlist/partials/_sublist_card.html", {
         "sublist_meta": sublist_meta,
         "prefix": "children",
@@ -1309,8 +1414,24 @@ def testlist_test_desc_modal(request):
     test = get_object_or_404(models.Test.objects.select_related("category"), pk=test_id)
     if request.method == "POST":
         desc = request.POST.get("description", "")
-        test.description = desc
-        test.save(update_fields=["description"])
+        # Browsers send textarea line breaks as \r\n, so compare with line
+        # endings normalized: re-saving an untouched description isn't a change.
+        if desc.replace("\r\n", "\n") != (test.description or "").replace("\r\n", "\n"):
+            test.description = desc
+            test.modified_by = request.user
+            with transaction.atomic():
+                # Only these fields, so a stale in-memory Test can't overwrite
+                # other fields. "modified" is auto_now, which Django only
+                # refreshes when it's listed in update_fields.
+                test.save(update_fields=["description", "modified", "modified_by"])
+                LogEntry.objects.log_action(
+                    user_id=request.user.pk,
+                    content_type_id=ContentType.objects.get_for_model(test).pk,
+                    object_id=test.pk,
+                    object_repr=str(test),
+                    action_flag=CHANGE,
+                    change_message=_("Changed description from the test list builder."),
+                )
         test_meta = get_test_metadata(test)
         return render(request, "admin/qa/testlist/partials/_test_desc_cell.html", {
             "test_meta": test_meta,
@@ -1323,11 +1444,53 @@ def testlist_test_desc_modal(request):
     })
 
 
+def _copy_unit_test_infos(source, new_test, user):
+    """Give ``new_test`` the same references and tolerances as ``source`` on every unit.
+
+    Each reference is copied into a new Reference row so later edits to one test's
+    reference never change the other's. Tolerances are shared, reusable records by
+    design (the same Tolerance is used by many tests), so those are reused as-is.
+    A history entry is recorded on each new unit assignment that got a value.
+    """
+    comment = _("Copied from %(name)s when duplicating") % {"name": source.name}
+    source_utis = models.UnitTestInfo.objects.filter(test=source).select_related("reference", "tolerance", "unit")
+    for src in source_utis:
+        ref = None
+        if src.reference_id:
+            ref = models.Reference.objects.create(
+                name=src.reference.name,
+                type=src.reference.type,
+                value=src.reference.value,
+                created_by=user,
+                modified_by=user,
+            )
+        # the new test has no unit assignments yet (signals only add them when a
+        # test list is saved), but get_or_create keeps unit/test unique regardless
+        uti, created = models.UnitTestInfo.objects.get_or_create(
+            unit=src.unit,
+            test=new_test,
+            defaults={"active": src.active, "assigned_to": src.assigned_to},
+        )
+        old_reference, old_tolerance = uti.reference, uti.tolerance
+        uti.reference = ref
+        uti.tolerance = src.tolerance
+        uti.save()
+        if ref is not None or src.tolerance_id:
+            record_unit_test_info_change(
+                uti, old_reference, old_tolerance, comment, user, ["reference_value", "tolerance"],
+            )
+
+
+@transaction.atomic
 def testlist_duplicate_test(request):
     """HTMX / AJAX endpoint to duplicate a Test object, prompting user for new name and copying type, category, calculation, and unit references/tolerances.
 
     The new Test is created immediately, so this needs permission to add tests.
+    References and tolerances are only copied for users who can change them
+    (``qa.change_unittestinfo``); otherwise the new test starts without any.
+    Atomic so a failure while copying never leaves a half-made test behind.
     """
+    can_copy_refs_tols = request.user.has_perm("qa.change_unittestinfo")
     if not request.user.has_perm("qa.add_test"):
         return HttpResponseForbidden(_("You don't have permission to add tests. No test was created."))
     source_test_id = request.GET.get("test_id") or request.POST.get("source_test_id")
@@ -1343,6 +1506,7 @@ def testlist_duplicate_test(request):
             "suggested_name": suggested_name,
             "suggested_slug": suggested_slug,
             "index": index,
+            "can_copy_refs_tols": can_copy_refs_tols,
         })
 
     # POST: create new Test
@@ -1396,16 +1560,11 @@ def testlist_duplicate_test(request):
         modified_by=request.user,
     )
 
-    # Copy UnitTestInfo (references and tolerances across all units)
-    for uti in models.UnitTestInfo.objects.filter(test=source):
-        models.UnitTestInfo.objects.create(
-            unit=uti.unit,
-            test=new_test,
-            reference=uti.reference,
-            tolerance=uti.tolerance,
-            active=uti.active,
-            assigned_to=uti.assigned_to,
-        )
+    if can_copy_refs_tols:
+        _copy_unit_test_infos(source, new_test, request.user)
+    # Without change_unittestinfo nothing is copied: the new test starts without
+    # references/tolerances, and the usual signals create its (empty) unit
+    # assignments when the test list is saved on an assigned unit.
 
     index = request.POST.get("index", "0")
     test_list_id = request.POST.get("test_list_id", "")
@@ -1521,16 +1680,10 @@ def get_testlist_scope_units(test_list):
 
 
 def _machine_reference_display(test, reference):
-    """Reference as the UnitTestInfo admin shows it, with Yes/No for Boolean tests.
-
-    References saved from the UnitTestInfo form keep the default numerical type
-    even for Boolean tests, so read the test's type rather than the reference's.
-    """
+    """Reference as the UnitTestInfo admin shows it, with Yes/No for Boolean tests."""
     if reference is None or reference.value is None:
         return None
-    if test.is_boolean():
-        return _("Yes") if int(reference.value) == 1 else _("No")
-    return reference.value_display()
+    return reference.value_display(test)
 
 
 def machine_values_display(uti):
@@ -1684,6 +1837,12 @@ class MachineRefTolForm(UnitTestInfoForm):
             widget = self.fields[name].widget
             if not isinstance(widget, forms.HiddenInput):
                 widget.attrs["class"] = "tl-modal-input"
+
+    def _reference_for_validation(self):
+        # matches save(): an unchanged value keeps the current Reference
+        if "reference_value" not in self.changed_data:
+            return self._KEEP_REFERENCE
+        return super()._reference_for_validation()
 
     def save(self, commit=True):
         if "reference_value" not in self.changed_data:
@@ -1877,7 +2036,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     filter_horizontal = ("tests",)
 
-    actions = ['export_test_lists']
     list_display = (
         "col_id",
         "col_name",

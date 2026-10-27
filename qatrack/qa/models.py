@@ -686,12 +686,18 @@ class Reference(models.Model):
         if self.type == BOOLEAN and self.value not in (0, 1):
             raise ValidationError({"value": [_("Boolean values must be 0 or 1")]})
 
-    def value_display(self):
-        """return user friendly display value for this reference"""
+    def value_display(self, test=None):
+        """return user friendly display value for this reference
+
+        Pass the ``test`` this reference belongs to when you have it: older
+        versions of the Unit Test Info admin saved Yes/No references with the
+        numerical type, so a reference on a Boolean test reads Yes/No whatever
+        its own type says. Display only; the stored value (0 or 1) is unchanged.
+        """
 
         if self.value is None:
             return ""
-        if self.type == BOOLEAN:
+        if self.type == BOOLEAN or (test is not None and test.is_boolean()):
             return _("Yes") if int(self.value) == 1 else _("No")
         return "%.6G" % (self.value)
 
@@ -1735,7 +1741,17 @@ class TestList(TestCollectionInterface, TestPackMixin):
                 for i, test in enumerate(ordered_tests):
                     tests.append((order, i, test))
 
-            self._ordered_tests = [x[-1] for x in sorted(tests, key=lambda y: y[:-1])]
+            # A test that is both a direct member and in a sublist (or in two
+            # sublists) is only listed once, at its first position. The builder
+            # rejects this layout now, but older lists can still have it, and
+            # listing the test twice made Perform QC show two rows for one
+            # UnitTestInfo and save two conflicting TestInstances for it.
+            self._ordered_tests = []
+            seen = set()
+            for test in (x[-1] for x in sorted(tests, key=lambda y: y[:-1])):
+                if test.pk not in seen:
+                    seen.add(test.pk)
+                    self._ordered_tests.append(test)
         return self._ordered_tests
 
     def ordered_members(self):

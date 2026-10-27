@@ -229,7 +229,7 @@
                       </td>
                       <td class="review-ref">
                         {% if ti.reference %}
-                          {{ ti.reference.value_display }}
+                          {{ ti.reference|reference_display:ti.unit_test_info.test }}
                         {% endif %}
                       </td>
                       <td style="font-size: 0.8em">

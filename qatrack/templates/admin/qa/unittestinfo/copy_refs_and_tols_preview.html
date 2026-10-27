@@ -1,6 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 {% load i18n %}
+{% load qa_tags %}
 
 {% block breadcrumbs %}
   <div class="breadcrumbs">
@@ -46,9 +47,9 @@
     {% for dest, source in dest_source_utis %}
       <tr>
         <td>{{dest.test}}</td>
-        <td>{{dest.reference.value_display}}</td>
+        <td>{{ dest.reference|reference_display:dest.test }}</td>
         <td>{% firstof dest.tolerance "<em>--</em>" %}</td>
-        <td>{{source.reference.value_display}}</td>
+        <td>{{ source.reference|reference_display:source.test }}</td>
         <td>{% firstof source.tolerance "<em>--</em>" %}</td>
       </tr>
     {% endfor %}

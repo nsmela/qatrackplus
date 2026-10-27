@@ -481,7 +481,8 @@
       <div class="tl-modal-body">
         <div class="tl-search-input-wrap">
           <i class="fa fa-search tl-search-input-icon" aria-hidden="true"></i>
-          <input type="text" id="tl-search-input" class="tl-search-input"
+          {# name="q": htmx sends the input's own value as ?q=, which the search endpoints filter on #}
+          <input type="text" id="tl-search-input" name="q" class="tl-search-input"
                  placeholder="{% trans "Type to filter…" %}" aria-labelledby="tl-search-modal-title"
                  autocomplete="off"
                  hx-get="{% url 'admin:qa_testlist_search_tests' %}"

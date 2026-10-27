@@ -1893,6 +1893,30 @@ input[type="text"].tl-search-input:focus,
   outline-offset: 1px;
 }
 
+/* ---- Search Results: Blocked Duplicates ---- */
+/* A result that would repeat a test: still listed, but its button is disabled
+   and a short reason sits under its name. Text stays #555 so it reads at 4.5:1
+   on the #f5f7fa hover background too. */
+.tl-btn-select-test:disabled, .tl-btn-select-sublist:disabled,
+.tl-btn-select-test:disabled:hover, .tl-btn-select-sublist:disabled:hover {
+  background: #fff;
+  color: #555;
+  border-style: dashed;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.tl-search-item-blocked {
+  cursor: default;
+}
+.tl-search-blocked-note {
+  font-size: 12px;
+  color: #555;
+}
+.tl-search-blocked-note .fa {
+  color: #8a6420;
+  margin-right: 2px;
+}
+
 /* ---- Unsaved Changes Dialog ---- */
 .tl-unsaved-dialog {
   max-width: 460px;
@@ -2377,6 +2401,15 @@ ul.messagelist li.error {
     "%(name)s (Copy)": "{% trans '%(name)s (Copy)' as s %}{{ s|escapejs }}",
     "%(size)s KB": "{% trans '%(size)s KB' as s %}{{ s|escapejs }}",
     "Add an optional comment…": "{{ _('Add an optional comment…')|escapejs }}",
+    "Already a sublist here": "{{ _('Already a sublist here')|escapejs }}",
+    "Already in sublist %(name)s": "{% trans 'Already in sublist %(name)s' as s %}{{ s|escapejs }}",
+    "Already in this test list": "{{ _('Already in this test list')|escapejs }}",
+    "Can't add: this test is already in sublist %(name)s.": "{% trans "Can't add: this test is already in sublist %(name)s." as s %}{{ s|escapejs }}",
+    "Can't add: this test is already in this test list.": "{{ _("Can't add: this test is already in this test list.")|escapejs }}",
+    "Can't add: this test list is already a sublist here.": "{{ _("Can't add: this test list is already a sublist here.")|escapejs }}",
+    "Can't add: these tests are already in this test list: %(tests)s.": "{% trans "Can't add: these tests are already in this test list: %(tests)s." as s %}{{ s|escapejs }}",
+    "Repeats: %(tests)s": "{% trans 'Repeats: %(tests)s' as s %}{{ s|escapejs }}",
+    "Repeats: %(tests)s and %(count)s more": "{% trans 'Repeats: %(tests)s and %(count)s more' as s %}{{ s|escapejs }}",
     "Another test list already uses this slug. Choose a different one.": "{{ _('Another test list already uses this slug. Choose a different one.')|escapejs }}",
     "Assign": "{{ _('Assign')|escapejs }}",
     "Assigning…": "{{ _('Assigning…')|escapejs }}",
@@ -2389,7 +2422,8 @@ ul.messagelist li.error {
     "Couldn't load the list. Close this dialog and try again.": "{{ _("Couldn't load the list. Close this dialog and try again.")|escapejs }}",
     "Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.": "{{ _("Couldn't open the Assign to Machine dialog. Nothing was saved. Try again.")|escapejs }}",
     "Couldn't create the tolerance. Nothing was saved. Try again.": "{{ _("Couldn't create the tolerance. Nothing was saved. Try again.")|escapejs }}",
-    "Couldn't open the New Tolerance dialog. Nothing was saved. Try again.": "{{ _("Couldn't open the New Tolerance dialog. Nothing was saved. Try again.")|escapejs }}",
+    "Couldn't open the Duplicate dialog. Nothing was created. Try again.": "{{ _("Couldn't open the Duplicate dialog. Nothing was created. Try again.")|escapejs }}",
+    "Couldn't open the New Tolerance dialog. Nothing was saved. Try again.":"{{ _("Couldn't open the New Tolerance dialog. Nothing was saved. Try again.")|escapejs }}",
     "Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.": "{{ _("Couldn't open the Reference and Tolerance dialog. Nothing was changed. Try again.")|escapejs }}",
     "Couldn't save the reference and tolerance. Nothing was changed. Try again.": "{{ _("Couldn't save the reference and tolerance. Nothing was changed. Try again.")|escapejs }}",
     "Couldn't save the description. Nothing was saved. Try again.": "{{ _("Couldn't save the description. Nothing was saved. Try again.")|escapejs }}",
@@ -2429,7 +2463,8 @@ ul.messagelist li.error {
     "Type Value": "{{ _('Type Value')|escapejs }}",
     "Untitled Test List": "{{ _('Untitled Test List')|escapejs }}",
     "Use only lowercase letters, numbers, hyphens and underscores.": "{{ _('Use only lowercase letters, numbers, hyphens and underscores.')|escapejs }}",
-    "Value…": "{{ _('Value…')|escapejs }}"
+    "Value…": "{{ _('Value…')|escapejs }}",
+    "You don't have permission to duplicate tests. Nothing was created.": "{{ _("You don't have permission to duplicate tests. Nothing was created.")|escapejs }}"
   };
   var hasOwn = Object.prototype.hasOwnProperty;
   var jsGettext = window.gettext || function (s) { return s; };
@@ -2606,6 +2641,153 @@ ul.messagelist li.error {
     updateCounts();
   }
 
+  // ---- Duplicate guard for the Add Test / Add Sublist dialogs ----
+  // A test may appear only once in a test list, counting its own tests and the
+  // tests in every sublist (TestListAdminForm.clean refuses the save otherwise).
+  // The search dialogs mark results that would break that rule, using what the
+  // builder holds right now: unsaved additions count, removed rows don't.
+
+  // Removed in the builder: same test as updateCounts and syncOrder.
+  function isBuilderRowRemoved(r) {
+    var del = r.querySelector("input[name$='-DELETE']");
+    var isDel = del && (del.checked || del.value === "true");
+    return !!isDel || r.style.display === "none";
+  }
+
+  // Rows the builder is still fetching (Add clicked, row not in the table yet).
+  var pendingBuilderAdds = { tests: {}, sublists: {} };
+
+  // {tests: {testId: sublistName or null}, sublists: {childId: true}}. The
+  // sublist being swapped by Change still counts as present (choosing it again
+  // is no change), but its tests don't count against its replacement.
+  function builderContents() {
+    var tests = {};
+    var sublists = {};
+    var rows = document.querySelectorAll("#tl-tests-tbody > tr.tl-member-item");
+    rows.forEach(function (r) {
+      if (r.classList.contains("empty-form") || isBuilderRowRemoved(r)) { return; }
+      if (r.classList.contains("tl-test-row")) {
+        var testInput = r.querySelector("input[name$='-test']");
+        var testId = r.getAttribute("data-test-id") || (testInput && testInput.value);
+        if (testId) { tests[testId] = null; }
+      } else if (r.classList.contains("tl-sublist-row")) {
+        // the -child input is what gets saved, so trust it over data-child-id
+        var childInput = r.querySelector("input[name$='-child']");
+        var childId = childInput ? childInput.value : r.getAttribute("data-child-id");
+        if (childId) { sublists[childId] = true; }
+        if (activeSwapCard && r.contains(activeSwapCard)) { return; }
+        var nameEl = r.querySelector(".tl-sublist-name");
+        var name = nameEl ? nameEl.textContent.trim() : "";
+        r.querySelectorAll("tr.tl-sublist-test-row[data-test-id]").forEach(function (tr) {
+          var tid = tr.getAttribute("data-test-id");
+          if (tid && !hasOwn.call(tests, tid)) { tests[tid] = name; }
+        });
+      }
+    });
+    Object.keys(pendingBuilderAdds.tests).forEach(function (tid) {
+      if (!hasOwn.call(tests, tid)) { tests[tid] = pendingBuilderAdds.tests[tid]; }
+    });
+    Object.keys(pendingBuilderAdds.sublists).forEach(function (cid) { sublists[cid] = true; });
+    return { tests: tests, sublists: sublists };
+  }
+
+  function sublistResultTests(item) {
+    var ids = (item.getAttribute("data-child-test-ids") || "").split(",").filter(Boolean);
+    var names = [];
+    try { names = JSON.parse(item.getAttribute("data-child-test-names") || "[]") || []; } catch (err) { names = []; }
+    return ids.map(function (tid, i) { return { id: tid, name: names[i] || tid }; });
+  }
+
+  // null when the test can be added, else {note, title}.
+  function testBlockReason(testId, have) {
+    if (!testId || !hasOwn.call(have.tests, testId)) { return null; }
+    var sublistName = have.tests[testId];
+    if (sublistName === null) {
+      return {
+        note: gettext("Already in this test list"),
+        title: gettext("Can't add: this test is already in this test list.")
+      };
+    }
+    return {
+      note: interpolate(gettext("Already in sublist %(name)s"), { name: sublistName }, true),
+      title: interpolate(gettext("Can't add: this test is already in sublist %(name)s."), { name: sublistName }, true)
+    };
+  }
+
+  function sublistBlockReason(item, have) {
+    var childId = item.getAttribute("data-child-id");
+    if (childId && have.sublists[childId]) {
+      return {
+        note: gettext("Already a sublist here"),
+        title: gettext("Can't add: this test list is already a sublist here.")
+      };
+    }
+    var repeats = sublistResultTests(item).filter(function (t) {
+      return hasOwn.call(have.tests, t.id);
+    }).map(function (t) { return t.name; });
+    if (!repeats.length) { return null; }
+    var shown = repeats.slice(0, 3).join(", ");
+    var note = repeats.length > 3 ?
+      interpolate(gettext("Repeats: %(tests)s and %(count)s more"), { tests: shown, count: repeats.length - 3 }, true) :
+      interpolate(gettext("Repeats: %(tests)s"), { tests: shown }, true);
+    return {
+      note: note,
+      title: interpolate(gettext("Can't add: these tests are already in this test list: %(tests)s."),
+        { tests: repeats.join(", ") }, true)
+    };
+  }
+
+  function applySearchBlock(item, btn, reason) {
+    var left = item.querySelector(".tl-search-item-left");
+    var note = item.querySelector(".tl-search-blocked-note");
+    item.classList.toggle("tl-search-item-blocked", !!reason);
+    if (reason) {
+      if (!note && left) {
+        note = document.createElement("div");
+        note.className = "tl-search-blocked-note";
+        note.innerHTML = '<i class="fa fa-exclamation-triangle" aria-hidden="true"></i> <span class="tl-search-blocked-text"></span>';
+        left.appendChild(note);
+      }
+      if (note) { note.querySelector(".tl-search-blocked-text").textContent = reason.note; }
+      if (btn) {
+        if (btn === document.activeElement) {
+          var input = document.getElementById("tl-search-input");
+          if (input) { input.focus(); }
+        }
+        btn.disabled = true;
+        btn.setAttribute("aria-disabled", "true");
+        btn.title = reason.title;
+      }
+    } else {
+      if (note) { note.parentNode.removeChild(note); }
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute("aria-disabled");
+        btn.removeAttribute("title");
+      }
+    }
+  }
+
+  // Marks every result in the search dialog; runs whenever results arrive.
+  function markSearchResults() {
+    var box = document.getElementById("tl-search-results-box");
+    if (!box) { return; }
+    var have = builderContents();
+    box.querySelectorAll(".tl-search-test-item").forEach(function (item) {
+      applySearchBlock(item, item.querySelector(".tl-btn-select-test"),
+        testBlockReason(item.getAttribute("data-test-id"), have));
+    });
+    box.querySelectorAll(".tl-search-sublist-item").forEach(function (item) {
+      applySearchBlock(item, item.querySelector(".tl-btn-select-sublist"), sublistBlockReason(item, have));
+    });
+  }
+
+  document.addEventListener("htmx:afterSwap", function (e) {
+    if (e.detail && e.detail.target && e.detail.target.id === "tl-search-results-box") {
+      markSearchResults();
+    }
+  });
+
   function openSearchModal(mode, swapCard) {
     activeSwapCard = swapCard || null;
     var modal = document.getElementById("tl-search-modal");
@@ -2647,6 +2829,7 @@ ul.messagelist li.error {
         .then(function (html) {
           resultsBox.innerHTML = html;
           if (window.htmx) { htmx.process(resultsBox); }
+          markSearchResults();
         })
         .catch(function () {
           resultsBox.innerHTML = '<div class="tl-search-no-results" role="alert">' +
@@ -2661,6 +2844,10 @@ ul.messagelist li.error {
   }
 
   function addTestRow(testId) {
+    // backstop for a stale result or a fast second click: never add a repeat
+    if (testBlockReason(String(testId), builderContents())) { return; }
+    pendingBuilderAdds.tests[testId] = null;
+    var clearPending = function () { delete pendingBuilderAdds.tests[testId]; };
     var totalFormsInput = document.getElementById("id_testlistmembership_set-TOTAL_FORMS");
     var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
     var testsCard = document.getElementById("tl-tests-card");
@@ -2673,6 +2860,7 @@ ul.messagelist li.error {
     fetch(url)
       .then(function (res) { return res.text(); })
       .then(function (html) {
+        clearPending();
         var tbody = document.getElementById("tl-tests-tbody");
         if (!tbody) { return; }
         var temp = document.createElement("tbody");
@@ -2685,32 +2873,62 @@ ul.messagelist li.error {
           syncOrder();
           initSortables();
         }
-      });
+      }, clearPending);
   }
 
-  function addSublistCard(childId) {
+  // childTests/childName (optional, from the search result) let the sublist's
+  // tests count as present while its card is still loading.
+  function addSublistCard(childId, childTests, childName) {
+    // backstop for a stale result or a fast second click: never add a sublist twice
+    // (the click handler has already checked its tests against the builder)
+    if (builderContents().sublists[String(childId)]) { return; }
+    var pendingTestIds = (childTests || []).map(function (t) { return t.id; }).filter(function (tid) {
+      return !hasOwn.call(pendingBuilderAdds.tests, tid);
+    });
+    pendingBuilderAdds.sublists[childId] = true;
+    pendingTestIds.forEach(function (tid) { pendingBuilderAdds.tests[tid] = childName || ""; });
+    var clearPending = function () {
+      delete pendingBuilderAdds.sublists[childId];
+      pendingTestIds.forEach(function (tid) { delete pendingBuilderAdds.tests[tid]; });
+    };
     if (activeSwapCard) {
-      var card = activeSwapCard;
-      var index = card.getAttribute("data-index") || "0";
-      var testsCard = document.getElementById("tl-tests-card");
-      var originalId = testsCard ? (testsCard.getAttribute("data-original-id") || "") : "";
-      var url = builderUrl("add-sublist-card") + "?child_id=" + encodeURIComponent(childId) +
-                "&index=" + index +
-                "&parent_id=" + encodeURIComponent(originalId);
-      fetch(url)
-        .then(function (res) { return res.text(); })
+      // Change: the same Sublist row now points at a different list. Keep its
+      // formset index, saved id, order and outline so saving updates that row.
+      var oldRow = activeSwapCard;
+      activeSwapCard = null;
+      var rowInput = function (suffix) { return oldRow.querySelector("input[name$='-" + suffix + "']"); };
+      var idInput = rowInput("id");
+      var outlineInput = rowInput("outline");
+      var orderInput = rowInput("order");
+      var swapTestsCard = document.getElementById("tl-tests-card");
+      var swapParentId = swapTestsCard ? (swapTestsCard.getAttribute("data-original-id") || "") : "";
+      var swapUrl = builderUrl("add-sublist-card") + "?swap=1&child_id=" + encodeURIComponent(childId) +
+                "&index=" + encodeURIComponent(oldRow.getAttribute("data-index") || "0") +
+                "&sublist_id=" + encodeURIComponent(idInput ? idInput.value : "") +
+                "&order=" + encodeURIComponent(orderInput ? orderInput.value : "") +
+                "&outline=" + (outlineInput && outlineInput.checked ? "1" : "0") +
+                "&parent_id=" + encodeURIComponent(swapParentId);
+      fetch(swapUrl)
+        .then(function (res) {
+          if (!res.ok) { throw new Error(res.status); }
+          return res.text();
+        })
         .then(function (html) {
+          clearPending();
           var temp = document.createElement("tbody");
           temp.innerHTML = html.trim();
-          var newCard = temp.firstElementChild;
-          if (newCard && card.parentNode) {
-            card.parentNode.replaceChild(newCard, card);
-            if (window.htmx) { htmx.process(newCard); }
-            activeSwapCard = null;
-            syncOrder();
-            initSortables();
-          }
-        });
+          var newRow = temp.firstElementChild;
+          if (!newRow || !oldRow.parentNode) { return; }
+          // the search dialog has closed by now and handed focus back to the old Change button
+          var active = document.activeElement;
+          var hadFocus = !active || active === document.body || oldRow.contains(active);
+          oldRow.parentNode.replaceChild(newRow, oldRow);
+          if (window.htmx) { htmx.process(newRow); }
+          syncOrder();
+          initSortables();
+          if (hadFocus) { focusIfThere(newRow.querySelector(".tl-btn-change-sublist")); }
+        })
+        .catch(clearPending);
       return;
     }
 
@@ -2726,6 +2944,7 @@ ul.messagelist li.error {
     fetch(url)
       .then(function (res) { return res.text(); })
       .then(function (html) {
+        clearPending();
         var tbody = document.getElementById("tl-tests-tbody");
         if (!tbody) { return; }
         var temp = document.createElement("tbody");
@@ -2738,7 +2957,7 @@ ul.messagelist li.error {
           syncOrder();
           initSortables();
         }
-      });
+      }, clearPending);
   }
 
   // Drag-and-drop sortable support (HTML5 native + jQuery UI if available)
@@ -2903,8 +3122,8 @@ ul.messagelist li.error {
     var changeBtn = e.target.closest(".tl-btn-change-sublist");
     if (changeBtn) {
       e.preventDefault();
-      var card = changeBtn.closest(".tl-sublist-card");
-      openSearchModal("sublist", card);
+      // the whole saved row: Change keeps its formset index, id, order and outline
+      openSearchModal("sublist", changeBtn.closest("tr.tl-sublist-row"));
       return;
     }
 
@@ -2914,6 +3133,12 @@ ul.messagelist li.error {
       e.preventDefault();
       var row = testItem.closest(".tl-search-test-item");
       var testId = testItem.getAttribute("data-test-id") || (row && row.getAttribute("data-test-id"));
+      // check again now, not just when the results loaded: the click may be on a
+      // blocked row (only its button is disabled) or on a result that's out of date
+      if (testId && testBlockReason(testId, builderContents())) {
+        markSearchResults();
+        return;
+      }
       if (testId) {
         addTestRow(testId);
         closeSearchModal();
@@ -2927,8 +3152,12 @@ ul.messagelist li.error {
       e.preventDefault();
       var sRow = sublistItem.closest(".tl-search-sublist-item");
       var childId = sublistItem.getAttribute("data-child-id") || (sRow && sRow.getAttribute("data-child-id"));
+      if (childId && sRow && sublistBlockReason(sRow, builderContents())) {
+        markSearchResults();
+        return;
+      }
       if (childId) {
-        addSublistCard(childId);
+        addSublistCard(childId, sRow ? sublistResultTests(sRow) : null, sRow ? sRow.getAttribute("data-child-name") : "");
         closeSearchModal();
       }
       return;
@@ -2985,8 +3214,27 @@ ul.messagelist li.error {
         var currentIndex = totalFormsInput ? (parseInt(totalFormsInput.value, 10) || 0) : 0;
         var modalContainer = document.getElementById("tl-modal-container");
         if (modalContainer) {
-          fetch(builderUrl("duplicate-test") + "?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex)
-            .then(function(res) { return res.text(); })
+          hideRefTolNote();
+          var dLoadError = gettext("Couldn't open the Duplicate dialog. Nothing was created. Try again.");
+          fetch(builderUrl("duplicate-test") + "?test_id=" + encodeURIComponent(dTestId) + "&index=" + currentIndex, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+          })
+            .then(function(res) {
+              // a redirect means the session ended (login page), so it's not the dialog either
+              if (!res.ok || res.redirected) {
+                return res.text().then(function(text) {
+                  var msg = dLoadError;
+                  if (res.status === 403) {
+                    // the endpoint's own plain-text reason; never an HTML error page
+                    msg = text && !/^\s*</.test(text) ? text.trim()
+                      : gettext("You don't have permission to duplicate tests. Nothing was created.");
+                  }
+                  throw new Error(msg);
+                }, function() { throw new Error(dLoadError); });
+              }
+              return res.text();
+            })
             .then(function(html) {
               builderDialogFocus.containerOpener = dupBtn;
               modalContainer.innerHTML = html;
@@ -2994,7 +3242,8 @@ ul.messagelist li.error {
               if (dInput) { dInput.focus(); dInput.select(); }
             })
             .catch(function(err) {
-              console.error("Failed to load duplicate modal", err);
+              // a network failure (TypeError) has the browser's own English message
+              showRefTolNote((err instanceof TypeError || !err.message) ? dLoadError : err.message, true);
             });
         }
       }
@@ -3011,16 +3260,39 @@ ul.messagelist li.error {
         if (dModalClose) { dModalClose.remove(); }
       }
     }
+    // A click on a dialog's backdrop (outside the dialog box) closes that dialog
+    // through its own close function, so focus goes back to its opener.
     if (e.target.classList && e.target.classList.contains("tl-modal-backdrop")) {
-      if (e.target.id === "tl-search-modal") {
-        closeSearchModal();
-      } else if (e.target.id === "tl-desc-modal-backdrop" || e.target.id === "tl-duplicate-modal-backdrop") {
-        closeContainerDialog();
-      } else {
-        e.target.hidden = true;
+      var closeBackdrop = BACKDROP_CLOSERS[e.target.id];
+      var pressedHere = backdropPressTarget === e.target;
+      backdropPressTarget = null;
+      if (closeBackdrop && pressedHere) {
+        e.preventDefault();
+        closeBackdrop();
       }
     }
   });
+
+  // Each builder dialog's backdrop id → the function that closes that dialog
+  // (clears its state and returns focus to the control that opened it). The
+  // stacked New Tolerance dialog closes only itself; the Unsaved Changes
+  // backdrop means "Stay". Typed entries in Save As, Assign, Reference and
+  // Tolerance and New Tolerance are dropped, as with their Cancel buttons.
+  var BACKDROP_CLOSERS = {
+    "tl-search-modal": closeSearchModal,
+    "tl-desc-modal-backdrop": closeContainerDialog,
+    "tl-duplicate-modal-backdrop": closeContainerDialog,
+    "tl-saveas-modal": closeSaveAsDialog,
+    "tl-assign-modal": closeAssignDialog,
+    "tl-reftol-modal": closeRefTolDialog,
+    "tl-newtol-modal": function () { closeNewTolDialog(); },
+    "tl-unsaved-modal": function () { closeUnsavedDialog(false); }
+  };
+
+  // Only a press that also started on the backdrop counts: selecting text in a
+  // field and releasing the mouse outside the dialog must not close it.
+  var backdropPressTarget = null;
+  document.addEventListener("mousedown", function (e) { backdropPressTarget = e.target; }, true);
 
   // Duplicate test form submission & normal re-sync on form submission
   document.addEventListener("submit", function (e) {
@@ -3046,6 +3318,10 @@ ul.messagelist li.error {
         headers: { "X-Requested-With": "XMLHttpRequest" }
       })
       .then(function(res) {
+        if (res.redirected) {
+          // the session ended and this is the login page, not a new row
+          throw new Error(gettext("Couldn't create the test. Nothing was saved. Try again."));
+        }
         if (!res.ok) {
           return res.text().then(function(text) {
             // the endpoint's own message (plain text) when it has one; never its HTML error pages
@@ -3399,7 +3675,7 @@ ul.messagelist li.error {
     if (e.target.closest("#tl-btn-assign-machine")) {
       e.preventDefault();
       openAssignDialog();
-    } else if (e.target.closest("#tl-assign-modal [data-assign-close]") || e.target.id === "tl-assign-modal") {
+    } else if (e.target.closest("#tl-assign-modal [data-assign-close]")) {
       e.preventDefault();
       closeAssignDialog();
     } else if (e.target.closest("#tl-assign-note-close")) {
@@ -3584,7 +3860,10 @@ ul.messagelist li.error {
       if (form.requestSubmit) {
         form.requestSubmit();  // fires the submit listeners (e.g. syncOrder)
       } else {
+        // form.submit() fires no submit event: do what the submit listeners would
+        // (syncOrder) and tell the unsaved-changes guard this is a save, not leaving.
         syncOrder();
+        markIntentionalSubmit();
         form.submit();
       }
     });
@@ -4351,7 +4630,7 @@ ul.messagelist li.error {
       e.preventDefault();
       closeNewTolDialog(pickToleranceInRefTol(useBtn.getAttribute("data-tolerance-id"),
         useBtn.getAttribute("data-tolerance-label")));
-    } else if (e.target.closest("#tl-newtol-modal [data-newtol-close]") || e.target.id === "tl-newtol-modal") {
+    } else if (e.target.closest("#tl-newtol-modal [data-newtol-close]")) {
       e.preventDefault();
       closeNewTolDialog();
     }
@@ -4374,7 +4653,7 @@ ul.messagelist li.error {
     if (btn) {
       e.preventDefault();
       openRefTolDialog(btn);
-    } else if (e.target.closest("#tl-reftol-modal [data-reftol-close]") || e.target.id === "tl-reftol-modal") {
+    } else if (e.target.closest("#tl-reftol-modal [data-reftol-close]")) {
       e.preventDefault();
       closeRefTolDialog();
     } else if (e.target.closest("#tl-reftol-note-close")) {
@@ -4736,7 +5015,7 @@ ul.messagelist li.error {
   // new tab don't leave the page, so they never ask.
   var unsaved = {
     form: null, snapshot: null, forceChanged: false, allowLeave: false,
-    submitEvent: null, open: false, onLeave: null, onStay: null
+    submitEvent: null, intentionalSubmit: false, open: false, onLeave: null, onStay: null
   };
   // The scope dropdown only changes what's shown, and TOTAL_FORMS only counts
   // rows (an added-then-removed attachment shouldn't count as a change).
@@ -4797,6 +5076,13 @@ ul.messagelist li.error {
   function unsavedMsg(key, fallback) {
     var els = unsavedEls();
     return (els && els.modal.getAttribute("data-" + key)) || gettext(fallback);
+  }
+
+  // For a save sent with form.submit(), which fires no submit event (Save As in
+  // browsers without requestSubmit): call it just before submitting so the
+  // browser's leave prompt doesn't ask about the save itself. pageshow re-arms it.
+  function markIntentionalSubmit() {
+    unsaved.intentionalSubmit = true;
   }
 
   function leaveWithoutPrompt(url) {
@@ -4867,7 +5153,7 @@ ul.messagelist li.error {
 
   // Closing the tab, reloading, typing a URL, browser back: the browser's own prompt.
   window.addEventListener("beforeunload", function (e) {
-    if (unsaved.allowLeave) { return; }
+    if (unsaved.allowLeave || unsaved.intentionalSubmit) { return; }
     // A real save of the main form (one nothing cancelled) never asks.
     if (unsaved.submitEvent && !unsaved.submitEvent.defaultPrevented) { return; }
     if (!hasUnsavedChanges()) { return; }
@@ -4910,7 +5196,8 @@ ul.messagelist li.error {
     if (!unsaved.open || !e.target.closest) { return; }
     var els = unsavedEls();
     if (!els) { return; }
-    if (e.target === els.modal || e.target.closest("#tl-unsaved-stay")) {
+    // Its backdrop (= Stay) is handled with the other dialogs' backdrops.
+    if (e.target.closest("#tl-unsaved-stay")) {
       e.preventDefault();
       closeUnsavedDialog(false);
     } else if (e.target.closest("#tl-unsaved-leave")) {
@@ -4942,6 +5229,7 @@ ul.messagelist li.error {
     if (!e.persisted) { return; }
     unsaved.allowLeave = false;
     unsaved.submitEvent = null;
+    unsaved.intentionalSubmit = false;
     closeUnsavedDialog(false);
   });
 

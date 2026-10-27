@@ -42,7 +42,8 @@ def reference_tolerance_span(test, ref, tol):
         return mark_safe("<span>No Ref</span>")
 
     if test.is_boolean():
-        return mark_safe('<span title="Passing value = %s">%s</span>' % (ref.value_display(), ref.value_display()))
+        ref_display = ref.value_display(test)
+        return mark_safe('<span title="Passing value = %s">%s</span>' % (ref_display, ref_display))
 
     if not tol:
         if ref:
@@ -74,15 +75,26 @@ def reference_tolerance_span(test, ref, tol):
         )
 
 
+@register.filter
+def reference_display(ref, test=None):
+    """Display a reference, reading Yes/No when ``test`` is a Boolean test.
+
+    Usage: ``{{ ti.reference|reference_display:ti.unit_test_info.test }}``
+    """
+    if ref is None:
+        return ""
+    return ref.value_display(test)
+
+
 @register.simple_tag
-def tolerance_for_reference(tol, ref):
+def tolerance_for_reference(tol, ref, test=None):
 
     if not ref and tol and tol.type != models.MULTIPLE_CHOICE:
         return ""
 
     tsd = settings.TEST_STATUS_DISPLAY
-    if ref and ref.type == models.BOOLEAN:
-        expected = ref.value_display()
+    if ref and (ref.type == models.BOOLEAN or (test is not None and test.is_boolean())):
+        expected = ref.value_display(test)
         return mark_safe(
             '<span>%s: %s; %s: %s</span>' % (tsd['ok'], expected, tsd['action'], "Yes" if expected == "No" else "No")
         )

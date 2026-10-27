@@ -4,7 +4,7 @@
     data-child-id="{{ sublist_meta.child_id }}"
     data-prefix="{{ prefix }}"
     data-index="{{ index }}"
-    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ index }}{% endif %}">
+    data-order="{% if inline_admin_form %}{{ inline_admin_form.form.order.value|default:index }}{% else %}{{ sublist_meta.order }}{% endif %}">
   <td colspan="8" class="tl-sublist-cell">{# every column of the builder table, including the machine-mode ones #}
     {# a sublist the user removed before a failed save: hidden exactly as the Remove button leaves it #}
     <div class="tl-sublist-card{% if sublist_meta.outline %} tl-sublist-outlined{% endif %}"{% if inline_admin_form.form.DELETE.value %} style="opacity: 0; display: none;"{% endif %}>
@@ -26,10 +26,11 @@
         <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ inline_admin_form.form.order.value|default:index }}" class="tl-sublist-order-input">
         <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;"{% if inline_admin_form.form.DELETE.value %} checked{% endif %}>
       {% else %}
-        <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="">
+        {# a new sublist, or (Change) a saved Sublist row now pointing at a different child: same id and order #}
+        <input type="hidden" name="{{ prefix }}-{{ index }}-id" id="id_{{ prefix }}-{{ index }}-id" value="{{ sublist_meta.sublist_pk|default_if_none:'' }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-parent" id="id_{{ prefix }}-{{ index }}-parent" value="{{ parent_id|default:'' }}">
         <input type="hidden" name="{{ prefix }}-{{ index }}-child" id="id_{{ prefix }}-{{ index }}-child" value="{{ sublist_meta.child_id }}">
-        <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ index }}" class="tl-sublist-order-input">
+        <input type="hidden" name="{{ prefix }}-{{ index }}-order" id="id_{{ prefix }}-{{ index }}-order" value="{{ sublist_meta.order }}" class="tl-sublist-order-input">
         <input type="checkbox" name="{{ prefix }}-{{ index }}-DELETE" id="id_{{ prefix }}-{{ index }}-DELETE" class="tl-delete-checkbox" style="display:none;">
       {% endif %}
 

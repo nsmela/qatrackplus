@@ -72,11 +72,11 @@
                           {% if include_refs %}
                             <td>
                               {% if uti.reference %}
-                                {{uti.reference.value_display}}
+                                {{ uti.reference|reference_display:uti.test }}
                               {% endif %}
                             </td>
                             <td>
-                                {% tolerance_for_reference uti.tolerance uti.reference %}
+                                {% tolerance_for_reference uti.tolerance uti.reference uti.test %}
                             </td>
                           {% endif %}
                         </tr>

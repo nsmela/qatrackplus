@@ -73,7 +73,8 @@
         {{ cl.formset.non_form_errors }}
     {% endif %}
     <div class="module{% if cl.has_filters %} filtered{% endif %}" id="changelist">
-      <div class="changelist-inner">
+      {# changelist-form-container is Django 4's name (changelists.css sizes it); changelist-inner is kept for QATrack+ CSS. #}
+      <div class="changelist-inner changelist-form-container">
         {% block search %}{% search_form cl %}{% endblock %}
         {% block date_hierarchy %}{% date_hierarchy cl %}{% endblock %}
 
@@ -95,6 +96,9 @@
         {% if cl.has_filters %}
           <div id="changelist-filter">
             <h2>{% trans 'Filter' %}</h2>
+            {% if cl.has_active_filters %}<h3 id="changelist-filter-clear">
+              <a href="{{ cl.clear_all_filters_qs }}">&#10006; {% trans "Clear all filters" %}</a>
+            </h3>{% endif %}
             {% for spec in cl.filter_specs %}{% admin_list_filter cl spec %}{% endfor %}
           </div>
         {% endif %}
