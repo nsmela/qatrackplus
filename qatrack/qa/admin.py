@@ -1250,7 +1250,13 @@ class SublistInline(DynamicRawIDMixin, admin.TabularInline):
         return super().get_formset(request, obj, **kwargs)
 
 
-class ActiveTestListFilter(admin.SimpleListFilter):
+class CollapsedTestListFilter(admin.SimpleListFilter):
+    """Base for the Test Lists page filters: each one starts collapsed."""
+
+    template = "admin/qa/testlist/filter.html"
+
+
+class ActiveTestListFilter(CollapsedTestListFilter):
 
     NOACTIVEUTCS = 'noactiveutcs'
     HASACTIVEUTCS = 'hasactiveutcs'
@@ -1281,7 +1287,7 @@ class ActiveTestListFilter(admin.SimpleListFilter):
         return qs
 
 
-class UnitTestListFilter(admin.SimpleListFilter):
+class UnitTestListFilter(CollapsedTestListFilter):
 
     title = _l('Assigned to Unit')
 
@@ -1301,7 +1307,7 @@ class UnitTestListFilter(admin.SimpleListFilter):
         return qs
 
 
-class SiteTestListFilter(admin.SimpleListFilter):
+class SiteTestListFilter(CollapsedTestListFilter):
 
     title = _l('Assigned to Site')
 
@@ -1322,7 +1328,7 @@ class SiteTestListFilter(admin.SimpleListFilter):
         return qs
 
 
-class FrequencyTestListFilter(admin.SimpleListFilter):
+class FrequencyTestListFilter(CollapsedTestListFilter):
 
     title = _l('Assigned To Units by Frequency')
 
@@ -1346,7 +1352,7 @@ class FrequencyTestListFilter(admin.SimpleListFilter):
         return qs
 
 
-class CategoryTestListFilter(admin.SimpleListFilter):
+class CategoryTestListFilter(CollapsedTestListFilter):
     """Filter test lists by the categories of the tests they contain."""
 
     title = _l('Category')
