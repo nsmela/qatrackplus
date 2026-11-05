@@ -2413,7 +2413,7 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             label, len(unit_names), label,
         )
 
-    @admin.display(description=_l("Modified"), ordering="modified")
+    @admin.display(description=_l("Last Modified"), ordering="modified")
     def col_modified(self, obj):
         when = date_formatter(obj.modified, "d M Y")
         who = obj.modified_by.username if obj.modified_by_id else ""

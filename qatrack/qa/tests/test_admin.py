@@ -1591,6 +1591,11 @@ class TestTestListAdminBuilderUI(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'column-col_tests')
 
+    def test_modified_column_label(self):
+        qa_utils.create_test_list()
+        resp = self.client.get(reverse('admin:qa_testlist_changelist'))
+        self.assertContains(resp, 'Last Modified')
+
     def test_frequency_and_units_columns(self):
         tl = qa_utils.create_test_list()
         unit = qa_utils.create_unit()
