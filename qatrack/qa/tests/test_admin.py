@@ -1723,15 +1723,14 @@ class TestTestListBuilderQuickFixes(TestCase):
         resp = self.client.get(self.change_url)
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
-        self.assertNotContains(resp, 'rel="noopener" class="tl-test-desc"')
-        self.assertContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
+        self.assertNotContains(resp, 'rel="noopener" class="tl-test-link"')
+        self.assertContains(resp, '<div class="tl-test-desc">')
 
     def test_change_form_shows_test_actions_with_perms(self):
         self._login('super')
         resp = self.client.get(self.change_url)
         self.assertContains(resp, 'class="tl-action-icon tl-duplicate-test-btn"')
-        self.assertContains(resp, 'rel="noopener" class="tl-test-desc"')
-        self.assertNotContains(resp, 'class="tl-test-desc tl-test-desc-readonly"')
+        self.assertContains(resp, 'rel="noopener" class="tl-test-link"')
 
     def test_add_test_row_respects_perms(self):
         url = reverse('admin:qa_testlist_add_test_row')
@@ -1739,12 +1738,12 @@ class TestTestListBuilderQuickFixes(TestCase):
         resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'tl-duplicate-test-btn')
-        self.assertNotContains(resp, 'rel="noopener" class="tl-test-desc"')
+        self.assertNotContains(resp, 'rel="noopener" class="tl-test-link"')
         self.client.logout()
         self._login('super')
         resp = self.client.get(url, {'test_id': self.test.pk, 'index': 1})
         self.assertContains(resp, 'tl-duplicate-test-btn')
-        self.assertContains(resp, 'rel="noopener" class="tl-test-desc"')
+        self.assertContains(resp, 'rel="noopener" class="tl-test-link"')
 
     # --- URLs rendered by Django, not hard-coded in JS ---
 
@@ -4198,12 +4197,12 @@ class TestTestListBuilderDialogsOutsideForm(TestCase):
         self.assertEqual(after.modified, before.modified)
         self.assertEqual(list(after.tests.all()), [self.test])
 
-    def test_description_cell_is_a_link(self):
+    def test_test_cell_is_a_link(self):
         content = self._change_form()
-        match = re.search(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-test-desc"[^>]*>', content)
+        match = re.search(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-test-link"[^>]*>', content)
         self.assertIsNotNone(match)
         self.assertIn('href="%s"' % reverse('admin:qa_test_change', args=[self.test.pk]), match.group(0))
-        self.assertNotIn('<div class="tl-test-desc"', content)
+        self.assertNotRegex(content, r'<a [^>]*class="tl-test-desc')
 
     def test_browse_is_a_keyboard_button(self):
         content = self._change_form()

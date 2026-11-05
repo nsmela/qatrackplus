@@ -1,27 +1,8 @@
 {% load i18n static %}
-{# A test's description is edited on the Test's own page (like the row's pencil), never in the builder. #}
-{% with test_name=test_meta.display_name|default:test_meta.name %}
-{% if not perms.qa.change_test %}
-  {# Read-only for users who can't change tests. #}
-  {% if test_meta.description %}
-    <div class="tl-test-desc tl-test-desc-readonly">
-      <i class="fa fa-align-left" aria-hidden="true"></i>
-      <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
-    </div>
-  {% endif %}
-{% elif test_meta.description %}
-  {# the visible description stays the link's name; the hidden text says where it goes #}
-  <a href="{{ test_meta.edit_url }}" target="_blank" rel="noopener" class="tl-test-desc"
-     title="{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}">
+{# The description is plain text (blank when the test has none); the row's whole Test cell links to the Test's own page. #}
+{% if test_meta.description %}
+  <div class="tl-test-desc">
     <i class="fa fa-align-left" aria-hidden="true"></i>
     <span>{{ test_meta.description|striptags|truncatewords:16 }}</span>
-    <span class="tl-visually-hidden">{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}</span>
-  </a>
-{% else %}
-  <a href="{{ test_meta.edit_url }}" target="_blank" rel="noopener" class="tl-add-desc-link"
-     title="{% blocktrans with name=test_name %}Add Description to {{ name }} (opens in a new tab){% endblocktrans %}">
-    <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Description" %}
-    <span class="tl-visually-hidden">{% blocktrans with name=test_name %}to {{ name }} (opens in a new tab){% endblocktrans %}</span>
-  </a>
+  </div>
 {% endif %}
-{% endwith %}

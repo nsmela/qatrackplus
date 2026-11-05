@@ -340,6 +340,10 @@ Remove this file before the branch is merged.
   - "Add Description" on tests without one: also link to the Test edit page
     (or drop it; decide when building).
   - Rows added in the browser (add/duplicate) render the same link.
+  - Later changed: the description is plain text and the whole Test cell
+    (name and description) is the link instead. "Add Description" was
+    dropped, so a test without a description shows nothing there, since
+    tests aren't edited in this view.
 - [x] **Attachments card above Tests & Sublists**
   - Edit page card order becomes Details, Attachments, Tests & Sublists,
     Parent Memberships (`#tl-attachments-card` currently sits last in

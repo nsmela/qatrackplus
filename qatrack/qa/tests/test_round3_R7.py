@@ -1,8 +1,9 @@
 """Round 3, R7: the builder's test description dialog is gone.
 
 A test's description is edited on the Test's own page. In each builder row the
-description (or "Add Description" when there's none) links there in a new tab,
-like the row's pencil; users who can't change tests just see the text.
+Test cell (the name and the description) links there in a new tab, like the
+row's pencil; the description itself is plain text, and blank when the test
+has none. Users who can't change tests just see the text.
 """
 import re
 
@@ -17,8 +18,8 @@ from qatrack.accounts.tests.utils import create_user
 from qatrack.qa import models as qa_models
 from qatrack.qa.tests import utils as qa_utils
 
-DESC_LINK = re.compile(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-test-desc"[^>]*>.*?</a>', re.S)
-ADD_LINK = re.compile(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-add-desc-link"[^>]*>.*?</a>', re.S)
+CELL_LINK = re.compile(r'<a href="[^"]*" target="_blank" rel="noopener" class="tl-test-link"[^>]*>.*?</a>', re.S)
+DESC = re.compile(r'<div class="tl-test-desc">.*?</div>', re.S)
 
 
 class TestDescriptionDialogRemoved(TestCase):
@@ -88,52 +89,54 @@ class TestDescriptionLinks(TestCase):
         assert resp.status_code == 200
         return resp.content.decode()
 
-    def assert_desc_link(self, html, test):
-        links = DESC_LINK.findall(html)
+    def cell_link(self, html, test):
+        links = [link for link in CELL_LINK.findall(html) if 'href="%s"' % self.edit_url(test) in link]
         assert len(links) == 1
         link = links[0]
-        assert 'href="%s"' % self.edit_url(test) in link
         assert 'title="Edit %s (opens in a new tab)"' % test.name in link
-        # the visible description stays the link's text; hidden text says where it goes
-        assert '<span>Measure output</span>' in link
-        assert '<span class="tl-visually-hidden">Edit %s (opens in a new tab)</span>' % test.name in link
+        assert '<div class="tl-test-name" title="%s">%s</div>' % (test.slug, test.name) in link
+        assert '<span class="tl-visually-hidden">(opens in a new tab)</span>' in link
         assert 'hx-' not in link
         assert 'aria-haspopup' not in link
+        return link
 
-    def assert_add_link(self, html, test):
-        links = ADD_LINK.findall(html)
-        assert len(links) == 1
-        link = links[0]
-        assert 'href="%s"' % self.edit_url(test) in link
-        assert 'title="Add Description to %s (opens in a new tab)"' % test.name in link
-        assert 'Add Description' in link
-        assert 'to %s (opens in a new tab)</span>' % test.name in link
+    def assert_desc_in_link(self, html, test):
+        link = self.cell_link(html, test)
+        desc = DESC.search(link)
+        assert desc and '<span>Measure output</span>' in desc.group(0)
+
+    def assert_blank_desc_in_link(self, html, test):
+        link = self.cell_link(html, test)
+        assert 'tl-test-desc"' not in link
+        assert 'Add Description' not in link
+
+    def test_description_is_not_its_own_link(self):
+        html = self.change_page(self.superuser)
+        assert not re.search(r'<a [^>]*class="tl-test-desc', html)
+        assert 'Add Description' not in html
 
     def test_change_page_links_with_change_test(self):
         html = self.change_page(self.superuser)
-        self.assert_desc_link(html, self.with_desc)
-        self.assert_add_link(html, self.no_desc)
-        assert 'class="tl-test-desc tl-test-desc-readonly"' not in html
+        self.assert_desc_in_link(html, self.with_desc)
+        self.assert_blank_desc_in_link(html, self.no_desc)
 
     def test_change_page_read_only_without_change_test(self):
         html = self.change_page(self.limited)
-        assert not DESC_LINK.search(html)
-        assert not ADD_LINK.search(html)
-        assert 'class="tl-add-desc-link"' not in html
-        readonly = re.search(r'<div class="tl-test-desc tl-test-desc-readonly">.*?</div>', html, re.S)
-        assert readonly and 'Measure output' in readonly.group(0)
+        assert not CELL_LINK.search(html)
+        assert 'Add Description' not in html
+        desc = DESC.search(html)
+        assert desc and 'Measure output' in desc.group(0)
 
     def test_add_row_partial_with_change_test(self):
-        self.assert_desc_link(self.add_row(self.superuser, self.with_desc), self.with_desc)
-        self.assert_add_link(self.add_row(self.superuser, self.no_desc), self.no_desc)
+        self.assert_desc_in_link(self.add_row(self.superuser, self.with_desc), self.with_desc)
+        self.assert_blank_desc_in_link(self.add_row(self.superuser, self.no_desc), self.no_desc)
 
     def test_add_row_partial_without_change_test(self):
         html = self.add_row(self.limited, self.with_desc)
-        assert not DESC_LINK.search(html)
-        assert 'class="tl-test-desc tl-test-desc-readonly"' in html
+        assert not CELL_LINK.search(html)
+        assert DESC.search(html)
         html = self.add_row(self.limited, self.no_desc)
-        assert 'tl-add-desc-link' not in html
-        assert 'class="tl-test-desc ' not in html
+        assert 'Add Description' not in html
         assert 'class="tl-test-desc"' not in html
 
     def test_duplicate_row_renders_the_same_link(self):
@@ -143,13 +146,16 @@ class TestDescriptionLinks(TestCase):
         })
         assert resp.status_code == 200
         copy = qa_models.Test.objects.get(name='Output Constancy 6X (Copy)')
-        html = resp.content.decode()
-        links = DESC_LINK.findall(html)
+        links = CELL_LINK.findall(resp.content.decode())
         assert len(links) == 1
         assert 'href="%s"' % self.edit_url(copy) in links[0]
+        assert 'Measure output' in links[0]
 
-    def test_machine_mode_hides_add_description_link(self):
+    def test_link_covers_the_whole_cell(self):
         html = self.change_page(self.superuser)
-        assert 'body.tl-mode-machine #tl-tests-card .tl-add-desc-link' in html
-        # the description link itself stays usable in machine mode
-        assert 'body.tl-mode-machine #tl-tests-card .tl-test-desc {' not in html
+        assert re.search(r'\.tl-cell-test \{\s*position: relative;', html)
+        assert re.search(r'a\.tl-test-link::after \{[^}]*position: absolute;[^}]*inset: 0;', html)
+
+    def test_machine_mode_keeps_the_test_cell_link(self):
+        html = self.change_page(self.superuser)
+        assert 'body.tl-mode-machine #tl-tests-card .tl-test-link' not in html

@@ -740,7 +740,6 @@ body.tl-mode-machine #tl-tests-card .tl-btn-change-sublist,
 body.tl-mode-machine #tl-tests-card .tl-btn-remove-sublist,
 body.tl-mode-machine #tl-tests-card .tl-remove-locked,
 body.tl-mode-machine #tl-tests-card .tl-sublist-outline,
-body.tl-mode-machine #tl-tests-card .tl-add-desc-link,
 body.tl-mode-machine #tl-attachments-card .tl-browse-wrap,
 body.tl-mode-machine #tl-attachments-card .btn-delete-existing,
 body.tl-mode-machine #tl-attachments-card .btn-remove-pending {
@@ -1119,7 +1118,6 @@ tr.tl-dragging {
   color: #555;
   font-size: 13px;
   line-height: 1.35;
-  cursor: pointer;
 }
 .tl-test-desc > i {
   color: #6d7787;
@@ -1127,50 +1125,42 @@ tr.tl-dragging {
   flex-shrink: 0;
   margin-top: 2px;
 }
-/* Hover: darker + underline (link blue on the hovered row would be under 4.5:1) */
-.tl-test-desc:hover {
+
+/* The Test cell's name and description link to the Test's own page (new tab).
+   The ::after covers the whole cell, so a click anywhere in it opens the test.
+   The text keeps the row's colours rather than the admin link blue (blue on the
+   hovered row would be under 4.5:1): darker + underlined on hover instead. */
+.tl-cell-test {
+  position: relative;
+}
+a.tl-test-link {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-decoration: none;
+}
+a.tl-test-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+a.tl-test-link:link,
+a.tl-test-link:visited,
+a.tl-test-link:hover {
   color: #333;
+  text-decoration: none;
+}
+a.tl-test-link:hover .tl-test-name,
+a.tl-test-link:hover .tl-test-desc > span {
   text-decoration: underline;
 }
-/* The description links to the Test's own page (new tab): keep the row's grey
-   text rather than the admin link colour, darker + underlined on hover. */
-a.tl-test-desc:link,
-a.tl-test-desc:visited {
-  color: #555;
-}
-a.tl-test-desc:hover {
+a.tl-test-link:hover .tl-test-desc {
   color: #333;
-  text-decoration: underline;
 }
-a.tl-test-desc:focus-visible,
-a.tl-add-desc-link:focus-visible,
+a.tl-test-link:focus-visible,
 .tl-browse-btn:focus-visible {
   outline: 2px solid #3c8dbc;
   outline-offset: 2px;
-}
-.tl-test-desc.tl-test-desc-readonly,
-.tl-test-desc.tl-test-desc-readonly:hover {
-  cursor: default;
-  color: #555;
-  text-decoration: none;
-}
-
-/* Tests without a description: a small link to add one on the Test's own page (new tab) */
-a.tl-add-desc-link {
-  font-size: 12px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: color 0.15s ease;
-}
-a.tl-add-desc-link:link,
-a.tl-add-desc-link:visited {
-  color: #555;
-}
-a.tl-add-desc-link:hover {
-  color: #333;
-  text-decoration: underline;
 }
 
 .tl-cell-category {

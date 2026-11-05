@@ -35,10 +35,24 @@
     {% endif %}
   </td>
   <td class="tl-cell-test">
+    {% if perms.qa.change_test %}
+    {# the name and description open the Test's own page in a new tab, like the row's pencil #}
+    {% with test_name=test_meta.display_name|default:test_meta.name %}
+    <a href="{{ test_meta.edit_url }}" target="_blank" rel="noopener" class="tl-test-link"
+       title="{% blocktrans with name=test_name %}Edit {{ name }} (opens in a new tab){% endblocktrans %}">
+      <div class="tl-test-name" title="{{ test_meta.slug }}">{{ test_name }}</div>
+      <div class="tl-test-desc-wrap" id="tl-desc-wrap-{{ test_meta.id }}-{{ index }}">
+        {% include "admin/qa/testlist/partials/_test_desc_cell.html" %}
+      </div>
+      <span class="tl-visually-hidden">{% trans "(opens in a new tab)" %}</span>
+    </a>
+    {% endwith %}
+    {% else %}
     <div class="tl-test-name" title="{{ test_meta.slug }}">{{ test_meta.display_name|default:test_meta.name }}</div>
     <div class="tl-test-desc-wrap" id="tl-desc-wrap-{{ test_meta.id }}-{{ index }}">
       {% include "admin/qa/testlist/partials/_test_desc_cell.html" %}
     </div>
+    {% endif %}
   </td>
   <td class="tl-cell-category">
     <span class="tl-cat-pill">{{ test_meta.category_name }}</span>
