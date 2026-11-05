@@ -2129,7 +2129,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
     list_display = (
         "col_id",
         "col_name",
-        "col_tests",
         "col_frequency",
         "col_units",
         "col_modified",
@@ -2356,7 +2355,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
-        qs = qs.annotate(test_count=Count("testlistmembership", distinct=True))
         # Prefetch the unit assignments (generic relation) in a single query so
         # the Frequency and Units columns don't issue per-row queries.
         qs = qs.prefetch_related(
@@ -2381,10 +2379,6 @@ class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdm
             '</a>',
             url, obj.name, obj.slug,
         )
-
-    @admin.display(description=_l("Tests"), ordering="test_count")
-    def col_tests(self, obj):
-        return format_html('<span class="tl-count-badge">{}</span>', obj.test_count)
 
     @admin.display(description=_l("Frequency"))
     def col_frequency(self, obj):

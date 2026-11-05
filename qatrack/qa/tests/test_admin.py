@@ -1585,16 +1585,11 @@ class TestTestListAdminBuilderUI(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'tl-details-card')
 
-    def test_test_count_annotation(self):
-        tl = qa_utils.create_test_list()
-        t1 = qa_utils.create_test(name='count_t1')
-        t2 = qa_utils.create_test(name='count_t2')
-        qa_utils.create_test_list_membership(test_list=tl, test=t1, order=0)
-        qa_utils.create_test_list_membership(test_list=tl, test=t2, order=1)
-
-        obj = self._admin().get_queryset(self._request()).get(pk=tl.pk)
-        self.assertEqual(obj.test_count, 2)
-        self.assertIn('2', self._admin().col_tests(obj))
+    def test_no_tests_column(self):
+        self.assertNotIn('col_tests', self._admin().list_display)
+        resp = self.client.get(reverse('admin:qa_testlist_changelist'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'column-col_tests')
 
     def test_frequency_and_units_columns(self):
         tl = qa_utils.create_test_list()
