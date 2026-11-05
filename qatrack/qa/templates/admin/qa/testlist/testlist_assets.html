@@ -5276,8 +5276,10 @@ ul.messagelist li.error {
   // ---- Preview of the real Perform QC page ----
   // With a machine picked that this list is assigned to directly, the Preview tab
   // shows that assignment's Perform QC page, read-only (PerformQAPreview), in an
-  // iframe. It shows the last saved version of the list. Otherwise it falls back
-  // to the layout-only preview above, with a note saying how to get the real one.
+  // iframe. With no machine picked it shows the page on no machine
+  // (PerformTestListPreview): no references, tolerances or history. Both show the
+  // last saved version of the list. Otherwise (a new list, or a machine that gets
+  // the list through another one) it falls back to the layout-only preview above.
   var previewUnits = null;
 
   function getPreviewUnits() {
@@ -5307,14 +5309,19 @@ ul.messagelist li.error {
     var canPreview = container.getAttribute("data-can-preview-perform") === "1";
     var unitId = document.body.classList.contains("tl-mode-machine") ? scopeState.unitId : null;
     var info = unitId ? getPreviewUnits()[unitId] : null;
+    var frameUrl = info && info.preview_url ? info.preview_url
+      : (!unitId ? container.getAttribute("data-no-machine-preview-url") : "");
 
-    if (canPreview && info && info.preview_url) {
+    if (canPreview && frameUrl) {
       var html = "";
       if (hasUnsavedChanges()) {
         html += previewNoteHtml("fa-exclamation-circle", escapeHtml(previewMsg("unsaved")));
       }
+      if (!unitId) {
+        html += previewNoteHtml("fa-info-circle", escapeHtml(previewMsg("no-machine")));
+      }
       // a new iframe each time, so opening the tab always reloads the page
-      html += '<iframe class="tl-preview-frame" src="' + escapeHtml(info.preview_url) + '"' +
+      html += '<iframe class="tl-preview-frame" src="' + escapeHtml(frameUrl) + '"' +
         ' title="' + escapeHtml(previewMsg("frame-title")) + '"></iframe>';
       container.innerHTML = html;
       return;
@@ -5328,9 +5335,10 @@ ul.messagelist li.error {
         : interpolate(previewMsg("through-link"), { parent: info.via }, true);
       note += ' <a href="' + escapeHtml(info.via_url) + '">' + escapeHtml(linkText) + '</a>';
     }
-    // No machine picked: the layout banner itself says how to see the real page
+    // A new, unsaved list: the layout banner itself says how to see the real page
     // (one message, not a note repeating it).
-    var banner = (canPreview && !note) ? previewMsg("pick-machine") : previewMsg("layout");
+    var unsavedList = !container.getAttribute("data-no-machine-preview-url");
+    var banner = (canPreview && !note && unsavedList) ? previewMsg("save-first") : previewMsg("layout");
     renderLivePreview(note ? previewNoteHtml("fa-info-circle", note) : "", banner);
   }
 

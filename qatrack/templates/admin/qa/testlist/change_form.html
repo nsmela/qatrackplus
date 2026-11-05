@@ -166,13 +166,17 @@
           title="{% trans 'Dismiss' %}" aria-label="{% trans 'Dismiss' %}">&times;</button>
 </div>
 
-{# Live Preview View Container (Toggled via Preview Tab). With a directly assigned #}
-{# machine picked, it shows the real Perform QC page (read-only) in an iframe; #}
-{# otherwise renderLivePreview() draws a layout-only preview from the builder rows. #}
+{# Live Preview View Container (Toggled via Preview Tab). It shows the real Perform QC #}
+{# page (read-only) in an iframe: for the picked machine when the list is assigned to #}
+{# it directly, or on no machine (no references, tolerances or history) when none is #}
+{# picked. Otherwise (a new list, or a machine that gets it through another list) #}
+{# renderLivePreview() draws a layout-only preview from the builder rows. #}
 <div id="tl-preview-container" class="tl-preview-container" style="display:none;"
      data-can-preview-perform="{% if tl_can_preview_perform %}1{% else %}0{% endif %}"
+     {% if original.pk %}data-no-machine-preview-url="{% url 'perform_testlist_preview' pk=original.pk %}"{% endif %}
+     data-msg-no-machine="{% trans "No machine picked, so there are no references, tolerances or history. Pick a machine in the Editing menu to see its values." %}"
      data-msg-layout="{% trans "Layout preview: the order, sublists and descriptions of this test list. Nothing you enter here is saved." %}"
-     data-msg-pick-machine="{% trans "Layout preview: the order, sublists and descriptions of this test list. Pick a machine in the Editing menu to see the full Perform QC page. Nothing you enter here is saved." %}"
+     data-msg-save-first="{% trans "Layout preview: the order, sublists and descriptions of this test list. Save it to see the full Perform QC page. Nothing you enter here is saved." %}"
      data-msg-through="{% trans "%(unit)s gets this list through %(parent)s." %}"
      data-msg-through-link="{% trans "Preview it from %(parent)s's page." %}"
      data-msg-through-cycle="{% trans "Open the cycle" %}"

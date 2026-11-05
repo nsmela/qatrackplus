@@ -974,7 +974,9 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                 test_list_id: self.test_list_id,
                 unit_id: self.unit_id,
                 comments: comments,
-                skips: skips
+                skips: skips,
+                // the Test List admin preview with no machine has no unit_id
+                preview: window.qa_preview === true
             };
 
             var on_success = function(data, status, XHR){

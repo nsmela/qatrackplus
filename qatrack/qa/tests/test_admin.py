@@ -3622,12 +3622,22 @@ class TestTestListBuilderPerformPreview(TestCase):
         resp = self.client.get(self.change_url)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'data-can-preview-perform="1"')
-        # one message for the layout preview's banner, with or without the pick-a-machine hint
+        # with no machine picked, the real page on no machine (no references, tolerances or history)
+        self.assertContains(
+            resp, 'data-no-machine-preview-url="%s"' % reverse('perform_testlist_preview', kwargs={'pk': self.tl.pk}),
+        )
         self.assertContains(
             resp,
-            'data-msg-pick-machine="Layout preview: the order, sublists and descriptions of this test list. '
-            'Pick a machine in the Editing menu to see the full Perform QC page. Nothing you enter here is saved."',
+            'data-msg-no-machine="No machine picked, so there are no references, tolerances or history. '
+            'Pick a machine in the Editing menu to see its values."',
         )
+        # a new, unsaved list only gets the layout preview, with a hint to save it
+        self.assertContains(
+            resp,
+            'data-msg-save-first="Layout preview: the order, sublists and descriptions of this test list. '
+            'Save it to see the full Perform QC page. Nothing you enter here is saved."',
+        )
+        self.assertNotContains(resp, 'data-msg-pick-machine')
         self.assertContains(
             resp,
             'data-msg-layout="Layout preview: the order, sublists and descriptions of this test list. '
@@ -3660,6 +3670,17 @@ class TestTestListBuilderPerformPreview(TestCase):
     def test_add_form_has_no_preview_units(self):
         resp = self.client.get(reverse('admin:qa_testlist_add'))
         self.assertNotContains(resp, 'id="tl-preview-units"')
+        self.assertNotContains(resp, 'data-no-machine-preview-url="')
+
+    def test_no_machine_preview_url_renders_for_admin(self):
+        qa_utils.create_status()
+        resp = self.client.get(self.change_url)
+        url = re.search(r'data-no-machine-preview-url="([^"]+)"', resp.content.decode()).group(1)
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['X-Frame-Options'], 'SAMEORIGIN')
+        self.assertContains(resp, 'This is only a preview. Nothing you enter here is saved.')
+        self.assertContains(resp, 'Perform No machine : Direct List')
 
     def test_no_real_preview_without_change_permission(self):
         viewer = create_user(is_superuser=False, uname='viewer', pwd='pwd')

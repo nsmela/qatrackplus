@@ -623,6 +623,15 @@ class CompositePerformer:
         self.data = data
         self.defaults = data.get('defaults')
 
+    def is_unitless_preview(self):
+        """True for a request from :view:`qa.perform.PerformTestListPreview` (no unit).
+
+        Only the preview sends no unit, and only list editors can open it."""
+        return (
+            self.data.get("preview") is True and self.data.get("unit_id") in (None, "") and
+            self.user.has_perm("qa.change_testlist")
+        )
+
     def calculate(self):
         """calculate and return all composite values"""
 
@@ -632,10 +641,15 @@ class CompositePerformer:
         except (KeyError, models.TestList.DoesNotExist):
             return {"success": False, "errors": [_("Invalid or missing test_list_id")]}
 
-        try:
-            self.unit = Unit.objects.get(pk=self.data["unit_id"])
-        except (KeyError, Unit.DoesNotExist):
-            return {"success": False, "errors": [_("Invalid or missing unit_id")]}
+        if self.is_unitless_preview():
+            # The Test List admin's preview with no machine picked: there's no
+            # unit, so the calculation sees no references, tolerances or history.
+            self.unit = None
+        else:
+            try:
+                self.unit = Unit.objects.get(pk=self.data["unit_id"])
+            except (KeyError, ValueError, Unit.DoesNotExist):
+                return {"success": False, "errors": [_("Invalid or missing unit_id")]}
 
         self.set_test_types()
         self.set_formatters()
@@ -1348,15 +1362,13 @@ class PerformQA(PermissionRequiredMixin, CreateView):
         context["last_instance"] = self.unit_test_col.last_instance
         context['last_day'] = self.last_day
         context['borders'] = self.test_list.sublist_borders()
-        context["autosaves"] = list(self.unit_test_col.autosave_set.order_by("-created").select_related("modified_by"))
+        context["autosaves"] = self.get_autosaves()
 
         ndays = len(self.unit_test_col.tests_object)
         if ndays > 1:
             context['days'] = self.unit_test_col.tests_object.days_display()
 
-        in_progress = models.TestListInstance.objects.in_progress().filter(
-            unit_test_collection=self.unit_test_col, test_list=self.test_list
-        )
+        in_progress = self.get_in_progress()
 
         context['tests_object_type'] = self.unit_test_col.tests_object.__class__.__name__
 
@@ -1402,6 +1414,16 @@ class PerformQA(PermissionRequiredMixin, CreateView):
             context['review_forms'].append(frg_form)
 
         return context
+
+    def get_autosaves(self):
+        """Autosaved sessions of this assignment, newest first."""
+        return list(self.unit_test_col.autosave_set.order_by("-created").select_related("modified_by"))
+
+    def get_in_progress(self):
+        """In-progress sessions of this assignment's current test list."""
+        return models.TestListInstance.objects.in_progress().filter(
+            unit_test_collection=self.unit_test_col, test_list=self.test_list
+        )
 
     def get_requested_day_to_perform(self):
         """check GET to see if specific day requested by user"""
@@ -1461,6 +1483,44 @@ class PerformQAPreview(PerformQA):
         context = super().get_context_data(**kwargs)
         context["preview"] = True
         return context
+
+
+class PerformTestListPreview(PerformQAPreview):
+    """Read-only preview of the Perform QC page for a :model:`qa.TestList` on no machine.
+
+    The Test List admin's Preview tab shows this when no machine is picked (or
+    the list isn't assigned to one yet). Nothing about a unit is used: every
+    test shows "No Ref" with no tolerance, there's no history, and composite
+    tests are calculated without references or previous results. It's built
+    from unsaved stand-ins for the assignment and its tests' unit settings, so
+    nothing is ever written to the database.
+    """
+
+    def set_unit_test_collection(self):
+        test_list = get_object_or_404(models.TestList, pk=self.kwargs["pk"])
+        # Translators: shown where the machine's name would be on the Perform QC preview
+        unit = Unit(name=_("No machine"))
+        self.unit_test_col = models.UnitTestCollection(
+            unit=unit, frequency=None, tests_object=test_list, name=test_list.name,
+        )
+
+    def set_test_lists(self):
+        self.actual_day, self.test_list = 0, self.unit_test_col.tests_object
+
+    def set_unit_test_infos(self):
+        unit = self.unit_test_col.unit
+        self.unit_test_infos = [
+            models.UnitTestInfo(unit=unit, test=test, reference=None, tolerance=None) for test in self.all_tests
+        ]
+
+    def add_histories(self, forms):
+        self.history_dates = []
+
+    def get_autosaves(self):
+        return []
+
+    def get_in_progress(self):
+        return models.TestListInstance.objects.none()
 
 
 class EditTestListInstance(PermissionRequiredMixin, BaseEditTestListInstance):
