@@ -362,3 +362,9 @@ Remove this file before the branch is merged.
   - Replaces the R5 layout: no separate pencil column. The Set Reference &
     Tolerance pencil sits at the start of the Reference & Tolerance cell,
     before the values; the empty actions column is dropped in machine mode.
+- [x] **Machine mode: hide "Assign to Machine…"**
+  - The button (`#tl-btn-assign-machine` in `change_form.html`, enabled and
+    disabled-for-unsaved variants) assigns the base list to a machine, so it
+    belongs with the shared settings: add it to the machine-mode hide list in
+    `testlist_assets.html`. It comes back when the scope returns to the base
+    list, without a reload, and the toolbar spacing stays even.
