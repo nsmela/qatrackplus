@@ -58,7 +58,7 @@ $(document).ready(function() {
     if (element.length > 0){
 
         var calcProcedure = element.hide();
-        calcProcedure.after('<div style="width: 50%; " id="calc-procedure-editor" class="colM aligned vLargeTextField"></div>');
+        calcProcedure.after('<div style="width: 100%; max-width: 900px;" id="calc-procedure-editor" class="colM aligned vLargeTextField"></div>');
 
         var calcProcedureEditor = ace.edit("calc-procedure-editor");
         var session = calcProcedureEditor.getSession();
@@ -71,8 +71,8 @@ $(document).ready(function() {
             calcProcedure.val(calcProcedureEditor.getValue());
         });
         calcProcedureEditor.setAutoScrollEditorIntoView(true);
-        calcProcedureEditor.setOption("maxLines", 20);
-        calcProcedureEditor.setOption("minLines", 5);
+        calcProcedureEditor.setOption("maxLines", 40);
+        calcProcedureEditor.setOption("minLines", 10);
         calcProcedureEditor.setShowPrintMargin(false);
         calcProcedureEditor.resize();
     }
