@@ -1894,6 +1894,31 @@ class TestEditTestListInstance(TestCase):
         self.client.post(self.url, data=self.base_data)
         self.assertEqual(models.TestInstance.objects.in_progress().count(), 0)
 
+    def _set_due_date(self):
+        due = timezone.make_aware(timezone.datetime(2012, 11, 6, 9, 0))
+        models.TestListInstance.objects.filter(pk=self.tli.pk).update(due_date=due)
+        return due
+
+    def test_edit_preserves_due_date(self):
+        """#650: due_date was a hidden form field, so every edit saved it as NULL."""
+        due = self._set_due_date()
+        response = self.client.post(self.url, data=self.base_data)
+        self.assertEqual(302, response.status_code)
+        self.tli.refresh_from_db()
+        self.assertEqual(self.tli.due_date, due)
+
+    def test_complete_in_progress_preserves_due_date(self):
+        due = self._set_due_date()
+        self.client.post(self.url, data=dict(self.base_data, in_progress=True))
+        self.tli.refresh_from_db()
+        self.assertTrue(self.tli.in_progress)
+        self.assertEqual(self.tli.due_date, due)
+
+        self.client.post(self.url, data=self.base_data)
+        self.tli.refresh_from_db()
+        self.assertFalse(self.tli.in_progress)
+        self.assertEqual(self.tli.due_date, due)
+
     def test_in_progress_no_data(self):
 
         data = {

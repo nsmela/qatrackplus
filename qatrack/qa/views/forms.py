@@ -354,7 +354,9 @@ class BaseTestListInstanceForm(forms.ModelForm):
 
     class Meta:
         model = models.TestListInstance
-        exclude = ("day",)
+        # due_date is never rendered, so as a form field it saved as NULL on
+        # every edit (#650). It's set from the unit test collection instead.
+        exclude = ("day", "due_date")
 
     def __init__(self, *args, **kwargs):
 
