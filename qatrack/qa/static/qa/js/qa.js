@@ -749,12 +749,26 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
             self.dropzone.on('error', function(file, data) {
                 processing_off();
                 var btn_txt, tool_tip;
-                if (!data || !file){
-                    btn_txt = "Server Error";
-                    tool_tip = "Server Error";
-                }else if (file.xhr && file.xhr.status === 413){
-                    btn_txt = "File too large";
-                    tool_tip = "You may need to increase the maximum request size on your server";
+                var status_code = file && file.xhr ? file.xhr.status : null;
+                // an error page (e.g. a 500 raised before the view runs) arrives
+                // as HTML, which used to end up as the button's text (#662)
+                var is_html = _.isString(data) && /^\s*</.test(data);
+                if (status_code === 413){
+                    btn_txt = gettext("File too large");
+                    tool_tip = gettext(
+                        "The file is larger than the server accepts. You may need to increase the maximum " +
+                        "request size on your server, or on a proxy in front of it such as IIS/ARR."
+                    );
+                }else if (!data || !file || status_code >= 500 || is_html){
+                    btn_txt = gettext("Server Error");
+                    tool_tip = gettext(
+                        "The server could not process this upload. The QATrack+ server logs will have the " +
+                        "details, and an administrator can run `python manage.py check` to look for folder " +
+                        "permission problems."
+                    );
+                }else if (!_.isString(data)){
+                    btn_txt = gettext("Failed");
+                    tool_tip = (data.errors || []).join("\n") || gettext("Server Error");
                 }else{
                     btn_txt = data;
                     tool_tip = data;

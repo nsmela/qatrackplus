@@ -661,6 +661,22 @@ DICOM file:
     mean_value = f.pixel_array.mean()
 
 
+Troubleshooting uploads
+~~~~~~~~~~~~~~~~~~~~~~~
+
+If an upload fails with a message that QATrack+ *could not read or write the
+uploaded file*, the account running QATrack+ almost certainly can't write to
+the ``media`` folder. Running ``python manage.py check`` as that account
+reports this as ``qatrack.E001`` or ``qatrack.E002``. The permission commands
+are the same ones used when :ref:`restoring a backup <backup_restore>`.
+
+If the upload button just says **Server Error**, the server failed before
+QATrack+ could explain why, and the details will be in the server's logs.
+**File too large** means the upload is bigger than the server accepts; behind
+IIS/ARR or another proxy, that limit may be the proxy's rather than
+QATrack+'s.
+
+
 .. _qa_default_values:
 
 Setting Default Initial Values for Non-Calculated Tests

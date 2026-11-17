@@ -100,6 +100,20 @@ def attachment_info(attachment):
     }
 
 
+def upload_file_error(error):
+    """Explain an OSError raised while saving or reading an uploaded file.
+
+    Almost always a folder permission problem, which otherwise reached the
+    user as a raw traceback that gave no hint where to look (#662).
+    """
+    return _(
+        "QATrack+ could not read or write the uploaded file (%(error)s). This is usually a folder "
+        "permission problem: the account running QATrack+ needs read and write access to the media "
+        "folder. An administrator can run `python manage.py check`, which reports it as "
+        "qatrack.E001/E002."
+    ) % {'error': error}
+
+
 class CompositeUtils:
 
     def __init__(self, user, unit, test_list, meta, context, comments, skips):
@@ -356,6 +370,13 @@ class UploadHandler:
                 self.handle_upload()
 
             results = self.run_calc()
+        except OSError as e:
+            results = {
+                'success': False,
+                'errors': [upload_file_error(e)],
+                "result": None,
+                "user_attached": [],
+            }
         except Exception:
             msg = traceback.format_exc(limit=5, chain=True)
             results = {
@@ -376,6 +397,18 @@ class UploadHandler:
 
     def run_calc(self):
 
+        # checked first: set_calculation_context() and attachment_info() both
+        # read the attachment, so this message could never be reached
+        if self.attachment is None:
+            return {
+                'attachment_id': None,
+                'success': False,
+                'errors': [_("Original file not found. Please re-upload.")],
+                "result": None,
+                "comment": "",
+                "user_attached": [],
+            }
+
         self.set_calculation_context()
 
         results = {
@@ -387,10 +420,6 @@ class UploadHandler:
             "comment": "",
             "user_attached": [],
         }
-
-        if self.attachment is None:
-            results["errors"] = [_("Original file not found. Please re-upload.")]
-            return results
 
         try:
             test = models.Test.objects.get(pk=self.data.get("test_id"))
@@ -497,6 +526,13 @@ class Upload(JSONResponseMixin, View):
                 self.handle_upload()
 
             resp = self.run_calc()
+        except OSError as e:
+            resp = self.render_json_response({
+                'success': False,
+                'errors': [upload_file_error(e)],
+                "result": None,
+                "user_attached": [],
+            })
         except Exception:
             msg = traceback.format_exc(limit=5, chain=True)
             results = {
@@ -520,6 +556,18 @@ class Upload(JSONResponseMixin, View):
 
     def run_calc(self):
 
+        # checked first: set_calculation_context() and attachment_info() both
+        # read the attachment, so this message could never be reached
+        if self.attachment is None:
+            return self.render_json_response({
+                'attachment_id': None,
+                'success': False,
+                'errors': [_("Original file not found. Please re-upload.")],
+                "result": None,
+                "comment": "",
+                "user_attached": [],
+            })
+
         self.set_calculation_context()
 
         results = {
@@ -531,10 +579,6 @@ class Upload(JSONResponseMixin, View):
             "comment": "",
             "user_attached": [],
         }
-
-        if self.attachment is None:
-            results["errors"] = [_("Original file not found. Please re-upload.")]
-            return self.render_json_response(results)
 
         try:
             test = models.Test.objects.get(pk=self.request.POST.get("test_id"))

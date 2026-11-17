@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import random
+from unittest import mock
 
 import django.forms
 from django.conf import settings
@@ -1787,6 +1788,40 @@ result = json.load(FILE)
         )
         data = json.loads(response.content.decode("UTF-8"))
         self.assertIn("Invalid Test", data["errors"][0])
+
+    def test_permission_error_is_explained(self):
+        """#662: a media-folder permission problem came back as a raw traceback."""
+        denied = PermissionError(13, "Permission denied")
+        with mock.patch.object(Attachment.objects, "create", side_effect=denied):
+            response = self.client.post(
+                self.url, {
+                    "test_id": self.test.pk,
+                    "upload": self.test_file,
+                    "meta": "{}",
+                    "unit_id": self.unit_test_info.unit.id,
+                    "test_list_id": self.test_list.id,
+                }
+            )
+        data = json.loads(response.content.decode("UTF-8"))
+        self.assertFalse(data["success"])
+        self.assertIn("permission", data["errors"][0])
+        self.assertIn("Permission denied", data["errors"][0])
+        self.assertNotIn("Traceback", data["errors"][0])
+
+    def test_reprocess_missing_attachment(self):
+        """The "please re-upload" message was unreachable: the attachment was read before the check."""
+        response = self.client.post(
+            self.url, {
+                "test_id": self.test.pk,
+                "attachment_id": 999999,
+                "meta": "{}",
+                "unit_id": self.unit_test_info.unit.id,
+                "test_list_id": self.test_list.id,
+            }
+        )
+        data = json.loads(response.content.decode("UTF-8"))
+        self.assertFalse(data["success"])
+        self.assertEqual(data["errors"], ["Original file not found. Please re-upload."])
 
     def test_upload_results(self):
         response = self.client.post(

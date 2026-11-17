@@ -280,6 +280,8 @@ types.
     without error can still be one your site cannot read back - which on 4.0.x is exactly
     what ``--natural-foreign`` produces.
 
+.. _backup_restore:
+
 Restoring from Backups
 ----------------------
 
