@@ -509,6 +509,21 @@ resolution <http://en.wikipedia.org/wiki/Topological_sorting>`__ system
 and it is therefore safe to create composite values that depend on other
 composite values as they will be calculated in the correct order.
 
+Composite tests whose inputs aren't filled in yet
+-------------------------------------------------
+
+While any test a composite test refers to is still blank, a composite test that
+raises an error is left blank rather than marked **Failed**, since it may only
+be failing because its data isn't there yet. Hovering over its status shows
+which tests it is waiting for, along with the error it raised. If those tests
+are filled in and the composite test is still blank, that error is what needs
+fixing in the calculation procedure.
+
+QATrack+ decides which tests a procedure refers to by looking for their macro
+names anywhere in it, so a test checked only in a guard such as
+``if test1 is None:`` still counts. Through the API nothing changes: a
+composite test left blank this way isn't treated as an error there.
+
 A note about division for people familiar with Python
 -----------------------------------------------------
 

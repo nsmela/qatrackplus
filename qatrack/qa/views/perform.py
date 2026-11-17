@@ -796,6 +796,17 @@ class CompositePerformer:
                     'user_attached': [],
                 }
 
+                # While any input is still blank the error is held back rather
+                # than shown as a failure: the procedure may only be failing
+                # because it hasn't got its data yet. `error` stays None (the
+                # API rejects any result with an error set, and some API
+                # submissions leave inputs blank on purpose), but the message
+                # is kept as `pending_error`, so the page can say what it's
+                # waiting for and what went wrong. Dependencies are found by
+                # scanning the procedure's tokens, so a genuine bug in a
+                # procedure with an optional input would otherwise never be
+                # seen (#570).
+                waiting_for = []
                 for s in self.all_dependencies[slug]:
                     incomplete_composite = (
                         s in self.composite_tests and
@@ -804,8 +815,12 @@ class CompositePerformer:
                     incomplete_simple = s not in self.composite_tests and self.data['tests'][s] in (None, "")
 
                     if incomplete_simple or incomplete_composite:
-                        results[slug]['error'] = None
-                        break
+                        waiting_for.append(s)
+
+                if waiting_for:
+                    results[slug]['pending_error'] = results[slug]['error']
+                    results[slug]['waiting_for'] = sorted(waiting_for)
+                    results[slug]['error'] = None
             finally:
                 # clean up calculation context for next test
                 to_clean = ['result'] + [k for k in self.calculation_context.keys() if k not in self.context_keys]

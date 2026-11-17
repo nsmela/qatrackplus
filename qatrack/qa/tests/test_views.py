@@ -1012,6 +1012,34 @@ class TestComposite(TestCase):
 
         self.assertEqual(values["success"], False)
 
+    def test_composite_error_hidden_until_dependencies_complete(self):
+        """#570: a procedure with an optional input still reports its own bug, as a pending error."""
+        self.tc.calculation_procedure = (
+            "if test2 in (None, ''):\n"
+            "    result = test1 + foo\n"
+            "else:\n"
+            "    result = test1 + test2\n"
+        )
+        self.tc.save()
+
+        data = {
+            'tests': {"testc": "", "test1": 1, "test2": ""},
+            'test_list_id': self.test_list.id,
+            'unit_id': self.unit.id,
+            'meta': {},
+        }
+        request = self.factory.post(self.url, content_type="application/json", data=json.dumps(data))
+        request.user = self.user
+        response = self.view(request)
+        result = json.loads(response.content.decode("UTF-8"))['results']['testc']
+
+        # still not an error, so the API and the page treat it as "not ready yet"...
+        self.assertIsNone(result['error'])
+        self.assertIsNone(result['value'])
+        # ...but the page can now say what it's waiting for, and what went wrong
+        self.assertEqual(result['waiting_for'], ['test2'])
+        self.assertIn("NameError: name 'foo' is not defined", result['pending_error'])
+
     def test_invalid_test(self):
 
         self.tc.calculation_procedure = "foo"

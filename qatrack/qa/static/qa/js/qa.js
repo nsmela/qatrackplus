@@ -999,7 +999,18 @@ require(['jquery', 'lodash', 'moment', 'dropzone', 'autosize', 'cheekycheck', 'i
                                 if (ti.test_status !== QAUtils.ACTION){
                                     ti.status.removeClass("btn-danger");
                                 }
-                                ti.status.attr("title", "");
+                                if (result.pending_error){
+                                    // Some inputs are still blank, so this isn't shown as
+                                    // a failure yet, but say what went wrong in case the
+                                    // procedure itself is at fault (#570).
+                                    ti.status.attr("title", interpolate(
+                                        gettext("Waiting for: %(tests)s. If those are filled in and this is still blank, the procedure raised: %(error)s"),
+                                        {tests: (result.waiting_for || []).join(", "), error: result.pending_error},
+                                        true
+                                    ));
+                                }else{
+                                    ti.status.attr("title", "");
+                                }
                             }
                         }
 
