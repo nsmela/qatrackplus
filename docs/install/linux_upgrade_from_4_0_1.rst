@@ -137,6 +137,11 @@ on this machine, as described at the end of this page.
         cd ~/web/qatrackplus
         uv sync --extra mysql --no-dev
 
+**Using Active Directory? Add** ``--extra ldap`` to the command above.
+``uv sync`` removes packages it wasn't asked for, including a python-ldap installed
+with ``pip``, and Active Directory sign-in stops working without it (see
+:ref:`active_directory`).
+
 Check the installation before touching the database. ``--database default`` runs the
 checks that need a connection as well as the ones that do not; on PostgreSQL and MySQL
 they find nothing, because the constraint loss this release repairs only happened on

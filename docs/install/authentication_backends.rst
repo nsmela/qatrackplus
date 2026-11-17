@@ -52,17 +52,34 @@ Linux
 ~~~~~
 
 
-There are some pre-requisistes that need to be installed before python-ldap. 
-
-At the time of writing on Ubuntu this looks like:
+python-ldap is built from source on Linux, so it needs a compiler and the LDAP
+development headers first. On Ubuntu that looks like:
 
 .. code-block:: console
 
-    sudo apt-get install build-essential python3-dev python2.7-dev \
-        libldap2-dev libsasl2-dev slapd ldap-utils
+    sudo apt-get install build-essential python3-dev libldap2-dev libsasl2-dev
 
-    source ~/venvs/qatrack3/bin/activate
-    pip install python-ldap
+Then install it through QATrack+'s ``ldap`` extra, alongside your database's
+extra:
+
+.. code-block:: console
+
+    cd ~/web/qatrackplus
+    uv sync --extra postgres --extra ldap --no-dev   # or --extra mysql
+
+.. warning::
+
+    **Don't install python-ldap with** ``pip`` **(or** ``uv pip``**).** ``uv sync``
+    removes any package that isn't part of QATrack+'s own requirements, so a
+    package installed by hand disappears at the next upgrade, and Active
+    Directory sign-in stops working with it. Add ``--extra ldap`` to **every**
+    ``uv sync`` you run, including the ones in the upgrade guides.
+
+To confirm it is installed, check that the import works:
+
+.. code-block:: console
+
+    uv run python -c "import ldap; print(ldap.__version__)"
 
 See https://www.python-ldap.org/en/latest/installing.html for more details.
 

@@ -81,6 +81,11 @@ Update the Python environment. Use the extra that matches your database:
         cd ~/web/qatrackplus
         uv sync --extra mysql
 
+**Using Active Directory? Add** ``--extra ldap`` to the command above.
+``uv sync`` removes packages it wasn't asked for, including a python-ldap installed
+with ``pip``, and Active Directory sign-in stops working without it (see
+:ref:`active_directory`).
+
 Check the installation before touching the database. This validates your settings
 against the new code and is the cheapest way to catch a problem while the services are
 still stopped:

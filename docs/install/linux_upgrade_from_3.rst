@@ -155,6 +155,11 @@ We will now install all the libraries required for QATrack+ with PostgresSQL
         cd ~/web/qatrackplus
         uv sync --extra mysql
 
+**Using Active Directory? Add** ``--extra ldap`` to the command above, and see
+:ref:`active_directory` for the system packages it needs. The python-ldap your
+3.x install had was installed with ``pip`` into the old virtual environment, and
+``uv sync`` won't carry it over.
+
 
 Performing the migration
 ------------------------

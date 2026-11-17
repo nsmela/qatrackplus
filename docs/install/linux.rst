@@ -447,6 +447,9 @@ We will now install all the libraries required for QATrack+ with PostgresSQL
     cd ~/web/qatrackplus
     uv sync --extra postgres --no-dev
 
+Using Active Directory? Add ``--extra ldap`` here and to every later ``uv sync``
+(see :ref:`active_directory`), or sign-in will break at the next upgrade.
+
 ``--no-dev`` keeps the test and documentation tooling out of a deployment.
 Without it ``uv`` installs the ``dev`` dependency group as well - around 220
 packages including pytest, selenium, sphinx and **django-debug-toolbar** - none
@@ -468,6 +471,8 @@ again once you are done testing.
 
         cd ~/web/qatrackplus
         uv sync --extra mysql --no-dev
+
+    Using Active Directory? Add ``--extra ldap`` here too.
 
 
 Making sure everything is working up to this point
@@ -493,7 +498,7 @@ count differs by platform and by which optional dependencies you installed. What
 matters is that nothing *failed*.
 
 The skips are expected on a standard install. Three of them are the Active Directory
-tests, which need the optional ``python-ldap`` package; a fourth says *this
+tests, which need the optional ``python-ldap`` package (the ``ldap`` extra); a fourth says *this
 installation is not using a database cache*, which is true of a site that has not
 changed ``CACHES``, and is not a problem.
 
