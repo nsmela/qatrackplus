@@ -821,8 +821,18 @@ these:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
-Restart ``gunicorn`` again afterwards. **The Docker deployment sets both of these
-for you** when it is serving HTTPS (``qatrack/docker_settings.py``); a native
+**And tell QATrack+ the site is now HTTPS,** so that links in notification emails
+and reports use ``https://``, and so that Django can see a request arrived over
+HTTPS (Nginx passes that on in the ``X-Forwarded-Proto`` header):
+
+.. code-block:: python
+
+    HTTP_OR_HTTPS = 'https'
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+The example ``local_settings.py`` that new installations copy has all four lines,
+commented out. Restart ``gunicorn`` again afterwards. **The Docker deployment sets
+these for you** when it is serving HTTPS (``qatrack/docker_settings.py``); a native
 install is the one that has to be told, which is why it is easy to miss.
 
 ``SECURE_HSTS_SECONDS`` goes further - it tells browsers to refuse plain HTTP for

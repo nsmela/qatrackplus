@@ -4,7 +4,6 @@
 # Requires the `mysql` extra: uv sync --extra mysql
 
 DEBUG = True
-TEMPLATE_DBG = True
 
 DATABASES = {
     'default': {

@@ -4,14 +4,14 @@
 # If running in a Windows environment this must be set to the same as your system time zone.
 
 TIME_ZONE = 'America/Toronto'
-LANGUAGES = [('en', 'English'), ('fr', 'Français'), ('es', 'Español')]
+# LANGUAGES is left to settings.py, which also includes Français (Canada).
 LANGUAGE_CODE = 'en'
 
 
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'qatrack',
+        'NAME': 'qatrackplus',
         'USER': 'qatrack',
         'PASSWORD': 'qatrackpass',
         'HOST': '',  # leave blank unless using remote server or SQLExpress (use 127.0.0.1\\SQLExpress or COMPUTERNAME\\SQLExpress)
@@ -20,7 +20,7 @@ DATABASES = {
     },
     'readonly': {
         'ENGINE': 'mssql',
-        'NAME': 'qatrack',
+        'NAME': 'qatrackplus',
         'USER': 'qatrack_reports',
         'PASSWORD': 'qatrackpass',
         'HOST': '',  # leave blank unless using remote server or SQLExpress (use 127.0.0.1\\SQLExpress or COMPUTERNAME\\SQLExpress)
@@ -82,10 +82,6 @@ USE_X_FORWARDED_HOST = True
 # LOGIN_URL = "/qatrack/accounts/login/"
 
 
-# Precision to use when displaying constant values
-CONSTANT_PRECISION = 8
-
-
 # This is the warning message given to the user when a test result is out of tolerance
 # Override this setting in local_settings.py to a locally relevant warning message
 DEFAULT_WARNING_MESSAGE = 'Do not treat'
@@ -121,8 +117,6 @@ TEST_STATUS_DISPLAY_SHORT = {
 
 
 # Email and notification settings
-EMAIL_NOTIFICATION_USER = None
-EMAIL_NOTIFICATION_PWD = None
 EMAIL_NOTIFICATION_TEMPLATE = 'notification_email.html'
 EMAIL_NOTIFICATION_SENDER = 'qatrack@yourmailhost.com'
 # use either a static subject or a customizable template

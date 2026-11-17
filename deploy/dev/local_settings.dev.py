@@ -7,11 +7,12 @@
 # passwords) out of version control.
 
 ## Manditory settings:
-### You must set at least the DATABASES setting here. 
+### You must set at least the DATABASES setting here.
+
+import os  # noqa: F401 - used by the commented-out path examples below
 
 DEBUG = True  # Set to False to disable debug mode
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
-TEMPLATE_DBG = True
 
 DATABASES = {
     'default': {
@@ -33,7 +34,7 @@ DATABASES['readonly'] = DATABASES['default']
 
 # Example:
 #TIME_ZONE = 'America/Toronto'
-#LANGUAGES = [('en', 'English'), ('fr', 'Français'), ('es', 'Español')]
+#LANGUAGES = [('en', 'English'), ('fr', 'Français'), ('fr-ca', 'Français (Canada)'), ('es', 'Español')]
 #LANGUAGE_CODE = 'fr'
 
 #AUTOSAVE_DAYS_TO_KEEP = 7
@@ -46,8 +47,7 @@ DATABASES['readonly'] = DATABASES['default']
 
 #UPLOAD_PATH = "uploads"
 #TMP_UPLOAD_PATH = os.path.join(UPLOAD_PATH, "tmp")
-#UPLOAD_ROOT = os.path.join(MEDIA_ROOT, "uploads")
-#TMP_UPLOAD_ROOT = os.path.join(UPLOAD_ROOT, "tmp")
+# (UPLOAD_ROOT and TMP_UPLOAD_ROOT are always derived from MEDIA_ROOT by settings.py)
 #STATIC_ROOT = os.path.join(CUSTOM_ROOT_PATH, "static")
 
 

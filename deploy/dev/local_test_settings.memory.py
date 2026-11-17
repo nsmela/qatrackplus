@@ -5,7 +5,6 @@
 # the cost of not being able to inspect the database file after a test run.
 
 DEBUG = True
-TEMPLATE_DBG = True
 
 DATABASES = {
     'default': {

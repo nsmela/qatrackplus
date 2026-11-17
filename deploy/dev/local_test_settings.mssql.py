@@ -4,7 +4,6 @@
 # Requires the `mssql` extra: uv sync --extra mssql
 
 DEBUG = True
-TEMPLATE_DBG = True
 
 DATABASES = {
     'default': {

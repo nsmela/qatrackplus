@@ -31,6 +31,16 @@ ALLOWED_HOSTS = ['XX.XXX.XXX.XX']
 # that rewrites the Host header.
 CSRF_TRUSTED_ORIGINS = ['https://XX.XXX.XXX.XX']
 
+# Serving over HTTPS? Uncomment these once your certificate is in place (see
+# "Serving over HTTPS" in docs/install/linux.rst). They make links in emails and
+# reports use https, let Django see that a request arrived over HTTPS (Nginx
+# sends X-Forwarded-Proto), and stop the session and CSRF cookies being sent
+# over plain HTTP.
+# HTTP_OR_HTTPS = 'https'
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+
 # Set to False to disable the SQL Query Tool
 USE_SQL_REPORTS =  True
 
@@ -61,10 +71,6 @@ MANAGERS = ADMINS
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
 TIME_ZONE = 'America/Toronto'
-
-
-# Precision to use when displaying constant values
-CONSTANT_PRECISION = 8
 
 
 # This is the warning message given to the user when a test result is out of tolerance
@@ -102,8 +108,6 @@ TEST_STATUS_DISPLAY_SHORT = {
 
 
 # Email and notification settings
-EMAIL_NOTIFICATION_USER = None
-EMAIL_NOTIFICATION_PWD = None
 EMAIL_NOTIFICATION_TEMPLATE = "notification_email.html"
 EMAIL_NOTIFICATION_SENDER = "qatrack@yourmailhost.com"
 # use either a static subject or a customizable template

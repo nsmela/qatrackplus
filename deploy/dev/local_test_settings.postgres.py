@@ -2,7 +2,6 @@
 # Copy this file to qatrack/local_test_settings.py and customize as needed
 
 DEBUG = True
-TEMPLATE_DBG = True
 
 DATABASES = {
     'default': {
