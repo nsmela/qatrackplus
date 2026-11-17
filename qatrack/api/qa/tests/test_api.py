@@ -853,6 +853,52 @@ class TestTestListInstanceAPI(APITestCase):
         self.client.patch(resp.data['url'], new_data)
         assert not models.TestListInstance.objects.all().first().in_progress
 
+    def test_create_in_progress_missing_tests(self):
+        """#661: an in-progress list may leave tests out, as it can in the browser."""
+        utils.create_test_list_membership(self.test_list, self.tc)
+        utils.create_test_list_membership(self.test_list, self.tdate)
+        self.data['in_progress'] = True
+        for slug in ("test1", "test4"):
+            self.data['tests'].pop(slug)
+        self.data['tests']['test5'] = {'value': ""}
+        response = self.client.post(self.create_url, self.data)
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+
+        tli = models.TestListInstance.objects.get()
+        assert tli.in_progress
+        assert tli.testinstance_set.count() == self.ntests + 2
+        blank = models.TestInstance.objects.filter(unit_test_info__test__slug__in=["test1", "test4", "testc"])
+        assert [ti.value for ti in blank] == [None, None, None]
+        assert models.TestInstance.objects.get(unit_test_info__test=self.tdate).date_value is None
+        assert models.TestInstance.objects.get(unit_test_info__test=self.t2).value == 2
+
+    def test_complete_in_progress_missing_fails(self):
+        """Completing a list still needs every test, so the blanks left while in progress must be filled."""
+        self.data['in_progress'] = True
+        self.data['tests'].pop("test1")
+        resp = self.client.post(self.create_url, self.data)
+        assert resp.status_code == status.HTTP_201_CREATED, resp.data
+
+        edit_resp = self.client.patch(resp.data['url'], {'in_progress': False})
+        assert edit_resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert models.TestListInstance.objects.get().in_progress
+
+        edit_resp = self.client.patch(resp.data['url'], {'in_progress': False, 'tests': {'test1': {'value': 5}}})
+        assert edit_resp.status_code == status.HTTP_200_OK, edit_resp.data
+        assert not models.TestListInstance.objects.get().in_progress
+        assert models.TestInstance.objects.get(unit_test_info__test=self.t1).value == 5
+
+    def test_in_progress_blank_boolean_stays_blank(self):
+        """A Yes/No test left blank must not be read back as No when the list is next saved."""
+        self.data['in_progress'] = True
+        self.data['tests'].pop("test4")
+        resp = self.client.post(self.create_url, self.data)
+        assert resp.status_code == status.HTTP_201_CREATED, resp.data
+
+        edit_resp = self.client.patch(resp.data['url'], {'tests': {'test1': {'value': 7}}})
+        assert edit_resp.status_code == status.HTTP_200_OK, edit_resp.data
+        assert models.TestInstance.objects.get(unit_test_info__test=self.t4).value is None
+
     def test_complete_unscheduled(self):
         self.data['include_for_scheduling'] = True
         resp = self.client.post(self.create_url, self.data)

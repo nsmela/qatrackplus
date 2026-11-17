@@ -386,6 +386,12 @@ A few things to note:
     }
 
 * You don't need to submit data for `sum_of_two` since it is a composite test and calculated automatically.
+* While `in_progress` is `True`, `tests` may be partial: any test you leave
+  out, or send with a value of `None` or `""`, is saved blank, just as it would
+  be when saving an in-progress test list in the browser. Composite tests that
+  depend on a blank test are left blank too. When you later complete the list
+  (`'in_progress': False`), every test needs a value again (or must be marked
+  `skipped`), and the request is rejected until the blanks are filled in.
 * The `url` key contains the hyperlink where you can view the completed TestListInstance online.
 
 Performing A Test List Cycle

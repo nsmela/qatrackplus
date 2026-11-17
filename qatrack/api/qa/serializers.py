@@ -282,17 +282,23 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
             test = ti.unit_test_info.test
             slug = test.slug
             if slug not in data['tests']:
-                if test.is_upload():
-                    upload = ti.get_value()
+                upload = ti.get_value() if test.is_upload() else None
+                if upload is not None:
                     data['tests'][slug] = {
                         'value': base64.b64encode(upload.attachment.read()).decode(),
                         'encoding': 'base64',
                         'filename': ti.string_value,
                         'comment': ti.comment,
                     }
+                elif test.is_upload():
+                    # left blank while in progress: nothing has been uploaded yet
+                    data['tests'][slug] = {'value': None, 'comment': ti.comment}
                 else:
+                    # get_value() reads a blank boolean as False, which would
+                    # turn a test left blank while in progress into "No".
+                    blank_boolean = test.is_boolean() and ti.value is None
                     data['tests'][slug] = {
-                        'value': ti.get_value(),
+                        'value': None if blank_boolean else ti.get_value(),
                         'comment': ti.comment,
                     }
             elif slug in data['tests'] and data['tests'][slug].get('skipped'):
@@ -317,6 +323,10 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
 
         test_qs = self.tl.all_tests().values_list("slug", "type", "calculation_procedure")
 
+        # A list saved as in progress may have tests left blank, as in the
+        # browser; completing it still needs a value for every test (#661).
+        in_progress = validated_data.get('in_progress', False)
+
         missing = []
         wrong_types = []
         invalid_autos = []
@@ -332,29 +342,39 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
             skipped = validated_data['tests'][slug].get("skipped")
             provided_val = post_data.get('tests', {}).get(slug, {}).get("value")
             validated_val = validated_data['tests'][slug].get("value")
-            if not skipped and type_ not in auto_types and not self.type_okay(type_, validated_val):
+            blank_ok = in_progress and validated_val in (None, "")
+            if not skipped and not blank_ok and type_ not in auto_types and not self.type_okay(type_, validated_val):
                 wrong_types.append(slug)
 
             if type_ in auto_types and not self.autovalue_ok(validated_val, provided_val):
                 invalid_autos.append(slug)
-            elif type_ in auto_types and not self.type_okay(type_, validated_val) and not skipped:
+            elif type_ in auto_types and not self.type_okay(type_, validated_val) and not skipped and not blank_ok:
                 wrong_types.append(slug)
 
             d = validated_data['tests'][slug]
+            if blank_ok and type_ not in models.STRING_TYPES:
+                # an empty string can't be stored as a number, date or upload
+                d['value'] = None
+
             if type_ in models.STRING_TYPES and slug in validated_data['tests']:
                 d['string_value'] = d.pop('value', "")
             elif type_ == models.DATE and slug in validated_data['tests']:
-                d['date_value'] = parse_date(d.pop('value', ""))
+                value = d.pop('value', "")
+                d['date_value'] = parse_date(value) if value else None
             elif type_ == models.DATETIME and slug in validated_data['tests']:
-                dt = parse_datetime(d.pop('value', ""))
+                value = d.pop('value', "")
+                dt = parse_datetime(value) if value else None
                 dt = timezone.make_aware(dt) if dt and timezone.is_naive(dt) else dt
                 d['datetime_value'] = dt
             elif type_ == models.UPLOAD and slug in validated_data['tests']:
                 # remove base64 data
                 d.pop('value', "")
-                # string value needs to be set to attachment id for later editing
-                d['string_value'] = self.ti_attachments[slug][0]
-                d['json_value'] = json.dumps(self.ti_upload_analysis_data[slug], cls=QATrackJSONEncoder)
+                # string value needs to be set to attachment id for later editing.
+                # An upload left blank while in progress has no attachment yet.
+                attachment_ids = self.ti_attachments[slug]
+                d['string_value'] = attachment_ids[0] if attachment_ids else ""
+                if slug in self.ti_upload_analysis_data:
+                    d['json_value'] = json.dumps(self.ti_upload_analysis_data[slug], cls=QATrackJSONEncoder)
 
         if missing:
             msgs.append("Missing data for tests: %s" % ', '.join(missing))
@@ -431,6 +451,8 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
 
         test_qs = self.tl.all_tests().values_list("id", "slug", "type", "constant_value")
 
+        in_progress = validated_data.get('in_progress', False)
+
         has_composite = False
         uploads = []
         for pk, slug, type_, cv in test_qs:
@@ -446,13 +468,19 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
                 validated_data['tests'][slug] = d
             elif type_ == models.UPLOAD:
                 d = validated_data['tests'].get(slug, {})
-                uploads.append((pk, slug, d))
+                if in_progress and d.get('value') in (None, "") and not d.get('skipped'):
+                    # nothing to upload yet; it can be sent when the list is completed
+                    validated_data['tests'][slug] = dict(d, value=None)
+                else:
+                    uploads.append((pk, slug, d))
             elif type_ in models.CALCULATED_TYPES:
                 has_composite = True
                 if slug not in validated_data['tests']:
                     validated_data['tests'][slug] = {'value': ''}
                 elif 'value' not in validated_data['tests'][slug]:
                     validated_data['tests'][slug]['value'] = ""
+            elif in_progress:
+                validated_data['tests'].setdefault(slug, {'value': None})
 
         self.ti_attachments = defaultdict(list)
         self.ti_upload_analysis_data = {}
