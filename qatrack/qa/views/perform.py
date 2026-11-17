@@ -681,8 +681,17 @@ class CompositePerformer:
 
         Anything that is neither a string nor a date - a number, say - is left
         alone rather than guessed at, as is a test whose type is not known here.
+
+        A boolean test is the one exception to "decided on the value": its
+        Yes/No buttons are set by comparing the value with the number ``0``
+        (``set_value`` in ``qa.js``), and JSON ``false`` is not ``0``, so a
+        procedure returning ``False`` showed as Yes. ``True``/``False`` are sent
+        as ``1``/``0``, the same values the buttons themselves hold (#680).
         """
         test_type = self.test_types.get(slug)
+        if test_type == models.BOOLEAN and isinstance(result, bool):
+            return int(result)
+
         if test_type not in (models.DATE, models.DATETIME):
             return result
 

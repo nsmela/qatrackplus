@@ -591,6 +591,39 @@ class TestComposite(TestCase):
         }
         self.assertDictEqual(values, expected)
 
+    def _boolean_default(self, procedure):
+        """Calculate a boolean test's default and return the value sent to the browser."""
+        tb = utils.create_test(name="testb", test_type=models.BOOLEAN)
+        tb.calculation_procedure = procedure
+        tb.save()
+        utils.create_test_list_membership(self.test_list, tb)
+        utils.create_unit_test_info(test=tb, unit=self.unit)
+
+        data = {
+            'tests': {"testb": "", "test1": 1, "test2": 2, "testc": ""},
+            'meta': {},
+            'test_list_id': self.test_list.id,
+            'unit_id': self.unit.id,
+            'defaults': True,
+        }
+        request = self.factory.post(self.url, content_type='application/json', data=json.dumps(data))
+        request.user = self.user
+        response = self.view(request)
+        return json.loads(response.content.decode("UTF-8"))['results']['testb']
+
+    def test_boolean_default_false_is_sent_as_0(self):
+        """#680: qa.js selects "No" only for the number 0, so False must arrive as 0, not false."""
+        result = self._boolean_default("testb = False")
+        self.assertIsNone(result['error'])
+        self.assertIs(type(result['value']), int)
+        self.assertEqual(result['value'], 0)
+
+    def test_boolean_default_true_is_sent_as_1(self):
+        result = self._boolean_default("testb = True")
+        self.assertIsNone(result['error'])
+        self.assertIs(type(result['value']), int)
+        self.assertEqual(result['value'], 1)
+
     def test_composite_comment_converts_exceptions_to_strings(self):
         self.tc.calculation_procedure = "UTILS.set_comment(ValueError('bad value'))\nresult = test1 + test2"
         self.tc.save()

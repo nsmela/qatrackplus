@@ -677,6 +677,9 @@ To set an initial value for a Boolean (Yes/No) test you would use:
 
     your_bool_test = True  # or False
 
+``True`` selects *Yes* and ``False`` selects *No*. ``1`` and ``0`` work the
+same way, if you prefer numbers.
+
 
 To set an initial value for a String test you would use:
 
