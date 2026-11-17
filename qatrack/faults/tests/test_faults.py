@@ -84,6 +84,28 @@ class TestCanReviewFaults(TestCase):
         assert can_review_faults(user)
 
 
+class TestFaultMenu(TestCase):
+    """
+    The Fault Log menu is shown to anyone who can add, view or review faults.
+    Reviewing is the `faults.can_review` permission.
+    """
+
+    def setUp(self):
+        self.user = qa_utils.create_user(is_staff=False, is_superuser=False)
+        self.client.force_login(self.user)
+        self.url = reverse('account-details')
+        self.link = 'href="%s"' % reverse('fault_choose_unit')
+
+    def test_menu_hidden_without_permission(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, self.link)
+
+    def test_menu_shown_with_review_permission(self):
+        self.user.user_permissions.add(Permission.objects.get(codename='can_review', content_type__app_label='faults'))
+        response = self.client.get(self.url)
+        self.assertContains(response, self.link)
+
+
 class TestFaultAdmin(TestCase):
 
     def setUp(self):

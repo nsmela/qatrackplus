@@ -671,7 +671,7 @@
                   </li>
                 {% endif %}
 
-                {% if perms.faults.add_fault or perms.faults.view_fault or perms.faults.review_fault %}
+                {% if perms.faults.add_fault or perms.faults.view_fault or perms.faults.can_review %}
                   <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                       {% trans "Fault Log" %}
@@ -909,7 +909,7 @@
               </li>
             </ul>
 
-            {% if user.is_staff or perms.units.change_unitavailable_time %}
+            {% if user.is_staff or perms.units.change_unitavailabletime %}
               <h4 class="control-sidebar-heading">Admin Options</h4>
               <ul class="control-sidebar-menu">
                 {% if user.is_staff %}

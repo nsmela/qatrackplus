@@ -1,5 +1,6 @@
 import datetime
 
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -83,6 +84,31 @@ class TestWeekDayCount:
             'saturday': 1,
             'sunday': 1,
         }
+
+
+class TestUnitAvailableTimeSidebarLink(TestCase):
+    """
+    The Unit Available Times link in the sidebar is shown to staff, and to
+    anyone else holding the permission the page itself requires.
+    """
+
+    def setUp(self):
+        self.user = utils.create_user(is_staff=False, is_superuser=False)
+        self.client.force_login(self.user)
+        self.url = reverse('account-details')
+        # The URL also appears in the page's JavaScript settings, so look for
+        # the link itself.
+        self.link = 'href="%s"' % reverse('unit_available_time')
+
+    def test_link_hidden_without_permission(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, self.link)
+
+    def test_link_shown_with_permission(self):
+        perm = Permission.objects.get(codename='change_unitavailabletime')
+        self.user.user_permissions.add(perm)
+        response = self.client.get(self.url)
+        self.assertContains(response, self.link)
 
 
 class TestUnitAvailableTime(TestCase):
