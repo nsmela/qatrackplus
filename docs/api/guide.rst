@@ -394,6 +394,8 @@ A few things to note:
   `skipped`), and the request is rejected until the blanks are filled in.
 * The `url` key contains the hyperlink where you can view the completed TestListInstance online.
 
+.. _api_perform_cycle:
+
 Performing A Test List Cycle
 ............................
 
@@ -402,6 +404,12 @@ upload data.  The `day` key is a 0-indexed integer indicating which day of the
 test list cycle you want to perform (e.g. if you want to perform day 1, you
 would use `'day': 0`, and if you want to perform day 2, you would use `'day':
 1`).
+
+Calculation procedures don't see this 0-indexed value. `META['cycle_day']`
+counts from 1, exactly as it does when the cycle is performed in the browser,
+so `'day': 1` gives a calculation a `cycle_day` of 2. (Earlier versions passed
+the 0-indexed value through unchanged, so a procedure written to compensate
+for that will need updating.)
 
 Example data to perform day 2 of a test list cycle would look something like:
 

@@ -365,7 +365,11 @@ When your script (calculation procedure) is executed, it has access to
 
     -  unit\_number - Unit number
 
-    -  cycle\_day - Current cycle day being performed (Always 1 for non-cycle test lists)
+    -  cycle\_day - Current cycle day being performed, counting from 1 (Always
+       1 for non-cycle test lists). This is the same whether the test list is
+       performed in the browser or through the API, even though the API's own
+       ``day`` key counts from 0 (see :ref:`Performing a Test List Cycle
+       <api_perform_cycle>` in the API guide).
 
     -  work\_completed - Python datetime object with current work\_completed value
 

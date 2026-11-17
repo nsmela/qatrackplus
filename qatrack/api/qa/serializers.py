@@ -549,7 +549,9 @@ class TestListInstanceCreator(serializers.HyperlinkedModelSerializer):
             'meta': {
                 'test_list_name': self.tl.name,
                 'unit_number': self.utc.unit.number,
-                'cycle_day': self.day,
+                # `day` is 0-based in the API, but calculations see the same
+                # 1-based cycle day as in the browser (#808)
+                'cycle_day': self.day + 1,
                 'work_completed': validated_data['work_completed'],
                 'work_started': validated_data['work_started'],
                 'username': self.context['request'].user.username,

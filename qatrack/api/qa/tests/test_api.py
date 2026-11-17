@@ -247,6 +247,15 @@ class TestTestListInstanceAPI(APITestCase):
         tic = models.TestInstance.objects.get(unit_test_info__test=self.tc)
         assert tic.value == self.data['tests']['test1']['value'] + self.data['tests']['test2']['value']
 
+    def test_create_composite_meta_cycle_day(self):
+        """#808: META['cycle_day'] is 1 for a plain test list, as in the browser."""
+        self.tc.calculation_procedure = "result = META['cycle_day']"
+        self.tc.save()
+        utils.create_test_list_membership(self.test_list, self.tc)
+        response = self.client.post(self.create_url, self.data)
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert models.TestInstance.objects.get(unit_test_info__test=self.tc).value == 1
+
     def test_create_composite_skipped_all_dependencies_comp_not_skipped(self):
         """
         Add a composite test to our test list.  Submitting with its dependencies
@@ -1142,6 +1151,16 @@ class TestPerformTestListCycleAPI(APITestCase):
         assert tli.testinstance_set.values_list('value', flat=True)[0] == 1
         assert tli.test_list_id == self.test_list1.id
         assert tli.day == 0
+
+    def test_create_day_2_meta_cycle_day(self):
+        """#808: `day` is 0-based, but calculations see the 1-based cycle day the browser gives them."""
+        tc = utils.create_test(name="testc", test_type=models.COMPOSITE)
+        tc.calculation_procedure = "result = META['cycle_day']"
+        tc.save()
+        utils.create_test_list_membership(self.test_list2, tc)
+        response = self.client.post(self.create_url, self.day2_data)
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert models.TestInstance.objects.get(unit_test_info__test=tc).value == 2
 
     def test_create_no_day(self):
         """If no day is supplied, an error should be returned"""
