@@ -30,7 +30,12 @@ DATABASES = {
 }
 
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'YOUR_HOST_NAME_HERE']  # Windows key + i -> System -> About -> Device Name
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'YOUR_HOST_NAME_HERE', 'YOUR_IP_ADDRESS']  # Windows key + i -> System -> About -> Device Name; `ipconfig` for the IP address
+# Unlike the Linux templates, the http:// entries here are needed. IIS sends
+# QATrack+ a fixed X-Forwarded-Host (the server name given to iis_install.ps1)
+# and USE_X_FORWARDED_HOST is True below, so Django always thinks the site is at
+# that name. A browser that reached it as localhost or by IP address sends a
+# different Origin, which is only accepted if it is listed here.
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1',
     'https://127.0.0.1',
@@ -38,6 +43,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost',
     'http://YOUR_HOST_NAME_HERE',
     'https://YOUR_HOST_NAME_HERE',
+    'http://YOUR_IP_ADDRESS',
+    'https://YOUR_IP_ADDRESS',
 ]
 
 # Who to email when server errors occur

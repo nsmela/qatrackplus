@@ -171,10 +171,16 @@ def apply(g, environ=os.environ):
     # (the compose health check), so those are always allowed. CSRF origins are
     # derived from the site's own hosts before they are added, so localhost never
     # becomes a trusted origin.
+    #
+    # Only https:// origins are derived. A plain-HTTP request needs no entry:
+    # nginx passes the Host header through, and Django accepts an Origin that
+    # matches the request's own scheme and host. Trusting http:// origins only
+    # matters behind a further proxy that rewrites Host, and such a site can set
+    # CSRF_TRUSTED_ORIGINS itself (#784).
     hosts = env.get('ALLOWED_HOSTS', parse_csv, default=list(LOOPBACK_HOSTS))
     csrf_origins = env.get('CSRF_TRUSTED_ORIGINS', parse_csv)
     if csrf_origins is None:
-        csrf_origins = [scheme + host for host in hosts for scheme in ('http://', 'https://') if host != '*']
+        csrf_origins = ['https://' + host for host in hosts if host != '*']
     g['CSRF_TRUSTED_ORIGINS'] = csrf_origins
     g['ALLOWED_HOSTS'] = hosts + [h for h in LOOPBACK_HOSTS if h not in hosts]
 

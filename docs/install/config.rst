@@ -94,6 +94,41 @@ On Windows using CherryPy/IIS (or if you are running QATrack+ behind a reverse p
 
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
+.. _csrf_trusted_origins:
+
+CSRF Trusted Origins Setting
+............................
+
+When someone signs in or submits a form, Django checks that the request came
+from your own site rather than from another web page. `CSRF_TRUSTED_ORIGINS`
+lists the addresses it should accept besides the one it already knows about.
+Each entry includes the scheme, like ``'https://qatrack.myclinic.ca'``.
+
+How much you need depends on how your site is reached:
+
+* **Plain HTTP on Linux (Nginx):** nothing. Django compares the browser's
+  address with the host name it was asked for, and for a name in
+  `ALLOWED_HOSTS` those match.
+* **HTTPS on Linux:** list the ``https://`` form of each name in
+  `ALLOWED_HOSTS`, as the example settings file does:
+
+  .. code-block:: python
+
+      CSRF_TRUSTED_ORIGINS = ['https://52.123.4.9']
+
+* **Windows with IIS:** list both ``http://`` and ``https://`` for every name
+  and address people use, including ``localhost`` and the server's IP address.
+  The IIS set-up always tells QATrack+ the site is at the server's device
+  name, so any other address needs its own entry. The example Windows settings
+  file already lists them.
+* **Docker:** leave it unset and the ``https://`` form of each name in
+  `ALLOWED_HOSTS` is used.
+
+If signing in fails with a **403 CSRF verification failed** error, add the
+exact address shown in your browser's address bar (scheme, name and any port),
+for example ``'http://qatrack.myclinic.ca:8080'``. This is usually only needed
+behind a proxy that changes the Host header.
+
 HTTP or HTTPS Setting
 .....................
 

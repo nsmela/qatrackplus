@@ -274,13 +274,18 @@ Your local_settings.py file should look something like the following (but with t
        'YOUR_DEVICE_NAME',
        'YOUR_IP_ADDRESS']
 
+   # The http:// entries are needed on Windows: IIS tells QATrack+ the site is
+   # always at the device name, so a browser that uses localhost or the IP
+   # address has to be listed here to be able to sign in.
    CSRF_TRUSTED_ORIGINS = [
        'http://localhost',
        'https://localhost',
        'http://127.0.0.1',
        'https://127.0.0.1',
        'http://YOUR_DEVICE_NAME',
-       'https://YOUR_DEVICE_NAME']
+       'https://YOUR_DEVICE_NAME',
+       'http://YOUR_IP_ADDRESS',
+       'https://YOUR_IP_ADDRESS']
 
 Confirm you can connect to your database by running the `showmigrations` command:
 

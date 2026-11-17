@@ -154,10 +154,8 @@ class TestHosts(DockerSettingsTestCase):
     def test_internal_hosts_are_allowed_but_not_trusted_origins(self):
         g = self.apply(ALLOWED_HOSTS='qatrack.clinic.ca, 10.0.0.5')
         self.assertEqual(g['ALLOWED_HOSTS'], ['qatrack.clinic.ca', '10.0.0.5', 'localhost', '127.0.0.1'])
-        self.assertEqual(
-            g['CSRF_TRUSTED_ORIGINS'],
-            ['http://qatrack.clinic.ca', 'https://qatrack.clinic.ca', 'http://10.0.0.5', 'https://10.0.0.5'],
-        )
+        # https only: a plain-HTTP request is checked against its own host (#784)
+        self.assertEqual(g['CSRF_TRUSTED_ORIGINS'], ['https://qatrack.clinic.ca', 'https://10.0.0.5'])
 
     def test_wildcard_is_not_a_trusted_origin(self):
         g = self.apply(ALLOWED_HOSTS='*')

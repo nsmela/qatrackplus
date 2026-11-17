@@ -23,8 +23,12 @@ DATABASES = {
 # Change XX.XXX.XXX.XX to your servers IP address and/or host name e.g. ALLOWED_HOSTS = ['54.123.45.1', 'yourhostname']
 ALLOWED_HOSTS = ['XX.XXX.XXX.XX']
 
-# CSRF_TRUSTED_ORIGINS is required for Django 4.0+. It must include the scheme (http/https).
-CSRF_TRUSTED_ORIGINS = ['http://XX.XXX.XXX.XX', 'https://XX.XXX.XXX.XX']
+# Origins trusted for signing in and submitting forms over HTTPS. Use the same
+# names as ALLOWED_HOSTS, with the scheme, e.g. ['https://yourhostname'].
+# A plain-HTTP site reached by a name in ALLOWED_HOSTS needs no entry here. Add
+# 'http://...' only if signing in fails with 403 CSRF, for example behind a proxy
+# that rewrites the Host header.
+CSRF_TRUSTED_ORIGINS = ['https://XX.XXX.XXX.XX']
 
 # Set to False to disable the SQL Query Tool
 USE_SQL_REPORTS =  True
