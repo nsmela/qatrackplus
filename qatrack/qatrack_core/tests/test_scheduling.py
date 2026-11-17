@@ -344,6 +344,29 @@ class TestCalcDueDate(TestCase):
         expected_due_date = self.make_dt(timezone.datetime(2019, 1, 1, 7, 0))
         assert scheduling.calc_due_date(today, due_date, self.day_of_month(1)).date() == expected_due_date.date()
 
+    def specific_dates(self, *dates):
+        """A windowed frequency made only of specific dates (RDATEs), as in #654."""
+        return models.Frequency(
+            name="Specific dates",
+            slug="specific-dates",
+            recurrences=recurrence.Recurrence(rdates=[self.make_dt(d) for d in dates]),
+            window_start=0,
+            window_end=1,
+        )
+
+    def test_specific_dates_next_date(self):
+        freq = self.specific_dates(timezone.datetime(2026, 3, 1, 7, 0), timezone.datetime(2026, 6, 1, 7, 0))
+        today = self.make_dt(timezone.datetime(2026, 3, 1, 12, 0))
+        due_date = self.make_dt(timezone.datetime(2026, 3, 1, 7, 0))
+        assert scheduling.calc_due_date(today, due_date, freq).date() == datetime.date(2026, 6, 1)
+
+    def test_specific_dates_none_due_after_the_last(self):
+        """Once the last date is done there is nothing further due - and no TypeError."""
+        freq = self.specific_dates(timezone.datetime(2026, 3, 1, 7, 0), timezone.datetime(2026, 6, 1, 7, 0))
+        today = self.make_dt(timezone.datetime(2026, 6, 1, 12, 0))
+        due_date = self.make_dt(timezone.datetime(2026, 6, 1, 7, 0))
+        assert scheduling.calc_due_date(today, due_date, freq) is None
+
     def test_4_weekly_performed_long_after_outside_next_window(self):
         """If a test list is due on say Apr 1st and is not performed until Nov 20
         the due date should be updated to Dec 1st"""

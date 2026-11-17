@@ -134,3 +134,23 @@ A frequency for tests that must be performed the first Monday of every other mon
    :alt: First monday of every other month configuration
 
    First monday of every other month configuration
+
+
+Frequencies made of specific dates
+----------------------------------
+
+A frequency doesn't need a repeating rule at all. If QC is only needed on a
+handful of known days, for example around a planned service visit, you can
+leave the rules empty and add just those **dates**. You can also mix dates in
+with a rule, or exclude dates from one.
+
+A few things are worth knowing about a frequency made only of dates:
+
+* Once the last date has passed, nothing further is due, so the test list
+  shows no due date until you add more dates or assign it a different
+  frequency.
+* Frequencies are sorted by how often they recur, and that is worked out from
+  the years 2012 to 2017, so a frequency of recent dates will usually appear at
+  the end of frequency lists.
+* A frequency made only of *exclusions* still isn't allowed, because there is
+  nothing for it to exclude dates from.

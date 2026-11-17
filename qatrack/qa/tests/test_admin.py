@@ -389,6 +389,42 @@ class TestUnitTestCollectionAdmin(TestCase):
         self.assertListEqual(list(filtered_2), list(filtered_1))
 
 
+class TestFrequencyAdmin(TestCase):
+
+    def form(self, recurrences):
+        data = {
+            'name': 'Freq',
+            'slug': 'freq',
+            'recurrences': recurrences,
+            'window_start': '',
+            'window_end': 1,
+        }
+        return modelform_factory(qa_models.Frequency, form=qa_admin.FrequencyForm, fields='__all__')(data=data)
+
+    def test_rule_is_valid(self):
+        assert self.form("RRULE:FREQ=WEEKLY;BYDAY=MO").is_valid()
+
+    def test_specific_dates_only_is_valid(self):
+        """#654: a frequency made only of specific dates was rejected as 'exclusion rules only'."""
+        form = self.form("RDATE:20260301T050000Z\nRDATE:20260601T040000Z")
+        assert form.is_valid(), form.errors
+
+    def test_specific_dates_only_can_be_saved(self):
+        form = self.form("RDATE:20260301T050000Z\nRDATE:20260601T040000Z")
+        assert form.is_valid(), form.errors
+        assert form.save().pk
+
+    def test_exclusion_date_only_is_invalid(self):
+        form = self.form("EXDATE:20260301T050000Z")
+        assert not form.is_valid()
+        assert 'recurrences' in form.errors
+
+    def test_exclusion_rule_only_is_invalid(self):
+        form = self.form("EXRULE:FREQ=WEEKLY;BYDAY=MO")
+        assert not form.is_valid()
+        assert 'recurrences' in form.errors
+
+
 class TestTestAdmin(TestCase):
 
     def setUp(self):
