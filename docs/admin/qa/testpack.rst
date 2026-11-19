@@ -31,7 +31,8 @@ required for the TestList.
 
 After you have selected the items you want to include, enter a name (the name
 must consist only of letters, numbers, underscores and hyphens) and brief
-description on the right hand side of the page and click `Download`.
+description on the right hand side of the page and click `Download` at the
+top right of the page.
 
 
 .. image:: images/testpack-export-download.png
@@ -50,7 +51,7 @@ click on `Import Test Pack` (or visit `/qa/admin/import_testpack/` directly).
 On the next screen, click the "Choose File..." button on the right hand side of
 the page and select your Test Pack file.  Use the tables to select the Test
 Lists, Test List Cycles, or individual tests you want to import and then click
-the `Import` button on the right.
+the `Import` button at the top right of the page.
 
 .. image:: images/testpack-import-select.png
 
