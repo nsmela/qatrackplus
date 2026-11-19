@@ -1,207 +1,219 @@
 {% extends "admin/base_site.html" %}
-{% load i18n admin_urls static admin_list widget_tweaks %}
+{% load i18n admin_urls static %}
+
+{% comment %}
+Export Test Pack (ExportTestPack, admin/qa views): the QC title row and cards. The
+three tables are DataTables (js/testpack-export.js): selecting rows fills the hidden
+testlists / testlistcycles / tests inputs and the summary. The Download button in the
+title row submits the details form (form="qtp-export-form").
+Descriptions are stored as HTML, so the tables show them as plain text.
+{% endcomment %}
 
 {% block extrastyle %}
   {{ block.super }}
-
-  <link href="{% static "fontawsome/css/font-awesome.min.css" %}" rel="stylesheet">
-  <link href="{% static "css/bootstrap-grid.css" %}" rel="stylesheet">
   <link href="{% static "datatables/1.10/css/datatables.min.css" %}" rel="stylesheet">
   <link href="{% static "datatables/1.10/DataTables-1.10.18/css/jquery.dataTables.min.css" %}" rel="stylesheet">
 {% endblock %}
-
-
 
 {% block breadcrumbs %}
   <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
     <a href="{% url 'admin:app_list' app_label='qa' %}">{% trans "QC" %}</a> &rsaquo;
+    <a href="{% url 'admin:qa_testlist_changelist' %}">{% trans "Test Lists" %}</a> &rsaquo;
     {% trans "Export Test Pack" %}
   </div>
 {% endblock %}
 
-{% block coltype %}flex{% endblock %}
-
+{% block content_title %}{% endblock %}
 
 {% block content %}
+<div id="content-main">
+{% include "admin/qa/shared/_qc_assets.html" %}
+{% include "admin/qa/testpack/_testpack_assets.html" %}
 
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-sm-12">
-      <p>
+<div class="tl-header-bar qc-header-bar">
+  <div class="tl-header-left">
+    <h1 class="tl-header-title">{% trans "Export Test Pack" %}</h1>
+  </div>
+  <div class="tl-header-actions">
+    <a href="{% url 'admin:qa_import_testpack' %}" class="tl-top-btn tl-top-btn-secondary" id="qtp-import-link">
+      <i class="fa fa-upload" aria-hidden="true"></i> {% trans "Import Test Pack" %}
+    </a>
+    <a href="{% url 'admin:qa_testlist_changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qtp-cancel-btn">{% trans "Cancel" %}</a>
+    <button type="submit" form="qtp-export-form" class="tl-top-btn tl-top-btn-save" id="qtp-download-btn">
+      <i class="fa fa-download" aria-hidden="true"></i> {% trans "Download" %}
+    </button>
+  </div>
+</div>
+
+{# The paragraph's line breaks and indents are part of its translation msgid: keep them as they are. #}
+<p class="qtp-intro">
         {% blocktrans %}
         On this page you may create a Test Pack for sharing test lists,
         tests, and other QATrack+ configuration data with other QATrack+
         installations.
         {% endblocktrans %}
-      </p>
+</p>
+
+<div class="qtp-layout">
+  <div class="qtp-main">
+
+    <div class="tl-details-card qc-card qtp-card" id="qtp-testlists-card">
+      <div class="tl-card-header">
+        <i class="fa fa-list-alt" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Test Lists To Export" %}</h2>
+        <span class="tl-count-badge">{{ testlists|length }}</span>
+      </div>
+      <div class="tl-card-body tp-container">
+        <em class="loading qtp-loading">{% trans "Loading Test List table" %}…</em>
+        <table id="testlists-table" class="qtp-table-pending">
+          <thead>
+            <tr>
+              <th>{% trans "ID" %}</th>
+              <th>{% trans "Test List" %}</th>
+              <th>{% trans "Description" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for list in testlists %}
+              <tr>
+                <td>{{ list.id }}</td>
+                <td>{{ list.name }}</td>
+                <td>{{ list.description|striptags }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
 
-  <div class="row">
-
-    <div class="col-sm-8">
-      <div class="row">
-        <div class="col-sm-12 tp-container">
-          <hr/>
-          <h2>{% trans "Test Lists To Export" %}</h2>
-
-          <em class="loading">{% trans "Loading Test List table" %}…</em>
-          <table id="testlists-table" style="display: none">
-            <thead>
-              <tr>
-                <th>{% trans "ID" %}</th>
-                <th>{% trans "Test List" %}</th>
-                <th>{% trans "Description" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for list in testlists %}
-                <tr>
-                  <td>{{ list.id }}</td>
-                  <td>{{ list.name }}</td>
-                  <td>{{ list.description }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
+    <div class="tl-details-card qc-card qtp-card" id="qtp-testlistcycles-card">
+      <div class="tl-card-header">
+        <i class="fa fa-refresh" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Test List Cycles To Export" %}</h2>
+        <span class="tl-count-badge">{{ cycles|length }}</span>
       </div>
-
-      <div class="row">
-        <div class="col-sm-12 tp-container">
-          <hr/>
-          <h2>{% trans "Test List Cycles To Export" %}</h2>
-
-          <em class="loading">{% trans "Loading Test List Cycle table" %}…</em>
-          <table id="testlistcycles-table" style="display: none">
-            <thead>
+      <div class="tl-card-body tp-container">
+        <em class="loading qtp-loading">{% trans "Loading Test List Cycle table" %}…</em>
+        <table id="testlistcycles-table" class="qtp-table-pending">
+          <thead>
+            <tr>
+              <th>{% trans "ID" %}</th>
+              <th>{% trans "Cycle" %}</th>
+              <th>{% trans "Description" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cycle in cycles %}
               <tr>
-                <th>{% trans "ID" %}</th>
-                <th>{% trans "Cycle" %}</th>
-                <th>{% trans "Description" %}</th>
+                <td>{{ cycle.id }}</td>
+                <td>{{ cycle.name }}</td>
+                <td>{{ cycle.description|striptags }}</td>
               </tr>
-            </thead>
-            <tbody>
-              {% for cycle in cycles %}
-                <tr>
-                  <td>{{ cycle.id }}</td>
-                  <td>{{ cycle.name }}</td>
-                  <td>{{ cycle.description }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+    </div>
 
-      <div class="row">
-        <div class="col-sm-12 tp-container">
-          <hr/>
-          <h2>{% trans "Select Extra Tests To Export" %}</h2>
-
-          <p>
-            <em>
+    <div class="tl-details-card qc-card qtp-card" id="qtp-tests-card">
+      <div class="tl-card-header">
+        <i class="fa fa-flask" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Select Extra Tests To Export" %}</h2>
+        <span class="tl-count-badge">{{ tests|length }}</span>
+      </div>
+      <div class="tl-card-body tp-container">
+        <p class="qtp-note">
               {% blocktrans %}
               Note that there is no need to select tests that are already
               included as part of a test list
               {% endblocktrans %}
-            </em>
-          </p>
-
-          <em class="loading">{% trans "Loading Test table" %}…</em>
-          <table id="tests-table" style="display: none">
-            <thead>
+        </p>
+        <em class="loading qtp-loading">{% trans "Loading Test table" %}…</em>
+        <table id="tests-table" class="qtp-table-pending">
+          <thead>
+            <tr>
+              <th>{% trans "ID" %}</th>
+              <th>{% trans "Test" %}</th>
+              <th>{% trans "Category" %}</th>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Description" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for test in tests %}
               <tr>
-                <th>{% trans "ID" %}</th>
-                <th>{% trans "Test" %}</th>
-                <th>{% trans "Category" %}</th>
-                <th>{% trans "Type" %}</th>
-                <th>{% trans "Description" %}</th>
+                <td>{{ test.id }}</td>
+                <td>{{ test }}</td>
+                <td>{{ test.category.name }}</td>
+                <td>{{ test.get_type_display }}</td>
+                <td>{{ test.description|striptags }}</td>
               </tr>
-            </thead>
-            <tbody>
-              {% for test in tests %}
-                <tr>
-                  <td>{{ test.id }}</td>
-                  <td>{{ test }}</td>
-                  <td>{{ test.category.name }}</td>
-                  <td>{{ test.get_type_display }}</td>
-                  <td>{{ test.description }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-sm-4">
-      <h2>{% trans "Summary" %}</h2>
-      <hr/>
-      <div id="summary">
-
-        <div class="row">
-          <div class="col-sm-6">{% trans "Test Lists" %}:</div>
-          <div class="col-sm-6" style="text-align: right" id="testlists-summary">{% trans "0 Selected" %}</div>
-        </div>
-
-        <div class="row">
-          <div class="col-sm-6">{% trans "Test Lists Cycles" %}:</div>
-          <div class="col-sm-6" style="text-align: right" id="testlistcycles-summary">{% trans "0 Selected" %}</div>
-        </div>
-
-        <div class="row">
-          <div class="col-sm-6">{% trans "Tests" %}:</div>
-          <div class="col-sm-6" style="text-align: right" id="tests-summary">{% trans "0 Selected" %}</div>
-        </div>
-
-      </div>
-      <hr/>
-      <form method="post" action class="form-horizontal">
-        {% csrf_token %}
-        <div>
-          {{ form.testlists }}
-          {{ form.testlistcycles }}
-          {{ form.tests }}
-        </div>
-        <div class="row">
-          <div class="col-sm-6">
-            {% trans "Test Pack Name" %}:
-          </div>
-          <div class="col-sm-6" style="text-align: right">
-            {{ form.name|attr:"style:width: 100%" }}
-            {{ form.name.errors }}
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-sm-6">
-            {% trans "Description" %}:
-          </div>
-          <div class="col-sm-6" style="">
-            {{ form.description|attr:"style:width: 100%" }}
-            {{ form.description.errors }}
-          </div>
-        </div>
-        {% if form.non_field_errors %}
-          <ul class="errorlist nonfield">
-            {% for error in form.non_field_errors %}
-              <li>{{ error }}</li>
             {% endfor %}
-          </ul>
-        {% endif %}
-        <div class="submit-row">
-          <input type="submit" value="{% trans "Download" %}" class="default">
-        </div>
-      </form>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
-</div>
 
+  <aside class="qtp-side">
+
+    <div class="tl-details-card qc-card" id="qtp-summary-card">
+      <div class="tl-card-header">
+        <i class="fa fa-check-square-o" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Summary" %}</h2>
+      </div>
+      <div class="tl-card-body">
+        <dl class="qtp-dl" id="summary">
+          <dt>{% trans "Test Lists" %}</dt>
+          <dd id="testlists-summary">{% trans "0 Selected" %}</dd>
+          <dt>{% trans "Test List Cycles" %}</dt>
+          <dd id="testlistcycles-summary">{% trans "0 Selected" %}</dd>
+          <dt>{% trans "Tests" %}</dt>
+          <dd id="tests-summary">{% trans "0 Selected" %}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="tl-details-card qc-card" id="qtp-details-card">
+      <div class="tl-card-header">
+        <i class="fa fa-info-circle" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Test Pack Details" %}</h2>
+      </div>
+      <div class="tl-card-body">
+        <form method="post" action="" id="qtp-export-form">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <ul class="errorlist nonfield qtp-errors">
+              {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {{ form.testlists }}
+          {{ form.testlistcycles }}
+          {{ form.tests }}
+          <div class="tlb-form qc-form qtp-form">
+            <div class="tlb-field qc-field field-name{% if form.name.errors %} qc-has-error{% endif %}">
+              <label for="{{ form.name.id_for_label }}">{% trans "Test Pack Name" %} <em class="tl-req" aria-hidden="true">*</em></label>
+              {{ form.name.errors }}
+              <div class="qc-widget">{{ form.name }}</div>
+              <span class="qc-help">{% trans "Used as the file name: letters, numbers, hyphens and underscores only." %}</span>
+            </div>
+            <div class="tlb-field qc-field field-description{% if form.description.errors %} qc-has-error{% endif %}">
+              <label for="{{ form.description.id_for_label }}">{% trans "Description" %}</label>
+              {{ form.description.errors }}
+              <div class="qc-widget">{{ form.description }}</div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </aside>
+</div>
+</div>
 {% endblock %}
 
 {% block footer %}
@@ -214,4 +226,3 @@
 <script src="{% static "js/testpack-export.js" %}"></script>
 
 {% endblock %}
-

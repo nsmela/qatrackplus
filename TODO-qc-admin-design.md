@@ -145,11 +145,11 @@ Remove this file before the branch is merged.
 
 ## Step 4: Test List Instances, Test Instances, test packs
 
-- [ ] TLI / TI change pages through the shared template, with sensible
+- [x] TLI / TI change pages through the shared template, with sensible
       fieldsets; TLI `delete_confirmation.html` restyled (cards listing the
       linked service events). Feature: a "View on site" button to the TLI's
       review page.
-- [ ] Test pack import/export pages: title row + cards.
+- [x] Test pack import/export pages: title row + cards.
 
 ## Checks for every step
 

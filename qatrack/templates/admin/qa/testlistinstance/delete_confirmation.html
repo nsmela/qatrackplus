@@ -1,86 +1,161 @@
-{% extends "admin/base_site.html" %}
-{% load i18n %}
-{% load admin_urls %}
-{% load qa_tags %}
+{% extends "admin/delete_confirmation.html" %}
+{% load i18n admin_urls %}
+
+{% comment %}
+Delete confirmation for a Test List Instance (a performed QC session), in the QC card
+layout: a title row, a card describing the session, cards for the service events that
+use it (as return to service QC, or that it initiated: they're kept, but may change
+status), the test instances deleted with it, and a danger card with the confirm form.
+Context from TestListInstanceAdmin.render_delete_form: se_rtsqa_qs, se_ib_qs,
+default_ses and test_instances, on top of Django's own delete context.
+{% endcomment %}
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
 <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ app_label|capfirst }}</a>
-&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst|escape }}</a>
-&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}{{ object.pk }}">{{ object|truncatewords:"18" }}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
 &rsaquo; {% trans 'Delete' %}
 </div>
 {% endblock %}
 
+{% block content_title %}{% endblock %}
+
 {% block content %}
+<div id="content-main">
+{% include "admin/qa/shared/_qc_assets.html" %}
+{% include "admin/qa/testlistinstance/_instance_assets.html" %}
+{% url opts|admin_urlname:'change' object.pk|admin_urlquote as change_url %}
+
+<div class="tl-header-bar qc-header-bar">
+  <div class="tl-header-left">
+    <h1 class="tl-header-title">
+      {% trans "Delete Test List Instance" %}
+      <span class="tl-header-id"><span class="tl-header-id-sep" aria-hidden="true">&middot;</span> {% trans "ID" %} {{ object.pk }}</span>
+    </h1>
+    <span class="tl-header-counts qc-header-meta">{{ object.test_list.name }} &middot; {{ object.unit_test_collection.unit.name }}</span>
+  </div>
+  <div class="tl-header-actions">
+    <a href="{% add_preserved_filters change_url %}" class="tl-top-btn tl-top-btn-secondary cancel-link" id="qci-delete-back-btn">{% trans "Cancel" %}</a>
+  </div>
+</div>
 
 {% if perms_lacking or protected %}
-    {% if perms_lacking %}
-        <p>{% blocktrans with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktrans %}</p>
-        <ul>
-        {% for obj in perms_lacking %}
-            <li>{{ obj }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-    {% if protected %}
-        <p>{% blocktrans with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would require deleting the following protected related objects:{% endblocktrans %}</p>
-        <ul>
-        {% for obj in protected %}
-            <li>{{ obj }}</li>
-        {% endfor %}
-        </ul>
-    {% endif %}
-{% else %}
-    <p>
-        Are you sure you want to delete the following QC Session?
-    </p>
-    <ul>
-        <li><strong>Test List</strong> : {{object.test_list.name}}</li>
-        <li><strong>Work Completed</strong> : {{object.work_completed}}</li>
-        <li><strong>Created by</strong> : {{object.created_by}}</li>
-        <li><strong>Last modified by</strong> : {{object.modified_by}}</li>
-    </ul>
-    {% if se_rtsqa_qs|length > 0 %}
-        <p>
-            Info: The following Service Events have this Test List Instance as Return To Service QC. They will not be deleted.
-        </p>
-        <ul>
-            {% for se in se_rtsqa_qs %}
-                <li>
-                    Service Event {{ se.id }}: {{ se.datetime_service }} - Current status: {% service_status_label se.service_status size="10" %}
-                    {% if not se.service_status.is_review_required %}. Will have new status: {% service_status_label default_ses size="10" %}{% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-    {% if se_ib_qs|length > 0 %}
-        <p>
-            Info: The following Service Events were Initiated By this Test List Instance. They will not be deleted.
-        </p>
-        <ul>
-            {% for se in se_ib_qs %}
-                <li>
-                    Service Event {{ se.id }}: {{ se.datetime_service }} - Current status: {% service_status_label se.service_status size="10" %}
-                    {% if not se.service_status.is_review_required %}. Will have new status: {% service_status_label default_ses size="10" %}{% endif %}
-                </li>
-            {% endfor %}
-        </ul>
-    {% endif %}
-    <p>
-        The following test instances will also be deleted as a result:
-    </p>
-    <ul>
-        {% for del_obj in object.testinstance_set.all  %}
-            <li>{{del_obj.unit_test_info.test}} : {{del_obj.work_completed}} : {{del_obj.modified_by}} : {{del_obj.status}}</li>
-        {% endfor %}
-    </ul>
-    <form action="" method="post">{% csrf_token %}
-    <div>
-    <input type="hidden" name="post" value="yes" />
-    <input type="submit" value="{% trans "Yes, I'm sure" %}" />
+  <div class="tl-details-card qc-card qci-danger-card" id="qci-delete-blocked">
+    <div class="tl-card-header">
+      <i class="fa fa-ban" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "This QC Session Can't Be Deleted" %}</h2>
     </div>
-    </form>
+    <div class="tl-card-body">
+      {% if perms_lacking %}
+        <p class="qci-warning">{% blocktrans with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would result in deleting related objects, but your account doesn't have permission to delete the following types of objects:{% endblocktrans %}</p>
+        <ul class="qci-list">
+          {% for obj in perms_lacking %}<li>{{ obj }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+      {% if protected %}
+        <p class="qci-warning">{% blocktrans with escaped_object=object %}Deleting the {{ object_name }} '{{ escaped_object }}' would require deleting the following protected related objects:{% endblocktrans %}</p>
+        <ul class="qci-list">
+          {% for obj in protected %}<li>{{ obj }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+
+  <div class="tl-details-card qc-card" id="qci-delete-session">
+    <div class="tl-card-header">
+      <i class="fa fa-clipboard" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "QC Session" %}</h2>
+    </div>
+    <div class="tl-card-body">
+      <dl class="qci-dl">
+        <dt>{% trans "Unit" %}</dt><dd>{{ object.unit_test_collection.unit.name }}</dd>
+        <dt>{% trans "Test List" %}</dt><dd>{{ object.test_list.name }}</dd>
+        <dt>{% trans "Work Completed" %}</dt><dd>{{ object.work_completed|default:"—" }}</dd>
+        <dt>{% trans "Created by" %}</dt><dd>{{ object.created_by }}</dd>
+        <dt>{% trans "Last modified by" %}</dt><dd>{{ object.modified_by }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {% if se_rtsqa_qs %}
+    {% trans "These service events use this QC session as their return to service QC. They won't be deleted, but their status may change." as rtsqa_note %}
+    {% include "admin/qa/testlistinstance/_delete_service_events.html" with events=se_rtsqa_qs card_id="qci-delete-rtsqa" title=_("Service Events Using This as Return to Service QC") note=rtsqa_note %}
+  {% endif %}
+
+  {% if se_ib_qs %}
+    {% trans "These service events were initiated by this QC session. They won't be deleted, but their status may change." as ib_note %}
+    {% include "admin/qa/testlistinstance/_delete_service_events.html" with events=se_ib_qs card_id="qci-delete-initiated" title=_("Service Events Initiated By This Session") note=ib_note %}
+  {% endif %}
+
+  <div class="tl-details-card qc-card" id="qci-delete-tests">
+    <div class="tl-card-header">
+      <i class="fa fa-list-ul" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "Test Instances Deleted With It" %}</h2>
+      <span class="tl-count-badge">{{ test_instances|length }}</span>
+    </div>
+    <div class="tl-card-body qci-card-body-flush">
+      {% if test_instances %}
+        <div class="qci-table-scroll">
+        <table class="qci-table">
+          <thead>
+            <tr>
+              <th scope="col">{% trans "Test" %}</th>
+              <th scope="col">{% trans "Work Completed" %}</th>
+              <th scope="col">{% trans "Modified by" %}</th>
+              <th scope="col">{% trans "Status" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ti in test_instances %}
+              <tr>
+                <td>{{ ti.unit_test_info.test }}</td>
+                <td>{{ ti.work_completed }}</td>
+                <td>{{ ti.modified_by }}</td>
+                <td><span class="qci-label" style="border-color: {{ ti.status.colour }}">{{ ti.status.name }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p class="qci-empty-row">{% trans "This session has no test instances." %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="tl-details-card qc-card qci-danger-card" id="qci-delete-confirm">
+    <div class="tl-card-header">
+      <i class="fa fa-trash-o" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "Delete This QC Session?" %}</h2>
+    </div>
+    <div class="tl-card-body">
+      <p class="qci-warning">
+        <strong>{% trans "This can't be undone." %}</strong>
+        {% trans "The QC session, its test results and its attachments are deleted permanently. Service events listed above are kept." %}
+      </p>
+      {% if model_count %}
+        <dl class="qci-dl qci-delete-counts">
+          {% for model_name, object_count in model_count %}
+            <dt>{{ model_name|capfirst }}</dt><dd>{{ object_count }}</dd>
+          {% endfor %}
+        </dl>
+      {% endif %}
+      <div class="qci-confirm-row">
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="post" value="yes">
+          {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+          {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+          <button type="submit" class="qci-btn-danger" id="qci-delete-submit">
+            <i class="fa fa-trash-o" aria-hidden="true"></i> {% trans "Yes, Delete This QC Session" %}
+          </button>
+        </form>
+        <a href="{% add_preserved_filters change_url %}" class="tl-btn tl-btn-default cancel-link">{% trans "No, Take Me Back" %}</a>
+      </div>
+    </div>
+  </div>
 {% endif %}
+</div>
 {% endblock %}
