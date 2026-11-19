@@ -35,6 +35,18 @@ last changed and who changed them.
 
    Reference and tolerance example
 
+You can also set a reference and tolerance without leaving the list. Click the
+pencil at the end of a row to open the same **Reference and Tolerance**
+dialogue the Test List Builder uses. Change the reference or pick a tolerance
+(or click **New Tolerance** to create one), add a comment if you like, then
+save. The row updates in place, and the change is recorded in the test's
+history just as if you had saved it from its own page.
+
+Where the list shows **Not set** in bold with a warning sign, the missing
+reference or tolerance is what makes the test show "No Tol Set" when QC is
+performed. **Not used** means that type of test never uses one, so there is
+nothing to set.
+
 Numerical References & Tolerances
 ---------------------------------
 
@@ -123,15 +135,17 @@ link in the QC section.
    Copy ref tols link
 
 On the next page, choose the source unit and test list (cycle) and the
-destination unit and click ``Copy references and tolerances``.
+destination unit and click ``Preview``.
 
 .. figure:: images/setting_refs_and_tols/copy_ref_tols_choose.png
    :alt: Copy ref tols select
 
    Copy ref tols select
 
-Finally, you will be asked to review and confirm before the new
-references are set.
+Finally, you will see every reference and tolerance that will change, before
+anything is copied. Click ``Copy References & Tolerances`` to copy them,
+``Change Selection`` to go back and pick different units or test lists, or
+``Cancel`` to leave without copying anything.
 
 .. figure:: images/setting_refs_and_tols/copy_ref_tols_confirm.png
    :alt: Copy ref tols confirm

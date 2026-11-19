@@ -26,7 +26,10 @@ Auto Review Rule Sets
 =====================
 
 Auto Review Rule Sets allow you to apply different sets of Auto Review Rules to
-different tests.
+different tests. On a rule set's page, tick the rules you want in the set; they
+are grouped by the result they apply to (e.g. passing, at tolerance or
+skipped), each with the status it sets. Once the set is saved, its **Used In**
+card lists the tests that use it.
 
 In the figure below two Auto Review Rule Sets are shown, a default rule set that
 will set skipped tests to Unreviewed, and a second rule set that will set skipped

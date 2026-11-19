@@ -80,6 +80,9 @@ class TestQCChangeForm(TestCase):
         self.assertIn('errornote', html)
         self.assertIn('qc-has-error', html)
         self.assertIn('class="errorlist', html)
+        # the error sits under its input, so the input stays level with the others in its row
+        field = html.split('qc-field field-name ')[1].split('qc-field field-')[0]
+        self.assertLess(field.index('class="qc-widget"'), field.index('class="errorlist'))
 
     def test_view_only_user_gets_read_only_cards(self):
         viewer = create_user(uname='viewer', pwd='pwd', is_staff=True, is_superuser=False)

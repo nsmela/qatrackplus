@@ -8,7 +8,13 @@ frequency or schedule with which it should be performed. This frequency
 determines when a test list is show as being due/overdue on a unit.
 
 Frequencies can be configured from the main admin page by clicking on the
-**Frequencis** link in the **QC** section.
+**Frequencies** link in the **QC** section.
+
+While you edit a frequency, the **Preview** card shows its schedule on a
+calendar, and **Next Due Dates** lists the next few dates it will fall due,
+updating as you change the schedule or the QC window. Once it is saved, the
+**Used In** card lists the test lists and cycles assigned to units with this
+frequency.
 
 
 How Frequencies work

@@ -278,21 +278,78 @@ the server log.
   Info list stack into one column with nothing cut off. Header buttons wrap to a
   second row.
 
-Small things noticed, not fixed:
+Small things noticed: fixed in the second session (see below), except one:
+the Autosave change page marks **Work completed** as required, though an
+autosave in progress has none, so saving that page as it stands fails
+validation (`null=True` without `blank=True`; already so on `feat/test-builder`). That sits with the Autosave `data` question under
+[Found but not fixed](#found-but-not-fixed-decide-or-file).
 
-- On a field with an error, the error list sits above the input, so that input
-  drops below the others in its row (seen on Tolerance's Action High).
-- The assignment page title reads "Edit Unit test collection". This is the
-  model's verbose name, not new; the list is titled "Assign Test Lists to
-  Units".
-- With no type chosen on Add Tolerance, both the Limits and Multiple Choice
-  cards show until a type is picked.
-- Search boxes use `keyup changed`, as the Test List builder does. Pasting with
-  the mouse doesn't search until a key is pressed.
+## Second session (2026-11-19)
 
-Not tried in a browser: drag and drop, Save as New, Delete, a view-only user,
-test pack import and export, and the Autosave Recover button (there were no
-autosaves). The tests cover Save as New, Delete and view-only for every page.
+Picked up from the handover above. Committed as one commit on this branch.
+
+**Small fixes:**
+
+- **Add Tolerance with no type chosen:** neither value card shows (unless it
+  already has values or errors), and a hint under Type says "Choose a type to
+  set its limits or choices." Before, both cards showed.
+- **Field errors** now sit under their input, not above it, so an input with an
+  error stays level with the others in its row
+  (`includes/qc_fieldset_card.html`, `_qc_assets.html`).
+- **Assignment page title:** "Add / Edit / View Test List Assignment" instead of
+  "Edit Unit test collection". Done in the template; changing the model's
+  verbose name would need a migration.
+- **Cycle search:** `hx-trigger` is now `input changed`, so pasting with the
+  mouse searches. The assignment picker already used `input`.
+
+**Docs** (`docs/admin/qa/`):
+
+- `test_list_cycles.rst`: the raw-ID picker section is rewritten for the day
+  builder (Add Test List dialog, drag to reorder, the bin icon, Used In). The
+  old screenshots it referenced are no longer used; the image files are still
+  there.
+- `setting_refs_and_tols.rst`: the list's pencil, what "Not set" / "Not used"
+  mean, and the copy page's Preview / Change Selection / Cancel buttons.
+- `tolerances.rst`, `auto_review.rst`, `frequencies.rst`: a short paragraph
+  each on the limits preview, the rule checkbox list and Next Due Dates, and
+  their Used In cards. Fixed "Frequencis" and "chossing".
+- `testpack.rst`: the direct URLs were wrong (on master too). They are
+  `/admin/qa/testlist/export-testpack/` and `/admin/qa/testlist/import-testpack/`.
+
+**Checked in a browser** (port 8019, same sqlite db):
+
+- Add Tolerance: no cards until a type is picked; the right card for each type;
+  a card with values stays when the type is cleared; an out-of-order save shows
+  the error under Tolerance Low with the four inputs level.
+- Test List Cycle: **drag and drop** reorders the rows and renumbers the days;
+  Save and Continue keeps the new order. Put back afterwards. A pasted search in
+  Add Test List filters at once.
+- Assignment page: the new title.
+- **Test pack export and import:** export (all test lists and cycles) returns a
+  `.tpk`; importing it lists everything and reports "2/2 testlists's, 1/1
+  testlistcycles's were imported". Import makes `-1` copies of items that
+  already exist, as on master. The copies were deleted from the dev db again.
+- **Autosave Recover:** with a demo autosave on day 2 of the cycle, Recover
+  opens `perform/2/?autosave_id=1&day=2`, which shows Weekly Output (day 2) with
+  the autosave loaded. Perform QC 404s unless the user is in one of the
+  assignment's Visible To groups; that's existing behaviour.
+- No server errors.
+
+Still not tried by hand: Save as New, Delete and a view-only user (the tests
+cover them on every page).
+
+**Behaviour change to approve:** the cycle's Add Test List dialog won't add a
+test list that is already in the cycle ("Already in this cycle"). The old
+raw-ID picker allowed it. A test list twice in one cycle already breaks the
+membership's natural key (test list + cycle slugs, used by test packs), so this
+looks right, but a clinic with a repeating A/B/A/B cycle built that way can no
+longer build one. Existing cycles still show and save.
+
+**Translations: not done.** `makemessages` needs GNU gettext (`msguniq`,
+`xgettext`), which isn't installed on this machine. Note that running it here
+will also pick up every new string from `feat/test-builder`, which hasn't been
+through `makemessages` either, so the `.po` diff will be large and may conflict
+with that branch if it runs its own.
 
 ## Next steps
 
@@ -301,9 +358,10 @@ autosaves). The tests cover Save as New, Delete and view-only for every page.
    origin/feat/test-builder...HEAD` shows everything this branch adds.
 2. ~~Merge into this branch.~~ Done; see above.
 3. ~~Apply the shared-file suggestions.~~ Done; see above.
-4. **Translations:** the strings are new. Run `makemessages` for fr, fr-ca and es
+4. **Translations:** the strings are new. Run `makemessages` for fr, fr_CA and es
    once, translate or leave the entries empty, then run
    `uv run python manage.py compilemessages`. Never hand-edit the `.mo` files.
+   Needs GNU gettext installed; see [Second session](#second-session-2026-11-19).
 5. **Check every QC page by eye,** in light and dark themes, at desktop width and
    at about 768px:
    - Save, Save and Continue, Save as New and Delete.
@@ -313,12 +371,13 @@ autosaves). The tests cover Save as New, Delete and view-only for every page.
 
    Most of this has now been done; see [Checked after merging](#checked-after-merging)
    for what hasn't.
-6. **Docs:** `docs/admin/qa/test_list_cycles.rst` still describes the old raw-ID
-   picker. The screenshots in `assign_to_unit.rst` and `testpack.rst` are out of
-   date. Review the rest of `docs/admin/qa/` for these pages too.
+6. ~~Docs.~~ Done in the second session. Still to do: new screenshots for
+   `test_list_cycles.rst`, `assign_to_unit.rst`, `testpack.rst` and
+   `setting_refs_and_tols.rst`.
 7. Run `uv run ruff check .` and `uv run pre-commit run --all-files`.
 8. **Open questions for the maintainer:**
    - Approve the Autosave Recover link change?
+   - Approve the cycle picker refusing a test list that's already in the cycle?
    - Register the set-multiple action?
    - What to do about the test pack import script and the Autosave `data`
      field?

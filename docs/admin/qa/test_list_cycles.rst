@@ -31,8 +31,8 @@ Defining a test list cycle is described below.
 Creating a new Test List Cycle
 ------------------------------
 
-From the main admin page select the **Test list cycles** page and click
-the **Add test list cycle** button in the top right corner of the page.
+From the main admin page select the **Test List Cycles** page and click
+the **Add Test List Cycle** button at the top right of the page.
 The fields for defining a test list cycle are described below.
 
 Name
@@ -65,65 +65,40 @@ Day Option Text
 ---------------
 
 Choose whether to use the test list day number (i.e. Day 1, Day 2, ...)
-or the test list name for display in the dropdown used for chossing one
+or the test list name for display in the dropdown used for choosing one
 of the test list members.
 
-Test list cycle memberships
----------------------------
+Test Lists in This Cycle
+------------------------
 
-To add a test list to your cycle click the magnifying glass beside the
-first text box uder the **Test list cycle memberships** section. (Note
-prior to version 0.2.6 you first need to click the **Add another Test
-List Cycle Membership** link to create a new row in the **Test list
-cycle memberships** list.)
+The **Test Lists in This Cycle** card lists the days of the cycle, one test
+list per day, in the order they will be performed. Each row shows the day
+number, the test list's name and slug, and how many tests it has. Click a test
+list's name to open it in a new tab.
 
-.. figure:: images/test_list_cycle_search.png
-   :alt: Search for test list
+To add a day, click **Add Test List** at the top of the card. A dialogue opens
+where you can type part of a test list's name or slug to search for it, or pick
+it from the list. A test list that is already in the cycle is marked
+**Already in this cycle** and can't be added a second time. Click **Add** beside the one you want and it becomes
+the last day of the cycle. Repeat this until you have added every day.
 
-   Search for test list
+To change the order of the days, drag a row by its handle (the three lines at
+the left of the row) to where you want it. The day numbers update as you drag.
 
-This will bring up a dialogue box where you can search or navigate to
-the test list that you want to add to your cycle.
+To remove a day, click the bin icon at the right of its row. Nothing is
+changed until you save, so if you remove the wrong day you can reload the page
+without saving to get it back.
 
-.. figure:: images/test_list_cycle_search_results.png
-   :alt: Test List Cycle Search Results
+When you're done, click **Save and Continue Editing** and check that all your
+test lists are there, in the right order.
 
-   Test List Cycle Search Results
+Used In
+-------
 
-Clicking on the name of the test list you want to add will close the
-dialogue and add the test list to your cycle. Repeat these steps until
-you have added all the required test lists to your cycle.
-
-.. figure:: images/cycle_memberships.png
-   :alt: Test List Cycle ID's
-
-   Test List Cycle ID's
-
-Once you have added all your test lists, click the **Save and continue
-editing** button and confirm all your test lists are present and in the
-correct order.
-
-.. figure:: images/cycle_memberships_saved.png
-   :alt: Test List Cycle after save
-
-   Test List Cycle after save
-
-If you need to reorder the test lists you can do so by dragging and
-dropping the test list rows into a different order and then saving the
-changes.
-
-Removing a list from a test list cycle
---------------------------------------
-
-To remove a test list from a cycle, click the checkbox under the
-**Delete** column of the **Test list cycle memberships** listing and
-then save the cycle.
-
-.. figure:: images/alter_cycle.png
-   :alt: Removing a test list from a cycle
-
-   Removing a test list from a cycle
-
+Once a cycle has been saved, the **Used In** card lists the units it is
+assigned to, with each assignment's frequency, who it's assigned to and
+whether it's active. Any change you save to the cycle applies to every one of
+those units.
 
 Attachments
 -----------

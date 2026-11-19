@@ -4,7 +4,9 @@ in the page body after the cards so it runs under hx-boost and needs no collects
 
 - Shows the card that fits the chosen type: Limits for Absolute and Percentage,
   Multiple Choice Values for Multiple Choice. A card for the other type stays shown
-  (marked "not used") while it has values or errors, so they can be cleared.
+  (marked "not used") while it has values or errors, so they can be cleared. With
+  no type chosen yet (the Add page), neither card shows unless it has values or
+  errors; a hint under Type says the limits appear once one is chosen.
 - Hides Boolean Warning Only, which is only for Boolean tolerances (this page never
   edits those); the old js/tolerance_admin.js did that by Django's .form-row markup.
 - Redraws the limits preview (_limits_preview.html) and the choices preview
@@ -21,6 +23,8 @@ translated fieldset names.
   margin: 0 0 12px; padding: 7px 10px; font-size: 13px; color: #6b4d18; background: #fdf8ee; border: 1px solid #ecd9b5;
 }
 #content-main .qct-unused-note .fa { color: #8a6420; margin-right: 4px; }
+#content-main .qct-type-hint { margin: 6px 0 0; font-size: 13px; color: #6e7785; }
+#content-main .qct-type-hint .fa { margin-right: 4px; }
 #content-main .qct-card-unused .qc-form { opacity: .75; }
 /* Limits: the four limits in one row, low to high, above their preview (one column
    on narrow cards, from the shared card CSS). */
@@ -79,6 +83,7 @@ translated fieldset names.
   var NO_LIMITS = "{{ _('No limits yet. Results are compared with the limits you set here.')|escapejs }}";
   var NO_CHOICES = "{{ _('No choices yet')|escapejs }}";
   var UNUSED = "{{ _('Not used for this type. Clear these values before saving, or choose a type that uses them.')|escapejs }}";
+  var CHOOSE_TYPE = "{{ _('Choose a type to set its limits or choices.')|escapejs }}";
 
   function byId(id) { return document.getElementById(id); }
   function fill(template, values) {
@@ -108,16 +113,32 @@ translated fieldset names.
   }
 
   // ---- Type: show the card that fits it ----
+  var typeHint = null;
+  if (typeSelect) {
+    typeHint = el("p", "qct-type-hint");
+    typeHint.id = "qct-type-hint";
+    typeHint.appendChild(el("i", "fa fa-info-circle")).setAttribute("aria-hidden", "true");
+    typeHint.appendChild(document.createTextNode(CHOOSE_TYPE));
+    typeHint.hidden = true;
+    typeSelect.parentNode.insertBefore(typeHint, typeSelect.nextSibling);
+  }
   function hasValues(card) {
     return Array.prototype.some.call(card.querySelectorAll("input[type=text], input[type=number], textarea"), function (input) {
       return input.value.trim() !== "";
     });
   }
-  function setCard(card, used) {
+  function setCard(card, used, noType) {
     if (!card) { return; }
     var keep = !used && (hasValues(card) || card.querySelector(".errorlist"));
-    card.classList.toggle("qct-card-off", !used && !keep);
-    card.classList.toggle("qct-card-unused", !!keep);
+    if (noType) {
+      // Nothing to say "not used" against yet: just keep a card that holds something.
+      card.classList.toggle("qct-card-off", !keep);
+      card.classList.remove("qct-card-unused");
+      keep = false;
+    } else {
+      card.classList.toggle("qct-card-off", !used && !keep);
+      card.classList.toggle("qct-card-unused", !!keep);
+    }
     var note = card.querySelector(".qct-unused-note");
     if (keep && !note) {
       note = el("p", "qct-unused-note");
@@ -131,9 +152,9 @@ translated fieldset names.
   function applyType() {
     var type = currentType();
     var isChoice = type === cfg.choice;
-    // No type chosen yet (Add page): both cards stay.
-    setCard(limitsCard, !type || !isChoice);
-    setCard(choicesCard, !type || isChoice);
+    setCard(limitsCard, !!type && !isChoice, !type);
+    setCard(choicesCard, isChoice, !type);
+    if (typeHint) { typeHint.hidden = !!type; }
     document.querySelectorAll("#content-main [data-qct-note-for]").forEach(function (p) {
       p.hidden = p.getAttribute("data-qct-note-for") !== type;
     });

@@ -18,7 +18,7 @@ Exporting a test pack
 ---------------------
 
 In order to export a test pack, go to the main admin site and click on `Export
-Test Pack` (or visit `/qa/admin/export_testpack/` directly).
+Test Pack` (or visit `/admin/qa/testlist/export-testpack/` directly).
 
 On the next screen, you can select all of the TestLists, TestListCycles, and
 extra Tests that you want to include in your TestPack.  Note, selecting a
@@ -46,7 +46,7 @@ Importing a test pack
 
 
 If you have a Test Pack file you want to import, go to the main admin site and
-click on `Import Test Pack` (or visit `/qa/admin/import_testpack/` directly).
+click on `Import Test Pack` (or visit `/admin/qa/testlist/import-testpack/` directly).
 
 On the next screen, click the "Choose File..." button on the right hand side of
 the page and select your Test Pack file.  Use the tables to select the Test

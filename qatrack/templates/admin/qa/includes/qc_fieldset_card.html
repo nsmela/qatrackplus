@@ -37,8 +37,9 @@ that would only repeat the card's title is kept for screen readers but not shown
                 <div class="qc-readonly">{% with value=field.contents %}{% if value and value != "-" %}{{ value }}{% else %}<span class="qc-empty">{% trans "Not specified" %}</span>{% endif %}{% endwith %}</div>
               {% else %}
                 <label{% if label_for %} for="{{ label_for }}"{% endif %}{% if hide_label %} class="tl-visually-hidden"{% endif %}>{{ label }}{% if required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
-                {{ field.errors }}
                 <div class="qc-widget">{{ field.field }}</div>
+                {# under the input, so an input with an error stays level with the others in its row #}
+                {{ field.errors }}
               {% endif %}
               {% if help %}<span class="qc-help"{% if not field.is_readonly and field.field.id_for_label %} id="{{ field.field.id_for_label }}_helptext"{% endif %}>{{ help|safe }}</span>{% endif %}
             </div>

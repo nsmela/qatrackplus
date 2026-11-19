@@ -154,6 +154,12 @@ class TestToleranceAdmin(TestCase):
         data.update(kwargs)
         return data
 
+    def test_add_page_asks_for_a_type_first(self):
+        """With no type chosen, the script hides both value cards and shows a hint under Type."""
+        html = self.client.get(self.add_url).content.decode()
+        self.assertIn('Choose a type to set its limits or choices.', html)
+        self.assertIn('qct-type-hint', html)
+
     def test_cards(self):
         html = self.client.get(self.url).content.decode()
         self.assertIn('id="qc-card-type"', html)

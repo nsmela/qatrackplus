@@ -17,6 +17,10 @@ section on the main admin page and then click the **Add tolerance**
 button at the top right hand corner. Choose the Tolerance type you want
 to create and fill in the appropriate values (described below).
 
+As you type the limits, a preview beside them shows the Act Low, Tol Low, Tol
+High and Act High values in order, and warns you straight away if they're in
+the wrong order (the check is made again when you save).
+
 Editing a tolerance after it has been created
 ---------------------------------------------
 
@@ -30,6 +34,10 @@ Editing a tolerance after it has been created
     later edited it will appear that the tolerance level for those test
     instances was different than it actually was at the time the test was
     performed.
+
+To help you judge the effect of a change, the **Used In** card on a saved
+tolerance's page says how many tests on units use it, with a link to the
+**Set References & Tolerances** list filtered to just those.
 
 Numerical Tolerances
 --------------------

@@ -130,7 +130,7 @@ admin/qa/testlistcycle/testlistcycle_assets.html.
                    placeholder="{% trans "Search by test list name or slug…" %}" aria-labelledby="qcy-search-title"
                    autocomplete="off"
                    hx-get="{% url 'admin:qa_testlistcycle_search_lists' %}"
-                   hx-trigger="keyup changed delay:150ms"
+                   hx-trigger="input changed delay:150ms"
                    hx-target="#qcy-search-results"
                    hx-include="#qcy-in-cycle"
                    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>

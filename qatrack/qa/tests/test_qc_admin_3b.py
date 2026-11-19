@@ -179,7 +179,7 @@ class TestChangePage(UTCAdminTestCase):
         resp = self.client.get(self.url_change)
         self.assertEqual(resp.status_code, 200)
         html = resp.content.decode()
-        self.assertIn('Edit Unit test collection', html)
+        self.assertIn('Edit Test List Assignment', html)
         self.assertIn('Morning Output &middot; Linac One &middot; Daily', html)
         # unit shown as text, the select tucked away for Save as New
         self.assertIn('class="qc-readonly utc-locked-value">Linac One<', html)

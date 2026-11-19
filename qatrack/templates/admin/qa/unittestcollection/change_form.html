@@ -12,6 +12,10 @@ A saved assignment's unit and test list are shown read-only; they can only be
 changed for a Save as New copy.
 {% endcomment %}
 
+{# The model has no verbose name of its own ("unit test collection"); call it what the list does. #}
+{% block title %}{% if add %}{% trans "Add Test List Assignment" %}{% else %}{{ original|truncatewords:"18" }} | {% trans "Edit Test List Assignment" %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block qc_title %}{% if add %}{% trans "Add Test List Assignment" %}{% elif not has_change_permission %}{% trans "View Test List Assignment" %}{% else %}{% trans "Edit Test List Assignment" %}{% endif %}{% endblock %}
+
 {% block qc_header_meta %}{{ original.name }} &middot; {{ original.unit.name }} &middot; {% if original.frequency_id %}{{ original.frequency.name }}{% else %}{% trans "Ad Hoc" %}{% endif %}{% endblock %}
 
 {% block field_sets %}
