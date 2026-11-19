@@ -3246,6 +3246,23 @@ class FrequencyAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         return "<br/>".join(processed)
 
 
+def qc_status_label(name, colour, extra_class=""):
+    """A status as the design spec's status label (``.service-event-status-label``).
+
+    The name in black on a transparent box with a 2px border in the status colour,
+    so any colour a site picks stays readable and the colour always comes with its
+    word. Colours that aren't a valid saved colour (``rgba(r,g,b,a)``), e.g. a typo
+    in a form that failed to save, are left out rather than put in the style.
+    """
+    colour = colour if colour and models.color_re.match(colour) else ""
+    return format_html(
+        '<span class="qcs-label service-event-status-label{}" style="border-color: {}">{}</span>',
+        " " + extra_class if extra_class else "",
+        colour or "transparent",
+        name,
+    )
+
+
 class StatusAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     prepopulated_fields = {
         'slug': ('name',)
@@ -3259,6 +3276,26 @@ class StatusAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         'valid',
         'get_colour',
     )
+
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'slug', 'description'),
+        }),
+        (_l("Behaviour"), {
+            'fields': ('is_default', 'requires_review', 'valid', 'export_by_default'),
+        }),
+        (_l("Colour"), {
+            'fields': ('colour', 'label_preview'),
+        }),
+    )
+    # label_preview isn't saved: it shows how the label will look (status_assets.html
+    # keeps it up to date as the name and colour change).
+    readonly_fields = ('label_preview',)
+    qc_fieldset_icons = {
+        None: "fa-info-circle",
+        fieldsets[1][0]: "fa-sliders",
+        fieldsets[2][0]: "fa-paint-brush",
+    }
 
     class Media:
         js = (
@@ -3274,10 +3311,17 @@ class StatusAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             ),
         }
 
-    @admin.display(description=_l("Color"))
-    @mark_safe
+    @admin.display(description=_l("Label"))
     def get_colour(self, obj):
-        return '<div style="display: inline-block; width: 20px; height:20px; background-color: %s;"></div>' % obj.colour
+        """The status as it's labelled across QATrack+: its name, bordered in its colour."""
+        return qc_status_label(obj.name, obj.colour)
+
+    @admin.display(description=_l("Label Preview"))
+    def label_preview(self, obj):
+        colour = obj.colour if obj else settings.DEFAULT_TEST_STATUS_COLOUR
+        if obj and obj.name:
+            return qc_status_label(obj.name, colour, "qcs-label-preview")
+        return qc_status_label(_("Status name"), colour, "qcs-label-preview qcs-label-empty")
 
 
 @admin.display(
@@ -3467,16 +3511,146 @@ def testlist_new_tolerance(request):
     }, status=status)
 
 
+def tolerance_limit_zones(tol):
+    """The result zones a numerical tolerance gives, low to high, for the limits preview.
+
+    Returns ``[zone, (field, value), zone, …]``: each zone is OK, TOLERANCE or ACTION
+    and each ``(field, value)`` a limit that is set. A blank limit isn't used, as in
+    TestInstance.float_pass_fail, so a zone runs on to the next limit that is set.
+    Limits that are out of order (which won't save) give ``None`` for every zone.
+    tolerance_assets.html draws the same zones in the browser as limits are typed.
+    """
+    fields = (models.ACT_LOW, models.TOL_LOW, models.TOL_HIGH, models.ACT_HIGH)
+    limits = [(f, getattr(tol, f)) for f in fields if getattr(tol, f) is not None]
+    if not limits:
+        return []
+    if any(low > high for (_lf, low), (_hf, high) in zip(limits, limits[1:])):
+        result = [None]
+        for limit in limits:
+            result += [limit, None]
+        return result
+
+    def zone(value):
+        al = tol.act_low if tol.act_low is not None else float("-inf")
+        tl = tol.tol_low if tol.tol_low is not None else float("-inf")
+        th = tol.tol_high if tol.tol_high is not None else float("inf")
+        ah = tol.act_high if tol.act_high is not None else float("inf")
+        if not al <= value <= ah:
+            return models.ACTION
+        if not tl <= value <= th:
+            return models.TOLERANCE
+        return models.OK
+
+    values = [v for _f, v in limits]
+    # A point inside each gap between limits (and beyond each end) tells its zone.
+    points = [values[0] - 1] + [(a + b) / 2. for a, b in zip(values, values[1:])] + [values[-1] + 1]
+    result = [zone(points[0])]
+    for (field, value), point in zip(limits, points[1:]):
+        result += [(field, value), zone(point)]
+    return result
+
+
 class ToleranceAdmin(QCAdminDesignMixin, BasicSaveUserAdmin):
     form = ToleranceForm
     list_filter = ["type"]
 
-    class Media:
-        js = (
-            "admin/js/jquery.init.js",
-            'jquery/js/jquery.min.js',
-            "js/tolerance_admin.js",
-        )
+    fieldsets = (
+        (_l("Type"), {
+            # bool_warning_only is only for Boolean tolerances, which this page never
+            # edits; it stays in the form (as before) but is hidden (tolerance_assets.html).
+            'fields': ('type', 'bool_warning_only'),
+        }),
+        (_l("Limits"), {
+            'fields': ('act_low', 'tol_low', 'tol_high', 'act_high', 'limits_preview'),
+        }),
+        (_l("Multiple Choice Values"), {
+            'fields': ('mc_pass_choices', 'mc_tol_choices', 'choices_preview'),
+        }),
+    )
+    # The previews aren't saved: tolerance_assets.html redraws them as values are typed.
+    readonly_fields = ('limits_preview', 'choices_preview')
+    qc_wide_fields = ('limits_preview', 'choices_preview')
+    qc_fieldset_icons = {
+        fieldsets[0][0]: "fa-info-circle",
+        fieldsets[1][0]: "fa-arrows-h",
+        fieldsets[2][0]: "fa-list-ul",
+    }
+
+    # The old Media script (js/tolerance_admin.js) hid bool_warning_only by Django's
+    # .form-row markup, which the cards don't have: tolerance_assets.html does it now,
+    # along with showing only the card that fits the chosen type.
+
+    LIMIT_FIELDS = (models.ACT_LOW, models.TOL_LOW, models.TOL_HIGH, models.ACT_HIGH)
+
+    @staticmethod
+    def _status_words():
+        return {models.OK: models.OK_DISP, models.TOLERANCE: models.TOL_DISP, models.ACTION: models.ACT_DISP}
+
+    @classmethod
+    def limit_labels(cls):
+        return {f: str(models.Tolerance._meta.get_field(f).verbose_name) for f in cls.LIMIT_FIELDS}
+
+    @admin.display(description=_l("Preview"))
+    def limits_preview(self, obj):
+        words = self._status_words()
+        labels = self.limit_labels()
+        items, warning = [], ""
+        for item in tolerance_limit_zones(obj) if obj else []:
+            if isinstance(item, tuple):
+                field, value = item
+                items.append({"limit": True, "field": field, "label": labels[field], "value": obj._plain_limit(value)})
+            else:
+                items.append({"zone": item or "unknown", "word": words.get(item, "?")})
+        limits = [(f, getattr(obj, f)) for f in self.LIMIT_FIELDS if obj and getattr(obj, f) is not None]
+        for (low_field, low), (high_field, high) in zip(limits, limits[1:]):
+            if low > high:
+                # Same words as the server's check (Tolerance.clean_tols)
+                warning = _("%(high)s must be at least %(low)s.") % {"high": labels[high_field], "low": labels[low_field]}
+                break
+        return loader.render_to_string("admin/qa/tolerance/_limits_preview.html", {
+            "items": items,
+            "warning": warning,
+            "type": obj.type if obj else "",
+        })
+
+    @admin.display(description=_l("Preview"))
+    def choices_preview(self, obj):
+        def split(value):
+            return [c.strip() for c in (value or "").split(",") if c.strip()]
+
+        pass_choices = split(obj.mc_pass_choices) if obj else []
+        tol_choices = split(obj.mc_tol_choices) if obj else []
+        # Results are matched to the choices ignoring case, OK list first.
+        lowered = {c.lower() for c in pass_choices}
+        return loader.render_to_string("admin/qa/tolerance/_choices_preview.html", {
+            "pass_choices": pass_choices,
+            "tol_choices": tol_choices,
+            "in_both": [c for c in tol_choices if c.lower() in lowered],
+            "words": self._status_words(),
+            "type": obj.type if obj else "",
+        })
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if obj is not None and obj.pk:
+            utis = models.UnitTestInfo.objects.filter(tolerance=obj).exclude(test__hidden=True)
+            context["qct_used_count"] = utis.count()
+            context["qct_used_units"] = list(
+                utis.values("unit_id", "unit__name").annotate(n=Count("id")).order_by("unit__name")
+            )
+            if request.user.has_perm("qa.view_unittestinfo") or request.user.has_perm("qa.change_unittestinfo"):
+                # tolerance__id__exact (and unit__id__exact) are lookups the Unit Test
+                # Info list accepts without a list filter of its own.
+                context["qct_used_url"] = "%s?tolerance__id__exact=%d" % (
+                    reverse("admin:qa_unittestinfo_changelist"), obj.pk
+                )
+        # For tolerance_assets.html's previews (json_script)
+        context["qct_js"] = {
+            "words": {k: str(v) for k, v in self._status_words().items()},
+            "labels": self.limit_labels(),
+            "percent": models.PERCENT,
+            "choice": models.MULTIPLE_CHOICE,
+        }
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -3489,12 +3663,99 @@ class ToleranceAdmin(QCAdminDesignMixin, BasicSaveUserAdmin):
         return super().has_change_permission(request, obj)
 
 
+# QC result colours from the design spec, for the result (pass/fail) labels on the
+# Auto Review pages. Always drawn with the result's name.
+QC_RESULT_COLOURS = {
+    models.OK: "#00a65a",
+    models.TOLERANCE: "#f39c12",
+    models.ACTION: "#dd4b39",
+    models.NO_TOL: "#00c0ef",
+    models.NOT_DONE: "#b5bbc8",
+}
+
+
+def qc_result_label(pass_fail):
+    """A QC result (OK, Tolerance, …) as a label bordered in its design spec colour."""
+    return format_html(
+        '<span class="qca-result" style="border-color: {}">{}</span>',
+        QC_RESULT_COLOURS.get(pass_fail, "#d2d6de"),
+        models.PASS_FAIL_CHOICES_DISPLAY.get(pass_fail, pass_fail),
+    )
+
+
+def auto_review_rule_display(rule):
+    """"OK → [Approved]": the result and the status label it sets."""
+    return format_html(
+        '<span class="qca-rule">{} <span class="qca-arrow" aria-hidden="true">&rarr;</span>'
+        '<span class="tl-visually-hidden">{}</span> {}</span>',
+        qc_result_label(rule.pass_fail),
+        _("sets the status to"),
+        qc_status_label(rule.status.name, rule.status.colour),
+    )
+
+
+def status_label_data():
+    """{status id: {"name", "colour"}} for pages that redraw a status label in the browser."""
+    return {
+        str(s.pk): {"name": s.name, "colour": s.colour if models.color_re.match(s.colour or "") else ""}
+        for s in models.TestInstanceStatus.objects.order_by("name")
+    }
+
+
 class AutoReviewAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
-    list_display = (str, "pass_fail", "status")
+    list_display = ("__str__", "pass_fail", "status", "status_label")
     list_editable = ["pass_fail", "status"]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("status")
+
+    @admin.display(description=_l("Status Label"), ordering="status__name")
+    def status_label(self, obj):
+        """The saved status as its label; autoreviewrule/change_list.html redraws it as the select changes."""
+        return qc_status_label(obj.status.name, obj.status.colour)
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["qca_statuses"] = status_label_data()
+        return super().changelist_view(request, extra_context=extra_context)
+
+
+class AutoReviewRuleCheckboxes(forms.CheckboxSelectMultiple):
+    """The rule set's rules as a checkbox list grouped by result, each with its status label.
+
+    Replaces the old two-list (filter_horizontal) picker; it posts the same rule ids.
+    Groups follow PASS_FAIL_CHOICES order (OK, Tolerance, …) and only results that
+    have rules are shown.
+    """
+
+    template_name = "admin/qa/autoreviewruleset/_rules_checkboxes.html"
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        by_result = {}
+        for _group, group_options, _index in context["widget"]["optgroups"]:
+            for option in group_options:
+                rule = getattr(option["value"], "instance", None)
+                if rule is None:
+                    continue
+                option["status_label"] = qc_status_label(rule.status.name, rule.status.colour)
+                by_result.setdefault(rule.pass_fail, []).append(option)
+        context["widget"]["result_groups"] = [
+            {"key": key, "label": qc_result_label(key), "name": display, "options": by_result[key]}
+            for key, display in models.PASS_FAIL_CHOICES if key in by_result
+        ]
+        return context
 
 
 class AutoReviewRuleSetAdminForm(forms.ModelForm):
+
+    # Same field as the model's (required, the same rules), drawn as a checkbox list.
+    rules = forms.ModelMultipleChoiceField(
+        queryset=models.AutoReviewRule.objects.select_related("status").order_by("status__name", "pk"),
+        widget=AutoReviewRuleCheckboxes,
+        label=models.AutoReviewRuleSet._meta.get_field("rules").verbose_name,
+        help_text=models.AutoReviewRuleSet._meta.get_field("rules").help_text,
+    )
 
     class Meta:
         model = models.AutoReviewRuleSet
@@ -3514,14 +3775,48 @@ class AutoReviewRuleSetAdminForm(forms.ModelForm):
 class AutoReviewRuleSetAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     list_display = ("__str__", "is_default", 'get_rules_display')
 
-    filter_horizontal = ("rules",)
-
     form = AutoReviewRuleSetAdminForm
 
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'is_default'),
+        }),
+        (_l("Rules"), {
+            'fields': ('rules',),
+        }),
+    )
+    qc_wide_fields = ('rules',)
+    qc_fieldset_icons = {
+        None: "fa-info-circle",
+        fieldsets[1][0]: "fa-check-square-o",
+    }
+
+    # How many tests the Used In card lists before pointing to the Tests list.
+    USED_IN_LIMIT = 50
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            Prefetch("rules", queryset=models.AutoReviewRule.objects.select_related("status"))
+        )
+
     @admin.display(description=_l("Rules"))
-    @mark_safe
     def get_rules_display(self, obj):
-        return "<br>".join(str(rule) for rule in obj.rules.all().order_by('pass_fail'))
+        order = [key for key, _display in models.PASS_FAIL_CHOICES]
+        rules = sorted(obj.rules.all(), key=lambda r: (order.index(r.pass_fail) if r.pass_fail in order else 99, r.pk))
+        return format_html_join(mark_safe("<br>"), "{}", ((auto_review_rule_display(rule),) for rule in rules))
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        if obj is not None and obj.pk:
+            tests = models.Test.objects.filter(autoreviewruleset=obj).order_by("name")
+            context["qca_used_count"] = tests.count()
+            context["qca_used_tests"] = list(tests.only("pk", "name")[:self.USED_IN_LIMIT])
+            if request.user.has_perm("qa.view_test") or request.user.has_perm("qa.change_test"):
+                context["qca_can_view_tests"] = True
+                # A lookup the Tests list accepts without a list filter of its own.
+                context["qca_used_url"] = "%s?autoreviewruleset__id__exact=%d" % (
+                    reverse("admin:qa_test_changelist"), obj.pk
+                )
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
 
 class AutoSaveAdmin(QCAdminDesignMixin, BaseQATrackAdmin):

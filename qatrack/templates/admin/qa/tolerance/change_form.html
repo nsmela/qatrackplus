@@ -1,0 +1,44 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+{% comment %}
+Tolerance change form: the shared QC cards (Type, Limits, Multiple Choice Values; see
+ToleranceAdmin.fieldsets) with live previews (tolerance_assets.html), and a Used In
+card on saved tolerances: how many tests on machines (Unit Test Infos) use it, linking
+to the Set References & Tolerances list filtered to them.
+{% endcomment %}
+
+{% block after_field_sets %}{{ block.super }}
+{% include "admin/qa/tolerance/tolerance_assets.html" %}
+{% endblock %}
+
+{% block after_related_objects %}{{ block.super }}
+{% if original.pk %}
+<div class="tl-details-card qc-card qct-used-card" id="qct-used-card">
+  <div class="tl-card-header">
+    <i class="fa fa-sitemap" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Used In" %}</h2>
+    <span class="tl-count-badge" title="{% trans 'Tests on machines using this tolerance' %}">{{ qct_used_count }}</span>
+  </div>
+  <div class="tl-card-body">
+    {% if qct_used_count %}
+      <p class="qct-used-summary">
+        {% blocktrans count counter=qct_used_count %}{{ counter }} test on a machine uses this tolerance.{% plural %}{{ counter }} tests on machines use this tolerance.{% endblocktrans %}
+        {% if qct_used_url %}<a href="{{ qct_used_url }}" id="qct-used-link">{% trans "Show them in Set References & Tolerances" %}</a>{% endif %}
+      </p>
+      <ul class="qct-used-units">
+        {% for unit in qct_used_units %}
+          <li>
+            {% if qct_used_url %}<a href="{{ qct_used_url }}&amp;unit__id__exact={{ unit.unit_id }}">{% endif %}
+              <i class="fa fa-cube" aria-hidden="true"></i> <span>{{ unit.unit__name }}</span>
+              <span class="tl-count-badge" title="{% blocktrans count counter=unit.n %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}">{{ unit.n }}</span>
+            {% if qct_used_url %}</a>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="qct-empty">{% trans "No test on any machine uses this tolerance yet. Choose it for a test in Set References & Tolerances, or from a test list's builder." %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

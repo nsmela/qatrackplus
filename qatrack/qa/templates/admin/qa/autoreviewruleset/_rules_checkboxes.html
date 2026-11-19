@@ -1,0 +1,26 @@
+{% load i18n %}{% comment %}
+The Auto Review Rule Set's rules (AutoReviewRuleCheckboxes): one checkbox per rule,
+grouped by the QC result it applies to, each showing the status it sets as its label.
+Posts the same rule ids as the old two-list picker. autoreviewruleset_assets.html warns
+when more than one rule is ticked for the same result.
+{% endcomment %}<div class="qca-rules"{% if widget.attrs.id %} id="{{ widget.attrs.id }}"{% endif %} role="group" aria-label="{% trans 'Rules' %}">
+  {% for group in widget.result_groups %}
+    <fieldset class="qca-rule-group" data-qca-result="{{ group.key }}">
+      <legend class="qca-rule-group-title">{% blocktrans with result=group.label %}When a test is {{ result }}{% endblocktrans %}</legend>
+      <ul class="qca-rule-options">
+        {% for option in group.options %}
+          <li>
+            <label class="qca-rule-option" for="{{ option.attrs.id }}">
+              <input type="{{ option.type }}" name="{{ option.name }}" value="{{ option.value|stringformat:'s' }}"{% include "django/forms/widgets/attrs.html" with widget=option %}>
+              <span class="qca-rule-text">{% trans "set its status to" %}</span>
+              {{ option.status_label }}
+            </label>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="qca-rule-warning" aria-live="polite"><span hidden><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {% trans "Only one rule for each result is used. Tick just one of these." %}</span></p>
+    </fieldset>
+  {% empty %}
+    <p class="qca-rules-empty">{% trans "There are no auto review rules yet. Add some under Auto Review Rules first, then come back to choose them here." %}</p>
+  {% endfor %}
+</div>

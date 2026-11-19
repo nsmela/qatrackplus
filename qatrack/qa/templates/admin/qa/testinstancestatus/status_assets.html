@@ -1,0 +1,66 @@
+{% comment %}
+CSS + JS for the Test Instance Status change form (admin/qa/testinstancestatus/change_form.html),
+included in the page body after the cards so it runs under hx-boost and needs no
+collectstatic. The colour picker itself is still StatusAdmin.Media's
+bootstrap-colorpicker + admin_colourpicker.js; this lays it out inside the Colour card
+and keeps the Label Preview (StatusAdmin.label_preview) in step with the name and colour.
+{% endcomment %}{% load i18n %}
+<style>
+{% include "admin/qa/testinstancestatus/_status_label_css.html" %}
+
+/* Colour card: admin_colourpicker.js wraps the input in #colour_form with a swatch
+   (opens the picker) before it and the preset colours after it. */
+#content-main .qc-field.field-colour #colour_form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+#content-main .qc-field.field-colour #colour_form > input { flex: 1 1 12em; width: auto; min-width: 10em; font-family: Menlo, Consolas, monospace; font-size: 13px; }
+#content-main .qc-field.field-colour .input-group-addon {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  width: 30px; height: 30px; padding: 0; background: #fff; border: 1px solid #d2d6de; border-radius: 3px; cursor: pointer;
+}
+#content-main .qc-field.field-colour .input-group-addon:hover { border-color: #3c8dbc; }
+#content-main .qc-field.field-colour .input-group-addon i { display: inline-block; width: 18px; height: 18px; border-radius: 2px; cursor: pointer; }
+#content-main .qc-field.field-colour #colour_form > .btn-group { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; margin: 0 !important; }
+#content-main .qc-field.field-colour #colour_form > .btn-group .input-group-addon { width: 26px; height: 26px; }
+#content-main .qc-field.field-colour #colour_form > .btn-group .input-group-addon i { width: 16px; height: 16px; }
+
+/* Label Preview: the label as the status lists show it. */
+#content-main .qc-field.field-label_preview .qc-readonly { padding: 6px 0; }
+#content-main .qc-field.field-label_preview .qcs-label { font-size: 14px; }
+</style>
+<script>
+(function () {
+  "use strict";
+  var name = document.getElementById("id_name");
+  var colour = document.getElementById("id_colour");
+  var label = document.querySelector("#content-main .qcs-label-preview");
+  // View-only pages have no inputs: the server-drawn label is already right.
+  if (!label || (!name && !colour)) { return; }
+
+  var PLACEHOLDER = "{{ _('Status name')|escapejs }}";
+
+  function validColour(value) {
+    return !!value && (!window.CSS || !CSS.supports || CSS.supports("color", value));
+  }
+
+  function update() {
+    if (name) {
+      var text = name.value.trim();
+      label.textContent = text || PLACEHOLDER;
+      label.classList.toggle("qcs-label-empty", !text);
+    }
+    if (colour) {
+      var value = colour.value.trim();
+      label.style.borderColor = validColour(value) ? value : "transparent";
+    }
+  }
+
+  if (name) { name.addEventListener("input", update); }
+  if (colour) {
+    ["input", "change", "keyup"].forEach(function (type) { colour.addEventListener(type, update); });
+  }
+  // The colour picker (and its preset swatches) set the value without an input event.
+  if (window.jQuery) {
+    window.jQuery(document).on("changeColor", "#colour_form", function () { setTimeout(update, 0); });
+  }
+  update();
+})();
+</script>

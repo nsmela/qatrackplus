@@ -1,0 +1,11 @@
+{% extends "admin/qa/change_list.html" %}
+{% comment %}
+Statuses list: the shared QC list, with the Label column (StatusAdmin.get_colour) drawn
+as the design spec's status label.
+{% endcomment %}
+
+{% block object-tools %}{{ block.super }}
+<style>
+{% include "admin/qa/testinstancestatus/_status_label_css.html" %}
+</style>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "admin/qa/change_list.html" %}
+{% comment %}
+Auto Review Rule Sets list: the shared QC list, with each set's rules drawn as
+"result → status label" (AutoReviewRuleSetAdmin.get_rules_display).
+{% endcomment %}
+
+{% block object-tools %}{{ block.super }}
+<style>
+{% include "admin/qa/autoreviewruleset/_auto_review_css.html" %}
+</style>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% comment %}
+CSS + JS for the Auto Review Rule Set change form (admin/qa/autoreviewruleset/change_form.html),
+included in the page body so it runs under hx-boost and needs no collectstatic: the
+rules checkbox list (_rules_checkboxes.html) and the Used In card. The JS only warns
+when two rules for the same result are ticked; what is saved is unchanged.
+{% endcomment %}
+<style>
+{% include "admin/qa/autoreviewruleset/_auto_review_css.html" %}
+
+#content-main .qca-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); gap: 12px 16px; }
+#content-main fieldset.qca-rule-group { margin: 0; padding: 8px 12px 10px; min-width: 0; background: #fff; border: 1px solid #e3e6ea; border-radius: 0; box-shadow: none; }
+#content-main legend.qca-rule-group-title {
+  float: none; width: auto; margin: 0; padding: 0 4px; font-size: 13px; font-weight: 600; color: #555;
+  background: none; text-transform: none; letter-spacing: normal; border: 0;
+}
+#content-main ul.qca-rule-options { list-style: none; margin: 6px 0 0; padding: 0; }
+#content-main ul.qca-rule-options li { list-style: none; margin: 0; padding: 0; }
+#content-main label.qca-rule-option {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; padding: 5px 4px;
+  font-size: 13px; font-weight: 400; color: #444; cursor: pointer; border-radius: 3px;
+}
+#content-main label.qca-rule-option:hover { background: #f5f7fa; }
+#content-main label.qca-rule-option input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: #424f57; flex: none; }
+#content-main .qca-rule-text { color: #6e7785; }
+#content-main .qca-rule-warning { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: #8a6420; }
+#content-main .qca-rule-warning:empty, #content-main .qca-rule-warning > span[hidden] { display: none; }
+#content-main .qca-rules-empty { margin: 0; font-size: 13px; font-style: italic; color: #6d7787; }
+
+/* Used In */
+#content-main .qca-used-summary { margin: 0 0 10px; font-size: 14px; color: #333; }
+#content-main .qca-used-summary a, #content-main ul.qca-used-tests a { color: #317399; }
+#content-main .qca-used-summary a:hover, #content-main ul.qca-used-tests a:hover { color: #285f80; text-decoration: underline; }
+#content-main ul.qca-used-tests { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); gap: 0 20px; }
+#content-main ul.qca-used-tests li { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid #f4f4f4; font-size: 14px; color: #333; }
+#content-main ul.qca-used-tests li > a, #content-main ul.qca-used-tests li > span { display: flex; align-items: center; gap: 8px; padding: 6px 2px; text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+#content-main ul.qca-used-tests .fa { color: #8a929e; }
+#content-main .qca-used-more { margin: 10px 0 0; font-size: 13px; color: #6b6b6b; }
+#content-main .qca-empty { color: #6d7787; font-size: 13px; font-style: italic; margin: 0; }
+</style>
+<script>
+(function () {
+  "use strict";
+  function check(group) {
+    var ticked = group.querySelectorAll("input[type=checkbox]:checked").length;
+    var warning = group.querySelector(".qca-rule-warning > span");
+    if (warning) { warning.hidden = ticked < 2; }
+  }
+  document.querySelectorAll("#content-main .qca-rule-group").forEach(function (group) {
+    group.addEventListener("change", function () { check(group); });
+    check(group);
+  });
+})();
+</script>

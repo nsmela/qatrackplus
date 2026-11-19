@@ -1,0 +1,49 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+{% comment %}
+Auto Review Rule Set change form: the shared QC cards (Details; Rules, drawn as a
+checkbox list grouped by result: AutoReviewRuleCheckboxes) and, on saved rule sets, a
+Used In card listing the tests that use it (AutoReviewRuleSetAdmin.render_change_form).
+{% endcomment %}
+
+{% block after_field_sets %}{{ block.super }}
+{% include "admin/qa/autoreviewruleset/autoreviewruleset_assets.html" %}
+{% endblock %}
+
+{% block after_related_objects %}{{ block.super }}
+{% if original.pk %}
+<div class="tl-details-card qc-card qca-used-card" id="qca-used-card">
+  <div class="tl-card-header">
+    <i class="fa fa-sitemap" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Used In" %}</h2>
+    <span class="tl-count-badge" title="{% trans 'Tests using this rule set' %}">{{ qca_used_count }}</span>
+  </div>
+  <div class="tl-card-body">
+    {% if qca_used_count %}
+      <p class="qca-used-summary">{% blocktrans count counter=qca_used_count %}{{ counter }} test uses this rule set.{% plural %}{{ counter }} tests use this rule set.{% endblocktrans %}</p>
+      <ul class="qca-used-tests">
+        {% for test in qca_used_tests %}
+          <li>
+            {% if qca_can_view_tests %}
+              <a href="{% url 'admin:qa_test_change' test.pk %}"><i class="fa fa-flask" aria-hidden="true"></i> {{ test.name }}</a>
+            {% else %}
+              <span><i class="fa fa-flask" aria-hidden="true"></i> {{ test.name }}</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      {% if qca_used_count > qca_used_tests|length %}
+        <p class="qca-used-more">
+          {% blocktrans with shown=qca_used_tests|length total=qca_used_count %}Showing the first {{ shown }} of {{ total }}.{% endblocktrans %}
+          {% if qca_used_url %}<a href="{{ qca_used_url }}" id="qca-used-link">{% trans "Show them all in Tests" %}</a>{% endif %}
+        </p>
+      {% elif qca_used_url %}
+        <p class="qca-used-more"><a href="{{ qca_used_url }}" id="qca-used-link">{% trans "Show them in Tests" %}</a></p>
+      {% endif %}
+    {% else %}
+      <p class="qca-empty">{% trans "No test uses this rule set yet. Choose it on a test's page under Auto Review Rules." %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
