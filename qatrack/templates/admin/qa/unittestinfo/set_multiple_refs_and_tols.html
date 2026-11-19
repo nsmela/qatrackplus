@@ -1,64 +1,100 @@
-{% extends "admin/change_form.html" %}
-{% load i18n %}
+{% extends "admin/base_site.html" %}
+{% load i18n qa_tags %}
+
+{% comment %}
+Intermediate page of UnitTestInfoAdmin.set_multiple_references_and_tolerances: a
+title row and cards in the QC admin style. The new tolerance and reference
+(SetMultipleReferencesAndTolerancesForm's fields) in one card, the selected tests
+with their current values in another. It posts back to the list with the same
+action, the selected ids and post=yes, as before.
+{% endcomment %}
+
+{% block title %}{% trans "Set References & Tolerances" %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block bodyclass %}{{ block.super }} app-qa model-unittestinfo change-form qcr-set-multiple-page{% endblock %}
 
 {% block breadcrumbs %}
   <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
     <a href="{% url 'admin:app_list' app_label='qa' %}">{% trans "QC" %}</a> &rsaquo;
-    {% trans "Set References & Tolerances" %}
+    <a href="{% url 'admin:qa_unittestinfo_changelist' %}">{% trans "Set References & Tolerances" %}</a> &rsaquo;
+    {% trans "Set Multiple" %}
   </div>
 {% endblock %}
 
 {% block content %}
+<div id="content-main">
+{% include "admin/qa/shared/_qc_assets.html" %}
+{% include "admin/qa/unittestinfo/unittestinfo_assets.html" with qcr_page="set_multiple" %}
 
-<p>{% trans "Set the tolerance and reference" %}:</p>
+<form action="" method="post" id="qcr-set-multiple-form" novalidate>{% csrf_token %}
+  {% for obj in queryset %}
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="set_multiple_references_and_tolerances">
+  <input type="hidden" name="post" value="yes">
 
-<form action="" method="post">{% csrf_token %}
+  <div class="tl-header-bar qc-header-bar">
+    <div class="tl-header-left">
+      <h1 class="tl-header-title">{% trans "Set References & Tolerances" %}</h1>
+      <span class="tl-header-counts qc-header-meta">{% blocktrans count counter=queryset|length %}{{ counter }} test selected{% plural %}{{ counter }} tests selected{% endblocktrans %}</span>
+    </div>
+    <div class="tl-header-actions">
+      <a href="{% url 'admin:qa_unittestinfo_changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qcr-cancel-btn">{% trans "Cancel" %}</a>
+      <button type="submit" class="tl-top-btn tl-top-btn-save" id="qcr-apply-btn">
+        <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Set References & Tolerances" %}
+      </button>
+    </div>
+  </div>
 
-    {% for hidden in form.hidden_fields %}
-      {{ hidden }}
-    {% endfor %}
-
-    {% for field in form.visible_fields %}
-      <div class="fieldWrapper">
-          {{ field.errors }}
-          {{ field.label_tag }} {{ field }}
-          {% if field.help_text %}
-            <p class="help">{{ field.help_text|safe }}</p>
-          {% endif %}
+  <div class="tl-details-card qc-card qcr-card" id="qc-card-set-multiple">
+    <div class="tl-card-header">
+      <i class="fa fa-sliders" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "New Reference & Tolerance" %}</h2>
+    </div>
+    <div class="tl-card-body">
+      <p class="qc-card-desc">{% trans "Choose the tolerance and reference to give every selected test. Leave a field blank to keep each test's current value." %}</p>
+      <div class="tlb-form qc-form">
+        {% for field in form.visible_fields %}
+          <div class="tlb-field qc-field field-{{ field.name }}{% if field.name == 'comment' %} tl-col-full{% endif %}{% if field.errors %} qc-has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field.errors }}
+            <div class="qc-widget">{{ field }}</div>
+            {% if field.help_text %}<span class="qc-help">{{ field.help_text|safe }}</span>{% endif %}
+          </div>
+        {% endfor %}
       </div>
-    {% endfor %}
+    </div>
+  </div>
 
-    {% for obj in queryset %}
-    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}" />
-    {% endfor %}
-    <input type="hidden" name="action" value="set_multiple_references_and_tolerances" />
-    <input type="hidden" name="post" value="yes" />
-    <input type="submit" name="apply" value="Set tolerances and references" />
-
+  <div class="tl-details-card qc-card qcr-card" id="qc-card-set-multiple-tests">
+    <div class="tl-card-header">
+      <i class="fa fa-list-alt" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "The tolerance and reference will be applied to" %}</h2>
+      <span class="tl-count-badge">{{ queryset|length }}</span>
+    </div>
+    <div class="qcr-table-body">
+      <table class="qcr-table" id="qcr-set-multiple-tests">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Test" %}</th>
+            <th scope="col">{% trans "Unit" %}</th>
+            <th scope="col">{% trans "Current reference" %}</th>
+            <th scope="col">{% trans "Current tolerance" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for uti in queryset %}
+          <tr>
+            <td>{{ uti.test.name }}</td>
+            <td>{{ uti.unit.name }}</td>
+            <td>{% if uti.reference %}{{ uti.reference|reference_display:uti.test }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+            <td>{% if uti.tolerance %}{{ uti.tolerance }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </form>
-
-<br><p>{% trans "The tolerance and reference will be applied to" %}:</p>
-
-<table>
-  <thead>
-      <tr>
-        <th>{% trans "Test" %}</th>
-        <th>{% trans "Unit" %}</th>
-        <th>{% trans "Current reference" %}</th>
-        <th>{% trans "Current tolerance" %}</th>
-      </tr>
-  </thead>
-  <tbody>
-      {% for uti in queryset %}
-      <tr>
-        <td>{{ uti.test.name }}</td>
-        <td align='center'>{{ uti.unit.name }}</td>
-        <td align='center'>{{ uti.reference }}</td>
-        <td>{{ uti.tolerance }}</td>
-      </tr>
-      {% endfor %}
-  </tbody>
-</table>
-
+</div>
 {% endblock %}

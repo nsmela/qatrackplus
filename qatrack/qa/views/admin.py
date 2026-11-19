@@ -284,6 +284,10 @@ class CopyReferencesTolerancesView(PermissionRequiredMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # the admin's page context (header links, nav sidebar), as on its own pages
+        from django.contrib import admin
+        context.update(admin.site.each_context(self.request))
+        context['opts'] = models.UnitTestInfo._meta
         context['title'] = _("Copy References & Tolerances")
         form = kwargs.get('form', self.get_form())
         context['form'] = form
