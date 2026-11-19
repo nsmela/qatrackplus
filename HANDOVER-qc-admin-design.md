@@ -345,11 +345,28 @@ membership's natural key (test list + cycle slugs, used by test packs), so this
 looks right, but a clinic with a repeating A/B/A/B cycle built that way can no
 longer build one. Existing cycles still show and save.
 
-**Translations: not done.** `makemessages` needs GNU gettext (`msguniq`,
-`xgettext`), which isn't installed on this machine. Note that running it here
-will also pick up every new string from `feat/test-builder`, which hasn't been
-through `makemessages` either, so the `.po` diff will be large and may conflict
-with that branch if it runs its own.
+**Translations: catalogues updated, not translated.** GNU gettext 1.0 is now
+installed (winget `mlocati.GetText`, in
+`%LOCALAPPDATA%\Programs\gettext-iconv\bin`, on the user PATH). `makemessages`
+ran for fr, fr_CA and es, for both `django` and `djangojs`, then
+`compilemessages`. It's in its own commit so it can be dropped and re-run if
+`feat/test-builder` runs its own first.
+
+- On Windows `makemessages` writes references as `.\qatrack\x.py`. They were
+  rewritten to `qatrack/x.py` and re-wrapped with `msgcat`, to match the
+  existing files. Most of the remaining `.po` diff is line numbers that moved.
+- The new strings (from this branch and `feat/test-builder`) are untranslated.
+  `msgmerge` added a fuzzy guess to some of them. Fuzzy entries aren't compiled,
+  so they show in English until a translator confirms them.
+- `django.po` counts (translated / fuzzy / untranslated): fr 2019 / 246 / 313,
+  fr_CA 2016 / 249 / 313, es 1132 / 735 / 711.
+- French has 32 fewer translated entries than before, because their English
+  text changed or was removed (typo fixes, reworded or deleted strings on
+  `feat/test-builder`). They were already not showing, since `.mo` lookups use
+  the exact English text. Each was checked: none is still used in the code.
+  Their old translations are kept as fuzzy suggestions or `#~` entries.
+- `test_translation_catalogues.py` and the full non-Selenium suite pass
+  (2161 passed, 5 skipped).
 
 ## Next steps
 
@@ -358,10 +375,11 @@ with that branch if it runs its own.
    origin/feat/test-builder...HEAD` shows everything this branch adds.
 2. ~~Merge into this branch.~~ Done; see above.
 3. ~~Apply the shared-file suggestions.~~ Done; see above.
-4. **Translations:** the strings are new. Run `makemessages` for fr, fr_CA and es
-   once, translate or leave the entries empty, then run
-   `uv run python manage.py compilemessages`. Never hand-edit the `.mo` files.
-   Needs GNU gettext installed; see [Second session](#second-session-2026-11-19).
+4. **Translations:** catalogues updated and compiled (see
+   [Second session](#second-session-2026-11-19)). Still to do: translate the new
+   and fuzzy entries, ideally by the French translator, then run
+   `uv run python manage.py compilemessages` again. Never hand-edit the `.mo`
+   files.
 5. **Check every QC page by eye,** in light and dark themes, at desktop width and
    at about 768px:
    - Save, Save and Continue, Save as New and Delete.

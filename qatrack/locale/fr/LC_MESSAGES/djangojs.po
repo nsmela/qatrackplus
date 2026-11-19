@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QATrack+ v4.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-04 12:47-0400\n"
+"POT-Creation-Date: 2026-11-19 14:36-0700\n"
 "PO-Revision-Date: 2026-08-04 12:49-0400\n"
 "Last-Translator: Vincent Leduc (Santé Québec Est-de-l'Île-de-Montréal - "
 "Universitaire) vleduc.hmr@ssss.gouv.qc.ca\n"
@@ -29,48 +29,159 @@ msgstr "Afficher"
 msgid "Hide"
 msgstr "Cacher"
 
-#: qatrack/qa/static/qa/js/qa.js:31
+#: qatrack/admin_media/js/testpack-export.js:16
+#: qatrack/admin_media/js/testpack-import.js:16
+msgid "Search:"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:17
+#: qatrack/admin_media/js/testpack-import.js:17
+msgid "Showing _START_ to _END_ of _TOTAL_ entries"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:18
+#: qatrack/admin_media/js/testpack-import.js:18
+msgid "Showing 0 to 0 of 0 entries"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:19
+#: qatrack/admin_media/js/testpack-import.js:19
+msgid "(filtered from _MAX_ total entries)"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:20
+#: qatrack/admin_media/js/testpack-import.js:20
+msgid "No data available in table"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:21
+#: qatrack/admin_media/js/testpack-import.js:21
+msgid "No matching records found"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:23
+#: qatrack/admin_media/js/testpack-import.js:23
+msgid "First"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:24
+#: qatrack/admin_media/js/testpack-import.js:24
+msgid "Previous"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:25
+#: qatrack/admin_media/js/testpack-import.js:25
+msgid "Next"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:26
+#: qatrack/admin_media/js/testpack-import.js:26
+msgid "Last"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:30
+#: qatrack/admin_media/js/testpack-import.js:30
+#, javascript-format
+msgid "%d rows selected"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:32
+#: qatrack/admin_media/js/testpack-import.js:32
+msgid "1 row selected"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:36
+#: qatrack/admin_media/js/testpack-import.js:36
+msgid "Select All"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:37
+#: qatrack/admin_media/js/testpack-import.js:37
+msgid "Select None"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:39
+#: qatrack/admin_media/js/testpack-import.js:39
+#, javascript-format
+msgid "Show %d Rows"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:40
+#: qatrack/admin_media/js/testpack-import.js:40
+msgid "Show All Rows"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:47
+#: qatrack/admin_media/js/testpack-import.js:47
+msgid "All"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-export.js:49
+#: qatrack/admin_media/js/testpack-import.js:49
+msgid "%(count)s Selected"
+msgid_plural "%(count)s Selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: qatrack/admin_media/js/testpack-export.js:78
+#: qatrack/admin_media/js/testpack-import.js:71
+msgid "Select Filtered"
+msgstr ""
+
+#: qatrack/admin_media/js/testpack-import.js:166
+msgid ""
+"This file isn't a valid test pack, so nothing was loaded. Choose a test pack "
+"file exported from QATrack+ and try again."
+msgstr ""
+
+#: qatrack/qa/static/qa/js/qa.js:57
 msgid "Calculating"
 msgstr "Calcul en cours"
 
-#: qatrack/qa/static/qa/js/qa.js:32
+#: qatrack/qa/static/qa/js/qa.js:58
 msgid "Performing calculations..."
 msgstr "Calculs en cours..."
 
-#: qatrack/qa/static/qa/js/qa.js:37
+#: qatrack/qa/static/qa/js/qa.js:63
 msgid "Idle"
 msgstr "En attente"
 
-#: qatrack/qa/static/qa/js/qa.js:38
+#: qatrack/qa/static/qa/js/qa.js:64
 msgid "Calculations Complete"
 msgstr "Calculs terminés"
 
-#: qatrack/qa/static/qa/js/qa.js:43
+#: qatrack/qa/static/qa/js/qa.js:69
 msgid "Saving"
 msgstr "En cours d'enregistrement"
 
-#: qatrack/qa/static/qa/js/qa.js:44
+#: qatrack/qa/static/qa/js/qa.js:70
 msgid "Auto-saving..."
 msgstr "En cours d'enregistrement automatique..."
 
-#: qatrack/qa/static/qa/js/qa.js:50
+#: qatrack/qa/static/qa/js/qa.js:76
 msgid "Last auto saved at "
 msgstr "Dernier enregistrement automatique le "
 
-#: qatrack/qa/static/qa/js/qa.js:58
+#: qatrack/qa/static/qa/js/qa.js:84
 msgid "Please wait until the calculations complete before submitting"
 msgstr ""
-"SVP attendre jusqu'à ce que les calculs soient terminés avant de "
-"soumettre"
+"SVP attendre jusqu'à ce que les calculs soient terminés avant de soumettre"
 
-#: qatrack/qa/static/qa/js/qa.js:65
+#: qatrack/qa/static/qa/js/qa.js:91
 msgid "Click to submit your QC data"
 msgstr "Cliquer pour soumettre vos données de CQ"
+
+#: qatrack/qa/static/qa/js/qa.js:709
+msgid "Uploading is turned off in this preview."
+msgstr ""
 
 #: qatrack/qa/static/qa/js/qaoverview.js:119
 msgid "Visible Units"
 msgstr "Unités visibles"
 
-#: qatrack/qatrack_core/static/rrule/js/rrule-tz.min.js:16
-msgid "and"
-msgstr "et"
+#: qatrack/qatrack_core/static/qatrack_core/js/base.js:54
+msgid "Submitting…"
+msgstr ""
+
+#~ msgid "and"
+#~ msgstr "et"
