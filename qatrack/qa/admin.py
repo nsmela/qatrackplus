@@ -437,28 +437,68 @@ class ActiveUnitTestInfoFilter(admin.SimpleListFilter):
         return qs
 
 
+def unit_test_info_missing_html(uti, part):
+    """What the Unit Test Info pages show for a reference (``part="reference"``) or
+    tolerance that isn't set.
+
+    Uses the Test List builder's rule (machine_limit_usage, which mirrors
+    TestInstance.calculate_pass_fail): "Not set" is highlighted only when this test
+    type needs the value, because then its results on Perform QC show No Tol Set.
+    A type that never uses it says "Not used"; an optional one (a Boolean test's
+    tolerance) is a plain "Not set".
+    """
+    usage = machine_limit_usage(uti.test)
+    use = usage[part]
+    if use == "unused":
+        if usage["uses_limits"]:
+            why = _("This test type doesn't use a reference: its results are judged by the tolerance alone.")
+        else:
+            why = _("Limits don't apply to this test type: its results never pass or fail.")
+        return format_html('<span class="qcr-unused" title="{}">{}</span>', why, _("Not used"))
+    if use == "required":
+        title = _("No limits set: results on %(unit)s will show No Tol Set") % {"unit": uti.unit.name}
+        return format_html(
+            '<span class="qcr-missing" title="{}"><i class="fa fa-exclamation-circle" aria-hidden="true"></i>{}'
+            '<span class="tl-visually-hidden">: {}</span></span>',
+            title, _("Not set"), title,
+        )
+    return format_html('<span class="qcr-none">{}</span>', _("Not set"))
+
+
+def unit_test_info_tolerance_html(uti):
+    """The tolerance as the Unit Test Info list and Details card show it: its stored
+    name (as before), with the plain-language reading as a tooltip."""
+    if uti.tolerance_id is None:
+        return unit_test_info_missing_html(uti, "tolerance")
+    return format_html('<span title="{}">{}</span>', uti.tolerance.plain_display_title(), uti.tolerance)
+
+
 class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     """Admin interface for UnitTestInfo model"""
 
     change_list_template = "admin/qa/unittestinfo/change_list.html"
     form = UnitTestInfoForm
 
+    # admin/qa/unittestinfo/change_form.html draws these as three cards: Details (a
+    # read-only description list of what's set now), Reference & Tolerance (the
+    # form) and History.
     fieldsets = (
         (None, {
             'fields': (
                 'unit',
                 'test',
                 'reference_display',
-                'tolerance',
+                'tolerance_display',
             )
         }),
         (
-            _('Reference Value'), {
+            _('Reference & Tolerance'), {
                 'fields': (
                     'test_type',
-                    'reference_value',
                     'reference_set_by',
                     'reference_set',
+                    'reference_value',
+                    'tolerance',
                     'comment',
                 ),
             }
@@ -468,13 +508,13 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         }),
     )
 
-    list_display = [test_name, "unit", test_type, "reference_display", "tolerance"]
+    list_display = [test_name, "unit", test_type, "reference_display", "tolerance_display"]
     list_filter = [
         ActiveUnitTestInfoFilter, "unit__site", "unit", "test__category", "test__testlistmembership__test_list"
     ]
     # "reference" stays read-only (so the form never edits it) though the page
     # shows reference_display, which reads Yes/No for Boolean tests.
-    readonly_fields = ("reference", "reference_display", "test", "unit", "history")
+    readonly_fields = ("reference", "reference_display", "tolerance_display", "test", "unit", "history")
     search_fields = ("test__name", "test__display_name", "test__slug", "unit__name")
 
     def get_fields(self, request, obj=None):
@@ -488,6 +528,12 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             fields = kwargs.pop('fields')
         else:
             fields = flatten_fieldsets(self.get_fieldsets(request, obj))
+        if obj is not None and not self.has_change_permission(request, obj):
+            # View-only: Django would leave every field out of the form, but
+            # UnitTestInfoForm needs its tolerance field to set up (without it the
+            # page fails to load). Build the whole form: Django still shows every
+            # field read-only and refuses to save it.
+            kwargs['change'] = False
         FormClass = super().get_form(request, obj, fields=fields, **kwargs)
 
         class FormWithRequest(FormClass):
@@ -503,11 +549,51 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         """The reference as the list column and the read-only field show it.
 
         Used in place of the plain str(reference) so Boolean tests read Yes/No
-        even for older references stored with the numerical type.
+        even for older references stored with the numerical type. An empty one
+        says "Not set" (highlighted when it causes No Tol Set) or "Not used".
         """
-        if obj is None or obj.reference is None:
+        if obj is None:
             return None
+        if obj.reference is None:
+            return unit_test_info_missing_html(obj, "reference")
         return obj.reference.value_display(obj.test)
+
+    @admin.display(description=_l("Tolerance"), ordering="tolerance")
+    def tolerance_display(self, obj):
+        """The tolerance's name, or "Not set" / "Not used" like reference_display."""
+        if obj is None:
+            return None
+        return unit_test_info_tolerance_html(obj)
+
+    @admin.display(description=_l("Set"))
+    def set_ref_tol(self, obj):
+        """A pencil that opens the Test List builder's Reference and Tolerance dialog
+        (testlist_machine_ref_tol) for this row. Only listed for users who may change
+        references and tolerances (get_list_display); nothing for test types that
+        never use limits, as in the builder."""
+        if not machine_limit_usage(obj.test)["uses_limits"]:
+            return ""
+        label = _("Set reference and tolerance for %(test)s on %(unit)s") % {
+            "test": obj.test.name, "unit": obj.unit.name,
+        }
+        return format_html(
+            '<button type="button" class="qcr-reftol-btn" aria-haspopup="dialog" data-uti-id="{}"'
+            ' data-reftol-url="{}" title="{}" aria-label="{}"><i class="fa fa-pencil" aria-hidden="true"></i></button>',
+            obj.pk, reverse("admin:qa_testlist_machine_ref_tol", args=[obj.pk]), label, label,
+        )
+
+    def get_list_display(self, request):
+        list_display = list(super().get_list_display(request))
+        if self.has_change_permission(request):
+            list_display.append("set_ref_tol")
+        return list_display
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['qcr_history_count'] = models.UnitTestInfoChange.objects.filter(
+            unit_test_info_id=object_id,
+        ).count() if str(object_id).isdigit() else 0
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @admin.display(description=_("Reference & Tolerance History"))
     def history(self, obj):
@@ -670,12 +756,15 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             return None
 
         context = {
+            **self.admin_site.each_context(request),
             'title': _("Set references and tolerances"),
             'queryset': queryset,
             'opts': self.model._meta,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            # the page's fields (the template used to look for a form that was never passed)
+            'form': SetMultipleReferencesAndTolerancesForm(),
         }
-        return TemplateResponse(request, 'admin/qa/unittestinfo/set_multiple.html', context)
+        return TemplateResponse(request, 'admin/qa/unittestinfo/set_multiple_refs_and_tols.html', context)
 
     class Media:
         js = (

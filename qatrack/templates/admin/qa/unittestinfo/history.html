@@ -1,50 +1,45 @@
 {% load i18n %}
-<div class="module">
-  <p class="help">{% trans "Newest changes first. Each row shows the value before the change and the value after it; parts that did not change are shown once, marked “No change”." %}</p>
-  <table id="change-history" class="uti-history">
-    <thead>
+{# The History card's table (UnitTestInfoAdmin.history; drawn in admin/qa/unittestinfo/change_form.html). Styles: admin/qa/unittestinfo/unittestinfo_assets.html. #}
+<p class="qcr-history-help">{% trans "Newest changes first. Each row shows the value before the change and the value after it; parts that did not change are shown once, marked “No change”." %}</p>
+<table id="change-history" class="uti-history">
+  <thead>
+    <tr>
+      <th scope="col" rowspan="2">{% trans "When" %}</th>
+      <th scope="col" rowspan="2">{% trans "Changed by" %}</th>
+      <th scope="colgroup" colspan="2">{% trans "Reference" %}</th>
+      <th scope="colgroup" colspan="2">{% trans "Tolerance" %}</th>
+      <th scope="col" rowspan="2">{% trans "Reason" %}</th>
+    </tr>
+    <tr>
+      <th scope="col">{% trans "Before" %}</th>
+      <th scope="col">{% trans "After" %}</th>
+      <th scope="col">{% trans "Before" %}</th>
+      <th scope="col">{% trans "After" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in history %}
       <tr>
-        <th scope="col" rowspan="2">{% trans "When" %}</th>
-        <th scope="col" rowspan="2">{% trans "Changed by" %}</th>
-        <th scope="colgroup" colspan="2">{% trans "Reference" %}</th>
-        <th scope="colgroup" colspan="2">{% trans "Tolerance" %}</th>
-        <th scope="col" rowspan="2">{% trans "Reason" %}</th>
+        <th scope="row">{{ row.change.changed }}</th>
+        <td>{{ row.change.changed_by }}</td>
+        {% with p=row.reference %}
+          {% if p.changed %}
+            <td class="uti-history-before">{{ p.before|default:_("Not set") }}</td>
+            <td class="uti-history-after"><span aria-hidden="true">→ </span>{{ p.after|default:_("Not set") }}</td>
+          {% else %}
+            <td colspan="2" class="uti-history-same">{{ p.after|default:_("Not set") }} <span class="uti-history-note">({% trans "No change" %})</span></td>
+          {% endif %}
+        {% endwith %}
+        {% with p=row.tolerance %}
+          {% if p.changed %}
+            <td class="uti-history-before">{{ p.before|default:_("Not set") }}</td>
+            <td class="uti-history-after"><span aria-hidden="true">→ </span>{{ p.after|default:_("Not set") }}</td>
+          {% else %}
+            <td colspan="2" class="uti-history-same">{{ p.after|default:_("Not set") }} <span class="uti-history-note">({% trans "No change" %})</span></td>
+          {% endif %}
+        {% endwith %}
+        <td>{{ row.change.comment }}</td>
       </tr>
-      <tr>
-        <th scope="col">{% trans "Before" %}</th>
-        <th scope="col">{% trans "After" %}</th>
-        <th scope="col">{% trans "Before" %}</th>
-        <th scope="col">{% trans "After" %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in history %}
-        <tr>
-          <th scope="row">{{ row.change.changed }}</th>
-          <td>{{ row.change.changed_by }}</td>
-          {% with p=row.reference %}
-            {% if p.changed %}
-              <td class="uti-history-before">{{ p.before|default:_("Not set") }}</td>
-              <td class="uti-history-after"><span aria-hidden="true">→ </span>{{ p.after|default:_("Not set") }}</td>
-            {% else %}
-              <td colspan="2" class="uti-history-same">{{ p.after|default:_("Not set") }} <span class="uti-history-note">({% trans "No change" %})</span></td>
-            {% endif %}
-          {% endwith %}
-          {% with p=row.tolerance %}
-            {% if p.changed %}
-              <td class="uti-history-before">{{ p.before|default:_("Not set") }}</td>
-              <td class="uti-history-after"><span aria-hidden="true">→ </span>{{ p.after|default:_("Not set") }}</td>
-            {% else %}
-              <td colspan="2" class="uti-history-same">{{ p.after|default:_("Not set") }} <span class="uti-history-note">({% trans "No change" %})</span></td>
-            {% endif %}
-          {% endwith %}
-          <td>{{ row.change.comment }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <style>
-    .uti-history .uti-history-note { color: #6e7785; }
-    .uti-history .uti-history-after { font-weight: 600; }
-  </style>
-</div>
+    {% endfor %}
+  </tbody>
+</table>
