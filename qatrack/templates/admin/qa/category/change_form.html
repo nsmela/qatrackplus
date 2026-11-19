@@ -1,0 +1,65 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+
+{% comment %}
+Category change form: the shared QC Details card (CategoryAdmin.fields) plus, for a saved
+category, a Used In card listing its tests (context from CategoryAdmin.render_change_form)
+with a link to the Test list filtered to this category.
+{% endcomment %}
+
+{% block after_field_sets %}{{ block.super }}
+{% if original.pk %}
+<style>
+  #content-main ul.qcc-used-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 16px; }
+  #content-main li.qcc-used-item { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid #f4f4f4; min-width: 0; }
+  #content-main .qcc-used-link { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-size: 14px; color: #333; overflow-wrap: anywhere; }
+  #content-main a.qcc-used-link, #content-main a.qcc-used-link:link, #content-main a.qcc-used-link:visited { color: #317399; text-decoration: none; }
+  #content-main a.qcc-used-link:hover { color: #285f80; text-decoration: underline; }
+  #content-main .qcc-used-link .fa { color: #8a929e; }
+  #content-main .qcc-used-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 10px 0 0; font-size: 13px; }
+  #content-main .qcc-used-more { color: #6e7785; }
+  #content-main a.qcc-used-all, #content-main a.qcc-used-all:link, #content-main a.qcc-used-all:visited { color: #317399; font-weight: 600; }
+  #content-main .qcc-used-hint { font-size: 12px; color: #6e7785; }
+  #content-main .qcc-empty { color: #6d7787; font-size: 13px; font-style: italic; margin: 0; }
+</style>
+<div class="tl-details-card qc-card qcc-card" id="qcc-used-card">
+  <div class="tl-card-header">
+    <i class="fa fa-link" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Used In" %}</h2>
+    <span class="tl-count-badge">{{ qcc_test_count }}</span>
+  </div>
+  <div class="tl-card-body">
+    {% if qcc_tests %}
+      {% if perms.qa.view_test or perms.qa.change_test %}{% url 'admin:qa_test_changelist' as test_list_url %}{% endif %}
+      <ul class="qcc-used-list">
+        {% for test in qcc_tests %}
+          <li class="qcc-used-item">
+            {% if test_list_url %}
+              <a href="{% url 'admin:qa_test_change' test.pk %}" class="qcc-used-link"><i class="fa fa-flask" aria-hidden="true"></i> {{ test.name }}</a>
+            {% else %}
+              <span class="qcc-used-link"><i class="fa fa-flask" aria-hidden="true"></i> {{ test.name }}</span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="qcc-used-foot">
+        {% if qcc_tests_more %}
+          <span class="qcc-used-more">{% blocktrans count counter=qcc_tests_more %}And {{ counter }} more test.{% plural %}And {{ counter }} more tests.{% endblocktrans %}</span>
+        {% endif %}
+        {% if test_list_url %}
+          <a href="{{ test_list_url }}?category__id__exact={{ original.pk }}" class="qcc-used-all" id="qcc-used-all">
+            <i class="fa fa-external-link" aria-hidden="true"></i> {% blocktrans count counter=qcc_test_count %}See this test in the Test list{% plural %}See all {{ counter }} tests in the Test list{% endblocktrans %}
+          </a>
+        {% endif %}
+        <span class="qcc-used-hint">{% trans "A category can't be deleted while tests are filed under it." %}</span>
+      </p>
+    {% else %}
+      <p class="qcc-empty">{% trans "No tests are filed under this category yet." %}</p>
+    {% endif %}
+    {% if qcc_child_count %}
+      <p class="qcc-used-foot"><span class="qcc-used-hint">{% blocktrans count counter=qcc_child_count %}This category has {{ counter }} subcategory; tests filed under it aren't counted here.{% plural %}This category has {{ counter }} subcategories; tests filed under them aren't counted here.{% endblocktrans %}</span></p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

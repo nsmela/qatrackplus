@@ -1,0 +1,22 @@
+{% extends "admin/qa/change_list.html" %}
+
+{% comment %}
+Auto Saves list: the shared QC list, with the Recover column's link
+(AutoSaveAdmin.recover) drawn as a small secondary button.
+{% endcomment %}
+
+{% block object-tools %}{{ block.super }}
+<style>
+  #result_list td a.qcas-recover-btn, #result_list td a.qcas-recover-btn:link, #result_list td a.qcas-recover-btn:visited {
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+    font-size: 12px; font-weight: 600; line-height: 1.4; padding: 3px 10px;
+    color: #444; background: #f4f4f4; border: 1px solid #d2d6de; border-radius: 3px;
+    box-shadow: 2px 2px 2px #ddd; text-decoration: none;
+  }
+  #result_list td a.qcas-recover-btn:hover, #result_list td a.qcas-recover-btn:focus { background: #e7e7e7; color: #333; }
+  #result_list td a.qcas-recover-btn:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+  #result_list td a.qcas-recover-btn .fa { color: #555; }
+</style>
+{% endblock %}
+
+{% block qc_results_icon %}fa-floppy-o{% endblock %}

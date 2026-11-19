@@ -1,66 +1,115 @@
-{% extends "admin/change_form.html" %}
+{% extends "admin/qa/change_form.html" %}
+{% load i18n admin_urls %}
 
-{% block extrastyle %}
-  {{ block.super }}
+{% comment %}
+Frequency change form: the shared QC cards (Details, Due Window, Schedule; see
+FrequencyAdmin.fieldsets) plus a Preview card and, for a saved frequency, a Used In card.
 
-  <style type="text/css">
-    .subdomain-text {
-      fill: black !important;
-    }
-    .graph-label {
-      fill: #2f2f2f !important;
-    }
+Preview: the cal-heatmap calendars drawn by js/frequency_admin.js (FrequencyAdmin.Media),
+which looks up #id_recurrences, #id_window_start, #id_window_end, #cal-1, #cal-2 and
+.classic-freq by those names, and the "Next due dates" list
+(admin/qa/frequency/_next_due.html), drawn here and redrawn over htmx as the schedule
+changes. Styles and glue JS: admin/qa/frequency/frequency_assets.html.
+{% endcomment %}
 
-    .input-color  {
-        height: 20px;
-        display: inline-block;
-        padding-left: 4px;
-        padding-right: 5px;
-    }
-
-  </style>
-{% endblock %}
 {% block after_field_sets %}{{ block.super }}
+{% include "admin/qa/frequency/frequency_assets.html" %}
 
-<fieldset class="module aligned">
-  <div class="form-row">
-    <div>
-      <label class="required">Sample occurrences</label>
-      <div style="float: left">
-        <div>
-          <div class="input-color" style="background-color: #d6ffb0;">
-              QC Window
-          </div>
-          <div class="input-color" style="background-color: #faea25;">
-              Occurrence
-          </div>
-          <div class="input-color" style="background-color: #afd9ee;">
-              Unscheduled
-          </div>
-        </div>
-        <div class="hidden classic-freq">
-          <p>
-            <em>
-              Classic Frequency:  Note since the QC window start is blank, this is
-              a classic offset frequency and the dates shown below are only
-              representative of the interval between due dates, not the actual due
-              dates!
-              See the <a href="http://docs.qatrackplus.com/en/latest/admin/qa/frequencies.html" target="_blank">Frequency Documentation</a>
-              for more information.
-            </em>
-          </p>
-        </div>
-
-        <div id="cal-1"></div>
-        <div id="cal-2"></div>
-      </div>
+{# ---- Preview ---- #}
+<div class="tl-details-card qc-card qcf-card" id="qcf-preview-card">
+  <div class="tl-card-header">
+    <i class="fa fa-calendar" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Preview" %}</h2>
   </div>
-</fieldset>
+  <div class="tl-card-body">
+    {% if change and not has_change_permission %}
+      {# Read-only page: the calendars read the saved schedule from these (no name, so nothing is submitted). #}
+      <textarea id="id_recurrences" hidden aria-hidden="true">{{ original.recurrences }}</textarea>
+      <input type="hidden" id="id_window_start" value="{{ original.window_start|default_if_none:'' }}">
+      <input type="hidden" id="id_window_end" value="{{ original.window_end|default_if_none:'' }}">
+    {% endif %}
+    <div class="qcf-legend" aria-hidden="true">
+      <span class="qcf-swatch qcf-swatch-window">{% trans "QC window" %}</span>
+      <span class="qcf-swatch qcf-swatch-due">{% trans "Due date" %}</span>
+      <span class="qcf-swatch qcf-swatch-unscheduled">{% trans "Unscheduled" %}</span>
+    </div>
+    <p class="qcf-classic-note hidden classic-freq">
+      <i class="fa fa-info-circle" aria-hidden="true"></i>
+      {% trans "Classic frequency: the QC window start is blank, so each due date is counted from when QC was last performed. The calendars show the spacing between due dates, not the actual dates." %}
+      <a href="https://docs.qatrackplus.com/en/latest/admin/qa/frequencies.html" target="_blank" rel="noopener">{% trans "About frequencies" %}</a>
+    </p>
+    <div class="qcf-calendars">
+      <div id="cal-1"></div>
+      <div id="cal-2"></div>
+    </div>
 
-<script type="text/javascript">
+    <section class="qcf-next-due" aria-labelledby="qcf-next-due-title">
+      <h3 class="qcf-section-title" id="qcf-next-due-title">{% trans "Next Due Dates" %}</h3>
+      <div id="qcf-next-due" aria-live="polite"
+           {% if add and has_add_permission or change and has_change_permission %}
+           hx-post="{% url 'admin:qa_frequency_next_due' %}"
+           hx-trigger="qcf-schedule-changed delay:400ms"
+           hx-include="#id_recurrences, #id_window_start, #id_window_end"
+           hx-swap="innerHTML"
+           hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+           {% endif %}>
+        {% include "admin/qa/frequency/_next_due.html" with next_due=qcf_next_due %}
+      </div>
+    </section>
+  </div>
+</div>
 
+{# ---- Used In ---- #}
+{% if original.pk %}
+<div class="tl-details-card qc-card qcf-card" id="qcf-used-card">
+  <div class="tl-card-header">
+    <i class="fa fa-link" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Used In" %}</h2>
+    <span class="tl-count-badge">{{ qcf_used_in_count }}</span>
+  </div>
+  <div class="tl-card-body">
+    {% if qcf_used_in %}
+      {% if perms.qa.view_unittestcollection or perms.qa.change_unittestcollection %}{% url 'admin:qa_unittestcollection_changelist' as utc_list_url %}{% endif %}
+      <ul class="qcf-used-list">
+        {% for utc in qcf_used_in %}
+          <li class="qcf-used-item">
+            {% if utc_list_url %}
+              <a href="{% url 'admin:qa_unittestcollection_change' utc.pk %}" class="qcf-used-link">
+                <span class="qcf-used-unit">{{ utc.unit.name }}</span>
+                <span class="qcf-used-sep" aria-hidden="true">&middot;</span>
+                <span class="qcf-used-name">{{ utc.name }}</span>
+              </a>
+            {% else %}
+              <span class="qcf-used-link">
+                <span class="qcf-used-unit">{{ utc.unit.name }}</span>
+                <span class="qcf-used-sep" aria-hidden="true">&middot;</span>
+                <span class="qcf-used-name">{{ utc.name }}</span>
+              </span>
+            {% endif %}
+            <span class="qcf-tag">{% if utc.content_type.model == "testlistcycle" %}{% trans "Test list cycle" %}{% else %}{% trans "Test list" %}{% endif %}</span>
+            {% if not utc.active %}<span class="qcf-tag qcf-tag-inactive">{% trans "Inactive" %}</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+      {% if qcf_used_in_more %}
+        <p class="qcf-used-more">{% blocktrans count counter=qcf_used_in_more %}And {{ counter }} more assignment.{% plural %}And {{ counter }} more assignments.{% endblocktrans %}</p>
+      {% endif %}
+      <p class="qcf-used-foot">
+        {% if utc_list_url %}
+          <a href="{{ utc_list_url }}?freqfilter={{ original.pk }}" class="qcf-used-all">
+            <i class="fa fa-external-link" aria-hidden="true"></i> {% trans "See them all in Assign Test Lists to Units" %}
+          </a>
+        {% endif %}
+        <span class="qcf-used-hint">{% trans "Deleting this frequency doesn't remove these assignments: they become Ad Hoc." %}</span>
+      </p>
+    {% else %}
+      <p class="qcf-empty">{% trans "No test lists are assigned to a unit with this frequency yet." %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<script>
 window.recurrenceUrl = "{% url 'qa_recurrences' %}";
-
 </script>
-
 {% endblock %}

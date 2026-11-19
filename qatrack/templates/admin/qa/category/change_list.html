@@ -1,0 +1,50 @@
+{% extends "django_mptt_admin/change_list.html" %}
+{% load i18n %}
+
+{% comment %}
+Category tree list (CategoryAdmin.change_tree_template): django-mptt-admin's own tree
+page, which keeps drawing and saving the drag-and-drop tree, with the QC list title row
+(admin/qa/change_list.html's look) in its object-tools block and a card header in its
+(otherwise empty) search block. Styles: admin/qa/shared/_qc_assets.html.
+{% endcomment %}
+
+{% block title %}{{ cl.opts.verbose_name_plural|capfirst }} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block object-tools %}
+{% include "admin/qa/shared/_qc_assets.html" %}
+<style>
+  #content-main .qcc-tree-hint { margin-left: auto; font-size: 12px; color: #6e7785; }
+  #content-main #changelist #tree { padding: 10px 12px 14px; background: #fff; color: #333; }
+</style>
+<div class="tl-index-header qc-index-header">
+  <h1 class="tl-index-title">
+    {{ cl.opts.verbose_name_plural|capfirst }}
+    <small>{% blocktrans count counter=cl.result_count %}{{ counter }} category{% plural %}{{ counter }} categories{% endblocktrans %}</small>
+  </h1>
+  <ul class="tl-object-tools">
+    <li>
+      <a href="{{ grid_url }}" class="tl-btn tl-btn-default" id="qcc-grid-btn">
+        <i class="fa fa-th-list" aria-hidden="true"></i> {% trans "Grid View" %}
+      </a>
+    </li>
+    {% if has_add_permission %}
+    <li>
+      <a href="{{ insert_at_url }}" class="tl-btn tl-btn-primary" id="qcc-add-btn">
+        <i class="fa fa-plus" aria-hidden="true"></i> {% blocktrans with name=cl.opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block search %}
+<div class="tl-results-head">
+  <i class="fa fa-sitemap" aria-hidden="true"></i>
+  <h2 class="tl-results-title">{% trans "Category Tree" %}</h2>
+  {% if has_change_permission %}
+    <span class="qcc-tree-hint">{% trans "Drag categories to reorder them, or onto another category to move them under it." %}</span>
+  {% endif %}
+</div>
+{% endblock %}

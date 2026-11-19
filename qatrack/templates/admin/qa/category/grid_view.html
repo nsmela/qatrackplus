@@ -1,0 +1,18 @@
+{% extends "admin/qa/change_list.html" %}
+{% load i18n %}
+
+{% comment %}
+Category grid list (CategoryAdmin.change_list_template): the shared QC list, with a
+button back to django-mptt-admin's tree view (what its own grid_view.html adds).
+{% endcomment %}
+
+{% block object-tools-items %}
+  {% if tree_url %}
+  <li>
+    <a href="{{ tree_url }}" class="tl-btn tl-btn-default" id="qcc-tree-btn">
+      <i class="fa fa-sitemap" aria-hidden="true"></i> {% trans "Tree View" %}
+    </a>
+  </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
