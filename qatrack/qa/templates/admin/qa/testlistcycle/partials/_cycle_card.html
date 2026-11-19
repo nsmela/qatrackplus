@@ -1,0 +1,64 @@
+{% load i18n %}
+{% comment %}
+"Test Lists in This Cycle": the TestListCycleMembership inline formset as day rows.
+Each row (partials/_cycle_row.html) holds its form's hidden inputs; the page's JS
+renumbers the order inputs after a drag, ticks DELETE on Remove, and appends rows
+from TestListCycleAdmin.add_row_view (bumping TOTAL_FORMS).
+Context: qcy_formset (the InlineAdminFormSet), qcy_rows, qcy_day_count, qcy_editable,
+qcy_can_add_rows, qcy_can_reorder, qcy_can_remove_saved.
+{% endcomment %}
+{% with formset=qcy_formset.formset %}
+<div class="tl-members-card qc-card qcy-lists-card" id="qcy-lists-card"
+     data-prefix="{{ formset.prefix }}"
+     data-cycle-id="{{ original.pk|default:'' }}"
+     {% if qcy_editable and qcy_can_add_rows %}data-add-row-url="{% url 'admin:qa_testlistcycle_add_row' %}"
+     data-search-url="{% url 'admin:qa_testlistcycle_search_lists' %}"{% endif %}
+     data-day-label="{% trans "Day %(day)s" %}"
+     data-msg-loading="{% trans "Loading…" %}"
+     data-msg-load-error="{% trans "Couldn't load the list. Close this dialog and try again." %}"
+     data-msg-add-error="{% trans "Couldn't add that test list. Nothing was changed. Try again." %}">
+  <div class="tl-card-header">
+    <i class="fa fa-refresh" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Test Lists in This Cycle" %}</h2>
+    <span class="tl-count-badge" id="qcy-lists-count" title="{% trans "Number of days" %}">{{ qcy_day_count }}</span>
+    {% if qcy_editable and qcy_can_add_rows %}
+      <div class="tl-card-header-actions">
+        <button type="button" class="tl-header-add-btn" id="qcy-add-list-btn" aria-haspopup="dialog"
+                title="{% trans "Add an existing test list as the next day of this cycle" %}">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add Test List" %}
+        </button>
+      </div>
+    {% endif %}
+  </div>
+  {% if qcy_editable %}
+    <p class="qcy-card-desc">{% trans "Each test list is one day of the cycle, performed in this order. Drag a row by its handle to change the order." %}</p>
+  {% endif %}
+  {# Always, as Django's own inline templates do: the formset is checked on every save, even when its rows are view-only. #}
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}
+    <div class="qcy-card-errors" role="alert">{{ formset.non_form_errors }}</div>
+  {% endif %}
+  <p class="qcy-add-error" id="qcy-add-error" role="alert" hidden></p>
+  <div class="tl-table-wrap">
+    <table class="tlb-table qcy-table" id="qcy-lists-table">
+      <thead>
+        <tr>
+          <th class="tl-th-drag"><span class="tl-visually-hidden">{% trans "Order" %}</span></th>
+          <th class="qcy-th-day">{% trans "Day" %}</th>
+          <th class="qcy-th-list">{% trans "Test List" %}</th>
+          <th class="qcy-th-tests">{% trans "Tests" %}</th>
+          <th class="tl-th-actions"><span class="tl-visually-hidden">{% trans "Actions" %}</span></th>
+        </tr>
+      </thead>
+      <tbody id="qcy-lists-tbody">
+        {% for row in qcy_rows %}
+          {% include "admin/qa/testlistcycle/partials/_cycle_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="tl-empty-tests-placeholder" id="qcy-empty-msg"{% if qcy_day_count %} hidden{% endif %}>
+      <p>{% if qcy_editable and qcy_can_add_rows %}{% trans "No test lists in this cycle yet. Use Add Test List above to add the first day." %}{% else %}{% trans "This cycle has no test lists." %}{% endif %}</p>
+    </div>
+  </div>
+</div>
+{% endwith %}

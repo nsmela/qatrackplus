@@ -1,0 +1,48 @@
+{% load i18n %}
+{% comment %}
+Results of the cycle's Add Test List search (TestListCycleAdmin.search_test_lists_view),
+in the Test List builder's search dialog look. Lists already on the page are shown but
+can't be picked again.
+{% endcomment %}
+<div class="tl-search-results-list">
+  {% for tl in results %}
+    <div class="tl-search-item qcy-search-item{% if tl.in_cycle %} tl-search-item-blocked{% endif %}"
+         data-test-list-id="{{ tl.id }}">
+      <div class="tl-search-item-left">
+        <div class="tl-search-item-title">
+          <i class="fa fa-list-ul qcy-search-icon" aria-hidden="true"></i>
+          <strong>{{ tl.name }}</strong>
+          <span class="tl-search-item-slug">({{ tl.slug }})</span>
+        </div>
+        {% if tl.in_cycle %}
+          <div class="tl-search-blocked-note"><i class="fa fa-info-circle" aria-hidden="true"></i> {% trans "Already in this cycle" %}</div>
+        {% endif %}
+      </div>
+      <div class="tl-search-item-right">
+        <span class="tl-count-badge">{% blocktrans count counter=tl.test_count %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}</span>
+        {% if tl.in_cycle %}
+          <button type="button" class="tl-btn-select-sublist qcy-btn-pick" disabled aria-disabled="true"
+                  title="{% trans "This test list is already in the cycle." %}">
+            <i class="fa fa-check" aria-hidden="true"></i> {% trans "Added" %}
+          </button>
+        {% else %}
+          <button type="button" class="tl-btn-select-sublist qcy-btn-pick" data-test-list-id="{{ tl.id }}"
+                  aria-label="{% blocktrans with name=tl.name %}Add {{ name }} to this cycle{% endblocktrans %}">
+            <i class="fa fa-plus" aria-hidden="true"></i> {% trans "Add" %}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="tl-search-no-results">
+      {% if query %}
+        {% blocktrans with q=query %}No test lists found matching “{{ q }}”.{% endblocktrans %}
+      {% else %}
+        {% trans "No test lists available." %}
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if more %}
+    <div class="tl-search-initial-hint qcy-search-more">{% blocktrans count counter=results|length %}Showing the first {{ counter }} test list. Type to narrow the list.{% plural %}Showing the first {{ counter }} test lists. Type to narrow the list.{% endblocktrans %}</div>
+  {% endif %}
+</div>

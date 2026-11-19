@@ -1,0 +1,78 @@
+{% load i18n %}
+{% comment %}
+One day of the cycle: one form of the TestListCycleMembership inline formset.
+Context: row = {form, info (name, slug, test_count, edit_url) or None, saved, removed,
+day}, qcy_editable, qcy_can_reorder, qcy_can_remove_saved, qcy_can_view_test_lists.
+Rendered by the change form and by TestListCycleAdmin.add_row_view (a new row).
+{% endcomment %}
+{% with form=row.form info=row.info %}
+<tr class="tl-member-item qcy-row{% if row.saved %} qcy-row-saved{% else %} qcy-row-new{% endif %}"
+    id="qcy-row-{{ form.prefix }}"
+    data-prefix="{{ form.prefix }}"
+    data-test-list-id="{{ info.id|default:'' }}"
+    {# a row the user removed before a failed save: still removed, as the Remove button left it #}
+    {% if row.removed %}hidden{% endif %}>
+  <td class="tl-cell-drag">
+    {% if qcy_editable and qcy_can_reorder or qcy_editable and not row.saved %}
+      <i class="fa fa-bars tl-drag-handle" title="{% trans "Drag to reorder" %}" aria-hidden="true"></i>
+    {% endif %}
+    {# the form's own inputs: the saved row's id, the cycle, the test list and the day's order #}
+    {{ form.id }}{{ form.cycle }}{{ form.test_list }}{{ form.order }}
+    {% if qcy_editable %}
+      {# ticked by Remove; drawn by hand so a new row can be removed even without permission to delete saved rows #}
+      <input type="checkbox" name="{{ form.prefix }}-DELETE" id="id_{{ form.prefix }}-DELETE" class="qcy-delete-checkbox" hidden{% if row.removed %} checked{% endif %}>
+    {% endif %}
+  </td>
+  <td class="qcy-cell-day">
+    <span class="qcy-day">{% if not row.removed %}{% blocktrans with day=row.day %}Day {{ day }}{% endblocktrans %}{% endif %}</span>
+  </td>
+  <td class="qcy-cell-list">
+    {% if info %}
+      {% if qcy_can_view_test_lists %}
+        <a href="{{ info.edit_url }}" target="_blank" rel="noopener" class="qcy-list-link"
+           title="{% blocktrans with name=info.name %}Open {{ name }} (opens in a new tab){% endblocktrans %}">{{ info.name }}<span class="tl-visually-hidden"> {% trans "(opens in a new tab)" %}</span></a>
+      {% else %}
+        <span class="qcy-list-name">{{ info.name }}</span>
+      {% endif %}
+      <span class="qcy-list-slug">{{ info.slug }}</span>
+    {% else %}
+      <span class="qcy-list-missing">{% trans "Test list not found" %}</span>
+    {% endif %}
+    {% if form.errors %}
+      <div class="qcy-row-errors">{{ form.non_field_errors }}{{ form.test_list.errors }}{{ form.order.errors }}</div>
+    {% endif %}
+  </td>
+  <td class="qcy-cell-tests">
+    {% if info %}
+      <span class="tl-count-badge">{% blocktrans count counter=info.test_count %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}</span>
+    {% endif %}
+  </td>
+  <td class="tl-cell-actions">
+    {% if info and qcy_can_view_test_lists %}
+      <a href="{{ info.edit_url }}" target="_blank" rel="noopener" class="tl-action-icon"
+         title="{% trans "Open Test List in a New Tab" %}"
+         aria-label="{% blocktrans with name=info.name %}Open {{ name }} (opens in a new tab){% endblocktrans %}">
+        <i class="fa fa-external-link" aria-hidden="true"></i>
+      </a>
+    {% endif %}
+    {% if qcy_editable %}
+      {% with list_name=info.name|default:_("this test list") %}
+      {# a saved row is only deleted on save with the inline's delete permission; a row added since loading can always go #}
+      {% if qcy_can_remove_saved or not row.saved %}
+        <button type="button" class="tl-action-icon tl-delete-test-btn qcy-remove-btn"
+                title="{% trans "Remove From Cycle" %}"
+                aria-label="{% blocktrans with name=list_name %}Remove {{ name }} from this cycle{% endblocktrans %}">
+          <i class="fa fa-trash-o" aria-hidden="true"></i>
+        </button>
+      {% else %}
+        <button type="button" class="tl-action-icon tl-remove-locked" aria-disabled="true"
+                title="{% trans "You don't have permission to remove saved test lists from cycles." %}"
+                aria-label="{% blocktrans with name=list_name %}Can't remove {{ name }}: you don't have permission to remove saved test lists from cycles{% endblocktrans %}">
+          <i class="fa fa-trash-o" aria-hidden="true"></i>
+        </button>
+      {% endif %}
+      {% endwith %}
+    {% endif %}
+  </td>
+</tr>
+{% endwith %}
