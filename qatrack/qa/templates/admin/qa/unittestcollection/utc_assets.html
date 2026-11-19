@@ -1,0 +1,235 @@
+{% comment %}
+Styles and JS for the Assign Test Lists to Units change form
+(admin/qa/unittestcollection/change_form.html), on top of the shared QC assets.
+Inlined in the page body (not static files) so they load under DEBUG=False and run
+under hx-boost. Colours are literal values from docs/developer/design_system.ai.md,
+using its passing (A11Y) shades for text. Class prefix: utc-. The search box and
+results reuse the Test List builder's tl-search-* class names, styled here because
+the builder's stylesheet isn't on this page.
+{% endcomment %}
+<style>
+/* ---- Layout: the form cards, with the Contents preview beside them ---- */
+#content-main .utc-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 0 20px; align-items: start; }
+#content-main .utc-main, #content-main .utc-side { min-width: 0; }
+@media (max-width: 1100px) {
+  #content-main .utc-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Type: Test List / Test List Cycle as two toggle buttons (real radios) ---- */
+#content-main .utc-type-choice > div { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; }
+#content-main .utc-type-choice > div > div { margin: 0; padding: 0; }
+#content-main .utc-type-choice label {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0; cursor: pointer;
+  border: 1px solid #d2d6de; background: #fff; color: #444; border-radius: 3px;
+  padding: 6px 12px; font-size: 13px; font-weight: 600; box-shadow: 2px 2px 2px #ddd;
+}
+#content-main .utc-type-choice label:hover { background: #f5f7fa; }
+#content-main .utc-type-choice label:has(input:checked) { border-color: #424f57; background: #f5f7fa; color: #333; box-shadow: inset 0 0 0 1px #424f57; }
+#content-main .utc-type-choice input[type="radio"] { margin: 0; accent-color: #424f57; width: 15px; height: 15px; }
+#content-main .utc-type-choice label:has(input:focus-visible) { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+
+/* ---- The chosen test list / cycle ---- */
+#content-main .utc-chip {
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 100%; box-sizing: border-box;
+  background: #f6f7f9; border: 1px solid #e2e6ee; border-radius: 3px; padding: 5px 6px 5px 10px;
+  font-size: 13px; color: #555;
+}
+#content-main .utc-chip-readonly { padding-right: 10px; }
+#content-main .utc-chip > .fa { color: #748e9f; }
+#content-main .utc-chip-name { color: #333; font-weight: 600; overflow-wrap: anywhere; }
+#content-main .utc-chosen[hidden], #content-main .utc-search[hidden], #content-main .utc-picker [hidden] { display: none !important; }
+#content-main .utc-type-chip {
+  display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; line-height: 1.4;
+  white-space: nowrap; background: #fff; border: 1px solid #d2d6de; color: #555;
+}
+
+/* Secondary buttons (Change, Choose, Cancel), like the builder's Select buttons */
+#content-main .utc-btn {
+  background: #f4f4f4; color: #444; border: 1px solid #d2d6de; border-radius: 3px; padding: 4px 10px;
+  font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  box-shadow: 2px 2px 2px #ddd; line-height: 1.4;
+}
+#content-main .utc-btn:hover { background: #e7e7e7; color: #444; }
+#content-main .utc-btn:focus-visible { border-color: #3c8dbc; outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#content-main .utc-search-cancel { margin-top: 8px; }
+
+/* With JS the object_id number input is replaced by the chip and search (it stays in the form). */
+#content-main .utc-js .utc-object-raw-wrap { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+#content-main .utc-object-raw-wrap { display: flex; flex-direction: column; gap: 4px; }
+#content-main .utc-object-raw-wrap input { max-width: 12em; }
+
+/* ---- Search box and results (the builder's look) ---- */
+#content-main .utc-search .tl-search-input-wrap { position: relative; margin-bottom: 8px; }
+#content-main .utc-search .tl-search-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6d7787; font-size: 14px; pointer-events: none; z-index: 2; }
+#content-main .utc-search input.tl-search-input {
+  width: 100%; box-sizing: border-box; padding: 8px 12px 8px 36px; border: 1px solid #d2d6de; border-radius: 0;
+  font-size: 14px; line-height: 1.4; height: 36px; box-shadow: 2px 2px 2px #ddd; color: #333; background: #fff; margin: 0;
+}
+#content-main .utc-search input.tl-search-input:focus { border-color: #3c8dbc; outline: none; }
+#content-main .utc-search input.tl-search-input:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#content-main .utc-search .tl-search-results-container { max-height: 320px; overflow-y: auto; border: 1px solid #d2d6de; background: #fff; }
+#content-main .utc-search .tl-search-initial-hint, #content-main .utc-search .tl-search-no-results { padding: 20px; text-align: center; color: #6d7787; font-size: 13px; }
+#content-main .utc-search .tl-search-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-bottom: 1px solid #f4f4f4; background: #fff; }
+#content-main .utc-search .tl-search-item:last-child { border-bottom: 0; }
+#content-main .utc-search .tl-search-item:hover { background: #f5f7fa; }
+#content-main .utc-search .tl-search-item-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#content-main .utc-search .tl-search-item-title { font-size: 14px; color: #333; overflow-wrap: anywhere; }
+#content-main .utc-search .utc-result-icon { color: #748e9f; margin-right: 4px; }
+#content-main .utc-search .tl-search-item-slug { font-size: 12px; color: #555; font-family: Menlo, Consolas, monospace; margin-left: 4px; }
+#content-main .utc-search .tl-search-item-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+#content-main .utc-search .utc-search-more { padding: 8px 10px; font-size: 12px; color: #6d7787; background: #fbfcfd; border-top: 1px solid #f4f4f4; }
+#content-main .utc-search .tl-search-input-wrap:has(.htmx-request) + .tl-search-results-container { opacity: .6; }
+
+/* ---- Saved assignments: read-only values, opened only for Save as New ---- */
+#content-main .utc-locked { display: flex; flex-direction: column; gap: 4px; }
+#content-main .qc-field:has(.utc-locked) > label .tl-req { display: none; }
+#content-main details.utc-unlock > summary { cursor: pointer; color: #317399; font-size: 12px; font-weight: 600; margin: 2px 0; width: max-content; max-width: 100%; }
+#content-main details.utc-unlock > summary:hover { color: #285f80; text-decoration: underline; }
+#content-main details.utc-unlock > summary:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#content-main details.utc-unlock[open] > summary { margin-bottom: 8px; }
+#content-main details.utc-unlock-what { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f4f4f4; }
+
+/* ---- Contents preview ---- */
+#content-main .utc-preview-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
+#content-main .utc-open-link, #content-main .utc-open-link:link, #content-main .utc-open-link:visited { color: #317399; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+#content-main .utc-open-link:hover { color: #285f80; text-decoration: underline; }
+#content-main .utc-preview-empty { margin: 0; color: #6d7787; font-style: italic; font-size: 13px; }
+#content-main .utc-preview-note { margin: 10px 0 0; color: #6e7785; font-size: 12px; }
+#content-main .utc-preview-body { max-height: 560px; overflow-y: auto; }
+#content-main .utc-preview-table { width: 100%; border-collapse: collapse; background: #fff; }
+#content-main .utc-preview-table th { text-align: left; padding: 6px 8px; background: #fff; color: #6e7785; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; border: 0; box-shadow: inset 0 -2px 0 #d2d6de; position: sticky; top: 0; }
+#content-main .utc-preview-table td { padding: 6px 8px; border: 0; border-top: 1px solid #f4f4f4; font-size: 13px; color: #333; background: #fff; vertical-align: middle; overflow-wrap: anywhere; }
+#content-main .utc-preview-table td a, #content-main .utc-preview-table td a:link, #content-main .utc-preview-table td a:visited { color: #317399; }
+#content-main .utc-preview-table .utc-num { width: 1%; white-space: nowrap; text-align: right; color: #555; }
+#content-main .utc-preview-table th.utc-num { color: #6e7785; }
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  // The What card's picker: a search box and a chip in place of the object_id input.
+  function initPicker(card) {
+    var picker = card && card.querySelector(".utc-picker");
+    if (!picker || picker.dataset.utcReady) { return; }  // view only, or a saved assignment without Save as New
+    picker.dataset.utcReady = "1";
+    picker.classList.add("utc-js");
+
+    var raw = picker.querySelector(".utc-object-raw");
+    var chosen = picker.querySelector("[data-utc-chosen]");
+    var nameEl = chosen.querySelector("[data-utc-chosen-name]");
+    var typeEl = chosen.querySelector("[data-utc-chosen-type]");
+    var iconEl = chosen.querySelector("[data-utc-chosen-icon]");
+    var changeBtn = chosen.querySelector("[data-utc-change]");
+    var search = picker.querySelector("[data-utc-search]");
+    var input = search.querySelector("input");
+    var cancelBtn = search.querySelector("[data-utc-cancel]");
+    var previewUrl = card.getAttribute("data-preview-url");
+    changeBtn.hidden = false;
+
+    function checkedType() {
+      var radio = picker.querySelector("input[name='content_type']:checked");
+      return radio ? radio.value : "";
+    }
+
+    function hasChoice() {
+      return !!raw.value && !!nameEl.textContent.trim();
+    }
+
+    function refreshPreview() {
+      if (!window.htmx || !previewUrl) { return; }
+      window.htmx.ajax("GET", previewUrl, {
+        target: "#utc-preview-card",
+        swap: "outerHTML",
+        values: { content_type: checkedType(), object_id: raw.value },
+      });
+    }
+
+    function runSearch() {
+      if (window.htmx && checkedType()) { window.htmx.trigger(input, "utc-search"); }
+    }
+
+    function openSearch(focus) {
+      chosen.hidden = true;
+      search.hidden = false;
+      cancelBtn.hidden = !hasChoice();
+      runSearch();
+      if (focus) { input.focus(); }
+    }
+
+    function showChosen() {
+      search.hidden = true;
+      chosen.hidden = !hasChoice();
+    }
+
+    picker.addEventListener("change", function (e) {
+      if (e.target.name !== "content_type") { return; }
+      // A different kind of collection: the old choice no longer applies.
+      raw.value = "";
+      nameEl.textContent = "";
+      input.value = "";
+      openSearch(true);
+      refreshPreview();
+    });
+
+    picker.addEventListener("click", function (e) {
+      var pick = e.target.closest("[data-utc-pick]");
+      if (pick) {
+        raw.value = pick.getAttribute("data-object-id");
+        nameEl.textContent = pick.getAttribute("data-object-name");
+        typeEl.textContent = pick.getAttribute("data-type-label");
+        iconEl.className = "fa " + (pick.getAttribute("data-is-cycle") === "1" ? "fa-refresh" : "fa-list");
+        showChosen();
+        changeBtn.focus();
+        refreshPreview();
+        return;
+      }
+      if (e.target.closest("[data-utc-change]")) {
+        openSearch(true);
+      } else if (e.target.closest("[data-utc-cancel]")) {
+        showChosen();
+        changeBtn.focus();
+      }
+    });
+
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        // choose the first result rather than saving the page
+        e.preventDefault();
+        var first = search.querySelector("[data-utc-pick]");
+        if (first) { first.click(); }
+      } else if (e.key === "Escape" && hasChoice()) {
+        e.preventDefault();
+        showChosen();
+        changeBtn.focus();
+      }
+    });
+
+    var details = picker.closest("details");
+    if (hasChoice() && picker.getAttribute("data-start-searching") !== "1") {
+      showChosen();
+    } else if (details && !details.open) {
+      // Save as New picker: load the results when it's opened
+      details.addEventListener("toggle", function onToggle() {
+        if (details.open) { details.removeEventListener("toggle", onToggle); openSearch(true); }
+      });
+      chosen.hidden = true;
+      search.hidden = false;
+    } else {
+      openSearch(false);
+    }
+  }
+
+  function init() {
+    initPicker(document.getElementById("utc-what-card"));
+    // A refused change (e.g. a saved assignment's unit): show the field it's about.
+    document.querySelectorAll("#content-main .qc-has-error details.utc-unlock").forEach(function (d) { d.open = true; });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    setTimeout(init, 0);
+  }
+})();
+</script>

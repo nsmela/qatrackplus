@@ -1,0 +1,46 @@
+{% load i18n %}
+{% comment %}
+Picker search results (UnitTestCollectionAdmin.search_collections_view), in the Test
+List builder's search-result style. Context: results, query, is_cycle,
+utc_type_label, limit. Choosing one is handled by utc_assets.html (data-utc-pick).
+{% endcomment %}
+<div class="tl-search-results-list">
+  {% for item in results %}
+    <div class="tl-search-item utc-search-item">
+      <div class="tl-search-item-left">
+        <div class="tl-search-item-title">
+          <i class="fa {% if is_cycle %}fa-refresh{% else %}fa-list{% endif %} utc-result-icon" aria-hidden="true"></i>
+          <strong>{{ item.name }}</strong>
+          <span class="tl-search-item-slug">({{ item.slug }})</span>
+        </div>
+      </div>
+      <div class="tl-search-item-right">
+        {% if is_cycle %}
+          <span class="tl-count-badge">{% blocktrans count counter=item.utc_n_days %}{{ counter }} day{% plural %}{{ counter }} days{% endblocktrans %}</span>
+        {% else %}
+          <span class="tl-count-badge">{% blocktrans count counter=item.utc_n_tests %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}</span>
+          {% if item.utc_n_sublists %}
+            <span class="tl-count-badge">{% blocktrans count counter=item.utc_n_sublists %}{{ counter }} sublist{% plural %}{{ counter }} sublists{% endblocktrans %}</span>
+          {% endif %}
+        {% endif %}
+        <button type="button" class="utc-btn utc-btn-pick" data-utc-pick
+                data-object-id="{{ item.pk }}" data-object-name="{{ item.name }}"
+                data-type-label="{{ utc_type_label }}" data-is-cycle="{{ is_cycle|yesno:'1,0' }}"
+                aria-label="{% blocktrans with name=item.name %}Choose {{ name }}{% endblocktrans %}">
+          <i class="fa fa-check" aria-hidden="true"></i> {% trans "Choose" %}
+        </button>
+      </div>
+    </div>
+  {% empty %}
+    <div class="tl-search-no-results">
+      {% if query %}
+        {% if is_cycle %}{% blocktrans with q=query %}No test list cycles found matching “{{ q }}”.{% endblocktrans %}{% else %}{% blocktrans with q=query %}No test lists found matching “{{ q }}”.{% endblocktrans %}{% endif %}
+      {% else %}
+        {% if is_cycle %}{% trans "There are no test list cycles yet." %}{% else %}{% trans "There are no test lists yet." %}{% endif %}
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if results|length >= limit %}
+    <div class="utc-search-more">{% blocktrans with n=limit %}Showing the first {{ n }}. Type more of the name to narrow the list.{% endblocktrans %}</div>
+  {% endif %}
+</div>

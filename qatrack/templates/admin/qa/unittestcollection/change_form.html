@@ -1,0 +1,33 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+
+{% comment %}
+Assign Test Lists to Units (UnitTestCollection) change form, on the shared QC card
+layout (admin/qa/change_form.html). Cards: What (the test list or cycle, chosen with
+an htmx search picker: partials/_what_card.html), Where & When and Who (the shared
+fieldset card), and a read-only Contents preview beside them (partials/_preview.html,
+refreshed over htmx when the choice changes). Context: UnitTestCollectionAdmin.
+render_change_form. Styles and JS: admin/qa/unittestcollection/utc_assets.html.
+A saved assignment's unit and test list are shown read-only; they can only be
+changed for a Save as New copy.
+{% endcomment %}
+
+{% block qc_header_meta %}{{ original.name }} &middot; {{ original.unit.name }} &middot; {% if original.frequency_id %}{{ original.frequency.name }}{% else %}{% trans "Ad Hoc" %}{% endif %}{% endblock %}
+
+{% block field_sets %}
+{% include "admin/qa/unittestcollection/utc_assets.html" %}
+<div class="utc-layout" id="utc-layout">
+  <div class="utc-main">
+    {% for fieldset in adminform %}
+      {% if "utc-what" in fieldset.classes %}
+        {% include "admin/qa/unittestcollection/partials/_what_card.html" %}
+      {% else %}
+        {% include "admin/qa/includes/qc_fieldset_card.html" with first=False %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  <div class="utc-side">
+    {% include "admin/qa/unittestcollection/partials/_preview.html" %}
+  </div>
+</div>
+{% endblock %}

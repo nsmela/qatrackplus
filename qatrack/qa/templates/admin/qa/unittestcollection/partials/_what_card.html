@@ -1,0 +1,49 @@
+{% load i18n %}
+{% comment %}
+The "What" card: which test list or test list cycle is assigned. Context: fieldset,
+adminform, change, has_change_permission and UnitTestCollectionAdmin.render_change_form's
+utc_* values.
+  - New assignment: the picker (_picker.html).
+  - Saved assignment: the choice read-only (UnitTestCollectionForm refuses to change
+    it). The picker is tucked in a <details> for a Save as New copy; without Save as
+    New the values are posted as hidden inputs, so the form's checks still run.
+  - View only: read-only.
+{% endcomment %}
+{% with f=adminform.form %}
+<div class="tl-details-card qc-card utc-what-card" id="utc-what-card"
+     data-preview-url="{% url 'admin:qa_unittestcollection_preview' %}">
+  <div class="tl-card-header">
+    <i class="fa fa-list-alt" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{{ fieldset.name }}</h2>
+  </div>
+  <div class="tl-card-body">
+    {% if change and not has_change_permission %}
+      <div class="tlb-form qc-form">
+        <div class="tlb-field qc-field tl-col-full">
+          <span class="qc-label">{% trans "Test List or Cycle" %}</span>
+          <div class="qc-readonly">{% include "admin/qa/unittestcollection/partials/_chosen_readonly.html" with chosen_obj=utc_obj chosen_label=utc_type_label chosen_is_cycle=utc_is_cycle %}</div>
+        </div>
+      </div>
+    {% elif utc_locked %}
+      <div class="tlb-form qc-form">
+        <div class="tlb-field qc-field tl-col-full{% if f.content_type.errors or f.object_id.errors %} qc-has-error{% endif %}">
+          <span class="qc-label">{% trans "Test List or Cycle" %}</span>
+          {{ f.content_type.errors }}{{ f.object_id.errors }}
+          <div class="qc-readonly">{% include "admin/qa/unittestcollection/partials/_chosen_readonly.html" with chosen_obj=original.tests_object chosen_label=utc_saved_type_label chosen_is_cycle=utc_saved_is_cycle %}</div>
+          <span class="qc-help">{% trans "The unit and the test list or cycle can't be changed once an assignment is saved, so its QC history stays with it." %}</span>
+        </div>
+      </div>
+      {% if utc_can_save_as_new %}
+        <details class="utc-unlock utc-unlock-what"{% if f.content_type.errors or f.object_id.errors %} open{% endif %}>
+          <summary>{% trans "Choose a different test list or cycle for Save as New" %}</summary>
+          {% include "admin/qa/unittestcollection/partials/_picker.html" with start_searching=True %}
+        </details>
+      {% else %}
+        {{ f.content_type.as_hidden }}{{ f.object_id.as_hidden }}
+      {% endif %}
+    {% else %}
+      {% include "admin/qa/unittestcollection/partials/_picker.html" with start_searching=False %}
+    {% endif %}
+  </div>
+</div>
+{% endwith %}

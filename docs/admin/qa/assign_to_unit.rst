@@ -64,15 +64,31 @@ Test List or Test List Cycle
 ----------------------------
 
 Choose whether you are assigning a :ref:`Test List <qa_test_lists>` or a `Test
-List Cycle <qa_test_list_cycles>` to this unit. After choosing the type of test
-collection you are adding, the **Object id** dropdown will be populated with
-the appropriate items.
+List Cycle <qa_test_list_cycles>` to this unit, using the **Test List** and
+**Test List Cycle** buttons in the **What** card. A search box then lists the
+test lists (or cycles) you can choose from; type part of a name to narrow the
+list, and click **Choose** beside the one you want. It then shows as a chip
+with a **Change** button, in case you picked the wrong one.
 
-Tests collection
-----------------
+Contents
+--------
 
-Choose the test collection (test list or test list cycle) that you want to
-assign to this unit.
+Beside the form, the **Contents** card shows what you have chosen: a test
+list's tests (with their types) in the order they'll be performed, or a cycle's
+days with the test list for each day. It's read-only; use the link at its top
+to open the test list in the Test List Builder (or the cycle's page) if
+something needs changing.
+
+Changing an assignment later
+----------------------------
+
+Once an assignment is saved, its unit and its test list (or cycle) can't be
+changed, so that the QC history already recorded stays with them. They're shown
+read-only on the assignment's page. To assign the same test list to another
+unit (or another test list to the same unit), open an existing assignment,
+choose the other unit or test list under **Choose another unit for Save as
+New** / **Choose a different test list or cycle for Save as New**, and click
+**Save as New**: this makes a new assignment and leaves the original as it was.
 
 An example
 ----------

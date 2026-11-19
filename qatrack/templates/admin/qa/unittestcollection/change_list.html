@@ -1,0 +1,15 @@
+{% extends "admin/qa/change_list.html" %}
+{% load i18n %}
+
+{% comment %}
+Assign Test Lists to Units list: the shared QC list (admin/qa/change_list.html), with
+the Frequency and Assigned To columns drawn as small tags (UnitTestCollectionAdmin.
+get_list_display). Active stays editable in the list (list_editable).
+{% endcomment %}
+
+{% block object-tools %}
+{{ block.super }}
+{% include "admin/qa/unittestcollection/_utc_list_css.html" %}
+{% endblock %}
+
+{% block qc_results_icon %}fa-link{% endblock %}
