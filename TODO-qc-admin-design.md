@@ -130,19 +130,19 @@ Remove this file before the branch is merged.
 - [x] List: `list_editable` active and `save_as` keep working; frequency and
       assigned-to shown as tags.
 
-## Step 3C: Set References & Tolerances (Unit Test Infos)
+## Step 3C: Set References & Tolerances (Unit Test Infos) ✅
 
-- [ ] List: custom `admin/qa/unittestinfo/change_list.html` extends the shared
+- [x] List: custom `admin/qa/unittestinfo/change_list.html` extends the shared
       list ("Copy References & Tolerances" button). Reference and tolerance
       columns show "Not set" highlighted where it causes "No Tol Set".
-- [ ] Feature: **set reference & tolerance from the list**: a pencil on each
+- [x] Feature: **set reference & tolerance from the list**: a pencil on each
       row opens the Test List builder's machine dialog
       (`_machine_ref_tol_modal.html` + its endpoints / shared save helper) and
       updates the row in place.
-- [ ] Change form: Details card as a description list (unit, test, current
+- [x] Change form: Details card as a description list (unit, test, current
       reference and tolerance), Reference Value card, History card using the
       history table (Before → After, newest first).
-- [ ] `history.html`, `set_multiple_refs_and_tols.html`,
+- [x] `history.html`, `set_multiple_refs_and_tols.html`,
       `copy_refs_and_tols.html` / `_preview.html`: title row + cards.
 
 ## Step 4: Test List Instances, Test Instances, test packs

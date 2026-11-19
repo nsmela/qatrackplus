@@ -1,0 +1,28 @@
+{% extends "admin/qa/change_list.html" %}
+{% load i18n %}
+
+{% comment %}
+Set References & Tolerances (UnitTestInfoAdmin) list: the shared QC list with a
+"Copy References & Tolerances" button. The Reference and Tolerance columns say
+"Not set" (highlighted where results would show No Tol Set) or "Not used"; the pencil
+on each row (users who may change them) opens the Test List builder's Reference and
+Tolerance dialog and updates the row in place: admin/qa/unittestinfo/unittestinfo_assets.html.
+{% endcomment %}
+
+{% block object-tools-items %}
+  {% if perms.qa.change_unittestinfo %}
+  <li>
+    <a href="{% url 'admin:qa_copy_refs_and_tols' %}" class="tl-btn tl-btn-default" id="qcr-copy-btn">
+      <i class="fa fa-files-o" aria-hidden="true"></i> {% trans 'Copy References & Tolerances' %}
+    </a>
+  </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block qc_results_icon %}fa-sliders{% endblock %}
+
+{% block result_list %}
+{% include "admin/qa/unittestinfo/unittestinfo_assets.html" with qcr_page="list" %}
+{{ block.super }}
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n qc_admin %}
+
+{% comment %}
+Set Reference & Tolerance (UnitTestInfoAdmin) change page: the shared QC change form
+with its three fieldsets drawn as
+  Details                what's set now, as a read-only description list
+  Reference & Tolerance  the reference's details, then UnitTestInfoForm's fields
+                         (new reference value, tolerance, comment); view-only users
+                         get the details only
+  History                admin/qa/unittestinfo/history.html (before → after, newest first)
+Test type, Set by and Set on are read-only form fields: they're shown as text and still
+posted (as hidden inputs) exactly as the read-only inputs were. CSS:
+admin/qa/unittestinfo/unittestinfo_assets.html.
+{% endcomment %}
+
+{% block title %}{% blocktrans with test=original.test.name unit=original.unit.name %}{{ test }} on {{ unit }}{% endblocktrans %} | {% trans "Set Reference & Tolerance" %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+
+{% block qc_title %}{% if has_change_permission %}{% trans "Set Reference & Tolerance" %}{% else %}{% trans "View Reference & Tolerance" %}{% endif %}{% endblock %}
+
+{% block qc_header_meta %}{% blocktrans with test=original.test.name unit=original.unit.name %}{{ test }} on {{ unit }}{% endblocktrans %}{% endblock %}
+
+{% block field_sets %}
+{% include "admin/qa/unittestinfo/unittestinfo_assets.html" with qcr_page="change" %}
+{% with form=adminform.form %}
+{% for fieldset in adminform %}
+  {% if forloop.first %}
+    <div class="tl-details-card qc-card qcr-card" id="qc-card-details">
+      <div class="tl-card-header">
+        <i class="fa fa-info-circle" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{% trans "Details" %}</h2>
+      </div>
+      <div class="tl-card-body">
+        <dl class="qcr-dl" id="qcr-details">
+          {% for line in fieldset %}{% for field in line %}
+            {% qc_field_name field as fname %}
+            {% qc_label field as label %}
+            <dt>{% if fname == "reference_display" %}{% trans "Current Reference" %}{% elif fname == "tolerance_display" %}{% trans "Current Tolerance" %}{% else %}{{ label }}{% endif %}</dt>
+            <dd class="qcr-value">{{ field.contents }}</dd>
+          {% endfor %}{% endfor %}
+        </dl>
+      </div>
+    </div>
+  {% elif forloop.last %}
+    <div class="tl-details-card qc-card qcr-card" id="qc-card-history">
+      <div class="tl-card-header">
+        <i class="fa fa-history" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{{ fieldset.name }}</h2>
+        <span class="tl-count-badge">{{ qcr_history_count }}</span>
+      </div>
+      <div class="tl-card-body qcr-history-body">
+        {% if qcr_history_count %}
+          {% for line in fieldset %}{% for field in line %}{{ field.contents }}{% endfor %}{% endfor %}
+        {% else %}
+          <p class="qc-empty">{% trans "No history available" %}</p>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="tl-details-card qc-card qcr-card" id="qc-card-reference-tolerance">
+      <div class="tl-card-header">
+        <i class="fa fa-sliders" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{{ fieldset.name }}</h2>
+      </div>
+      <div class="tl-card-body">
+        <dl class="qcr-dl qcr-dl-meta" id="qcr-reference-details">
+          <dt>{% trans "Test Type" %}</dt>
+          <dd>{{ form.test_type.value|default:original.test.get_type_display }}</dd>
+          <dt>{% trans "Reference Set By" %}</dt>
+          <dd>{% if original.reference_id and form.reference_set_by.value %}{{ form.reference_set_by.value }}{% else %}<span class="qc-empty">{% trans "Not specified" %}</span>{% endif %}</dd>
+          <dt>{% trans "Reference Set On" %}</dt>
+          <dd>{% if original.reference_id and form.reference_set.value %}{{ form.reference_set.value }}{% else %}<span class="qc-empty">{% trans "Not specified" %}</span>{% endif %}</dd>
+        </dl>
+        {% if has_change_permission %}
+          {{ form.test_type.as_hidden }}{{ form.reference_set_by.as_hidden }}{{ form.reference_set.as_hidden }}
+          <div class="tlb-form qc-form">
+            {% for line in fieldset %}{% for field in line %}
+              {% qc_field_name field as fname %}
+              {% if fname != "test_type" and fname != "reference_set_by" and fname != "reference_set" and not field.is_readonly %}
+                {% if field.field.is_hidden %}
+                  {{ field.field }}
+                  {% if fname == "reference_value" %}
+                    <p class="qcr-card-note tl-col-full"><i class="fa fa-info-circle" aria-hidden="true"></i>{% trans "This test type doesn't use a reference: its results are judged by the tolerance alone." %}</p>
+                  {% endif %}
+                {% else %}
+                  {% qc_is_wide field adminform.model_admin as wide %}
+                  {% qc_is_required field as required %}
+                  {% qc_label field as label %}
+                  {% qc_help_text field as help %}
+                  <div class="tlb-field qc-field field-{{ fname }}{% if wide %} tl-col-full{% endif %}{% if field.errors %} qc-has-error{% endif %}">
+                    <label for="{{ field.field.id_for_label }}">{{ label }}{% if required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
+                    {{ field.errors }}
+                    <div class="qc-widget">{{ field.field }}</div>
+                    {% if help %}<span class="qc-help" id="{{ field.field.id_for_label }}_helptext">{{ help|safe }}</span>{% endif %}
+                  </div>
+                {% endif %}
+              {% endif %}
+            {% endfor %}{% endfor %}
+          </div>
+        {% else %}
+          <p class="qcr-card-note"><i class="fa fa-lock" aria-hidden="true"></i>{% trans "You can see this unit's reference and tolerance but not change them." %}</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
+{% endwith %}
+{% endblock %}

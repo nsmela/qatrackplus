@@ -1,73 +1,66 @@
-{% extends "admin/base_site.html" %}
-{% load static %}
-{% load i18n %}
-{% load qa_tags %}
-
-{% block breadcrumbs %}
-  <div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
-    <a href="{% url 'admin:app_list' app_label='qa' %}">{% trans "QC" %}</a> &rsaquo;
-    {% trans "Copy References & Tolerances Preview" %}
+{% load i18n qa_tags %}
+{% comment %}
+The preview cards of Copy References & Tolerances, included by
+admin/qa/unittestinfo/copy_refs_and_tols.html inside its confirm form. Context:
+source_test_list, source_unit, dest_unit and dest_source_utis ((destination, source)
+UnitTestInfo pairs), from CopyReferencesTolerancesView.
+{% endcomment %}
+<div class="tl-details-card qc-card qcr-card" id="qc-card-copy-summary">
+  <div class="tl-card-header">
+    <i class="fa fa-info-circle" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Details" %}</h2>
   </div>
-{% endblock %}
+  <div class="tl-card-body">
+    <dl class="qcr-dl">
+      <dt>{% trans "Test List (Cycle)" %}</dt>
+      <dd>{{ source_test_list }}</dd>
+      <dt>{% trans "Source Unit" %}</dt>
+      <dd>{{ source_unit }}</dd>
+      <dt>{% trans "Destination Unit" %}</dt>
+      <dd>{{ dest_unit }}</dd>
+    </dl>
+  </div>
+</div>
 
-{% block content %}
-
-<h1>{% trans "Preview Copying Reference & Tolerances " %}</h1>
-
-
-<table>
-  <tbody>
-    <tr>
-      <th>{% trans "Test List (Cycle)" %}:</th>
-      <td>{{ source_test_list }}</td>
-    </tr>
-    <tr>
-      <th>{% trans "Source Unit" %}</th>
-      <td>{{source_unit}}</td>
-    </tr>
-    <tr>
-      <th>{% trans "Dest Unit" %}</th>
-      <td>{{dest_unit}}</td>
-    </tr>
-  </tbody>
-</table>
-
-<table>
-  <thead>
-    <tr>
-      <th>{% trans "Test" %}</th>
-      <th>{{ dest_unit }} {% trans "Current Reference" %}</th>
-      <th>{{ dest_unit }} {% trans "Current Tolerance" %}</th>
-      <th>{% trans "New Reference" %}</th>
-      <th>{% trans "New Tolerance" %}</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for dest, source in dest_source_utis %}
-      <tr>
-        <td>{{dest.test}}</td>
-        <td>{{ dest.reference|reference_display:dest.test }}</td>
-        <td>{% firstof dest.tolerance "<em>--</em>" %}</td>
-        <td>{{ source.reference|reference_display:source.test }}</td>
-        <td>{% firstof source.tolerance "<em>--</em>" %}</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-<form action="" method="post">{% csrf_token %}
-  {% for field in form %}
-    {{ field.as_hidden }}
-  {% endfor %}
-  <input type="hidden" name="{{ stage_field }}" value="2" />
-  <input type="hidden" name="{{ hash_field }}" value="{{ hash_value }}" />
-  <p>
-    <input name="cancel" type="submit" value="{% trans "Cancel" %}" />
-    <input name="confirm" type="submit" value="{% trans "Confirm" %}" />
-  </p>
-</form>
-
-{% endblock %}
-
-
+<div class="tl-details-card qc-card qcr-card" id="qc-card-copy-changes">
+  <div class="tl-card-header">
+    <i class="fa fa-list-alt" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Changes" %}</h2>
+    <span class="tl-count-badge">{{ dest_source_utis|length }}</span>
+  </div>
+  {% if dest_source_utis %}
+    <div class="tl-card-body">
+      <p class="qcr-card-note">
+        {% blocktrans with dest=dest_unit source=source_unit %}Each test's reference and tolerance on {{ dest }} will be replaced with the ones from {{ source }}. Nothing is copied until you click Copy References & Tolerances.{% endblocktrans %}
+      </p>
+    </div>
+    <div class="qcr-table-body">
+      <table class="qcr-table" id="qcr-copy-preview">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Test" %}</th>
+            <th scope="col">{% blocktrans with unit=dest_unit %}{{ unit }} Current Reference{% endblocktrans %}</th>
+            <th scope="col">{% blocktrans with unit=dest_unit %}{{ unit }} Current Tolerance{% endblocktrans %}</th>
+            <th scope="col">{% trans "New Reference" %}</th>
+            <th scope="col">{% trans "New Tolerance" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dest, source in dest_source_utis %}
+            <tr>
+              <td>{{ dest.test }}</td>
+              <td>{% if dest.reference %}{{ dest.reference|reference_display:dest.test }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+              <td>{% if dest.tolerance %}{{ dest.tolerance }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+              <td class="qcr-new">{% if source.reference %}{{ source.reference|reference_display:source.test }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+              <td class="qcr-new">{% if source.tolerance %}{{ source.tolerance }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="tl-card-body">
+      <p class="qc-empty">{% blocktrans with dest=dest_unit %}None of this test list's tests are on {{ dest }}, so there's nothing to copy.{% endblocktrans %}</p>
+    </div>
+  {% endif %}
+</div>

@@ -1,77 +1,98 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
 {% load i18n %}
 
-{% block extrastyle %}
-{{ block.super }}
-<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}" />
-<link href="{% static "select2/css/select2.min.css" %}?v={{ VERSION }}" rel="stylesheet">
-<link href="{% static "qatrack_core/css/custom-select2.css" %}?v={{ VERSION }}" rel="stylesheet">
+{% comment %}
+Copy References & Tolerances (admin:qa_copy_refs_and_tols, CopyReferencesTolerancesView;
+its template qa/copy_refs_tols.html extends this one). A title row and cards in the QC
+admin style:
+  - choosing: one card with the form; Preview posts stage=1
+  - previewing (the view adds source_test_list and dest_source_utis): the summary and the
+    changes card (admin/qa/unittestinfo/copy_refs_and_tols_preview.html); Copy posts the
+    same choices with stage=2 and confirm=Confirm, Change Selection posts them back to the
+    form without copying, and Cancel is a plain link, so it never copies anything.
+Submit buttons are <button>s carrying the stage, so base_site.html's double-submit guard
+(which relabels input[type=submit]) can't change what's posted.
+{% endcomment %}
 
-<style type="text/css">
-
-.selector {
-    width: 980px;
-    float: left;
-}
-
-.selector select {
-    width: 470px;
-    height: 17.2em;
-}
-
-.selector-available, .selector-chosen {
-    float: left;
-    width: 470px;
-    text-align: center;
-    margin-bottom: 5px;
-}
-
-</style>
-{% endblock %}
-
-{% block bodyclass %}{{ opts.app_label }}-{{ opts.object_name.lower }} change-form{% endblock %}
+{% block title %}{% trans "Copy References & Tolerances" %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block bodyclass %}{{ block.super }} app-qa model-unittestinfo change-form qcr-copy-page{% endblock %}
 
 {% block breadcrumbs %}
   <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a> &rsaquo;
     <a href="{% url 'admin:app_list' app_label='qa' %}">{% trans "QC" %}</a> &rsaquo;
+    <a href="{% url 'admin:qa_unittestinfo_changelist' %}">{% trans "Set References & Tolerances" %}</a> &rsaquo;
     {% trans "Copy References & Tolerances" %}
   </div>
 {% endblock %}
 
 {% block content %}
-<p>{% trans "Select the source unit and test list (or test list cycle) and destination units." %}</p>
+<div id="content-main">
+{% include "admin/qa/shared/_qc_assets.html" %}
+{% include "admin/qa/unittestinfo/unittestinfo_assets.html" with qcr_page="copy" %}
 
-<form action="." method="post" novalidate>{% csrf_token %}
-    {% for hidden in form.hidden_fields %}
-      {{ hidden }}
-    {% endfor %}
-
-    <fieldset class="module aligned">
-      {% for field in form.visible_fields %}
-      <div class="form-row{% if field.errors %} errors{% endif %}">
-        <div class="fieldBox">
-            {{ field.errors }}
-            {{ field.label_tag }} {{ field }}
-            {% if field.help_text %}
-              <p class="help">{{ field.help_text|safe }}</p>
-            {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </fieldset>
-    <input type="submit" value="{% trans "Copy references and tolerances" %}" />
+{% if source_test_list %}
+<form method="post" id="qcr-copy-form" novalidate>{% csrf_token %}
+  {% for field in form %}{% if field.name != "stage" and field.name != "confirm" %}{{ field.as_hidden }}{% endif %}{% endfor %}
+  <input type="hidden" name="confirm" value="Confirm">
+  <div class="tl-header-bar qc-header-bar">
+    <div class="tl-header-left">
+      <h1 class="tl-header-title">{% trans "Copy References & Tolerances" %}</h1>
+      <span class="tl-header-counts qc-header-meta">{% blocktrans with source=source_unit dest=dest_unit %}Preview: {{ source }} to {{ dest }}{% endblocktrans %}</span>
+    </div>
+    <div class="tl-header-actions">
+      <a href="{% url 'admin:qa_unittestinfo_changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qcr-cancel-btn">{% trans "Cancel" %}</a>
+      <button type="submit" name="stage" value="0" class="tl-top-btn tl-top-btn-secondary" id="qcr-change-btn">
+        <i class="fa fa-pencil" aria-hidden="true"></i> {% trans "Change Selection" %}
+      </button>
+      {% if dest_source_utis %}
+        <button type="submit" name="stage" value="2" class="tl-top-btn tl-top-btn-save" id="qcr-confirm-btn">
+          <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Copy References & Tolerances" %}
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  {% include "admin/qa/unittestinfo/copy_refs_and_tols_preview.html" %}
 </form>
+{% else %}
+<form method="post" id="qcr-copy-form" novalidate>{% csrf_token %}
+  <div class="tl-header-bar qc-header-bar">
+    <div class="tl-header-left">
+      <h1 class="tl-header-title">{% trans "Copy References & Tolerances" %}</h1>
+    </div>
+    <div class="tl-header-actions">
+      <a href="{% url 'admin:qa_unittestinfo_changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qcr-cancel-btn">{% trans "Cancel" %}</a>
+      <button type="submit" name="stage" value="1" class="tl-top-btn tl-top-btn-save" id="qcr-preview-btn">
+        <i class="fa fa-eye" aria-hidden="true"></i> {% trans "Preview" %}
+      </button>
+    </div>
+  </div>
 
-<script type="text/javascript">
-    var ADMINURLs = {
-        GETTESTLIST: unescape("{% url 'qa_copy_refs_and_tols_testlist_json' source_unit=":source_unit:" content_type=":content_type:" %}")
-    }
-</script>
+  {% if form.errors %}
+    <p class="errornote">{% trans "Please correct the errors below. Nothing has been copied." %}</p>
+    {% if form.non_field_errors %}<ul class="errorlist nonfield">{% for err in form.non_field_errors %}<li>{{ err }}</li>{% endfor %}</ul>{% endif %}
+  {% endif %}
 
-<script src="{% static "jquery/js/jquery.min.js" %}"></script>
-<script language="javascript" type="text/javascript" src="{% static "select2/js/select2.js" %}?v={{VERSION}}"></script>
-<script language="javascript" type="text/javascript" src="{% static "js/copy_ref_tols_admin.js" %}?v={{VERSION}}"></script>
+  <div class="tl-details-card qc-card qcr-card" id="qc-card-copy">
+    <div class="tl-card-header">
+      <i class="fa fa-files-o" aria-hidden="true"></i>
+      <h2 class="tl-card-title">{% trans "Copy From and To" %}</h2>
+    </div>
+    <div class="tl-card-body">
+      <p class="qc-card-desc">{% trans "Choose the unit and test list (or test list cycle) to copy from, and the unit to copy to. You'll see every change before anything is copied." %}</p>
+      <div class="tlb-form qc-form">
+        {% for field in form.visible_fields %}
+          <div class="tlb-field qc-field field-{{ field.name }}{% if field.errors %} qc-has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
+            {{ field.errors }}
+            <div class="qc-widget">{{ field }}</div>
+            {% if field.help_text %}<span class="qc-help">{{ field.help_text|safe }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</form>
+{% endif %}
+</div>
 {% endblock %}
-
