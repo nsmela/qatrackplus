@@ -104,16 +104,16 @@ Remove this file before the branch is merged.
       Feature: change page shows a read-only summary card (unit, test list,
       who/when, number of values saved) with a Recover button.
 
-## Step 3A: Test List Cycles
+## Step 3A: Test List Cycles ✅
 
-- [ ] Details card (name, slug, description, drop-down label, day option
+- [x] Details card (name, slug, description, drop-down label, day option
       text) — description and JavaScript stay ace editors but span the card.
-- [ ] Feature: **builder-style "Test Lists in This Cycle" card** replacing the
+- [x] Feature: **builder-style "Test Lists in This Cycle" card** replacing the
       tabular inline: numbered day rows, drag-and-drop reorder, remove, and an
       htmx **search picker** to add test lists (same look as the Test List
       builder's add-from-search). Order still saved through the inline formset.
-- [ ] Attachments card. Feature: **Used In** card: assignments of this cycle.
-- [ ] List: name, number of days, test lists summary, assignments count.
+- [x] Attachments card. Feature: **Used In** card: assignments of this cycle.
+- [x] List: name, number of days, test lists summary, assignments count.
 
 ## Step 3B: Assign Test Lists to Units (Unit Test Collections)
 

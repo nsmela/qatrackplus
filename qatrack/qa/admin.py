@@ -3147,14 +3147,119 @@ class UnitTestCollectionAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         return _("Unknown")
 
 
-class TestListCycleMembershipInline(DynamicRawIDMixin, admin.TabularInline):
+class TestListCycleMembershipForm(DiscardRemovedNewRowMixin, forms.ModelForm):
+    """One day of a cycle: a row of the "Test Lists in This Cycle" card.
+
+    The card draws each row itself (day, test list, number of tests), so the test
+    list and its order are hidden inputs: the search picker fills in the test list
+    and dragging the rows renumbers the order. They're validated and saved exactly
+    as before. A row added since the page loaded and removed again before saving is
+    simply dropped (DiscardRemovedNewRowMixin).
+    """
+
+    class Meta:
+        model = models.TestListCycleMembership
+        fields = ("test_list", "order")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "test_list" in self.fields:
+            self.fields["test_list"].widget = forms.HiddenInput()
+        if "order" in self.fields:
+            self.fields["order"].widget = forms.HiddenInput(attrs={"class": "qcy-order-input"})
+
+
+class TestListCycleMembershipInline(admin.TabularInline):
+    """The cycle's days, drawn as the "Test Lists in This Cycle" card
+    (admin/qa/testlistcycle/change_form.html) rather than Django's table."""
 
     model = models.TestListCycleMembership
-    dynamic_raw_id_fields = ("test_list",)
+    form = TestListCycleMembershipForm
+    # rows are added one at a time with the card's search picker
+    extra = 0
+
+
+#: How many test list names the Test List Cycles list shows before "and N more"
+CYCLE_SUMMARY_LIST_COUNT = 3
+
+#: How many results the cycle's Add Test List search shows at once
+CYCLE_SEARCH_LIMIT = 25
+
+
+def _cycle_test_lists_with_counts(qs=None):
+    """Test lists annotated with their number of tests, own tests plus their sublists'.
+
+    One query however many lists there are (a test can't be in both a list and its
+    sublist, so adding the two counts doesn't count any test twice).
+    """
+    qs = models.TestList.objects.all() if qs is None else qs
+    return qs.annotate(
+        qcy_own_tests=Count("tests", distinct=True),
+        qcy_sublist_tests=Count("children__child__tests", distinct=True),
+    )
+
+
+def _cycle_test_list_info(test_list):
+    """What a cycle row or search result shows about a test list (annotated as above)."""
+    return {
+        "id": test_list.pk,
+        "name": test_list.name,
+        "slug": test_list.slug,
+        "test_count": test_list.qcy_own_tests + test_list.qcy_sublist_tests,
+        "edit_url": reverse("admin:qa_testlist_change", args=[test_list.pk]),
+    }
+
+
+def _cycle_rows(formset):
+    """The rows of the "Test Lists in This Cycle" card, in day order.
+
+    Each row is ``{"form", "info", "saved", "removed", "day"}``. After a failed save
+    the rows come back the way the user left them: in the posted order, with the
+    posted test lists, and saved rows they removed still removed (hidden, their
+    DELETE box ticked). New rows they removed aren't brought back.
+    """
+    rows = []
+    for index, form in enumerate(formset.forms):
+        if _unsaved_and_deleted(form):
+            continue
+        test_list_pk = _int_param(form["test_list"].value()) if "test_list" in form.fields else None
+        if test_list_pk is None:
+            test_list_pk = form.instance.test_list_id
+        order = _int_param(form["order"].value()) if "order" in form.fields else form.instance.order
+        rows.append({
+            "form": form,
+            "test_list_pk": test_list_pk,
+            "saved": bool(form.instance.pk),
+            "removed": form.is_bound and _posted_delete(form.data, form.prefix),
+            "sort_key": (order if order is not None else len(formset.forms) + index, index),
+        })
+    rows.sort(key=lambda row: row["sort_key"])
+
+    test_list_pks = {row["test_list_pk"] for row in rows if row["test_list_pk"]}
+    test_lists = _cycle_test_lists_with_counts().filter(pk__in=test_list_pks) if test_list_pks else []
+    info = {test_list.pk: _cycle_test_list_info(test_list) for test_list in test_lists}
+    day = 0
+    for row in rows:
+        row["info"] = info.get(row["test_list_pk"])
+        if not row["removed"]:
+            day += 1
+            row["day"] = day
+    return rows
+
+
+def _can_view_test_lists(user):
+    return user.has_perm("qa.view_testlist") or user.has_perm("qa.change_testlist")
 
 
 class TestListCycleAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
-    """Admin for daily test list cycles"""
+    """Admin for daily test list cycles.
+
+    The change page (admin/qa/testlistcycle/change_form.html) shows the cycle's days
+    as a builder-style card: drag to reorder, remove, and add test lists with a
+    search picker (search_test_lists_view and add_row_view). The days still save
+    through the membership inline formset. Styles and JS:
+    admin/qa/testlistcycle/testlistcycle_assets.html.
+    """
     inlines = [TestListCycleMembershipInline, get_attachment_inline("testlistcycle")]
     prepopulated_fields = {
         'slug': ('name',)
@@ -3163,26 +3268,162 @@ class TestListCycleAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachment
         "name",
         "slug",
     )
-    list_display = ["name", "all_lists"]
+    list_display = ["name", "day_count", "test_lists_summary", "assignment_count"]
 
     class Media:
+        # The page's own styles and JS are inlined via testlistcycle_assets.html (like
+        # the Test List builder), so they load under DEBUG=False without a collectstatic
+        # step. jQuery UI drags the day rows; ace is the description and JavaScript
+        # editor (admin_description_editor.js); htmx runs the Add Test List search.
         js = (
             'admin/js/jquery.init.js',
             'jquery/js/jquery.min.js',
             "js/jquery-ui.init.js",
             "js/jquery-ui.min.js",
             "js/collapsed_stacked_inlines.js",
-            "js/m2m_drag_admin.js",
             "js/admin_description_editor.js",
             "ace/ace.js",
+            "htmx/js/htmx.min.js",
         )
 
-    def all_lists(self, obj):
-        return ', '.join("%s: %s" % x for x in enumerate(obj.all_lists().values_list("name", flat=True)))
+    @admin.display(description=_l("Days"), ordering="qcy_day_count")
+    def day_count(self, obj):
+        return obj.qcy_day_count
+
+    @admin.display(description=_l("Test Lists"))
+    def test_lists_summary(self, obj):
+        names = [m.test_list.name for m in obj.testlistcyclemembership_set.all()]
+        if not names:
+            return format_html('<span class="qc-empty">{}</span>', _("No test lists yet"))
+        shown = ", ".join(names[:CYCLE_SUMMARY_LIST_COUNT])
+        hidden = len(names) - CYCLE_SUMMARY_LIST_COUNT
+        if hidden > 0:
+            return _("%(names)s and %(count)d more") % {"names": shown, "count": hidden}
+        return shown
+
+    @admin.display(description=_l("Assignments"), ordering="qcy_assignment_count")
+    def assignment_count(self, obj):
+        return obj.qcy_assignment_count
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.prefetch_related("test_lists")
+        memberships = models.TestListCycleMembership.objects.select_related("test_list").order_by("order")
+        return qs.annotate(
+            qcy_day_count=Count("testlistcyclemembership", distinct=True),
+            qcy_assignment_count=Count("utcs", distinct=True),
+        ).prefetch_related(Prefetch("testlistcyclemembership_set", queryset=memberships))
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        for inline_admin_formset in context.get("inline_admin_formsets", []):
+            if inline_admin_formset.opts.model is models.TestListCycleMembership:
+                rows = _cycle_rows(inline_admin_formset.formset)
+                context.update({
+                    "qcy_formset": inline_admin_formset,
+                    "qcy_rows": rows,
+                    "qcy_day_count": sum(1 for row in rows if not row["removed"]),
+                    "qcy_editable": (
+                        inline_admin_formset.has_add_permission or inline_admin_formset.has_change_permission
+                    ),
+                    "qcy_can_add_rows": inline_admin_formset.has_add_permission,
+                    "qcy_can_reorder": inline_admin_formset.has_change_permission,
+                    "qcy_can_remove_saved": inline_admin_formset.formset.can_delete,
+                })
+        user = request.user
+        context["qcy_can_view_test_lists"] = _can_view_test_lists(user)
+        context["qcy_can_view_assignments"] = (
+            user.has_perm("qa.view_unittestcollection") or user.has_perm("qa.change_unittestcollection")
+        )
+        if obj is not None and obj.pk:
+            context["qcy_saved_day_count"] = obj.testlistcyclemembership_set.count()
+            context["qcy_used_in"] = list(
+                obj.utcs.select_related("unit", "frequency", "assigned_to").order_by("unit__name", "frequency__name")
+            )
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'search-test-lists/',
+                self.admin_site.admin_view(self.search_test_lists_view),
+                name='qa_testlistcycle_search_lists',
+            ),
+            path(
+                'add-row/',
+                self.admin_site.admin_view(self.add_row_view),
+                name='qa_testlistcycle_add_row',
+            ),
+        ]
+        return custom_urls + urls
+
+    def _can_edit_days(self, request):
+        """The picker is for adding or changing a cycle."""
+        return self.has_add_permission(request) or self.has_change_permission(request)
+
+    def search_test_lists_view(self, request):
+        """htmx: the Add Test List dialog's results.
+
+        ``q`` filters by name or slug; ``in_cycle`` (comma separated ids: the lists
+        on the page right now) are listed but can't be picked again.
+        """
+        if not self._can_edit_days(request):
+            return HttpResponseForbidden(_("You don't have permission to change test list cycles."))
+        q = (request.GET.get("q") or "").strip()
+        in_cycle = {_int_param(pk) for pk in (request.GET.get("in_cycle") or "").split(",")}
+        qs = _cycle_test_lists_with_counts()
+        if q:
+            qs = qs.filter(Q(name__icontains=q) | Q(slug__icontains=q))
+        test_lists = list(qs.order_by("name", "pk")[:CYCLE_SEARCH_LIMIT + 1])
+        results = []
+        for test_list in test_lists[:CYCLE_SEARCH_LIMIT]:
+            info = _cycle_test_list_info(test_list)
+            info["in_cycle"] = test_list.pk in in_cycle
+            results.append(info)
+        return render(request, "admin/qa/testlistcycle/partials/_search_results.html", {
+            "results": results,
+            "query": q,
+            "more": len(test_lists) > CYCLE_SEARCH_LIMIT,
+        })
+
+    def add_row_view(self, request):
+        """htmx: a new day row for ``test_list`` at formset index ``index``.
+
+        The row is a real form of the membership formset (same prefix, hidden inputs
+        and fk as the rows Django renders), so it saves like any other row once the
+        page bumps TOTAL_FORMS.
+        """
+        if not self._can_edit_days(request):
+            return HttpResponseForbidden(_("You don't have permission to change test list cycles."))
+        test_list = get_object_or_404(_cycle_test_lists_with_counts(), pk=_int_param(request.GET.get("test_list"), 0))
+        index = _int_param(request.GET.get("index"), 0)
+        cycle_pk = _int_param(request.GET.get("cycle"))
+        cycle = self.model.objects.filter(pk=cycle_pk).first() if cycle_pk else None
+
+        inline = TestListCycleMembershipInline(self.model, self.admin_site)
+        FormSet = inline.get_formset(request, cycle)
+        formset = FormSet(instance=cycle or self.model(), prefix=FormSet.get_default_prefix())
+        # what BaseFormSet.empty_form does, at a real index and with the test list filled in
+        form = formset.form(
+            auto_id=formset.auto_id,
+            prefix=formset.add_prefix(index),
+            initial={"test_list": test_list.pk, "order": index},
+            empty_permitted=True,
+            use_required_attribute=False,
+            renderer=formset.renderer,
+        )
+        formset.add_fields(form, None)
+        return render(request, "admin/qa/testlistcycle/partials/_cycle_row.html", {
+            "row": {
+                "form": form,
+                "info": _cycle_test_list_info(test_list),
+                "saved": False,
+                "removed": False,
+                "day": index + 1,
+            },
+            "qcy_editable": True,
+            "qcy_can_reorder": True,
+            "qcy_can_view_test_lists": _can_view_test_lists(request.user),
+        })
 
 
 class FrequencyForm(forms.ModelForm):

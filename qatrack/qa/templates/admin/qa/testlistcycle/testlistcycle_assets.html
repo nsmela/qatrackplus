@@ -1,0 +1,516 @@
+{% comment %}
+Inlined CSS + JS for the Test List Cycle change form (admin/qa/testlistcycle/change_form.html).
+
+Inlined in the page body (not static files), like the Test List builder's assets, so it
+loads under DEBUG=False without a collectstatic step and runs under hx-boost. The day rows,
+search dialog and buttons reuse the builder's class names (tl-members-card, tlb-table,
+tl-drag-handle, tl-search-*, tl-modal-*); those rules are repeated here, scoped to this
+page's own ids, because the builder's assets aren't loaded on this page. Colours follow
+docs/developer/design_system.ai.md, using its passing (A11Y) shades for text.
+{% endcomment %}{% load i18n %}
+<style>
+/* ---- Details card: ace editors (admin_description_editor.js) span the card ---- */
+/* The script gives each editor an inline width of 50%; ace sizes itself to its box. */
+#content-main #description-editor, #content-main #javascript-editor {
+  width: 100% !important; max-width: none !important; min-width: 0; box-sizing: border-box;
+  border: 1px solid #d2d6de; box-shadow: 2px 2px 2px #ddd; margin: 0; float: none;
+}
+#content-main .field-description .qc-widget, #content-main .field-javascript .qc-widget { width: 100%; }
+#content-main .qcy-desc-preview-wrap { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+#content-main .qcy-desc-preview-label { font-size: 12px; font-weight: 600; color: #6e7785; }
+#content-main .qcy-desc-preview { min-height: 40px; overflow-wrap: anywhere; }
+
+/* ---- Test Lists in This Cycle (the builder's card, table and row styles) ---- */
+#qcy-lists-card {
+  background: #fff; color: #333; border-top: 3px solid #424f57; box-shadow: 0 1px 1px rgba(0,0,0,.1);
+  border-radius: 0; margin-bottom: 20px; font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+#qcy-lists-card .tl-card-header { flex-wrap: wrap; }
+#qcy-lists-card .tl-card-header-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+#qcy-lists-card .tl-header-add-btn {
+  border: 1px solid #d2d6de; background: #f4f4f4; color: #444; border-radius: 3px; padding: 4px 12px;
+  font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; box-sizing: border-box; box-shadow: 2px 2px 2px #ddd; transition: background-color .15s ease;
+}
+#qcy-lists-card .tl-header-add-btn:hover { background: #e7e7e7; color: #444; }
+#qcy-lists-card .tl-header-add-btn:focus-visible { border-color: #3c8dbc; outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#qcy-lists-card .qcy-card-desc { margin: 0; padding: 10px 14px 0; font-size: 13px; line-height: 1.5; color: #5a6472; }
+#qcy-lists-card .qcy-card-errors, #qcy-lists-card .qcy-add-error { margin: 10px 14px 0; padding: 8px 12px; background: #fdf6f5; border: 1px solid #edc9c3; color: #c0392b; font-size: 13px; font-weight: 600; }
+#qcy-lists-card .qcy-add-error[hidden] { display: none; }
+#qcy-lists-card .qcy-card-errors .errorlist { list-style: none; margin: 0; padding: 0; }
+#qcy-lists-card .qcy-card-errors .errorlist li { margin: 0; padding: 0; background: none; border: 0; }
+#qcy-lists-card .tl-table-wrap { width: 100%; overflow-x: auto; background: #fff; position: relative; padding-top: 6px; }
+#qcy-lists-card .tlb-table { width: 100%; border-collapse: collapse; background: #fff; }
+#qcy-lists-card .tlb-table thead th {
+  text-align: left; padding: 7px 10px; border: 0; border-bottom: 2px solid #d2d6de; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em; color: #6e7785; background: #fff; white-space: nowrap;
+}
+#qcy-lists-card .tl-th-drag { width: 36px; padding-right: 0; }
+#qcy-lists-card .qcy-th-day { width: 90px; }
+#qcy-lists-card .qcy-th-tests { width: 110px; }
+#qcy-lists-card .tl-th-actions { width: 90px; text-align: right; }
+#qcy-lists-card .tlb-table tbody tr { background: #fff; border-bottom: 1px solid #f4f4f4; transition: background-color .1s ease; }
+#qcy-lists-card .tlb-table tbody tr:hover { background-color: #f5f7fa; }
+#qcy-lists-card .tlb-table tbody tr[hidden] { display: none; }
+#qcy-lists-card .tlb-table tbody td { padding: 8px 10px; vertical-align: top; font-size: 14px; color: #333; border: 0; background: transparent; }
+#qcy-lists-card .tl-cell-drag { width: 36px; text-align: center; padding-right: 0; }
+#qcy-lists-card .tl-drag-handle { color: #6d7787; font-size: 14px; cursor: grab; padding: 4px; }
+#qcy-lists-card .tl-drag-handle:active { cursor: grabbing; }
+#qcy-lists-card tr.tl-dragging { opacity: .45; background: #f4f4f4; }
+#qcy-lists-card .ui-sortable-helper { display: table; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+#qcy-lists-card .qcy-day { display: inline-block; font-weight: 600; color: #444; white-space: nowrap; padding-top: 1px; }
+#qcy-lists-card .qcy-cell-list { overflow-wrap: anywhere; }
+#qcy-lists-card a.qcy-list-link, #qcy-lists-card a.qcy-list-link:visited { color: #317399; font-weight: 600; text-decoration: none; }
+#qcy-lists-card a.qcy-list-link:hover { color: #285f80; text-decoration: underline; }
+#qcy-lists-card .qcy-list-name { font-weight: 600; color: #333; }
+#qcy-lists-card .qcy-list-slug { margin-left: 6px; font-family: Menlo, Consolas, monospace; font-size: 12px; color: #6e7785; }
+#qcy-lists-card .qcy-list-missing { color: #c0392b; font-weight: 600; }
+#qcy-lists-card .qcy-row-errors .errorlist { list-style: none; margin: 4px 0 0; padding: 0; color: #c0392b; font-size: 12px; font-weight: 600; }
+#qcy-lists-card .qcy-row-errors .errorlist li { margin: 0; padding: 0; background: none; border: 0; }
+#qcy-lists-card .qcy-cell-tests { white-space: nowrap; }
+#qcy-lists-card .tl-cell-actions { text-align: right; white-space: nowrap; }
+#qcy-lists-card .tl-cell-actions .tl-action-icon {
+  background: transparent; border: 0; padding: 4px 6px; color: #6d7787; font-size: 14px; cursor: pointer;
+  text-decoration: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px;
+  transition: color .15s ease;
+}
+#qcy-lists-card .tl-cell-actions .tl-action-icon:hover { color: #555; background: #eceff3; }
+#qcy-lists-card .tl-cell-actions .tl-delete-test-btn:hover { color: #c0392b; background: #fbe9e7; }
+#qcy-lists-card .tl-cell-actions .tl-action-icon:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 0; }
+#qcy-lists-card .tl-cell-actions .tl-remove-locked, #qcy-lists-card .tl-cell-actions .tl-remove-locked:hover { opacity: .45; cursor: not-allowed; background: transparent; color: #6d7787; }
+#qcy-lists-card .tl-empty-tests-placeholder { padding: 28px 16px; text-align: center; color: #6d7787; font-size: 13px; }
+#qcy-lists-card .tl-empty-tests-placeholder[hidden] { display: none; }
+#qcy-lists-card .tl-empty-tests-placeholder p { margin: 0; }
+@media (max-width: 640px) {
+  #qcy-lists-card .qcy-th-tests, #qcy-lists-card .qcy-cell-tests { display: none; }
+}
+
+/* ---- Used In ---- */
+#qcy-used-card .qcy-used-wrap { overflow-x: auto; }
+#qcy-used-card table.qcy-used-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
+#qcy-used-card table.qcy-used-table th {
+  text-align: left; padding: 7px 8px; border: 0; border-bottom: 2px solid #d2d6de; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em; color: #6e7785; background: #fff; white-space: nowrap;
+}
+#qcy-used-card table.qcy-used-table tr { background: #fff; }
+#qcy-used-card table.qcy-used-table td { color: #333; background: #fff; border: 0; border-bottom: 1px solid #f4f4f4; padding: 6px 8px; vertical-align: top; }
+#qcy-used-card a.qcy-used-link, #qcy-used-card a.qcy-used-link:visited { color: #317399; text-decoration: none; }
+#qcy-used-card a.qcy-used-link:hover { color: #285f80; text-decoration: underline; }
+#qcy-used-card .fa-cube { color: #6d7787; margin-right: 2px; }
+#qcy-used-card .qcy-status { display: inline-block; font-size: 75%; font-weight: 600; line-height: 1; padding: .2em .6em .3em; border-radius: 2px; border: 2px solid #00a65a; background: transparent; color: #000; }
+#qcy-used-card .qcy-status-inactive { border-color: #b5bbc8; }
+#qcy-used-card .qcy-used-empty { margin: 0; font-size: 13px; color: #6d7787; }
+
+/* ---- Add Test List dialog (the builder's search dialog); outside #content-main ---- */
+#qcy-search-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9999; display: flex;
+  align-items: center; justify-content: center; padding: 20px;
+}
+#qcy-search-modal[hidden] { display: none !important; }
+#qcy-search-modal .tl-modal-dialog {
+  background: #fff; color: #333; border-radius: 0; border-top: 3px solid #424f57; box-shadow: 0 8px 26px rgba(0,0,0,.18);
+  width: 100%; max-width: 650px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+#qcy-search-modal .tl-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #f4f4f4; background: #fff; }
+#qcy-search-modal .tl-modal-title {
+  font-size: 18px; font-weight: 400; line-height: 1.2; color: #444; margin: 0; display: flex; align-items: center; gap: 8px;
+  text-transform: none; letter-spacing: normal; background: transparent; padding: 0;
+}
+#qcy-search-modal .tl-modal-title > .fa { color: #555; font-size: 16px; }
+#qcy-search-modal .tl-modal-close-btn { background: transparent; border: 0; border-radius: 3px; font-size: 20px; line-height: 1; color: #6d7787; cursor: pointer; }
+#qcy-search-modal .tl-modal-close-btn:hover { color: #333; }
+#qcy-search-modal .tl-modal-close-btn:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#qcy-search-modal .tl-modal-body { padding: 16px; overflow-y: auto; flex: 1; background: #fff; }
+#qcy-search-modal .tl-modal-note { margin: 0 0 12px; font-size: 12px; color: #6e7785; line-height: 1.4; }
+#qcy-search-modal .tl-search-input-wrap { position: relative; margin-bottom: 12px; }
+#qcy-search-modal .tl-search-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6d7787; font-size: 14px; pointer-events: none; z-index: 2; }
+#qcy-search-modal input.tl-search-input {
+  width: 100%; box-sizing: border-box; padding: 9px 12px 9px 38px; border: 1px solid #d2d6de; border-radius: 0;
+  font-size: 14px; line-height: 1.4; height: 38px; outline: none; box-shadow: 2px 2px 2px #ddd; color: #333; background: #fff;
+}
+#qcy-search-modal input.tl-search-input:focus { border-color: #3c8dbc; }
+#qcy-search-modal .tl-search-results-container { max-height: 380px; overflow-y: auto; border: 1px solid #d2d6de; border-radius: 0; }
+#qcy-search-modal .tl-search-initial-hint, #qcy-search-modal .tl-search-no-results { padding: 24px; text-align: center; color: #6d7787; font-size: 13px; }
+#qcy-search-modal .qcy-search-more { padding: 10px; border-top: 1px solid #f4f4f4; }
+#qcy-search-modal .tl-search-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #f4f4f4; background: #fff; transition: background-color .1s ease; }
+#qcy-search-modal .tl-search-item:last-child { border-bottom: 0; }
+#qcy-search-modal .tl-search-item:hover { background-color: #f5f7fa; }
+#qcy-search-modal .tl-search-item-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#qcy-search-modal .tl-search-item-title { font-size: 14px; color: #333; overflow-wrap: anywhere; }
+#qcy-search-modal .qcy-search-icon { color: #6d7787; margin-right: 2px; }
+#qcy-search-modal .tl-search-item-slug { font-size: 12px; color: #555; font-family: Menlo, Consolas, monospace; margin-left: 4px; }
+#qcy-search-modal .tl-search-item-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+#qcy-search-modal .tl-btn-select-sublist {
+  background: #f4f4f4; color: #444; border: 1px solid #d2d6de; border-radius: 3px; padding: 4px 10px; font-size: 12px;
+  font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 2px 2px 2px #ddd;
+}
+#qcy-search-modal .tl-btn-select-sublist:hover { background: #e7e7e7; color: #444; }
+#qcy-search-modal .tl-btn-select-sublist:focus-visible { border-color: #3c8dbc; outline: 2px solid #3c8dbc; outline-offset: 1px; }
+#qcy-search-modal .tl-btn-select-sublist:disabled, #qcy-search-modal .tl-btn-select-sublist:disabled:hover {
+  background: #fff; color: #555; border-style: dashed; box-shadow: none; cursor: not-allowed;
+}
+#qcy-search-modal .tl-search-item-blocked { cursor: default; }
+#qcy-search-modal .tl-search-blocked-note { font-size: 12px; color: #555; }
+#qcy-search-modal .tl-search-blocked-note .fa { color: #6d7787; margin-right: 2px; }
+#qcy-search-modal .tl-count-badge { display: inline-block; background: #d2d6de; color: #444; font-size: 75%; font-weight: 600; border-radius: 2px; padding: .22em .6em; white-space: nowrap; }
+</style>
+
+<script>
+(function () {
+  "use strict";
+  // Document-level listeners are added once per document (hx-boost swaps the body but
+  // keeps the document); the page itself is set up every time this script runs.
+  var addListeners = !window.__QCY_CYCLE_LISTENERS__;
+  window.__QCY_CYCLE_LISTENERS__ = true;
+
+  var MSG = {
+    preview: "{{ _('Description preview')|escapejs }}",
+    previewEmpty: "{{ _('Nothing to preview yet. Write a description to see how it will look.')|escapejs }}"
+  };
+
+  function byId(id) { return document.getElementById(id); }
+  function card() { return byId("qcy-lists-card"); }
+  function tbody() { return byId("qcy-lists-tbody"); }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function dayRows() {
+    var tb = tbody();
+    return tb ? Array.prototype.slice.call(tb.querySelectorAll("tr.qcy-row")) : [];
+  }
+  function isRemoved(row) {
+    var del = row.querySelector(".qcy-delete-checkbox");
+    return row.hidden || !!(del && del.checked);
+  }
+
+  // ---- Day numbers and order ----
+  // The order inputs follow the rows as they are on screen (0, 1, 2… for the rows
+  // still in the cycle), so the formset saves the order the user sees.
+  function syncOrder() {
+    var c = card();
+    if (!c) { return; }
+    var label = c.getAttribute("data-day-label") || "Day %(day)s";
+    var day = 0;
+    var ids = [];
+    dayRows().forEach(function (row) {
+      var dayEl = row.querySelector(".qcy-day");
+      if (isRemoved(row)) {
+        if (dayEl) { dayEl.textContent = ""; }
+        return;
+      }
+      var orderInput = row.querySelector("input.qcy-order-input");
+      if (orderInput) { orderInput.value = day; }
+      day += 1;
+      if (dayEl) { dayEl.textContent = label.replace("%(day)s", day); }
+      var id = row.getAttribute("data-test-list-id");
+      if (id) { ids.push(id); }
+    });
+    var badge = byId("qcy-lists-count");
+    if (badge) { badge.textContent = day; }
+    var empty = byId("qcy-empty-msg");
+    if (empty) { empty.hidden = day > 0; }
+    var inCycle = byId("qcy-in-cycle");
+    if (inCycle) { inCycle.value = ids.join(","); }
+  }
+
+  function listIdsInCycle() {
+    return dayRows().filter(function (row) { return !isRemoved(row); }).map(function (row) {
+      return row.getAttribute("data-test-list-id");
+    });
+  }
+
+  // ---- Drag and drop (jQuery UI when it's loaded, as on the Test List builder; HTML5 otherwise) ----
+  function sortableJQuery() {
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.sortable) { return window.jQuery; }
+    if (window.django && window.django.jQuery && window.django.jQuery.fn.sortable) { return window.django.jQuery; }
+    return null;
+  }
+
+  function initSortables() {
+    var tb = tbody();
+    if (!tb || !tb.querySelector(".tl-drag-handle")) { return; }
+    var $ = sortableJQuery();
+    if ($) {
+      var $tb = $(tb);
+      if ($tb.data("ui-sortable")) { $tb.sortable("refresh"); return; }
+      $tb.sortable({
+        handle: ".tl-drag-handle",
+        items: "> tr.qcy-row",
+        axis: "y",
+        helper: function (e, tr) {
+          var $originals = tr.children();
+          var $helper = tr.clone();
+          $helper.children().each(function (index) { $(this).width($originals.eq(index).width()); });
+          return $helper;
+        },
+        start: function (e, ui) { ui.placeholder.height(ui.item.height()); },
+        update: function () { syncOrder(); }
+      });
+      return;
+    }
+    tb.querySelectorAll("tr.qcy-row").forEach(function (row) {
+      var handle = row.querySelector(".tl-drag-handle");
+      if (!handle || row.hasAttribute("data-qcy-dnd")) { return; }
+      row.setAttribute("data-qcy-dnd", "");
+      handle.setAttribute("draggable", "true");
+      handle.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", "");
+        row.classList.add("tl-dragging");
+        window._qcyDraggedRow = row;
+      });
+      handle.addEventListener("dragend", function () {
+        row.classList.remove("tl-dragging");
+        window._qcyDraggedRow = null;
+        syncOrder();
+      });
+      row.addEventListener("dragover", function (e) {
+        var dragged = window._qcyDraggedRow;
+        if (!dragged || dragged === row || row.parentNode !== tb) { return; }
+        e.preventDefault();
+        var rect = row.getBoundingClientRect();
+        tb.insertBefore(dragged, e.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
+      });
+    });
+  }
+
+  // ---- Remove: ticks the row's DELETE box; Django deletes a saved row when the cycle is saved ----
+  function removeRow(row) {
+    var del = row.querySelector(".qcy-delete-checkbox");
+    if (del) { del.checked = true; }
+    var next = row.nextElementSibling;
+    while (next && isRemoved(next)) { next = next.nextElementSibling; }
+    row.hidden = true;
+    syncOrder();
+    var focusTo = (next && next.querySelector(".qcy-remove-btn")) || byId("qcy-add-list-btn");
+    if (focusTo) { focusTo.focus(); }
+  }
+
+  // ---- Add Test List dialog ----
+  var searchOpener = null;
+  var pendingAdds = {};
+
+  function showAddError(msg) {
+    var el = byId("qcy-add-error");
+    if (!el) { return; }
+    el.textContent = msg || "";
+    el.hidden = !msg;
+  }
+
+  function openSearch() {
+    var c = card();
+    var modal = byId("qcy-search-modal");
+    if (!c || !modal) { return; }
+    syncOrder();
+    if (modal.hidden) { searchOpener = document.activeElement; }
+    modal.hidden = false;
+    var input = byId("qcy-search-input");
+    var results = byId("qcy-search-results");
+    if (input) {
+      input.value = "";
+      if (window.htmx) { window.htmx.process(input); }
+      setTimeout(function () { input.focus(); }, 60);
+    }
+    if (results) {
+      results.innerHTML = '<div class="tl-search-initial-hint"><i class="fa fa-spinner fa-spin" aria-hidden="true"></i> ' +
+        escapeHtml(c.getAttribute("data-msg-loading") || "") + '</div>';
+      var inCycle = byId("qcy-in-cycle");
+      var url = c.getAttribute("data-search-url") + "?in_cycle=" + encodeURIComponent(inCycle ? inCycle.value : "");
+      fetch(url, { credentials: "same-origin", headers: { "HX-Request": "true" } })
+        .then(function (res) {
+          if (!res.ok) { throw new Error(res.status); }
+          return res.text();
+        })
+        .then(function (html) { results.innerHTML = html; })
+        .catch(function () {
+          results.innerHTML = '<div class="tl-search-no-results" role="alert">' +
+            escapeHtml(c.getAttribute("data-msg-load-error") || "") + '</div>';
+        });
+    }
+  }
+
+  function closeSearch() {
+    var modal = byId("qcy-search-modal");
+    if (!modal || modal.hidden) { return; }
+    modal.hidden = true;
+    var opener = searchOpener;
+    searchOpener = null;
+    if (opener && opener.isConnected && typeof opener.focus === "function") { opener.focus(); }
+  }
+
+  function addRow(testListId) {
+    var c = card();
+    var tb = tbody();
+    if (!c || !tb || !testListId) { return; }
+    // never add a list twice: the search marks the ones already here, this is the backstop
+    if (pendingAdds[testListId] || listIdsInCycle().indexOf(String(testListId)) !== -1) { return; }
+    var prefix = c.getAttribute("data-prefix");
+    var total = byId("id_" + prefix + "-TOTAL_FORMS");
+    if (!total) { return; }
+    // Take the next formset index now, so a quick second add gets its own. If the
+    // request fails the index is just an empty row, which the formset skips.
+    var index = parseInt(total.value, 10) || 0;
+    total.value = index + 1;
+    pendingAdds[testListId] = true;
+    showAddError("");
+    var url = c.getAttribute("data-add-row-url") + "?test_list=" + encodeURIComponent(testListId) +
+      "&index=" + index + "&cycle=" + encodeURIComponent(c.getAttribute("data-cycle-id") || "");
+    fetch(url, { credentials: "same-origin", headers: { "HX-Request": "true" } })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(res.status); }
+        return res.text();
+      })
+      .then(function (html) {
+        delete pendingAdds[testListId];
+        var holder = document.createElement("tbody");
+        holder.innerHTML = html.trim();
+        var row = holder.querySelector("tr.qcy-row");
+        if (!row) { throw new Error("no row"); }
+        tb.appendChild(row);
+        syncOrder();
+        initSortables();
+      })
+      .catch(function () {
+        delete pendingAdds[testListId];
+        showAddError(c.getAttribute("data-msg-add-error"));
+      });
+  }
+
+  function onClick(e) {
+    if (!e.target.closest) { return; }
+    var removeBtn = e.target.closest("#qcy-lists-card .qcy-remove-btn");
+    if (removeBtn) {
+      e.preventDefault();
+      removeRow(removeBtn.closest("tr.qcy-row"));
+      return;
+    }
+    if (e.target.closest("#qcy-add-list-btn")) {
+      e.preventDefault();
+      openSearch();
+      return;
+    }
+    if (e.target.closest("#qcy-search-modal [data-qcy-search-close]")) {
+      e.preventDefault();
+      closeSearch();
+      return;
+    }
+    var pick = e.target.closest("#qcy-search-modal .qcy-btn-pick");
+    if (pick) {
+      e.preventDefault();
+      if (pick.disabled) { return; }
+      addRow(pick.getAttribute("data-test-list-id"));
+      closeSearch();
+      return;
+    }
+    // A click that starts and ends on the dark backdrop closes the dialog (not a text selection that ends there).
+    var modal = byId("qcy-search-modal");
+    if (modal && e.target === modal && pressTarget === modal) { closeSearch(); }
+  }
+
+  var pressTarget = null;
+  var FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]):not([type='hidden']), [tabindex]:not([tabindex='-1'])";
+  function onKeydown(e) {
+    var modal = byId("qcy-search-modal");
+    if (!modal || modal.hidden) { return; }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeSearch();
+    } else if (e.key === "Enter" && e.target && e.target.id === "qcy-search-input") {
+      e.preventDefault();  // Enter only searches
+    } else if (e.key === "Tab") {
+      // keep Tab inside the open dialog
+      var items = Array.prototype.filter.call(modal.querySelectorAll(FOCUSABLE), function (el) {
+        return el.getClientRects().length > 0;
+      });
+      if (!items.length) { e.preventDefault(); return; }
+      var first = items[0];
+      var last = items[items.length - 1];
+      var active = document.activeElement;
+      if (!modal.contains(active)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  if (addListeners) {
+    document.addEventListener("click", function (e) { onClick(e); });
+    document.addEventListener("mousedown", function (e) { pressTarget = e.target; }, true);
+    document.addEventListener("keydown", function (e) { onKeydown(e); });
+    // Saving: number the days once more, from the rows as they are on screen.
+    document.addEventListener("submit", function (e) {
+      if (e.target && e.target.querySelector && e.target.querySelector("#qcy-lists-card")) { syncOrder(); }
+    }, true);
+  }
+
+  // ---- Details card: description preview under the ace editor ----
+  // admin_description_editor.js turns the description and JavaScript boxes into ace
+  // editors (on jQuery's ready, which runs before this). Its own preview needs the old
+  // admin form rows, so the preview is drawn here, and both editors copy their text into
+  // the form on every change, not only when they lose focus.
+  function initEditors() {
+    var ta = byId("id_description");
+    if (!ta || ta.hasAttribute("data-qcy-init")) { return; }
+    ta.setAttribute("data-qcy-init", "");
+    var editorEl = byId("description-editor");
+    if (!window.ace || !editorEl) { return; }  // no ace: the plain textarea still works
+
+    var wrap = document.createElement("div");
+    wrap.className = "qcy-desc-preview-wrap";
+    wrap.innerHTML = '<span class="qcy-desc-preview-label">' + escapeHtml(MSG.preview) + '</span>' +
+      '<div class="tl-html-preview qcy-desc-preview" id="qcy-desc-preview" aria-live="polite"></div>';
+    editorEl.insertAdjacentElement("afterend", wrap);
+    var preview = byId("qcy-desc-preview");
+    // The description is trusted staff HTML, shown as HTML on the Perform QC page (as the old preview did).
+    function render(value) {
+      if (value && value.trim()) {
+        preview.innerHTML = value;
+      } else {
+        preview.innerHTML = '<span class="tl-htmlpreview-empty">' + escapeHtml(MSG.previewEmpty) + '</span>';
+      }
+    }
+    var descEditor = window.ace.edit(editorEl);
+    render(descEditor.getValue());
+    descEditor.on("change", function () {
+      ta.value = descEditor.getValue();
+      render(ta.value);
+    });
+    descEditor.resize();
+
+    var jsTa = byId("id_javascript");
+    var jsEl = byId("javascript-editor");
+    if (jsTa && jsEl) {
+      var jsEditor = window.ace.edit(jsEl);
+      jsEditor.on("change", function () { jsTa.value = jsEditor.getValue(); });
+      jsEditor.resize();
+    }
+  }
+
+  function init() {
+    syncOrder();
+    initSortables();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    setTimeout(init, 0);
+  }
+  // after admin_description_editor.js, which also waits for django.jQuery's ready
+  if (window.django && window.django.jQuery) {
+    window.django.jQuery(initEditors);
+  } else if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initEditors);
+  } else {
+    setTimeout(initEditors, 0);
+  }
+})();
+</script>
