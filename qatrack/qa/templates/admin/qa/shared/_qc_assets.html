@@ -1,0 +1,185 @@
+{% comment %}
+Inlined CSS + JS for the QC-wide admin pages (admin/qa/change_form.html and
+admin/qa/change_list.html, and the per-model templates that extend them).
+
+Inlined in the page body (not static files), like the Test and Test List pages'
+assets, so they load under DEBUG=False without a collectstatic step and run under
+hx-boost. Colours follow docs/developer/design_system.ai.md (branch
+feature/design-system) as literal values, using its passing (A11Y) shades for text,
+as the Test List page does. Only Django admin's own variables are used, re-asserted
+below for its dark theme.
+{% endcomment %}{% load i18n static %}
+{# Font Awesome 4.7 for the card icons: an existing, already-collected static file (the Test and Test List pages load it through Media). #}
+<link rel="stylesheet" href="{% static 'fontawsome/css/font-awesome.min.css' %}">
+<style>
+/* Always-white cards stay legible under Django 4.2's dark admin theme: same light
+   values the Test and Test List pages re-assert on theirs. */
+#content-main .qc-card, #content-main .tl-attachments-card, #content-main #changelist {
+  --body-fg: #333; --body-bg: #fff; --body-quiet-color: #6b6b6b; --body-loud-color: #111;
+  --link-fg: #317399; --link-hover-color: #285f80; --hairline-color: #f4f4f4;
+  --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
+  --selected-fg: #333; --header-color: #444; --primary: #424f57; --secondary: #424f57;
+  --button-bg: #424f57; --button-fg: #fff; --button-hover-bg: #323e46;
+  --default-button-bg: #f4f4f4; --default-button-hover-bg: #e7e7e7; --close-button-bg: #f4f4f4;
+  --object-tools-bg: #f4f4f4; --object-tools-hover-bg: #e7e7e7;
+}
+{% include "admin/qa/shared/_header_css.html" %}
+{% include "admin/qa/shared/_card_form_css.html" %}
+{% include "admin/qa/shared/_attachments_css.html" %}
+{% include "admin/qa/shared/_changelist_css.html" %}
+
+/* ---- QC change form: generic fields inside the cards ---- */
+#content-main .qc-card { container-type: inline-size; color: #333; }
+#content-main .qc-card-desc { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: #5a6472; }
+#content-main .qc-field > .qc-label { font-size: 13px; font-weight: 600; color: #555; margin: 0; }
+#content-main .qc-help { font-size: 12px; line-height: 1.45; color: #6b6b6b; }
+#content-main .qc-help ul, #content-main .qc-help ol { margin: 4px 0; padding-left: 20px; }
+#content-main .qc-widget { min-width: 0; }
+#content-main .qc-readonly { font-size: 14px; line-height: 1.5; color: #333; padding: 2px 0; overflow-wrap: anywhere; }
+#content-main .qc-readonly p { margin: 0 0 6px; }
+#content-main .qc-empty { color: #767676; font-style: italic; }
+#content-main .qc-has-error > label, #content-main .qc-has-error > .qc-check { color: #c0392b; }
+/* Inputs the shared card CSS doesn't cover (it styles text inputs, textareas and selects). */
+#content-main .qc-field input[type="number"], #content-main .qc-field input[type="url"],
+#content-main .qc-field input[type="email"], #content-main .qc-field input[type="password"],
+#content-main .qc-field input[type="date"], #content-main .qc-field input[type="time"],
+#content-main .qc-field input[type="datetime-local"] {
+  width: 100%; box-sizing: border-box; font-size: 14px; color: #555; background: #fff;
+  border: 1px solid #d2d6de; border-radius: 0; box-shadow: 2px 2px 2px #ddd;
+  padding: 6px 10px; min-height: 34px; margin: 0;
+}
+#content-main .qc-field input:focus, #content-main .qc-field select:focus, #content-main .qc-field textarea:focus {
+  border-color: #3c8dbc; outline: none;
+}
+#content-main .qc-field input:focus-visible, #content-main .qc-field select:focus-visible, #content-main .qc-field textarea:focus-visible {
+  outline: 2px solid #3c8dbc; outline-offset: 1px;
+}
+/* Django's date/time widgets put the shortcuts ("Today | calendar") after a short input. */
+#content-main .qc-field .vDateField, #content-main .qc-field .vTimeField { width: auto; min-width: 9em; }
+#content-main .qc-field p.datetime { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: #555; font-size: 13px; }
+#content-main .qc-field .datetimeshortcuts a { color: #317399; }
+/* Foreign keys with Django's add/change links: the select fills the row. */
+#content-main .qc-field .related-widget-wrapper { display: flex; align-items: center; gap: 8px; width: 100%; float: none; }
+#content-main .qc-field .related-widget-wrapper select { flex: 1 1 auto; min-width: 0; width: auto; }
+#content-main .qc-field .related-widget-wrapper-link { flex: 0 0 auto; opacity: .85; }
+#content-main .qc-field .related-widget-wrapper-link:hover { opacity: 1; }
+/* Two-list "Available / Chosen" picker (filter_horizontal) spans the card. */
+#content-main .qc-field .selector { width: 100%; max-width: 100%; float: none; }
+#content-main .qc-field .selector h2 { background: #f4f4f4 !important; color: #444 !important; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+#content-main .qc-field .selector-chosen h2 { background: #424f57 !important; color: #fff !important; }
+#content-main .qc-field .selector select { background: #fff; color: #333; }
+/* Checkboxes: box and label on one line, like the design spec's form rows. */
+#content-main .qc-field-check { justify-content: center; }
+#content-main label.qc-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #444; margin: 0; cursor: pointer; }
+#content-main label.qc-check input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: #424f57; flex: none; }
+#content-main .qc-field .errorlist { list-style: none; margin: 0 0 4px; padding: 0; color: #c0392b; font-size: 12px; font-weight: 600; }
+#content-main .qc-field .errorlist li { margin: 0; padding: 0; background: none; border: 0; }
+/* Narrow cards (measured on the card, so the admin nav sidebar counts): one column. */
+@container (max-width: 560px) {
+  #content-main .qc-form { grid-template-columns: minmax(0, 1fr); }
+  #content-main .qc-form > * { grid-column: 1 !important; }
+}
+/* Page-level errors above the cards. */
+#content-main .errornote { background: #fdf6f5; border: 1px solid #edc9c3; color: #c0392b; font-weight: 600; font-size: 13px; padding: 8px 12px; margin: 0 0 12px; border-radius: 0; }
+#content-main .errornote + .errorlist, #content-main form > div > .errorlist.nonfield { list-style: none; margin: 0 0 12px; padding: 8px 12px; background: #fdf6f5; border: 1px solid #edc9c3; color: #c0392b; font-size: 13px; }
+
+/* ---- QC change form: inlines inside a card ---- */
+/* Django's own inline markup is kept (its JS adds and removes rows); the card's
+   header replaces the inline's own heading. */
+#content-main .qc-inline-body { padding: 0; overflow-x: auto; }
+#content-main .qc-inline-body .inline-group { margin: 0; border: 0; }
+#content-main .qc-inline-body fieldset.module { margin: 0; border: 0; padding: 0; background: #fff; box-shadow: none; }
+#content-main .qc-inline-body fieldset.module > h2,
+#content-main .qc-inline-body .inline-group > .inline-related > h3:first-child:empty { display: none; }
+#content-main .qc-inline-body table { width: 100%; border-collapse: collapse; background: #fff; }
+#content-main .qc-inline-body thead th { text-align: left; padding: 7px 10px; background: #fff; color: #6e7785; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; border: 0; box-shadow: inset 0 -2px 0 #d2d6de; }
+#content-main .qc-inline-body tbody td { padding: 8px 10px; border: 0; border-top: 1px solid #f4f4f4; vertical-align: middle; font-size: 13px; color: #333; background: #fff; }
+#content-main .qc-inline-body tbody tr:hover td { background: #f5f7fa; }
+#content-main .qc-inline-body tr.add-row td { padding: 9px 12px; background: #fbfcfd; border-top: 1px solid #f4f4f4; }
+#content-main .qc-inline-body .add-row a, #content-main .qc-inline-body .add-row a:link { color: #317399; font-size: 13px; font-weight: 600; background-position: 0 50%; }
+#content-main .qc-inline-body .inline-related h3 { background: #f4f4f4; color: #444; font-size: 13px; font-weight: 600; padding: 7px 12px; margin: 0; border: 0; }
+#content-main .qc-inline-body .inline-related h3 b { color: #444; }
+#content-main .qc-inline-body .inline-related fieldset.module { padding: 0 12px 8px; }
+#content-main .qc-inline-body .form-row { border-bottom: 1px solid #f4f4f4; padding: 8px 0; }
+#content-main .qc-inline-body input[type="text"], #content-main .qc-inline-body input[type="number"], #content-main .qc-inline-body select {
+  font-size: 13px; color: #555; background: #fff; border: 1px solid #d2d6de; border-radius: 0; box-shadow: 2px 2px 2px #ddd; padding: 4px 8px; min-height: 30px; box-sizing: border-box;
+}
+#content-main .qc-inline-body .errorlist { list-style: none; margin: 0 0 4px; padding: 0; color: #c0392b; font-size: 12px; font-weight: 600; }
+#content-main .qc-inline-body tr.row-form-errors td { background: #fdf6f5; padding: 6px 10px; }
+#content-main .qc-inline-body .inline-deletelink { opacity: .8; }
+
+/* ---- QC list pages ---- */
+.change-list.app-qa #content { padding-top: 8px; }
+/* list_editable inputs in the results */
+#result_list tbody td input[type="text"], #result_list tbody td input[type="number"], #result_list tbody td select {
+  font-size: 13px; color: #555; background: #fff; border: 1px solid #d2d6de; border-radius: 0; padding: 3px 6px; min-height: 28px; box-sizing: border-box;
+}
+#result_list tbody td input[type="checkbox"], #result_list thead th input[type="checkbox"] { accent-color: #424f57; }
+#result_list tbody th a, #result_list tbody td a { color: #317399; }
+#result_list tbody th a { font-weight: 600; }
+#result_list tbody tr.selected { background: #eef6fb; }
+/* Django's Save button for list_editable sits under the rows. */
+#changelist-form > .submit-row, #changelist-form p.paginator input[type="submit"] {
+  font-size: 12px; font-weight: 600; background: #424f57; border: 1px solid #424f57; color: #fff; border-radius: 3px; padding: 4px 12px; box-shadow: 2px 2px 2px #ddd; cursor: pointer;
+}
+#changelist-form .actions select { font-size: 13px; border: 1px solid #d2d6de; border-radius: 0; background: #fff; color: #555; min-height: 28px; }
+#changelist-form .actions .button { font-size: 12px; font-weight: 600; background: #f4f4f4; border: 1px solid #d2d6de; color: #444; border-radius: 3px; padding: 4px 11px; box-shadow: 2px 2px 2px #ddd; cursor: pointer; }
+#changelist-form .actions .button:hover { background: #e7e7e7; }
+#changelist .paginator .this-page { font-weight: 700; color: #444; }
+#changelist-form p.paginator { color: #6b6b6b; }
+/* Empty results */
+#changelist-form p.paginator:only-child, #changelist .results + p.paginator { margin: 0; }
+</style>
+
+{% include "admin/qa/shared/_attachments_js.html" %}
+{% include "admin/qa/shared/_changelist_js.html" %}
+<script>
+(function () {
+  "use strict";
+  if (window.__QC_ADMIN_INITIALIZED__) { return; }
+  window.__QC_ADMIN_INITIALIZED__ = true;
+
+  var SEARCH_PLACEHOLDER = "{{ _('Search…')|escapejs }}";
+
+  // List pages: a click anywhere on a row opens the item (its first link), as on the
+  // Test Lists page. Links, inputs and text selection keep working as usual.
+  function initRowClick() {
+    var table = document.getElementById("result_list");
+    if (!table || table.dataset.qcRowClick) { return; }
+    table.dataset.qcRowClick = "1";
+    var search = document.getElementById("searchbar");
+    if (search && !search.getAttribute("placeholder")) {
+      search.setAttribute("placeholder", SEARCH_PLACEHOLDER);
+    }
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      var link = tr.querySelector("th a[href], td a[href]");
+      if (!link || tr.querySelector("input:not([type=checkbox]):not([type=hidden]), select, textarea")) {
+        return;  // list_editable rows: clicks are for the inputs
+      }
+      tr.classList.add("qc-row-link");
+      tr.addEventListener("click", function (e) {
+        if (e.target.closest("a, input, label, button, select, textarea") ||
+            (window.getSelection && window.getSelection().toString())) { return; }
+        window.location = link.href;
+      });
+    });
+  }
+
+  function init() {
+    initRowClick();
+    if (window.qaChangelist) {
+      window.qaChangelist.initFilterCollapse();
+      window.qaChangelist.initResultsScroll();
+    }
+    if (document.getElementById("attachments-editor-container") && window.qaInitAttachmentsEditor) {
+      window.qaInitAttachmentsEditor();
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    setTimeout(init, 0);
+  }
+})();
+</script>

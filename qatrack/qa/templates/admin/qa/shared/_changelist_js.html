@@ -1,0 +1,155 @@
+{% comment %}
+JS shared by the QC admin list pages (the Test Lists page and admin/qa/change_list.html):
+window.qaChangelist.initFilterCollapse() and .initResultsScroll(). Each page calls them once its DOM is
+ready. Inlined in the page body (not a static file) so it loads without a collectstatic step.
+{% endcomment %}<script>
+(function () {
+  "use strict";
+  if (window.qaChangelist) { return; }
+
+  // Changelist: cap the results pane (and, on wide screens, the filter card) at the
+  // space left in the window so only the rows scroll, not the whole page, and the
+  // results card's top never ends up under the pinned admin header (.qa-admin-top).
+  function initResultsScroll() {
+    var results = document.querySelector("#changelist-form .results");
+    if (!results || results.dataset.tlFit) { return; }
+    results.dataset.tlFit = "1";
+    var form = document.getElementById("changelist-form");
+    var head = document.querySelector(".tl-results-head") || form;
+    var filter = document.getElementById("changelist-filter");
+    var pinned = document.getElementById("qa-admin-top");
+    var narrow = window.matchMedia ? window.matchMedia("(max-width: 1024px)") : null;
+    var GAP = 16;  // breathing room below the cards
+    function headerHeight() {
+      // Same rule as base_site.html's --qa-admin-top-h: 0 when the header scrolls away.
+      if (!pinned || window.getComputedStyle(pinned).position !== "sticky") { return 0; }
+      return pinned.getBoundingClientRect().height;
+    }
+    function fit() {
+      var view = window.innerHeight;
+      var resBox = results.getBoundingClientRect();
+      var above = resBox.top - head.getBoundingClientRect().top;  // title bar + actions bar
+      var below = form.getBoundingClientRect().bottom - resBox.bottom;  // paginator
+      var avail;
+      if (narrow && narrow.matches) {
+        // Filter card on top: the page scrolls, so size the whole results card to
+        // fit between the pinned header and the bottom of the window, counting the
+        // page padding below it (scrolled to the end, that's what sits under it).
+        if (filter) { filter.style.maxHeight = ""; }
+        var tail = document.documentElement.scrollHeight -
+          (form.getBoundingClientRect().bottom + window.scrollY);
+        avail = view - headerHeight() - above - below - Math.max(0, tail) - 12;
+        results.style.maxHeight = Math.max(240, Math.floor(avail)) + "px";
+        return;
+      }
+      // Filter beside the results: fill the window from where the cards start
+      // (measured in page coordinates, so the current scroll doesn't matter).
+      var cardTop = head.getBoundingClientRect().top + window.scrollY;
+      avail = view - cardTop - above - below - GAP;
+      var filterAvail = view - cardTop - GAP;
+      results.style.maxHeight = Math.max(240, Math.floor(avail)) + "px";
+      if (filter) { filter.style.maxHeight = Math.max(200, Math.floor(filterAvail)) + "px"; }
+      // Anything else below the cards (page padding, footer) still makes the page
+      // scroll: take that off too.
+      var extra = document.documentElement.scrollHeight - view;
+      if (extra > 0) {
+        results.style.maxHeight = Math.max(240, Math.floor(avail - extra)) + "px";
+        if (filter) { filter.style.maxHeight = Math.max(200, Math.floor(filterAvail - extra)) + "px"; }
+      }
+    }
+    var queued = false;
+    function queueFit() {
+      if (queued) { return; }
+      queued = true;
+      window.requestAnimationFrame(function () { queued = false; fit(); });
+    }
+    fit();
+    window.addEventListener("resize", queueFit);
+    window.addEventListener("load", queueFit);  // web fonts can change the bar heights
+    if (filter) {
+      // <details> "toggle" doesn't bubble, so listen in the capture phase.
+      filter.addEventListener("toggle", queueFit, true);
+    }
+    if (pinned && window.ResizeObserver) {
+      // The pinned header (and so --qa-admin-top-h) changes height as it wraps.
+      new ResizeObserver(queueFit).observe(pinned);
+    }
+  }
+
+  // Changelist, narrow screens (the filter card stacks above the results at the
+  // same max-width: 1024px as the CSS): start the filter groups collapsed so the
+  // first rows show near the top of the page. A group stays open when a choice
+  // other than "All" is picked in it, or when the person opened it themselves
+  // (Django's admin/js/filters.js remembers that in sessionStorage). Only the
+  // person's own clicks reach that memory: Chrome also fires "toggle" for every
+  // group that's parsed open, which filters.js would otherwise store as "opened",
+  // and our own collapsing must not be stored either. The groups we closed open
+  // again if the window becomes wide. Runs before initResultsScroll() so it
+  // measures the collapsed card.
+  function initFilterCollapse() {
+    var filter = document.getElementById("changelist-filter");
+    if (!filter || filter.dataset.tlCollapse || !window.matchMedia) { return; }
+    filter.dataset.tlCollapse = "1";
+    var narrow = window.matchMedia("(max-width: 1024px)");
+    var autoClosed = [];
+    function remembered() {
+      try {
+        return JSON.parse(window.sessionStorage.getItem("django.admin.filtersState")) || {};
+      } catch (e) {
+        return {};
+      }
+    }
+    function hasActiveChoice(details) {
+      // Every filter on this page lists "All" first; it's the selected one when
+      // the filter isn't in use.
+      var first = details.querySelector("li");
+      var selected = details.querySelector("li.selected");
+      return !!selected && selected !== first;
+    }
+    // A click on a summary (Enter and Space on a focused summary click it too)
+    // marks its group as toggled by the person.
+    filter.addEventListener("click", function (e) {
+      var summary = e.target.closest ? e.target.closest("summary") : null;
+      if (summary && summary.parentNode.tagName === "DETAILS") {
+        summary.parentNode.tlUserToggle = true;
+      }
+    }, true);
+    // "toggle" doesn't bubble: a capture listener on window runs before
+    // filters.js's listener on the <details>, so other toggles never reach it.
+    window.addEventListener("toggle", function (e) {
+      var details = e.target;
+      if (!details || !filter.contains(details)) { return; }
+      if (!details.tlUserToggle) {
+        e.stopImmediatePropagation();
+        return;
+      }
+      details.tlUserToggle = false;
+      // The person toggled it: from now on it's theirs, not ours to reopen.
+      var i = autoClosed.indexOf(details);
+      if (i !== -1) { autoClosed.splice(i, 1); }
+    }, true);
+    function apply() {
+      if (narrow.matches) {
+        var state = remembered();
+        filter.querySelectorAll("details").forEach(function (details) {
+          if (!details.open || hasActiveChoice(details) ||
+              state[details.dataset.filterTitle] === true) { return; }
+          details.open = false;
+          autoClosed.push(details);
+        });
+      } else {
+        autoClosed.forEach(function (details) { details.open = true; });
+        autoClosed = [];
+      }
+    }
+    apply();
+    if (narrow.addEventListener) { narrow.addEventListener("change", apply); }
+    else if (narrow.addListener) { narrow.addListener(apply); }
+  }
+
+  window.qaChangelist = {
+    initFilterCollapse: initFilterCollapse,
+    initResultsScroll: initResultsScroll
+  };
+})();
+</script>

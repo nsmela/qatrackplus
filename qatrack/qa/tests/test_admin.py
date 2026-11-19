@@ -1433,7 +1433,7 @@ class TestUnitTestInfoBooleanReferences(TestCase):
 
         resp = self.client.get(reverse('admin:qa_unittestinfo_change', args=[self.uti_bool.pk]))
         self.assertEqual(resp.status_code, 200)
-        self.assertRegex(resp.content.decode(), r'<div class="readonly">Yes</div>')
+        self.assertRegex(resp.content.decode(), r'<div class="qc-readonly">Yes</div>')
 
     def test_perform_qc_reference_column_legacy(self):
         self._set_legacy_refs()

@@ -56,7 +56,28 @@ from qatrack.units.models import Site, Unit
 admin.site.disable_action("delete_selected")
 
 
-class CategoryAdmin(DjangoMpttAdmin):
+class QCAdminDesignMixin:
+    """Shared look for the QC admin pages (admin/qa/change_form.html and change_list.html).
+
+    The templates themselves are picked up by Django's admin/<app>/ lookup; this mixin
+    makes every list filter start collapsed (admin/qa/shared/filter.html) and carries
+    the optional card settings read by qatrack/qa/templatetags/qc_admin.py:
+    qc_fieldset_icons, qc_wide_fields and qc_inline_icons.
+    """
+
+    qc_fieldset_icons = {}
+    qc_wide_fields = ()
+    qc_inline_icons = {}
+
+    def get_changelist_instance(self, request):
+        cl = super().get_changelist_instance(request)
+        for spec in cl.filter_specs:
+            if spec.template == "admin/filter.html":
+                spec.template = "admin/qa/shared/filter.html"
+        return cl
+
+
+class CategoryAdmin(QCAdminDesignMixin, DjangoMpttAdmin):
     """QC categories admin"""
     prepopulated_fields = {
         'slug': ('name',)
@@ -416,7 +437,7 @@ class ActiveUnitTestInfoFilter(admin.SimpleListFilter):
         return qs
 
 
-class UnitTestInfoAdmin(BaseQATrackAdmin):
+class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     """Admin interface for UnitTestInfo model"""
 
     change_list_template = "admin/qa/unittestinfo/change_list.html"
@@ -1253,7 +1274,7 @@ class SublistInline(DynamicRawIDMixin, admin.TabularInline):
 class CollapsedTestListFilter(admin.SimpleListFilter):
     """Base for the Test Lists page filters: each one starts collapsed."""
 
-    template = "admin/qa/testlist/filter.html"
+    template = "admin/qa/shared/filter.html"
 
 
 class ActiveTestListFilter(CollapsedTestListFilter):
@@ -2112,7 +2133,7 @@ class TestListAttachmentInline(get_attachment_inline("testlist")):
     extra = 1
 
 
-class TestListAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
+class TestListAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     change_form_template = "admin/qa/testlist/change_form.html"
 
@@ -2698,7 +2719,7 @@ class TestListMembershipFilter(admin.SimpleListFilter):
         return qs
 
 
-class TestAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
+class TestAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     inlines = [get_attachment_inline("test")]
     list_display = ["name", "id", "slug", "category", "type", 'obj_created', 'obj_modified']
@@ -3072,7 +3093,7 @@ class TestListAssignMachineForm(UnitTestCollectionForm):
         self.fields["visible_to"].queryset = self.fields["visible_to"].queryset.order_by("name")
 
 
-class UnitTestCollectionAdmin(BaseQATrackAdmin):
+class UnitTestCollectionAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     # readonly_fields = ("unit","frequency",)
     filter_horizontal = ("visible_to",)
     list_display = ['name', site_name, unit_name, freq_name, assigned_to_name, 'get_content_type', "active"]
@@ -3111,7 +3132,7 @@ class TestListCycleMembershipInline(DynamicRawIDMixin, admin.TabularInline):
     dynamic_raw_id_fields = ("test_list",)
 
 
-class TestListCycleAdmin(SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
+class TestListCycleAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
     """Admin for daily test list cycles"""
     inlines = [TestListCycleMembershipInline, get_attachment_inline("testlistcycle")]
     prepopulated_fields = {
@@ -3172,7 +3193,7 @@ class FrequencyForm(forms.ModelForm):
         return self.cleaned_data
 
 
-class FrequencyAdmin(BaseQATrackAdmin):
+class FrequencyAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     prepopulated_fields = {
         'slug': ('name',)
     }
@@ -3225,7 +3246,7 @@ class FrequencyAdmin(BaseQATrackAdmin):
         return "<br/>".join(processed)
 
 
-class StatusAdmin(BaseQATrackAdmin):
+class StatusAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     prepopulated_fields = {
         'slug': ('name',)
     }
@@ -3267,7 +3288,7 @@ def utc_unit_name(obj):
     return obj.unit_test_collection.unit.name
 
 
-class TestListInstanceAdmin(SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
+class TestListInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
     list_display = ["__str__", utc_unit_name, "test_list", "work_completed", "created_by"]
     list_filter = [
         "unit_test_collection__unit",
@@ -3292,7 +3313,7 @@ class TestListInstanceAdmin(SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
         return False
 
 
-class TestInstanceAdmin(SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
+class TestInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     list_display = [
         "__str__",
@@ -3446,7 +3467,7 @@ def testlist_new_tolerance(request):
     }, status=status)
 
 
-class ToleranceAdmin(BasicSaveUserAdmin):
+class ToleranceAdmin(QCAdminDesignMixin, BasicSaveUserAdmin):
     form = ToleranceForm
     list_filter = ["type"]
 
@@ -3468,7 +3489,7 @@ class ToleranceAdmin(BasicSaveUserAdmin):
         return super().has_change_permission(request, obj)
 
 
-class AutoReviewAdmin(BaseQATrackAdmin):
+class AutoReviewAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     list_display = (str, "pass_fail", "status")
     list_editable = ["pass_fail", "status"]
 
@@ -3490,7 +3511,7 @@ class AutoReviewRuleSetAdminForm(forms.ModelForm):
         return is_default
 
 
-class AutoReviewRuleSetAdmin(BaseQATrackAdmin):
+class AutoReviewRuleSetAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     list_display = ("__str__", "is_default", 'get_rules_display')
 
     filter_horizontal = ("rules",)
@@ -3503,7 +3524,7 @@ class AutoReviewRuleSetAdmin(BaseQATrackAdmin):
         return "<br>".join(str(rule) for rule in obj.rules.all().order_by('pass_fail'))
 
 
-class AutoSaveAdmin(BaseQATrackAdmin):
+class AutoSaveAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     list_display = (
         "created", "created_by", 'modified', 'modified_by', 'unit', 'unit_test_collection', 'test_list', 'recover'
     )

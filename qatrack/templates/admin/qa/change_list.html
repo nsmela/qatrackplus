@@ -1,0 +1,55 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls admin_list %}
+
+{% comment %}
+QC-wide list page: used by every QC (qa app) model without a change_list.html of its
+own. Same look as the Test Lists page: a title with the "x of y" count, the object
+tools as buttons ("Add …" is the page's primary action), the results in a white card
+with the search box in its header, and the filters in a card beside it (collapsed
+groups: admin/qa/shared/filter.html, set by QCAdminDesignMixin). The results table,
+actions, list_editable and pagination stay Django's.
+
+Per-model templates extend this one and override:
+  qc_list_title           the page title (default: verbose_name_plural)
+  object-tools-items      Django's; call {{ block.super }} to keep the Add button
+  qc_results_title        the results card's title
+  qc_results_icon         its Font Awesome icon (fa-list-alt)
+Styles and JS: admin/qa/shared/_qc_assets.html.
+{% endcomment %}
+
+{% block content_title %}{% endblock %}
+{% block title %}{{ cl.opts.verbose_name_plural|capfirst }} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+
+{% block object-tools %}
+{% include "admin/qa/shared/_qc_assets.html" %}
+<div class="tl-index-header qc-index-header">
+  <h1 class="tl-index-title">
+    {% block qc_list_title %}{{ cl.opts.verbose_name_plural|capfirst }}{% endblock %}
+    <small>{% blocktrans with count=cl.result_count total=cl.full_result_count|default:cl.result_count %}{{ count }} of {{ total }}{% endblocktrans %}</small>
+  </h1>
+  <ul class="tl-object-tools">
+    {% block object-tools-items %}
+      {% if has_add_permission %}
+      <li>
+        {% url cl.opts|admin_urlname:'add' as add_url %}
+        <a href="{% add_preserved_filters add_url is_popup to_field %}" class="tl-btn tl-btn-primary">
+          <i class="fa fa-plus" aria-hidden="true"></i> {% blocktrans with name=cl.opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}
+        </a>
+      </li>
+      {% endif %}
+    {% endblock %}
+  </ul>
+</div>
+{% endblock %}
+
+{% block search %}
+<div class="tl-results-head">
+  <i class="fa {% block qc_results_icon %}fa-list-alt{% endblock %}" aria-hidden="true"></i>
+  <h2 class="tl-results-title">{% block qc_results_title %}{{ cl.opts.verbose_name_plural|capfirst }}{% endblock %}</h2>
+  {% if cl.search_fields %}
+  <div class="tl-results-search">
+    {% search_form cl %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

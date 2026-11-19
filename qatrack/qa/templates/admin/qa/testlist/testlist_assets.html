@@ -2102,83 +2102,15 @@ ul.messagelist li.error {
   margin-bottom: 16px;
 }
 
-/* ---- Changelist ---- */
-/* .tl-visually-hidden (screen-reader-only text, e.g. the unit names behind the Units count)
-   and .tl-count-badge are in admin/qa/shared/_card_form_css.html. */
+{% include "admin/qa/shared/_changelist_css.html" %}
+/* ---- Changelist: Test List columns (shared list styles: admin/qa/shared/_changelist_css.html) ---- */
 .change-list.model-testlist #content { padding-top:8px; }
-.tl-index-header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px 16px; flex-wrap:wrap; margin:0 0 12px; }
-/* The title sits on the page background, not a white card: Django's own variables
-   keep it readable in both the light and the dark admin theme. */
-.tl-index-title { font-size:22px; font-weight:400; line-height:1.1; color:var(--body-fg, #444); margin:0; }
-.tl-index-title small { font-size:14px; color:var(--body-quiet-color, #666); margin-left:8px; }
-/* The buttons wrap onto a second line in narrow windows instead of widening the page;
-   right-aligned so "New Test List" stays at the end where it sits on wide screens. */
-.tl-object-tools { margin:0; padding:0; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; list-style:none; min-width:0; max-width:100%; }
-.tl-object-tools li { list-style:none; margin:0; float:none; }
-.tl-btn { display:inline-flex; align-items:center; gap:6px; font-size:13px; line-height:1.4; padding:6px 12px; border:1px solid #d2d6de; border-radius:3px; box-shadow:2px 2px 2px #ddd; text-decoration:none; white-space:nowrap; }
-/* a.tl-btn-*:link etc. outrank Django admin's a:link/a:visited/a:hover colours. */
-.tl-btn-default, a.tl-btn-default:link, a.tl-btn-default:visited { background:#f4f4f4; border-color:#d2d6de; color:#444; }
-.tl-btn-default:hover, a.tl-btn-default:hover, a.tl-btn-default:focus { background:#e7e7e7; color:#444; }
-.tl-btn-primary, a.tl-btn-primary:link, a.tl-btn-primary:visited { background:#424f57; border-color:#424f57; color:#fff; font-weight:600; }
-.tl-btn-primary:hover, a.tl-btn-primary:hover, a.tl-btn-primary:focus { background:#323e46; border-color:#212b33; color:#fff; }
-#changelist.filtered { display:grid; grid-template-columns:1fr 248px; column-gap:16px; row-gap:0; align-items:start; background:transparent; box-shadow:none; border:0; padding:0; margin:0; width:auto; }
-#changelist:not(.filtered) { background:#fff; border-top:3px solid #424f57; box-shadow:0 1px 1px rgba(0,0,0,.1); }
-.tl-results-head { grid-column:1; grid-row:1; display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-top:3px solid #424f57; border-bottom:1px solid #f4f4f4; box-shadow:0 1px 1px rgba(0,0,0,.1); }
-.tl-results-head > .fa { font-size:16px; color:#555; }
-.tl-results-title, #changelist .tl-results-title { font-size:18px; font-weight:400; line-height:1; color:#444 !important; background:transparent !important; margin:0; padding:0; }
-.tl-results-search { margin-left:auto; }
-#changelist-form { grid-column:1; grid-row:2; background:#fff; box-shadow:0 1px 1px rgba(0,0,0,.1); }
-.tl-results-search #toolbar { padding:0; margin:0; border:0; background:transparent; }
-.tl-results-search #changelist-search > div { display:flex; align-items:center; border:1px solid #d2d6de; padding:4px 9px; background:#fff; box-shadow:2px 2px 2px #eee; border-radius:2px; }
-.tl-results-search #changelist-search > div::before { font-family:FontAwesome; content:"\f002"; color:#6d7787; margin-right:6px; font-size:13px; }
-.tl-results-search label { display:none; }
-.tl-results-search #searchbar { border:0; outline:none; font-size:13px; min-width:210px; padding:0; margin:0; background:transparent; }
-/* Search is a secondary button (the page's one primary action is "New Test List").
-   The #changelist/#toolbar ids outrank Django's #toolbar form input[type="submit"]. */
-#changelist .tl-results-search #toolbar form input[type="submit"] { border:1px solid #d2d6de; background:#f4f4f4; color:#444; font-size:12px; font-weight:600; line-height:1.4; padding:4px 11px; border-radius:3px; box-shadow:2px 2px 2px #ddd; margin:0 0 0 8px; cursor:pointer; }
-#changelist .tl-results-search #toolbar form input[type="submit"]:hover { background:#e7e7e7; border-color:#d2d6de; color:#444; }
-#changelist .tl-results-search #toolbar form input[type="submit"]:focus { border-color:#3c8dbc; outline:none; }
-#changelist .tl-results-search #toolbar form input[type="submit"]:focus-visible { outline:2px solid #3c8dbc; outline-offset:1px; }
-.tl-results-search #changelist-search .quiet, .tl-results-search #changelist-search .help { display:none; }
-/* Rows scroll inside the card with the header pinned; initResultsScroll() sets an
-   inline max-height that fits the viewport so the actions bar and paginator stay
-   visible. This is the fallback before (or without) the script. */
-#changelist-form .results { max-height:calc(100vh - 320px); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#8a929e #f4f4f4; }
-#changelist-form .results::-webkit-scrollbar { width:10px; height:10px; }
-#changelist-form .results::-webkit-scrollbar-track { background:#f4f4f4; }
-#changelist-form .results::-webkit-scrollbar-thumb { background:#8a929e; border:2px solid #f4f4f4; border-radius:3px; }
-#changelist-form .results::-webkit-scrollbar-thumb:hover { background:#6e7785; }
-#result_list { width:100%; border-collapse:collapse; background:#fff; }
-/* Django's #changelist table thead th { padding:0 } outranks a padding set here, and
-   Django pads the header's inner .text link/span (8px 10px) instead, so the header
-   spacing (7px 10px, the design spec's data-table header) goes on that inner element. */
-#result_list thead th { position:sticky; top:0; z-index:2; text-align:left; border-bottom:0; box-shadow:inset 0 -2px 0 #d2d6de; font-size:11px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:#6e7785; background:#fff; white-space:nowrap; }
-#result_list thead th .text > a, #result_list thead th .text > span { padding:7px 10px; }
-/* One pixel less than Django's 9px, matching the 1px less above the label, so the
-   sort arrows and priority number stay level with the header text. */
-#result_list thead th.sorted .sortoptions { padding-top:8px; }
-#result_list thead th a, #result_list thead th.sortable a { color:#6e7785; }
-#result_list thead th a:hover, #result_list thead th.sortable a:hover { color:#444; }
-#result_list tbody td, #result_list tbody th { padding:8px 10px; border-top:1px solid #f4f4f4; border-bottom:0; vertical-align:middle; font-size:13px; color:#333; background:transparent; }
-#result_list tbody tr { background:#fff; }
-#result_list tbody tr:hover { background:#f5f7fa; cursor:pointer; }
 #result_list .column-col_id, #result_list .field-col_id { width:60px; }
 #result_list .column-col_frequency, #result_list .field-col_frequency { width:120px; }
 #result_list .column-col_units, #result_list .field-col_units { width:72px; }
 #result_list .column-col_modified, #result_list .field-col_modified { width:150px; }
 #result_list .column-col_edit, #result_list .field-col_edit { width:40px; text-align:center; }
-/* Narrow results card (measured on the card, so the admin nav sidebar counts):
-   the small columns shrink to their content and the Name column takes the rest,
-   so names wrap less and the edit pencil stays in view. Below about 460px the
-   rows scroll inside the card. */
-#changelist-form { container:tl-results / inline-size; min-width:0; }
-/* Keeps the screen-reader-only unit names (position: absolute) inside the scrolling
-   rows, so they can't widen the whole page when the rows scroll sideways. */
-#changelist-form .results { position:relative; }
 @container tl-results (max-width: 760px) {
-  /* Header spacing comes from Django's padded .text link/span (the th itself has none) */
-  #result_list thead th .text > a, #result_list thead th .text > span { padding-left:6px; padding-right:6px; }
-  #result_list tbody td, #result_list tbody th { padding:8px 6px; }
   #result_list .column-col_id, #result_list .field-col_id,
   #result_list .column-col_units, #result_list .field-col_units,
   #result_list .column-col_modified, #result_list .field-col_modified,
@@ -2200,59 +2132,10 @@ ul.messagelist li.error {
 .tl-cell-modified .tl-mod-by { color:#6b6b6b; font-size:12px; }
 .tl-editlink, a.tl-editlink:link, a.tl-editlink:visited { color:#6d7787; text-decoration:none; }
 .tl-editlink:hover, a.tl-editlink:hover, a.tl-editlink:focus { color:#317399; }
-#changelist-form .actions { box-sizing:border-box; width:100%; padding:8px 12px; background:#fbfcfd; border-bottom:1px solid #f4f4f4; margin:0; }
-.paginator { box-sizing:border-box; width:100%; padding:10px 12px; font-size:13px; color:#6b6b6b; border-top:1px solid #f4f4f4; background:#fff; }
-/* Links on plain white only: the spec's #357da7 (4.52:1). */
-.paginator a:link, .paginator a:visited { color:#357da7; background:transparent; }
-.paginator .this-page { font-weight:700; color:#444; }
-/* Wide screens: the filter card sits beside the results, pinned below the admin
-   header, and scrolls inside itself so the page never has to. initResultsScroll()
-   tightens max-height to the space actually left in the window. */
-#changelist-filter { grid-column:2; grid-row:1; align-self:start; position:sticky; top:calc(var(--qa-admin-top-h, 0px) + 16px); max-height:calc(100vh - var(--qa-admin-top-h, 0px) - 32px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#8a929e #f4f4f4; box-sizing:border-box; width:auto; margin:0; padding:0 0 8px; background:#fff; border-top:3px solid #424f57; box-shadow:0 1px 1px rgba(0,0,0,.1); }
-#changelist-filter h2 { display:flex; align-items:center; gap:8px; font-size:18px; font-weight:400; line-height:1; color:#444; margin:0; padding:10px 12px; border-bottom:1px solid #f4f4f4; background:#fff; text-transform:none; }
-#changelist-filter h2::before { font-family:FontAwesome; content:"\f0b0"; font-size:14px; color:#555; }
-#changelist-filter #changelist-filter-clear { margin:0; padding:8px 12px 0; background:transparent; border:0; }
-#changelist-filter #changelist-filter-clear a { color:#357da7; font-size:12px; font-weight:600; text-decoration:none; }
-/* The filter card is always white: set the text colour here too, because the dark
-   admin theme's light text is inherited as a computed colour, not via variables. */
-#changelist-filter { color:#333; }
-/* Django 4.2 renders each filter as <details><summary>By …</summary><ul>…</ul></details>. */
-#changelist-filter details { margin:0; }
-#changelist-filter details > summary { display:flex; align-items:center; gap:6px; list-style:none; font-size:11px; font-weight:700; line-height:1.3; text-transform:uppercase; letter-spacing:.03em; color:#6e7785; margin:0; padding:14px 12px 6px; cursor:pointer; }
-#changelist-filter details > summary::-webkit-details-marker { display:none; }
-#changelist-filter details > summary::before { font-family:FontAwesome; content:"\f0da"; flex:none; width:8px; font-size:12px; font-weight:400; color:#6e7785; }
-#changelist-filter details[open] > summary::before { content:"\f0d7"; }
-#changelist-filter details > summary:hover, #changelist-filter details > summary:hover::before { color:#444; }
-#changelist-filter details > summary:focus-visible { outline:2px solid #3c8dbc; outline-offset:-2px; }
-/* base_site.html forces overflow-y:scroll on every admin filter list; these are short. */
-#changelist-filter ul { list-style:none; margin:0; padding:0 8px; border:0; display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
-#changelist-filter ul li, #changelist-filter ul li.selected { margin:0; padding:0; border:0; }
-#changelist-filter ul li a { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:3px; font-size:13px; color:#444; text-decoration:none; }
-#changelist-filter ul li a:hover { background:#f5f7fa; color:#333; }
-#changelist-filter ul li.selected a { font-weight:600; color:#333; }
-/* Radio-style marker: a circle on purpose (it reads as "pick one"), 3:1 against white. */
-#changelist-filter ul li a::before { content:''; flex:none; box-sizing:border-box; width:15px; height:15px; border:1px solid #8a929e; border-radius:50%; background:#fff; }
-#changelist-filter ul li.selected a::before { border-color:#3c8dbc; background:#3c8dbc; box-shadow:inset 0 0 0 3px #fff; }
-#changelist.filtered > .changelist-inner { min-width:0; }
-/* Narrow screens: one column, filter card above the results with its groups side by side. */
-@media (max-width: 1024px) {
-  #changelist.filtered { grid-template-columns:minmax(0, 1fr); row-gap:12px; }
-  #changelist.filtered > .changelist-inner { grid-column:1; grid-row:2; }
-  #changelist.filtered > #changelist-filter { grid-column:1; grid-row:1; position:static; max-height:none; overflow:visible; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); align-items:start; column-gap:8px; }
-  #changelist-filter > h2, #changelist-filter > #changelist-filter-clear { grid-column:1 / -1; }
-  #changelist-filter ul { max-height:180px; }
-  .tl-results-head { flex-wrap:wrap; }
-  .tl-results-search { flex:1 1 280px; min-width:0; }
-  .tl-results-search #changelist-search > div { max-width:none; }
-  .tl-results-search #searchbar { min-width:0; flex:1 1 auto; width:auto; }
-  /* With the filter on top the space left below the rows is often nothing, so allow
-     roughly a screen of rows instead (initResultsScroll() refines this inline to fit
-     below the pinned admin header). */
-  #changelist-form .results { max-height:min(560px, calc(100vh - 220px)); }
-}
 </style>
 
 {% include "admin/qa/shared/_attachments_js.html" %}
+{% include "admin/qa/shared/_changelist_js.html" %}
 <script>
 (function () {
   "use strict";
@@ -2430,145 +2313,10 @@ ul.messagelist li.error {
     });
   }
 
-  // Changelist: cap the results pane (and, on wide screens, the filter card) at the
-  // space left in the window so only the rows scroll, not the whole page, and the
-  // results card's top never ends up under the pinned admin header (.qa-admin-top).
-  function initResultsScroll() {
-    var results = document.querySelector("#changelist-form .results");
-    if (!results || results.dataset.tlFit) { return; }
-    results.dataset.tlFit = "1";
-    var form = document.getElementById("changelist-form");
-    var head = document.querySelector(".tl-results-head") || form;
-    var filter = document.getElementById("changelist-filter");
-    var pinned = document.getElementById("qa-admin-top");
-    var narrow = window.matchMedia ? window.matchMedia("(max-width: 1024px)") : null;
-    var GAP = 16;  // breathing room below the cards
-    function headerHeight() {
-      // Same rule as base_site.html's --qa-admin-top-h: 0 when the header scrolls away.
-      if (!pinned || window.getComputedStyle(pinned).position !== "sticky") { return 0; }
-      return pinned.getBoundingClientRect().height;
-    }
-    function fit() {
-      var view = window.innerHeight;
-      var resBox = results.getBoundingClientRect();
-      var above = resBox.top - head.getBoundingClientRect().top;  // title bar + actions bar
-      var below = form.getBoundingClientRect().bottom - resBox.bottom;  // paginator
-      var avail;
-      if (narrow && narrow.matches) {
-        // Filter card on top: the page scrolls, so size the whole results card to
-        // fit between the pinned header and the bottom of the window, counting the
-        // page padding below it (scrolled to the end, that's what sits under it).
-        if (filter) { filter.style.maxHeight = ""; }
-        var tail = document.documentElement.scrollHeight -
-          (form.getBoundingClientRect().bottom + window.scrollY);
-        avail = view - headerHeight() - above - below - Math.max(0, tail) - 12;
-        results.style.maxHeight = Math.max(240, Math.floor(avail)) + "px";
-        return;
-      }
-      // Filter beside the results: fill the window from where the cards start
-      // (measured in page coordinates, so the current scroll doesn't matter).
-      var cardTop = head.getBoundingClientRect().top + window.scrollY;
-      avail = view - cardTop - above - below - GAP;
-      var filterAvail = view - cardTop - GAP;
-      results.style.maxHeight = Math.max(240, Math.floor(avail)) + "px";
-      if (filter) { filter.style.maxHeight = Math.max(200, Math.floor(filterAvail)) + "px"; }
-      // Anything else below the cards (page padding, footer) still makes the page
-      // scroll: take that off too.
-      var extra = document.documentElement.scrollHeight - view;
-      if (extra > 0) {
-        results.style.maxHeight = Math.max(240, Math.floor(avail - extra)) + "px";
-        if (filter) { filter.style.maxHeight = Math.max(200, Math.floor(filterAvail - extra)) + "px"; }
-      }
-    }
-    var queued = false;
-    function queueFit() {
-      if (queued) { return; }
-      queued = true;
-      window.requestAnimationFrame(function () { queued = false; fit(); });
-    }
-    fit();
-    window.addEventListener("resize", queueFit);
-    window.addEventListener("load", queueFit);  // web fonts can change the bar heights
-    if (filter) {
-      // <details> "toggle" doesn't bubble, so listen in the capture phase.
-      filter.addEventListener("toggle", queueFit, true);
-    }
-    if (pinned && window.ResizeObserver) {
-      // The pinned header (and so --qa-admin-top-h) changes height as it wraps.
-      new ResizeObserver(queueFit).observe(pinned);
-    }
-  }
-
-  // Changelist, narrow screens (the filter card stacks above the results at the
-  // same max-width: 1024px as the CSS): start the filter groups collapsed so the
-  // first rows show near the top of the page. A group stays open when a choice
-  // other than "All" is picked in it, or when the person opened it themselves
-  // (Django's admin/js/filters.js remembers that in sessionStorage). Only the
-  // person's own clicks reach that memory: Chrome also fires "toggle" for every
-  // group that's parsed open, which filters.js would otherwise store as "opened",
-  // and our own collapsing must not be stored either. The groups we closed open
-  // again if the window becomes wide. Runs before initResultsScroll() so it
-  // measures the collapsed card.
-  function initFilterCollapse() {
-    var filter = document.getElementById("changelist-filter");
-    if (!filter || filter.dataset.tlCollapse || !window.matchMedia) { return; }
-    filter.dataset.tlCollapse = "1";
-    var narrow = window.matchMedia("(max-width: 1024px)");
-    var autoClosed = [];
-    function remembered() {
-      try {
-        return JSON.parse(window.sessionStorage.getItem("django.admin.filtersState")) || {};
-      } catch (e) {
-        return {};
-      }
-    }
-    function hasActiveChoice(details) {
-      // Every filter on this page lists "All" first; it's the selected one when
-      // the filter isn't in use.
-      var first = details.querySelector("li");
-      var selected = details.querySelector("li.selected");
-      return !!selected && selected !== first;
-    }
-    // A click on a summary (Enter and Space on a focused summary click it too)
-    // marks its group as toggled by the person.
-    filter.addEventListener("click", function (e) {
-      var summary = e.target.closest ? e.target.closest("summary") : null;
-      if (summary && summary.parentNode.tagName === "DETAILS") {
-        summary.parentNode.tlUserToggle = true;
-      }
-    }, true);
-    // "toggle" doesn't bubble: a capture listener on window runs before
-    // filters.js's listener on the <details>, so other toggles never reach it.
-    window.addEventListener("toggle", function (e) {
-      var details = e.target;
-      if (!details || !filter.contains(details)) { return; }
-      if (!details.tlUserToggle) {
-        e.stopImmediatePropagation();
-        return;
-      }
-      details.tlUserToggle = false;
-      // The person toggled it: from now on it's theirs, not ours to reopen.
-      var i = autoClosed.indexOf(details);
-      if (i !== -1) { autoClosed.splice(i, 1); }
-    }, true);
-    function apply() {
-      if (narrow.matches) {
-        var state = remembered();
-        filter.querySelectorAll("details").forEach(function (details) {
-          if (!details.open || hasActiveChoice(details) ||
-              state[details.dataset.filterTitle] === true) { return; }
-          details.open = false;
-          autoClosed.push(details);
-        });
-      } else {
-        autoClosed.forEach(function (details) { details.open = true; });
-        autoClosed = [];
-      }
-    }
-    apply();
-    if (narrow.addEventListener) { narrow.addEventListener("change", apply); }
-    else if (narrow.addListener) { narrow.addListener(apply); }
-  }
+  // Changelist filter collapsing and results scrolling are shared with the other QC
+  // list pages: admin/qa/shared/_changelist_js.html (window.qaChangelist).
+  function initResultsScroll() { if (window.qaChangelist) { window.qaChangelist.initResultsScroll(); } }
+  function initFilterCollapse() { if (window.qaChangelist) { window.qaChangelist.initFilterCollapse(); } }
 
   function sortBuilderItemsByOrder() {
     var tbody = document.getElementById("tl-tests-tbody");

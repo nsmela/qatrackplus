@@ -18,6 +18,13 @@ def builder_css():
     origin = get_template('admin/qa/testlist/testlist_assets.html').origin
     with open(origin.name, encoding='utf-8') as f:
         source = f.read()
+
+    # The list styles live in shared partials it includes inside its <style> block.
+    def inline_include(match):
+        with open(get_template(match.group(1)).origin.name, encoding='utf-8') as f:
+            return f.read()
+
+    source = re.sub(r'{%\s*include\s+"(admin/qa/shared/_[a-z_]+_css\.html)"\s*%}', inline_include, source)
     styles = re.findall(r'<style[^>]*>(.*?)</style>', source, re.S)
     assert styles, 'testlist_assets.html has no <style> block'
     return COMMENT_RE.sub('', '\n'.join(styles))

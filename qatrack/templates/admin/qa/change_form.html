@@ -1,0 +1,102 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls qc_admin %}
+
+{% comment %}
+QC-wide change form: used by every QC (qa app) model that has no change_form.html of
+its own (Django looks for admin/qa/<model>/change_form.html first). It draws the page
+the way the Test and Test List pages look: a pinned title row with the page's one save
+button group, each fieldset as a card (admin/qa/includes/qc_fieldset_card.html) and
+each inline as a card, with the attachments inline as the shared attachments card.
+
+Per-model templates extend this one and override its blocks:
+  qc_title       the title text ("Add Frequency" / "Edit Frequency")
+  qc_header_meta the quieter text after the title (default: the object's name)
+  qc_header_actions_extra  extra buttons before History/Delete/Cancel
+  field_sets, after_field_sets, inline_field_sets, after_related_objects (Django's)
+ModelAdmin attributes that tune the cards: see qatrack/qa/templatetags/qc_admin.py.
+Styles and JS: admin/qa/shared/_qc_assets.html.
+View-only users keep the same cards, with every field read-only.
+{% endcomment %}
+
+{% block title %}{% if add %}{% blocktrans with name=opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }} | {% blocktrans with name=opts.verbose_name|capfirst %}Edit {{ name }}{% endblocktrans %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block pretitle %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block content_subtitle %}{% endblock %}
+{% block object-tools %}{% endblock %}
+
+{% block form_top %}
+{% include "admin/qa/shared/_qc_assets.html" %}
+
+<div class="tl-header-bar qc-header-bar">
+  <div class="tl-header-left">
+    <h1 class="tl-header-title">
+      {% block qc_title %}{% if add %}{% blocktrans with name=opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}{% elif not has_change_permission %}{% blocktrans with name=opts.verbose_name|capfirst %}View {{ name }}{% endblocktrans %}{% else %}{% blocktrans with name=opts.verbose_name|capfirst %}Edit {{ name }}{% endblocktrans %}{% endif %}{% endblock %}{% if original.pk %}
+        <span class="tl-header-id"><span class="tl-header-id-sep" aria-hidden="true">&middot;</span> {% trans "ID" %} {{ original.pk }}</span>{% endif %}
+    </h1>
+    {% if original.pk %}
+      <span class="tl-header-counts qc-header-meta">{% block qc_header_meta %}{{ original|truncatewords:"12" }}{% endblock %}</span>
+    {% endif %}
+  </div>
+  <div class="tl-header-actions">
+    {% block qc_header_actions_extra %}{% endblock %}
+    {% if change and original.pk and not is_popup %}
+      <a href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}" class="tl-top-btn tl-top-btn-secondary" id="qc-history-btn">
+        <i class="fa fa-history" aria-hidden="true"></i> {% trans "History" %}
+      </a>
+      {% if has_delete_permission and show_delete is not False %}
+        {% url opts|admin_urlname:'delete' original.pk|admin_urlquote as delete_url %}
+        <a href="{% add_preserved_filters delete_url %}" class="tl-top-btn tl-top-btn-delete" id="qc-delete-btn">
+          <i class="fa fa-trash-o" aria-hidden="true"></i> {% trans "Delete" %}
+        </a>
+      {% endif %}
+    {% endif %}
+    {% if not is_popup %}
+      <a href="{% url opts|admin_urlname:'changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qc-cancel-btn">{% if add or has_change_permission %}{% trans "Cancel" %}{% else %}{% trans "Back" %}{% endif %}</a>
+    {% endif %}
+    {% if change and has_change_permission and save_as and has_add_permission %}
+      {# Django's "Save as new": a copy with these values; the original is left as it was saved. #}
+      <button type="submit" name="_saveasnew" class="tl-top-btn tl-top-btn-secondary" id="qc-saveas-btn"
+              title="{% blocktrans with name=opts.verbose_name %}Save these values as a new {{ name }} and leave this one unchanged{% endblocktrans %}">
+        <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save as New" %}
+      </button>
+    {% endif %}
+    {% if add and has_add_permission or change and has_change_permission %}
+      {% if not is_popup %}
+        <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary" id="qc-continue-btn">{% trans "Save and Continue Editing" %}</button>
+      {% endif %}
+      <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save" id="qc-save-btn">
+        <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save" %}
+      </button>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block field_sets %}
+{% for fieldset in adminform %}
+  {% include "admin/qa/includes/qc_fieldset_card.html" with first=forloop.first %}
+{% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+  {% if "attachment" in inline_admin_formset.formset.prefix and inline_admin_formset.has_add_permission %}
+    {% include "admin/qa/shared/_attachments_card.html" with attach_fk_name=inline_admin_formset.formset.fk.name %}
+  {% else %}
+    {% qc_inline_icon adminform.model_admin inline_admin_formset as inline_icon %}
+    <div class="tl-details-card qc-card qc-inline-card" id="qc-inline-{{ inline_admin_formset.formset.prefix }}">
+      <div class="tl-card-header">
+        <i class="fa {{ inline_icon }}" aria-hidden="true"></i>
+        <h2 class="tl-card-title">{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
+        <span class="tl-count-badge">{{ inline_admin_formset.formset.initial_form_count }}</span>
+      </div>
+      <div class="tl-card-body qc-inline-body">
+        {% include inline_admin_formset.opts.template %}
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
+{% endblock %}
+
+{# One save button group, in the title row at the top, so Django's bottom submit row isn't shown. #}
+{% block submit_buttons_bottom %}{% endblock %}
