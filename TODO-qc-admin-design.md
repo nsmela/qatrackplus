@@ -86,19 +86,19 @@ Remove this file before the branch is merged.
       status label. The "must be one default" error still renders. Used In
       card: tests using this rule set.
 
-## Step 2B: Frequencies, Categories, Autosaves
+## Step 2B: Frequencies, Categories, Autosaves ✅
 
-- [ ] **Frequencies:** `admin/qa/frequency/change_form.html` extends
+- [x] **Frequencies:** `admin/qa/frequency/change_form.html` extends
       `admin/qa/change_form.html`. Cards: Details (name, slug), Due Window
       (window start/end), Schedule (recurrence widget, full width), Preview
       (cal-heatmap). Feature: **"Next due dates" list** (next 8 occurrences)
       under the preview, updated over htmx as the schedule changes. Feature:
       **Used In** card: assignments using this frequency.
-- [ ] **Categories:** change form via the shared template (parent, name,
+- [x] **Categories:** change form via the shared template (parent, name,
       slug, description). Tree changelist (django-mptt-admin) keeps its tree;
       add the title row above it if its template allows. Feature: **Used In**
       card: tests in this category, linking to the filtered Test list.
-- [ ] **Autosaves:** list restyled; "Recover" reads as a button-like link;
+- [x] **Autosaves:** list restyled; "Recover" reads as a button-like link;
       Feature: change page shows a read-only summary card (unit, test list,
       who/when, number of values saved) with a Recover button.
 
