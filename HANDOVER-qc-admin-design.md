@@ -1,8 +1,10 @@
 # Handover: QC admin page redesign
 
-Written 2026-11-19. Steps 1–4 are built: step 1 is on this branch, and steps 2–4
-are on six unmerged agent branches. Nothing has been merged, reviewed by a person,
-checked in a browser or pushed. Remove this file, the agent brief
+Written 2026-11-19, updated the same day after merging. Steps 1–4 are built and
+all on this branch: step 1 directly, steps 2–4 merged from six agent branches.
+The whole non-Selenium suite passes and every page has been looked at in a
+browser (see [Checked after merging](#checked-after-merging)). Nothing has been
+reviewed by a person or pushed. Remove this file, the agent brief
 (`HANDOVER-qc-admin-agent-brief.md`) and `TODO-qc-admin-design.md` before the
 branch is merged.
 
@@ -72,7 +74,7 @@ every QC model that has no override of its own.
 - I checked the Statuses, Tolerances, Test Lists and Test List Cycles pages in a
   running admin, in both light and dark themes.
 
-## Built, not merged: six agent branches (steps 2–4)
+## Merged: six agent branches (steps 2–4)
 
 Each step 2–4 group was built by an agent, in its own worktree under
 `.claude/worktrees/`, on its own branch starting at `c3a9216f`
@@ -83,8 +85,10 @@ and the whole `qatrack/qa` suite passing on its own branch (958–980 tests,
 Selenium tests excluded). None was checked in a browser; the brief left that to
 the lead.
 
-**Merging:** the six branches merge into this branch in the order below without
-conflicts. This was checked with `git merge-tree`; no branch was changed.
+**Merged** into this branch in the order below, each with its own merge commit
+(`--no-ff`), all without conflicts: `ff327b0a` (2A), `6d6ea662` (2B), `4c26279b`
+(4), `73a0f9b3` (3A), `a258699a` (3B), `3eee7872` (3C). The branches themselves
+are unchanged.
 
 | Branch | Commits | New tests | Pages |
 |---|---|---|---|
@@ -95,7 +99,7 @@ conflicts. This was checked with `git merge-tree`; no branch was changed.
 | `qc-admin/3b-assignments` | `117fe5dc`, `c9a39b60` | `test_qc_admin_3b.py` (38) | Assign Test Lists to Units |
 | `qc-admin/3c-refs-tols` | `a842980e`, `bff71feb`, `3b1991e7` | `test_qc_admin_3c.py` (28) | Set References & Tolerances, copy and set-multiple pages |
 
-### What each branch built (from the agents' reports, not yet verified)
+### What each branch built (from the agents' reports; see the browser check below)
 
 - **2A, Statuses, Tolerances and Auto Review**
   - Statuses:
@@ -221,12 +225,65 @@ conflicts. This was checked with `git merge-tree`; no branch was changed.
 - Move the builder's modal CSS from `testlist_assets.html` into a shared
   partial, such as `shared/_modal_css.html`. 3C copied about 80 lines of it.
 
+## Checked after merging
+
+**Automated:** `uv run ruff check .` passes, `manage.py check` finds no issues,
+and the whole suite passes: `uv run pytest -m "not selenium"` gave 2154 passed,
+5 skipped, 38 deselected. `qatrack/qa` + `qatrack/qatrack_core` gave 1321 passed
+after the last merge.
+
+**In a browser** (dev server, sqlite, a little demo data; Chromium in the
+desktop app's browser pane). No console errors, and no 4xx or 5xx responses in
+the server log.
+
+- **Tolerances:** choosing a type shows the right card. The limits preview
+  updates as you type and warns when limits are out of order. Saving out-of-order
+  limits shows the server error on the field.
+- **Frequencies:** the recurrence widget, the cal-heatmap preview, Next Due
+  Dates (refreshes when the due window changes) and the Used In card all work.
+- **Auto Review Rule Sets:** the checkbox list shows rules grouped by result,
+  each with its status label. The Used In card shows.
+- **Statuses:** the list shows each status as a coloured label with its word.
+- **Test List Cycles:** day rows, the Add Test List dialog (search, "Already in
+  this cycle", Add), removing a day and adding it back, then Save and Continue
+  all work. The rows come back in order. Drag and drop was not tried.
+- **Assignments:** the picker (choosing Test List or Test List Cycle, searching,
+  Choose) and the Contents preview card (a cycle's days, or a test list's tests)
+  work. The change page shows the unit and test list read-only.
+- **Set References & Tolerances:** the list shows "Not set" / "Not used". The
+  pencil opens the dialog. New Tolerance stacks on top and, once created, is
+  selected in the dialog. Saving updates the row in place and shows a "Saved"
+  message.
+- **Categories, Autosaves, Test List Instances:** lists and the TLI change page
+  render.
+- **Dark theme:** the lists, the cycle page and the TLI page keep white cards
+  with readable text.
+- **About 768px wide:** the cycle page, the assignment page and the Unit Test
+  Info list stack into one column with nothing cut off. Header buttons wrap to a
+  second row.
+
+Small things noticed, not fixed:
+
+- On a field with an error, the error list sits above the input, so that input
+  drops below the others in its row (seen on Tolerance's Action High).
+- The assignment page title reads "Edit Unit test collection". This is the
+  model's verbose name, not new; the list is titled "Assign Test Lists to
+  Units".
+- With no type chosen on Add Tolerance, both the Limits and Multiple Choice
+  cards show until a type is picked.
+- Search boxes use `keyup changed`, as the Test List builder does. Pasting with
+  the mouse doesn't search until a key is pressed.
+
+Not tried in a browser: drag and drop, Save as New, Delete, a view-only user,
+test pack import and export, and the Autosave Recover button (there were no
+autosaves). The tests cover Save as New, Delete and view-only for every page.
+
 ## Next steps
 
 1. **Read every diff.** `AGENTS.md` requires a human to read and understand each
-   line before a PR is opened.
-2. **Merge into this branch, one at a time,** in the table's order. Run
-   `uv run pytest -m "not selenium" qatrack/qa qatrack/qatrack_core` after each.
+   line before a PR is opened. Including the merge commits, `git diff
+   origin/feat/test-builder...HEAD` shows everything this branch adds.
+2. ~~Merge into this branch.~~ Done; see above.
 3. **Apply the shared-file suggestions you agree with** in one commit.
 4. **Translations:** the strings are new. Run `makemessages` for fr, fr-ca and es
    once, translate or leave the entries empty, then run
@@ -238,13 +295,8 @@ conflicts. This was checked with `git merge-tree`; no branch was changed.
    - A view-only user.
    - Each new feature listed above.
 
-   Things no one has tried in a real browser yet:
-   - The tolerance limits preview.
-   - The rules checkbox list.
-   - The recurrence widget and next due dates.
-   - The cycle drag and drop and its search dialog.
-   - The assignment picker and its contents preview.
-   - The 3C pencil dialog, including New Tolerance.
+   Most of this has now been done; see [Checked after merging](#checked-after-merging)
+   for what hasn't.
 6. **Docs:** `docs/admin/qa/test_list_cycles.rst` still describes the old raw-ID
    picker. The screenshots in `assign_to_unit.rst` and `testpack.rst` are out of
    date. Review the rest of `docs/admin/qa/` for these pages too.
@@ -268,7 +320,10 @@ conflicts. This was checked with `git merge-tree`; no branch was changed.
   `db/default.db`.
 - `db/default.db` is migrated, has the default fixtures loaded and has a local
   superuser for the dev server. If you need to log in, set its password with
-  `uv run python manage.py changepassword admin`. There is no demo QC data.
+  `uv run python manage.py changepassword admin`. It has a little demo QC data:
+  unit "Linac 1", test lists "Daily Linac QC" and "Weekly Output", the cycle
+  "Monday/Tuesday cycle", two assignments, one Test List Instance, two auto
+  review rules and one rule set.
 - `.claude/launch.json` defines the `qc-admin-dev` dev server on port 8017. It
   is not committed.
 - Agents' worktrees each need the two settings files copied in and their own
