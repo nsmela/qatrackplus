@@ -1,0 +1,34 @@
+{% load i18n %}
+{% comment %}
+The Frequency page's "Next due dates" list (admin/qa/frequency/change_form.html), drawn
+with the page and redrawn over htmx by FrequencyAdmin.next_due_dates_view. Context:
+next_due, from qatrack.qa.admin.frequency_next_due_dates.
+{% endcomment %}
+{% if next_due.dates %}
+  <p class="qcf-due-note">
+    {% if next_due.classic %}
+      {% trans "If QC is performed today and then on each due date. With no QC window start, each due date is counted from when QC was last performed, so real dates move with each completion." %}
+    {% else %}
+      {% trans "If QC is performed today and then on each due date." %}
+    {% endif %}
+  </p>
+  <ol class="qcf-due-list">
+    {% for d in next_due.dates %}
+      <li class="qcf-due-item">
+        <span class="qcf-due-date"><span class="qcf-due-day">{{ d.due|date:"D" }}</span> {{ d.due|date:"DATE_FORMAT" }}</span>
+        <span class="qcf-due-window">
+          {% if d.window_start %}
+            {% blocktrans with start=d.window_start|date:"DATE_FORMAT" end=d.window_end|date:"DATE_FORMAT" %}QC window {{ start }} to {{ end }}{% endblocktrans %}
+          {% else %}
+            {% blocktrans with end=d.window_end|date:"DATE_FORMAT" %}Overdue after {{ end }}{% endblocktrans %}
+          {% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  <p class="qcf-due-message{% if next_due.is_error %} qcf-due-problem{% endif %}" role="status">
+    <i class="fa {% if next_due.is_error %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}" aria-hidden="true"></i>
+    {{ next_due.message }}
+  </p>
+{% endif %}

@@ -1,0 +1,95 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+
+{% comment %}
+Auto Save change form: a read-only summary card (what was being performed, by whom and
+when, and how much it holds; context from AutoSaveAdmin.render_change_form) with a
+Recover button that reopens it on the Perform QC page, above the usual field cards.
+{% endcomment %}
+
+{% block qc_header_meta %}{{ original.unit_test_collection.unit.name }} &middot; {{ original.test_list.name }}{% endblock %}
+
+{% block field_sets %}
+{% if original.pk and qcas_summary %}
+<style>
+  #content-main .qcas-summary-head .qcas-recover { margin-left: auto; }
+  #content-main a.qcas-recover, #content-main a.qcas-recover:link, #content-main a.qcas-recover:visited {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; line-height: 1.4;
+    padding: 5px 12px; color: #fff; background: #424f57; border: 1px solid #424f57; border-radius: 3px;
+    box-shadow: 2px 2px 2px #ddd; text-decoration: none; white-space: nowrap;
+  }
+  #content-main a.qcas-recover:hover, #content-main a.qcas-recover:focus { background: #323e46; border-color: #212b33; color: #fff; }
+  #content-main a.qcas-recover:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
+  #content-main dl.qcas-summary { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 20px; margin: 0; font-size: 14px; }
+  #content-main dl.qcas-summary dt { font-size: 13px; font-weight: 600; color: #555; margin: 0; padding: 0; }
+  #content-main dl.qcas-summary dd { margin: 0; padding: 0; color: #333; overflow-wrap: anywhere; }
+  #content-main dl.qcas-summary dd a, #content-main dl.qcas-summary dd a:link, #content-main dl.qcas-summary dd a:visited { color: #317399; }
+  #content-main .qcas-meta { color: #6e7785; font-size: 13px; }
+  #content-main .qcas-note { margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: #6e7785; }
+  @container (max-width: 460px) {
+    #content-main dl.qcas-summary { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    #content-main dl.qcas-summary dd { margin-bottom: 8px; }
+  }
+</style>
+{% with s=qcas_summary utc=original.unit_test_collection %}
+<div class="tl-details-card qc-card qcas-card" id="qcas-summary-card">
+  <div class="tl-card-header qcas-summary-head">
+    <i class="fa fa-floppy-o" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Summary" %}</h2>
+    <a href="{{ qcas_recover_url }}" class="qcas-recover" id="qcas-recover-btn"
+       title="{% trans "Continue this auto saved session on the Perform QC page" %}">
+      <i class="fa fa-undo" aria-hidden="true"></i> {% trans "Recover" %}
+    </a>
+  </div>
+  <div class="tl-card-body">
+    <dl class="qcas-summary">
+      <dt>{% trans "Unit" %}</dt>
+      <dd>{{ utc.unit.name }}</dd>
+
+      <dt>{% trans "Test list" %}</dt>
+      <dd>
+        {{ original.test_list.name }}
+        {% if utc.content_type.model == "testlistcycle" %}
+          <span class="qcas-meta">&middot; {% blocktrans with cycle=utc.name day=original.day|add:1 %}day {{ day }} of {{ cycle }}{% endblocktrans %}</span>
+        {% endif %}
+      </dd>
+
+      <dt>{% trans "Assignment" %}</dt>
+      <dd>
+        {% if perms.qa.view_unittestcollection or perms.qa.change_unittestcollection %}
+          <a href="{% url 'admin:qa_unittestcollection_change' utc.pk %}">{{ utc.unit.name }} &middot; {{ utc.name }}</a>
+        {% else %}
+          {{ utc.unit.name }} &middot; {{ utc.name }}
+        {% endif %}
+      </dd>
+
+      <dt>{% trans "Created" %}</dt>
+      <dd>{{ original.created|date:"DATETIME_FORMAT" }} <span class="qcas-meta">&middot; {% blocktrans with user=original.created_by.get_full_name|default:original.created_by.username %}by {{ user }}{% endblocktrans %}</span></dd>
+
+      <dt>{% trans "Last saved" %}</dt>
+      <dd>{{ original.modified|date:"DATETIME_FORMAT" }} <span class="qcas-meta">&middot; {% blocktrans with user=original.modified_by.get_full_name|default:original.modified_by.username %}by {{ user }}{% endblocktrans %}</span></dd>
+
+      <dt>{% trans "Values saved" %}</dt>
+      <dd id="qcas-values">
+        {% blocktrans count counter=s.values %}{{ counter }} test value{% plural %}{{ counter }} test values{% endblocktrans %}
+        {% if s.skips or s.comments or s.has_tli_comment %}
+          <span class="qcas-meta">
+            {% if s.skips %}&middot; {% blocktrans count counter=s.skips %}{{ counter }} skipped{% plural %}{{ counter }} skipped{% endblocktrans %}{% endif %}
+            {% if s.comments %}&middot; {% blocktrans count counter=s.comments %}{{ counter }} test comment{% plural %}{{ counter }} test comments{% endblocktrans %}{% endif %}
+            {% if s.has_tli_comment %}&middot; {% trans "a test list comment" %}{% endif %}
+          </span>
+        {% endif %}
+      </dd>
+
+      {% if original.test_list_instance_id %}
+        <dt>{% trans "Editing" %}</dt>
+        <dd>{% blocktrans with pk=original.test_list_instance_id %}Changes to a test list already performed (ID {{ pk }}){% endblocktrans %}</dd>
+      {% endif %}
+    </dl>
+    <p class="qcas-note">{% trans "Recover opens this session on the Perform QC page with its saved values filled in, so it can be finished and submitted." %}</p>
+  </div>
+</div>
+{% endwith %}
+{% endif %}
+{{ block.super }}
+{% endblock %}

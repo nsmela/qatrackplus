@@ -1,0 +1,108 @@
+{% comment %}
+Styles and glue JS for the Frequency change form (admin/qa/frequency/change_form.html),
+inlined in the page body like the shared QC assets so they load under DEBUG=False and
+need no collectstatic. qcf- is this page's class prefix. The cards themselves come from
+admin/qa/shared/_qc_assets.html.
+{% endcomment %}
+<style>
+/* ---- Schedule card: django-recurrence's widget (it draws itself before the hidden textarea) ---- */
+#content-main .field-recurrences div.recurrence-widget { float: none; width: 100%; box-sizing: border-box; border: 1px solid #d2d6de; background: #fff; color: #333; box-shadow: 2px 2px 2px #ddd; }
+#content-main .field-recurrences div.recurrence-widget div.panel { border-bottom-color: #f4f4f4; }
+/* The widget turns its labels white for a dark system theme; the card stays white. */
+#content-main .field-recurrences div.recurrence-widget a.recurrence-label { color: #333; }
+#content-main .field-recurrences div.recurrence-widget .remove, #content-main .field-recurrences div.recurrence-widget .remove:link { color: #555; }
+#content-main .field-recurrences div.recurrence-widget .remove:hover { color: #c0392b; }
+#content-main .field-recurrences div.recurrence-widget .add-button, #content-main .field-recurrences div.recurrence-widget .add-button:link { color: #317399; font-weight: 600; }
+#content-main .field-recurrences div.recurrence-widget select,
+#content-main .field-recurrences div.recurrence-widget input:not([type="checkbox"]):not([type="radio"]) {
+  width: auto; min-height: 28px; padding: 3px 6px; font-size: 13px; color: #555; background: #fff;
+  border: 1px solid #d2d6de; border-radius: 0; box-shadow: none; box-sizing: border-box;
+}
+#content-main .field-recurrences div.recurrence-widget .grid td { color: #333; }
+#content-main .field-recurrences div.recurrence-widget .grid td.active { background: #d2d6de; font-weight: 600; }
+/* The widget's date picker is added to <body>, outside the card. */
+table.recurrence-calendar { background: #fff; color: #333; box-shadow: 0 2px 6px rgba(0,0,0,.15); z-index: 1000; }
+
+/* ---- Preview card ---- */
+#content-main .qcf-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+#content-main .qcf-swatch { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; color: #333; padding: 2px 8px; border: 1px solid #d2d6de; }
+#content-main .qcf-swatch-window { background: #d6ffb0; }
+#content-main .qcf-swatch-due { background: #faea25; }
+#content-main .qcf-swatch-unscheduled { background: #afd9ee; }
+#content-main .qcf-classic-note { font-size: 13px; line-height: 1.5; color: #5a6472; background: #f8f9fa; border-left: 3px solid #3c8dbc; padding: 8px 10px; margin: 0 0 10px; }
+#content-main .qcf-classic-note a { color: #317399; }
+#content-main .qcf-calendars { overflow-x: auto; padding-bottom: 4px; }
+#qcf-preview-card .subdomain-text { fill: #000 !important; }
+#qcf-preview-card .graph-label { fill: #2f2f2f !important; }
+#content-main .qcf-next-due { margin-top: 14px; border-top: 1px solid #f4f4f4; padding-top: 12px; }
+#content-main .qcf-section-title { font-size: 13px; font-weight: 600; color: #555; margin: 0 0 6px; padding: 0; background: none; text-transform: none; letter-spacing: normal; }
+#content-main .qcf-due-note { font-size: 12px; line-height: 1.45; color: #6e7785; margin: 0 0 8px; }
+#content-main ol.qcf-due-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 12px; }
+#content-main li.qcf-due-item { list-style: none; margin: 0; padding: 6px 10px; border: 1px solid #e3e6ea; background: #fff; }
+#content-main .qcf-due-date { display: block; font-size: 14px; font-weight: 600; color: #333; }
+#content-main .qcf-due-day { color: #6e7785; }
+#content-main .qcf-due-window { display: block; font-size: 12px; color: #6e7785; }
+#content-main .qcf-due-message { font-size: 13px; color: #6d7787; font-style: italic; margin: 0; }
+#content-main .qcf-due-message.qcf-due-problem { color: #c0392b; font-style: normal; font-weight: 600; }
+#content-main #qcf-next-due.htmx-request { opacity: .6; transition: opacity .2s; }
+
+/* ---- Used In card ---- */
+#content-main ul.qcf-used-list { list-style: none; margin: 0; padding: 0; }
+#content-main li.qcf-used-item { list-style: none; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0; padding: 6px 2px; border-bottom: 1px solid #f4f4f4; }
+#content-main .qcf-used-link { display: inline-flex; align-items: baseline; gap: 6px; font-size: 14px; color: #333; }
+#content-main a.qcf-used-link, #content-main a.qcf-used-link:link, #content-main a.qcf-used-link:visited { color: #317399; text-decoration: none; }
+#content-main a.qcf-used-link:hover { color: #285f80; text-decoration: underline; }
+#content-main .qcf-used-unit { font-weight: 600; }
+#content-main .qcf-used-sep { color: #8a929e; }
+#content-main .qcf-tag { font-size: 11px; font-weight: 600; color: #444; background: #f4f4f4; border: 1px solid #d2d6de; border-radius: 2px; padding: 1px 6px; }
+#content-main .qcf-tag-inactive { color: #6e7785; font-style: italic; }
+#content-main .qcf-used-more { font-size: 13px; color: #6e7785; margin: 8px 0 0; }
+#content-main .qcf-used-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 10px 0 0; font-size: 13px; }
+#content-main a.qcf-used-all, #content-main a.qcf-used-all:link, #content-main a.qcf-used-all:visited { color: #317399; font-weight: 600; }
+#content-main .qcf-used-hint { font-size: 12px; color: #6e7785; }
+#content-main .qcf-empty { color: #6d7787; font-size: 13px; font-style: italic; margin: 0; }
+</style>
+<script>
+(function () {
+  "use strict";
+  // "Next due dates": ask the server again (htmx, debounced by the element's
+  // hx-trigger delay) whenever the schedule or the QC window changes. The recurrence
+  // widget rewrites its hidden textarea without firing change events, so its value is
+  // polled, as js/frequency_admin.js does for the calendars.
+  function init() {
+    var box = document.getElementById("qcf-next-due");
+    if (!box || box.dataset.qcfInit || !box.hasAttribute("hx-post")) { return; }
+    box.dataset.qcfInit = "1";
+
+    function changed() {
+      if (window.htmx) { window.htmx.trigger(box, "qcf-schedule-changed"); }
+    }
+
+    var rec = document.getElementById("id_recurrences");
+    if (rec) {
+      var last = rec.value;
+      setInterval(function () {
+        if (rec.value !== last) { last = rec.value; changed(); }
+      }, 250);
+    }
+    ["id_window_start", "id_window_end"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.addEventListener("input", changed); }
+    });
+
+    // A schedule that can't be used yet comes back as 422 with its message: show it.
+    document.body.addEventListener("htmx:beforeSwap", function (e) {
+      if (e.detail.target === box && e.detail.xhr && e.detail.xhr.status === 422) {
+        e.detail.shouldSwap = true;
+        e.detail.isError = false;
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>

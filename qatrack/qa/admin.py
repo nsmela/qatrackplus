@@ -77,6 +77,10 @@ class QCAdminDesignMixin:
         return cl
 
 
+# How many tests the Category page's Used In card lists before pointing to the Test list.
+CATEGORY_USED_IN_LIMIT = 20
+
+
 class CategoryAdmin(QCAdminDesignMixin, DjangoMpttAdmin):
     """QC categories admin"""
     prepopulated_fields = {
@@ -86,12 +90,29 @@ class CategoryAdmin(QCAdminDesignMixin, DjangoMpttAdmin):
         "name",
         "get_description",
     )
+    # One Details card, parent first (admin/qa/category/change_form.html adds Used In).
+    fields = ("parent", "name", "slug", "description")
+    qc_wide_fields = ("parent",)
+    # django-mptt-admin's tree and grid lists, with the QC title row on top.
+    change_tree_template = "admin/qa/category/change_list.html"
+    change_list_template = "admin/qa/category/grid_view.html"
 
+    @admin.display(description=_l("Description"))
     def get_description(self, obj):
         """Just used to disable ordering by description"""
         return obj.description if obj else ""
 
-    get_description.short_name = _l("Description")
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        """Context for the Used In card: the tests filed under this category."""
+        context["qcc_tests"] = []
+        context["qcc_test_count"] = 0
+        if obj is not None and obj.pk:
+            tests = obj.test_set.order_by("name")
+            context["qcc_test_count"] = tests.count()
+            context["qcc_tests"] = list(tests[:CATEGORY_USED_IN_LIMIT])
+            context["qcc_tests_more"] = context["qcc_test_count"] - len(context["qcc_tests"])
+            context["qcc_child_count"] = obj.get_children().count()
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
 
 class UnitTestInfoForm(forms.ModelForm):
@@ -3193,18 +3214,120 @@ class FrequencyForm(forms.ModelForm):
         return self.cleaned_data
 
 
+# How many due dates the Frequency page's "Next due dates" list shows, and how many
+# assignments its Used In card lists before pointing to the full list.
+FREQUENCY_NEXT_DUE_COUNT = 8
+FREQUENCY_USED_IN_LIMIT = 25
+FREQUENCY_WINDOW_FIELDSET = _l("Due Window")
+FREQUENCY_SCHEDULE_FIELDSET = _l("Schedule")
+
+
+class FrequencyPreviewForm(forms.Form):
+    """The schedule as it stands in the Frequency form, for the "Next due dates" list.
+
+    Nothing is saved from it. Its checks are gentler than FrequencyForm's: an empty or
+    half-finished schedule is normal while someone is still building it."""
+
+    recurrences = models.Frequency._meta.get_field("recurrences").formfield(required=False)
+    window_start = forms.IntegerField(min_value=0, required=False)
+    window_end = forms.IntegerField(min_value=0, required=False)
+
+
+def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
+    """The next `count` due dates for the schedule in `data` (recurrences, window_start
+    and window_end as posted by the Frequency form), worked out with the same
+    qatrack_core.scheduling helpers used for real assignments: QC performed today, then
+    on each due date. Each date comes with its QC window.
+
+    Returns a dict for admin/qa/frequency/_next_due.html: ``dates``, ``classic`` and a
+    friendly ``message`` (with ``is_error``) when there's nothing to list."""
+    result = {"dates": [], "classic": False, "message": "", "is_error": False}
+    form = FrequencyPreviewForm(data)
+    if not form.is_valid():
+        result["is_error"] = True
+        if "recurrences" in form.errors:
+            result["message"] = _("This schedule can't be read yet. Check its rules and dates.")
+        else:
+            result["message"] = _("The QC window start and end are whole numbers of days, 0 or more.")
+        return result
+
+    recurrences = form.cleaned_data["recurrences"]
+    if recurrences is None or not (recurrences.rrules or recurrences.rdates):
+        if recurrences is not None and (recurrences.exrules or recurrences.exdates):
+            result["is_error"] = True
+            result["message"] = _("This schedule only excludes dates. Add a rule or a date for QC to be due.")
+        else:
+            result["message"] = _("Add a rule or a date to the schedule to see when QC will be due.")
+        return result
+
+    frequency = models.Frequency(
+        recurrences=recurrences,
+        window_start=form.cleaned_data["window_start"],
+        window_end=form.cleaned_data["window_end"] or 0,
+    )
+    if recurrences.dtstart is None:
+        frequency.relocalize_recurrence()
+    result["classic"] = frequency.classical
+
+    now = timezone.localtime(now or timezone.now())
+    try:
+        # A first completion today: calc_due_date with no due date yet, as for a new assignment.
+        due = scheduling.calc_due_date(now, None, frequency)
+        while due is not None and len(result["dates"]) < count:
+            window_start, window_end = scheduling.qc_window(due, frequency)
+            result["dates"].append({"due": due, "window_start": window_start, "window_end": window_end})
+            next_due = scheduling.calc_due_date(due, due, frequency)
+            if next_due is None or next_due <= due:
+                break
+            due = next_due
+    except (ValueError, TypeError, OverflowError):
+        result["dates"] = []
+        result["is_error"] = True
+        result["message"] = _("This schedule can't be read yet. Check its rules and dates.")
+        return result
+
+    if not result["dates"]:
+        result["is_error"] = True
+        result["message"] = _("This schedule has no due dates after today. Check its dates and any end date or count.")
+    return result
+
+
+def _frequency_form_schedule_data(form, obj=None):
+    """The recurrences/window values the Frequency change form is showing: what was
+    posted when the form is bound, otherwise the saved (or default) values. (A
+    view-only page's form has no fields; its values are the saved ones.)"""
+    names = ("recurrences", "window_start", "window_end")
+    if form.is_bound:
+        return {name: form.data.get(name, "") for name in names}
+
+    data = {}
+    for name in names:
+        if name in form.fields:
+            value = form[name].value()
+        else:
+            value = getattr(obj, name, None)
+        if name == "recurrences" and value and not isinstance(value, str):
+            value = str(value)  # the serialized rules, as the widget shows them
+        data[name] = "" if value is None else value
+    return data
+
+
 class FrequencyAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     prepopulated_fields = {
         'slug': ('name',)
     }
     form = FrequencyForm
-    fields = (
-        "name",
-        "slug",
-        "window_start",
-        "window_end",
-        "recurrences",
+    # Cards: Details, Due Window, Schedule, then the Preview and Used In cards from
+    # admin/qa/frequency/change_form.html.
+    fieldsets = (
+        (None, {"fields": ("name", "slug")}),
+        (FREQUENCY_WINDOW_FIELDSET, {"fields": ("window_start", "window_end")}),
+        (FREQUENCY_SCHEDULE_FIELDSET, {"fields": ("recurrences",)}),
     )
+    qc_fieldset_icons = {
+        FREQUENCY_WINDOW_FIELDSET: "fa-clock-o",
+        FREQUENCY_SCHEDULE_FIELDSET: "fa-repeat",
+    }
 
     list_display = (
         "name",
@@ -3224,10 +3347,48 @@ class FrequencyAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             "d3/js/d3-3.5.6.min.js",
             "cal-heatmap/js/cal-heatmap.min.js",
             "js/frequency_admin.js",
+            # The "Next due dates" list refreshes over htmx (admin/qa/frequency/frequency_assets.html).
+            "htmx/js/htmx.min.js",
         )
         css = {
             'all': ["cal-heatmap/css/cal-heatmap.css"],
         }
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                'next-due-dates/',
+                self.admin_site.admin_view(self.next_due_dates_view),
+                name='qa_frequency_next_due',
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def next_due_dates_view(self, request):
+        """POST (htmx): the "Next due dates" list for the schedule in the posted form.
+        For anyone who can add or change frequencies; nothing is saved. A schedule that
+        can't be used yet answers 422 with its friendly message in the list's place."""
+        if request.method != "POST":
+            from django.http import HttpResponseNotAllowed
+            return HttpResponseNotAllowed(["POST"])
+        if not (self.has_add_permission(request) or self.has_change_permission(request)):
+            return HttpResponseForbidden()
+        next_due = frequency_next_due_dates(request.POST)
+        status = 422 if next_due["is_error"] else 200
+        return render(request, "admin/qa/frequency/_next_due.html", {"next_due": next_due}, status=status)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        """Context for the Preview and Used In cards in admin/qa/frequency/change_form.html."""
+        form = context["adminform"].form
+        context["qcf_next_due"] = frequency_next_due_dates(_frequency_form_schedule_data(form, obj))
+        context["qcf_used_in"] = []
+        context["qcf_used_in_count"] = 0
+        if obj is not None and obj.pk:
+            utcs = obj.unittestcollections.select_related("unit", "content_type").order_by("unit__name", "name")
+            context["qcf_used_in_count"] = utcs.count()
+            context["qcf_used_in"] = list(utcs[:FREQUENCY_USED_IN_LIMIT])
+            context["qcf_used_in_more"] = context["qcf_used_in_count"] - len(context["qcf_used_in"])
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
     @admin.display(description=_l("Recurrences"))
     @mark_safe
@@ -3535,14 +3696,55 @@ class AutoSaveAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             "created_by", "modified_by", "unit_test_collection", "unit_test_collection__unit", "test_list"
         )
 
+    @admin.display(description=_l("Unit"), ordering="unit_test_collection__unit__name")
     def unit(self, obj):
         return obj.unit_test_collection.unit.name
 
-    @mark_safe
+    @staticmethod
+    def recover_url(obj):
+        """The Perform QC page with this auto save loaded, built as that page's own "Auto
+        Saved Sessions" menu builds it: on the saved cycle day, and through Continue for a
+        session that was already in progress."""
+        if obj.test_list_instance_id:
+            base = reverse("continue_tli", kwargs={'pk': obj.test_list_instance_id})
+        else:
+            base = reverse("perform_qa", kwargs={'pk': obj.unit_test_collection_id})
+        return base + "?autosave_id=%d&day=%d" % (obj.pk, obj.day + 1)
+
+    @admin.display(description=_l("Recover"))
     def recover(self, obj):
-        href = reverse("perform_qa", kwargs={'pk': obj.unit_test_collection_id}) + "?autosave_id=%d" % obj.pk
-        title = _("Click to continue this auto saved session")
-        return '<a href="%s" title="%s">%s</a>' % (href, title, _("Recover"))
+        # A small button-style link (styled in admin/qa/autosave/change_list.html).
+        return format_html(
+            '<a href="{}" class="qcas-recover-btn" title="{}"><i class="fa fa-undo" aria-hidden="true"></i> {}</a>',
+            self.recover_url(obj),
+            _("Click to continue this auto saved session"),
+            _("Recover"),
+        )
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        """Context for the summary card in admin/qa/autosave/change_form.html."""
+        if obj is not None and obj.pk:
+            context["qcas_summary"] = autosave_summary(obj)
+            context["qcas_recover_url"] = self.recover_url(obj)
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+
+def autosave_summary(autosave):
+    """What an auto save holds, counted from its data ({"tests": {slug: value}, "skips",
+    "comments", "tli_comment"}, as qa.views.perform.autosave saves it): how many tests
+    have a value, how many were skipped and how many have a comment."""
+    data = autosave.data if isinstance(autosave.data, dict) else {}
+
+    def count(key, test):
+        values = data.get(key)
+        return sum(1 for v in values.values() if test(v)) if isinstance(values, dict) else 0
+
+    return {
+        "values": count("tests", lambda v: v not in (None, "")),
+        "skips": count("skips", bool),
+        "comments": count("comments", lambda v: bool(v and str(v).strip())),
+        "has_tli_comment": bool(str(data.get("tli_comment") or "").strip()),
+    }
 
 
 admin.site.register([models.Tolerance], ToleranceAdmin)
