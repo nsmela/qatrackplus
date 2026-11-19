@@ -113,17 +113,19 @@ Remove this file before the branch is merged.
 - [ ] Attachments card. Feature: **Used In** card: assignments of this cycle.
 - [ ] List: name, number of days, test lists summary, assignments count.
 
-## Step 3B: Assign Test Lists to Units (Unit Test Collections)
+## Step 3B: Assign Test Lists to Units (Unit Test Collections) ✅
 
-- [ ] Own `admin/qa/unittestcollection/change_form.html` extending the shared
+- [x] Own `admin/qa/unittestcollection/change_form.html` extending the shared
       one, replacing `admin/treenav/menuitem/change_form.html`. Cards: What
       (content type + object), Where & When (unit, frequency, active), Who
-      (assigned to, visible to).
-- [ ] Feature: **htmx object picker**: choosing Test List or Test List Cycle
+      (assigned to, visible to). Due date and auto schedule (same fields as
+      before) sit in Where & When. A saved assignment's unit and test list are
+      read-only, with a `<details>` to pick others for Save as New.
+- [x] Feature: **htmx object picker**: choosing Test List or Test List Cycle
       then searching for it, replacing the `updatecombo` select reload.
-- [ ] Feature: **contents preview** card: the chosen test list's tests (or the
+- [x] Feature: **contents preview** card: the chosen test list's tests (or the
       cycle's days) read-only, and a link to its builder.
-- [ ] List: `list_editable` active and `save_as` keep working; frequency and
+- [x] List: `list_editable` active and `save_as` keep working; frequency and
       assigned-to shown as tags.
 
 ## Step 3C: Set References & Tolerances (Unit Test Infos)
