@@ -129,7 +129,7 @@ are unchanged.
     - Fixed the `short_name` → `short_description` typo.
   - Autosaves:
     - A summary card with a Recover button.
-    - **Behaviour change to approve:** Recover now builds the link the way the
+    - **Behaviour change, approved by the maintainer 2026-11-19:** Recover now builds the link the way the
       Perform QC page's own menu does, adding `&day=` and going through
       `continue_tli` for sessions in progress. Before, it opened the wrong day
       for cycles.
@@ -338,7 +338,7 @@ Picked up from the handover above. Committed as one commit on this branch.
 Still not tried by hand: Save as New, Delete and a view-only user (the tests
 cover them on every page).
 
-**Behaviour change to approve:** the cycle's Add Test List dialog won't add a
+**Behaviour change, approved by the maintainer 2026-11-19:** the cycle's Add Test List dialog won't add a
 test list that is already in the cycle ("Already in this cycle"). The old
 raw-ID picker allowed it. A test list twice in one cycle already breaks the
 membership's natural key (test list + cycle slugs, used by test packs), so this
@@ -394,8 +394,9 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
    `setting_refs_and_tols.rst`.
 7. Run `uv run ruff check .` and `uv run pre-commit run --all-files`.
 8. **Open questions for the maintainer:**
-   - Approve the Autosave Recover link change?
-   - Approve the cycle picker refusing a test list that's already in the cycle?
+   - ~~Approve the Autosave Recover link change?~~ Approved 2026-11-19.
+   - ~~Approve the cycle picker refusing a test list that's already in the cycle?~~
+     Approved 2026-11-19.
    - Register the set-multiple action?
    - What to do about the test pack import script and the Autosave `data`
      field?
