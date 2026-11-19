@@ -94,3 +94,38 @@ def qc_help_text(admin_field):
     if admin_field.is_readonly:
         return admin_field.field.get("help_text", "")
     return admin_field.field.help_text
+
+
+@register.simple_tag
+def qc_label_for(admin_field):
+    """The id a field's <label for=""> should point at, or "" for none.
+
+    Django gives no id for some widgets: a split date and time (two inputs) and a list of
+    checkboxes. A split widget's label points at its first input; a checkbox list gets no
+    ``for`` at all, as on Django's own admin forms.
+    """
+    if admin_field.is_readonly:
+        return ""
+    bound = admin_field.field
+    if bound.id_for_label:
+        return bound.id_for_label
+    widget = bound.field.widget
+    widget = getattr(widget, "widget", widget)
+    if isinstance(widget, forms.MultiWidget) and bound.auto_id:
+        return "%s_0" % bound.auto_id
+    return ""
+
+
+@register.simple_tag
+def qc_hide_label(fieldset, admin_field):
+    """True when a field's label would only repeat its card's title.
+
+    That is a card with one field, labelled the same as the card (e.g. Comments in the
+    Comments card). The label is then kept for screen readers but not shown. A required
+    field keeps its label, so its required marker stays visible.
+    """
+    fields = [f for line in fieldset for f in line if f.is_readonly or not f.field.is_hidden]
+    if len(fields) != 1 or qc_is_required(admin_field):
+        return False
+    label = str(qc_label(admin_field) or "").strip().lower()
+    return bool(label) and label == str(qc_fieldset_title(fieldset)).strip().lower()

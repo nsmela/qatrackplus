@@ -167,3 +167,66 @@ class TestEveryQCAdminPageRenders(TestCase):
             with self.subTest(model=name):
                 resp = self.client.get(reverse('admin:qa_%s_change' % name, args=(obj.pk,)))
                 self.assertEqual(resp.status_code, 200)
+
+
+class TestQCCardLabels(TestCase):
+    """Labels on the cards (admin/qa/includes/qc_fieldset_card.html)."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        utc = qa_utils.create_unit_test_collection()
+        self.tli = qa_utils.create_test_list_instance(unit_test_collection=utc)
+
+    def tli_html(self):
+        return self.client.get(reverse('admin:qa_testlistinstance_change', args=(self.tli.pk,))).content.decode()
+
+    def test_no_label_points_nowhere(self):
+        html = self.tli_html()
+        self.assertNotIn('for=""', html)
+        rule_set_html = self.client.get(reverse('admin:qa_autoreviewruleset_add')).content.decode()
+        self.assertNotIn('for=""', rule_set_html)
+
+    def test_split_date_and_time_label_points_at_the_date(self):
+        html = self.tli_html()
+        self.assertIn('id="id_work_started_0"', html)
+        self.assertRegex(html, r'<label for="id_work_started_0">')
+
+    def test_label_repeating_the_card_title_is_only_for_screen_readers(self):
+        html = self.tli_html()
+        # The Comments card holds one field, also called Comments
+        self.assertIn('<span class="qc-label tl-visually-hidden">Comments</span>', html)
+        # Labels that differ from their card's title stay visible
+        self.assertIn('<span class="qc-label">Test List</span>', html)
+
+    def test_required_single_field_keeps_its_label(self):
+        # Rule Sets' Rules card holds one required field, also called Rules
+        html = self.client.get(reverse('admin:qa_autoreviewruleset_add')).content.decode()
+        self.assertRegex(html, r'<label>Rules <em class="tl-req"')
+
+
+class TestSharedDialogStyles(TestCase):
+    """The dialog frame and the Reference and Tolerance dialog have one copy of their CSS."""
+
+    def setUp(self):
+        create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.cycle = qa_utils.create_cycle(test_lists=[qa_utils.create_test_list()])
+
+    def test_pages_with_dialogs_include_the_dialog_frame(self):
+        frame = 'Dialog frame (admin/qa/shared/_modal_css.html)'
+        reftol = 'Reference and Tolerance dialogs (admin/qa/shared/_reftol_dialog_css.html)'
+        pages = {
+            'builder': (reverse('admin:qa_testlist_add'), True),
+            'cycle': (reverse('admin:qa_testlistcycle_change', args=(self.cycle.pk,)), False),
+            'refs and tols': (reverse('admin:qa_unittestinfo_changelist'), True),
+        }
+        for page, (url, has_reftol) in pages.items():
+            with self.subTest(page=page):
+                html = self.client.get(url).content.decode()
+                self.assertEqual(html.count(frame), 1)
+                self.assertEqual(html.count(reftol), 1 if has_reftol else 0)
+
+    def test_list_without_filters_draws_one_top_border(self):
+        html = self.client.get(reverse('admin:qa_autoreviewruleset_changelist')).content.decode()
+        self.assertIn('#changelist:not(.filtered) .tl-results-head { border-top:0;', html)

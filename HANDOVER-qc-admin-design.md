@@ -209,21 +209,37 @@ are unchanged.
 - `CopyReferencesAndTolerances` (a FormPreview in `views/admin.py`) is dead
   code: no URL points to it.
 
-### Changes the agents suggest to the shared step 1 files
+### Changes the agents suggested to the shared step 1 files: applied
+
+Applied in one commit after merging:
 
 - `includes/qc_fieldset_card.html`:
-  - Leave out `for` when `id_for_label` is empty (the rules checkbox list),
-    or fall back to the first sub-widget's id (split date-and-time widgets).
-    Today both render `<label for="">`.
-  - Allow hiding the field label in a single-field card (e.g. Comments inside
-    the Comments card).
-  - Consider "Not set" instead of "Not specified" for an empty reference or
-    tolerance.
-- `_changelist_css.html` / `_qc_assets.html`: on lists without filters, both
-  `#changelist:not(.filtered)` and `.tl-results-head` have a 3px top border,
-  which may show as a double line. Check in the browser.
-- Move the builder's modal CSS from `testlist_assets.html` into a shared
-  partial, such as `shared/_modal_css.html`. 3C copied about 80 lines of it.
+  - No more `<label for="">`. A split date-and-time label points at the date
+    input (`<id>_0`). A checkbox list's label has no `for`, as on Django's own
+    admin forms. (`qc_admin.qc_label_for`)
+  - A label that would only repeat its card's title (one field, same name as
+    the card, e.g. Comments in the Comments card) is hidden visually but kept
+    for screen readers. A required field keeps its label so its `*` still shows.
+    (`qc_admin.qc_hide_label`)
+  - **Not done:** "Not set" instead of "Not specified". The shared card never
+    shows a reference or tolerance; the Set References & Tolerances pages have
+    their own templates and already say "Not set". "Not specified" stays for
+    other empty read-only fields.
+- **Double top border on lists without filters:** confirmed in the browser
+  (3px + 3px). Fixed in `_changelist_css.html`; the results head inside an
+  unfiltered `#changelist` no longer draws its own.
+- **Dialog CSS in one place:**
+  - `shared/_modal_css.html` has the dialog frame: backdrop, dialog, header,
+    body, fields, footer and buttons.
+  - `shared/_reftol_dialog_css.html` has the Reference and Tolerance and New
+    Tolerance dialogs, plus the error and alert lines the Assign dialog shares.
+  - Both were moved unchanged out of `testlist_assets.html`. The Test List
+    builder, the Test List Cycle page and the Set References & Tolerances page
+    include them. The cycle and references pages keep only a few lines of their
+    own: the references page needs its inputs pinned by id, because there the
+    dialog sits outside `#content-main`.
+  - Checked by comparing every dialog element's computed styles before and
+    after, on all three pages: no change beyond sub-pixel rounding.
 
 ## Checked after merging
 
@@ -284,7 +300,7 @@ autosaves). The tests cover Save as New, Delete and view-only for every page.
    line before a PR is opened. Including the merge commits, `git diff
    origin/feat/test-builder...HEAD` shows everything this branch adds.
 2. ~~Merge into this branch.~~ Done; see above.
-3. **Apply the shared-file suggestions you agree with** in one commit.
+3. ~~Apply the shared-file suggestions.~~ Done; see above.
 4. **Translations:** the strings are new. Run `makemessages` for fr, fr-ca and es
    once, translate or leave the entries empty, then run
    `uv run python manage.py compilemessages`. Never hand-edit the `.mo` files.

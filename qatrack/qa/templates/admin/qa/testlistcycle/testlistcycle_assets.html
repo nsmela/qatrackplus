@@ -4,8 +4,9 @@ Inlined CSS + JS for the Test List Cycle change form (admin/qa/testlistcycle/cha
 Inlined in the page body (not static files), like the Test List builder's assets, so it
 loads under DEBUG=False without a collectstatic step and runs under hx-boost. The day rows,
 search dialog and buttons reuse the builder's class names (tl-members-card, tlb-table,
-tl-drag-handle, tl-search-*, tl-modal-*); those rules are repeated here, scoped to this
-page's own ids, because the builder's assets aren't loaded on this page. Colours follow
+tl-drag-handle, tl-search-*, tl-modal-*). The dialog frame comes from the shared
+admin/qa/shared/_modal_css.html; the other rules are repeated here, scoped to this page's
+own ids, because the builder's assets aren't loaded on this page. Colours follow
 docs/developer/design_system.ai.md, using its passing (A11Y) shades for text.
 {% endcomment %}{% load i18n %}
 <style>
@@ -102,27 +103,9 @@ docs/developer/design_system.ai.md, using its passing (A11Y) shades for text.
 #qcy-used-card .qcy-used-empty { margin: 0; font-size: 13px; color: #6d7787; }
 
 /* ---- Add Test List dialog (the builder's search dialog); outside #content-main ---- */
-#qcy-search-modal {
-  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9999; display: flex;
-  align-items: center; justify-content: center; padding: 20px;
-}
-#qcy-search-modal[hidden] { display: none !important; }
-#qcy-search-modal .tl-modal-dialog {
-  background: #fff; color: #333; border-radius: 0; border-top: 3px solid #424f57; box-shadow: 0 8px 26px rgba(0,0,0,.18);
-  width: 100%; max-width: 650px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
-  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
-}
-#qcy-search-modal .tl-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #f4f4f4; background: #fff; }
-#qcy-search-modal .tl-modal-title {
-  font-size: 18px; font-weight: 400; line-height: 1.2; color: #444; margin: 0; display: flex; align-items: center; gap: 8px;
-  text-transform: none; letter-spacing: normal; background: transparent; padding: 0;
-}
-#qcy-search-modal .tl-modal-title > .fa { color: #555; font-size: 16px; }
-#qcy-search-modal .tl-modal-close-btn { background: transparent; border: 0; border-radius: 3px; font-size: 20px; line-height: 1; color: #6d7787; cursor: pointer; }
-#qcy-search-modal .tl-modal-close-btn:hover { color: #333; }
-#qcy-search-modal .tl-modal-close-btn:focus-visible { outline: 2px solid #3c8dbc; outline-offset: 1px; }
-#qcy-search-modal .tl-modal-body { padding: 16px; overflow-y: auto; flex: 1; background: #fff; }
-#qcy-search-modal .tl-modal-note { margin: 0 0 12px; font-size: 12px; color: #6e7785; line-height: 1.4; }
+{% include "admin/qa/shared/_modal_css.html" %}
+#qcy-search-modal .tl-modal-dialog { color: #333; max-width: 650px; }
+#qcy-search-modal .tl-modal-body { background: #fff; }
 #qcy-search-modal .tl-search-input-wrap { position: relative; margin-bottom: 12px; }
 #qcy-search-modal .tl-search-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6d7787; font-size: 14px; pointer-events: none; z-index: 2; }
 #qcy-search-modal input.tl-search-input {

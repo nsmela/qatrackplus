@@ -2,7 +2,9 @@
 {% comment %}
 One fieldset as a card (admin/qa/change_form.html). Context: fieldset, adminform, and
 first (True for the page's first card). Fields sit in a two-column grid; wide ones (see
-qc_admin.qc_is_wide) span both columns. Hidden fields are output as they are.
+qc_admin.qc_is_wide) span both columns. Hidden fields are output as they are. A label
+that would only repeat the card's title is kept for screen readers but not shown
+(qc_admin.qc_hide_label).
 {% endcomment %}
 {% qc_fieldset_title fieldset as card_title %}
 {% qc_fieldset_icon adminform.model_admin fieldset first as card_icon %}
@@ -24,15 +26,17 @@ qc_admin.qc_is_wide) span both columns. Hidden fields are output as they are.
             {% qc_is_required field as required %}
             {% qc_label field as label %}
             {% qc_help_text field as help %}
+            {% qc_label_for field as label_for %}
+            {% qc_hide_label fieldset field as hide_label %}
             <div class="tlb-field qc-field field-{{ fname }}{% if wide %} tl-col-full{% endif %}{% if not field.is_readonly and field.errors %} qc-has-error{% endif %}{% if field.is_checkbox %} qc-field-check{% endif %}">
               {% if field.is_checkbox %}
                 {{ field.errors }}
                 <label class="qc-check" for="{{ field.field.id_for_label }}">{{ field.field }}<span>{{ label }}</span></label>
               {% elif field.is_readonly %}
-                <span class="qc-label">{{ label }}</span>
+                <span class="qc-label{% if hide_label %} tl-visually-hidden{% endif %}">{{ label }}</span>
                 <div class="qc-readonly">{% with value=field.contents %}{% if value and value != "-" %}{{ value }}{% else %}<span class="qc-empty">{% trans "Not specified" %}</span>{% endif %}{% endwith %}</div>
               {% else %}
-                <label for="{{ field.field.id_for_label }}">{{ label }}{% if required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
+                <label{% if label_for %} for="{{ label_for }}"{% endif %}{% if hide_label %} class="tl-visually-hidden"{% endif %}>{{ label }}{% if required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
                 {{ field.errors }}
                 <div class="qc-widget">{{ field.field }}</div>
               {% endif %}

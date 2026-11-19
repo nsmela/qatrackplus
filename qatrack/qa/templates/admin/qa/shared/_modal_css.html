@@ -1,0 +1,192 @@
+{% comment %}
+The dialog frame shared by the QC admin pages: backdrop, white dialog with the dark top
+border, header, body, fields, footer and Cancel / Save buttons (tl-modal-* classes).
+Included inside a <style> block by the Test List builder (testlist/testlist_assets.html),
+the Test List Cycle page and the Set References & Tolerances page. Moved here unchanged
+from testlist_assets.html.
+{% endcomment %}
+/* ---- Dialog frame (admin/qa/shared/_modal_css.html) ---- */
+/* Dialogs are always white, in the dark admin theme too, so their inputs, selects and
+   textareas stay light with dark text. */
+.tl-modal-dialog {
+  --body-fg: #333; --body-bg: #fff; --body-quiet-color: #6b6b6b; --body-loud-color: #111;
+  --link-fg: #317399; --link-hover-color: #285f80; --hairline-color: #f4f4f4;
+  --border-color: #d2d6de; --darkened-bg: #f8f9fa; --selected-bg: #f5f7fa; --selected-row: #f5f7fa;
+}
+.tl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.tl-modal-backdrop[hidden] {
+  display: none !important;
+}
+.tl-modal-dialog {
+  background: #fff;
+  border-radius: 0;
+  border-top: 3px solid #424f57;
+  box-shadow: 0 8px 26px rgba(0,0,0,.18);
+  width: 100%;
+  max-width: 580px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+.tl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f4f4f4;
+  background: #fff;
+}
+.tl-modal-title {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #444;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  background: transparent;
+  padding: 0;
+}
+.tl-modal-title > .fa {
+  color: #555;
+  font-size: 16px;
+}
+.tl-modal-close-btn {
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  font-size: 20px;
+  line-height: 1;
+  color: #6d7787;
+  cursor: pointer;
+}
+.tl-modal-close-btn:hover {
+  color: #333;
+}
+.tl-modal-close-btn:focus-visible {
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
+.tl-modal-body label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.tl-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+.tl-modal-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #6e7785;
+  line-height: 1.4;
+}
+.tl-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tl-modal-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+.tl-modal-input,
+input[type="text"].tl-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d2d6de;
+  border-radius: 0;
+  padding: 6px 10px;
+  font-size: 14px;
+  box-shadow: 2px 2px 2px #ddd;
+}
+.tl-modal-input:focus,
+input[type="text"].tl-modal-input:focus {
+  border-color: #3c8dbc;
+  outline: none;
+}
+.tl-modal-hint {
+  font-size: 12px;
+  color: #6e7785;
+}
+.tl-modal-input.tl-input-invalid,
+input[type="text"].tl-modal-input.tl-input-invalid {
+  border-color: #c0392b;
+}
+.tl-modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 14px;
+  border: 1px solid #d2d6de;
+  padding: 8px 10px;
+  border-radius: 0;
+  box-shadow: 2px 2px 2px #ddd;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.tl-modal-textarea:focus {
+  border-color: #3c8dbc;
+  outline: none;
+}
+.tl-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 12px;
+  border-top: 1px solid #f4f4f4;
+  background: #fbfcfd;
+}
+.tl-btn-modal-cancel {
+  background: #f4f4f4;
+  border: 1px solid #d2d6de;
+  border-radius: 3px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  box-shadow: 2px 2px 2px #ddd;
+  cursor: pointer;
+}
+.tl-btn-modal-cancel:hover {
+  background: #e7e7e7;
+}
+.tl-btn-modal-save {
+  background: #424f57;
+  border: 1px solid #424f57;
+  border-radius: 3px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 2px 2px 2px #ddd;
+  cursor: pointer;
+}
+.tl-btn-modal-save:hover {
+  background: #323e46;
+  border-color: #212b33;
+}
+.tl-btn-modal-cancel:focus-visible,
+.tl-btn-modal-save:focus-visible {
+  border-color: #3c8dbc;
+  outline: 2px solid #3c8dbc;
+  outline-offset: 1px;
+}
