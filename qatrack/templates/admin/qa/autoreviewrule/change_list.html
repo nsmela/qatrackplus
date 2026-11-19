@@ -1,0 +1,53 @@
+{% extends "admin/qa/change_list.html" %}
+{% load i18n %}
+{% comment %}
+Auto Review Rules list: the shared QC list with Django's list_editable Pass Fail and
+Status selects (saved with the list's Save button as before), and the Status Label
+column (AutoReviewAdmin.status_label), which follows the Status select as it changes.
+{% endcomment %}
+
+{% block object-tools %}{{ block.super }}
+<style>
+{% include "admin/qa/autoreviewruleset/_auto_review_css.html" %}
+#result_list td.field-status_label { white-space: nowrap; }
+#result_list td.field-status_label .qca-unsaved { margin-left: 6px; font-size: 12px; font-style: italic; color: #6e7785; }
+#result_list td.field-status_label .qca-unsaved[hidden] { display: none; }
+</style>
+{{ qca_statuses|json_script:"qca-statuses" }}
+<script>
+(function () {
+  "use strict";
+  var UNSAVED = "{{ _('not saved yet')|escapejs }}";
+  function init() {
+    var data = document.getElementById("qca-statuses");
+    var table = document.getElementById("result_list");
+    if (!data || !table) { return; }
+    var statuses = JSON.parse(data.textContent);
+    table.querySelectorAll("tbody tr").forEach(function (row) {
+      var select = row.querySelector("td.field-status select");
+      var label = row.querySelector("td.field-status_label .qcs-label");
+      if (!select || !label) { return; }
+      var saved = select.value;
+      var note = document.createElement("span");
+      note.className = "qca-unsaved";
+      note.textContent = UNSAVED;
+      note.hidden = true;
+      label.parentNode.appendChild(note);
+      select.addEventListener("change", function () {
+        var status = statuses[select.value];
+        if (status) {
+          label.textContent = status.name;
+          label.style.borderColor = status.colour || "transparent";
+        }
+        note.hidden = select.value === saved;
+      });
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+{% endblock %}

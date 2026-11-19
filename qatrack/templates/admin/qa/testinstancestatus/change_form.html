@@ -1,0 +1,10 @@
+{% extends "admin/qa/change_form.html" %}
+{% comment %}
+Test Instance Status change form: the shared QC cards (Details, Behaviour, Colour; see
+StatusAdmin.fieldsets) plus status_assets.html, which fits the colour picker into the
+Colour card and keeps its Label Preview up to date.
+{% endcomment %}
+
+{% block after_field_sets %}{{ block.super }}
+{% include "admin/qa/testinstancestatus/status_assets.html" %}
+{% endblock %}

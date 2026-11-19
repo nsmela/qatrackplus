@@ -1,0 +1,10 @@
+{# Result and rule labels for the Auto Review Rules and Auto Review Rule Sets pages (with the status label CSS). Included inside a <style> block. #}
+{% include "admin/qa/testinstancestatus/_status_label_css.html" %}
+/* A QC result (OK, Tolerance, …): its name, bordered in the design spec's result colour. */
+#content-main .qca-result {
+  display: inline-block; box-sizing: border-box; padding: .2em .6em .3em; margin: 0;
+  font-size: 11px; font-weight: 700; line-height: 1.1; letter-spacing: .03em; text-transform: uppercase;
+  color: #000 !important; background: transparent; border: 2px solid #d2d6de; border-radius: 2px; white-space: nowrap;
+}
+#content-main .qca-rule { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 2px 0; }
+#content-main .qca-arrow { color: #6e7785; }

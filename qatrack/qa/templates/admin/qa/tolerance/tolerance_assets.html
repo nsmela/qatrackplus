@@ -1,0 +1,246 @@
+{% comment %}
+CSS + JS for the Tolerance change form (admin/qa/tolerance/change_form.html), included
+in the page body after the cards so it runs under hx-boost and needs no collectstatic.
+
+- Shows the card that fits the chosen type: Limits for Absolute and Percentage,
+  Multiple Choice Values for Multiple Choice. A card for the other type stays shown
+  (marked "not used") while it has values or errors, so they can be cleared.
+- Hides Boolean Warning Only, which is only for Boolean tolerances (this page never
+  edits those); the old js/tolerance_admin.js did that by Django's .form-row markup.
+- Redraws the limits preview (_limits_preview.html) and the choices preview
+  (_choices_preview.html) as values are typed, with a warning when limits are out
+  of order. The server's own check (Tolerance.clean_tols) is unchanged.
+Cards are found by their fields (.field-<name>), not by id: card ids come from the
+translated fieldset names.
+{% endcomment %}{% load i18n %}
+{{ qct_js|json_script:"qct-config" }}
+<style>
+#content-main .qc-field.field-bool_warning_only { display: none; }
+#content-main .qc-card.qct-card-off { display: none; }
+#content-main .qct-unused-note {
+  margin: 0 0 12px; padding: 7px 10px; font-size: 13px; color: #6b4d18; background: #fdf8ee; border: 1px solid #ecd9b5;
+}
+#content-main .qct-unused-note .fa { color: #8a6420; margin-right: 4px; }
+#content-main .qct-card-unused .qc-form { opacity: .75; }
+/* Limits: the four limits in one row, low to high, above their preview (one column
+   on narrow cards, from the shared card CSS). */
+@container (min-width: 561px) {
+  #content-main .qct-limits-card .qc-form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Previews */
+#content-main .qct-preview [hidden] { display: none !important; }
+#content-main .qct-preview { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: #f8f9fa; border: 1px solid #e3e6ea; }
+#content-main .qct-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 32px; }
+#content-main .qct-zone {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 4.5em;
+  padding: .3em .7em; font-size: 12px; font-weight: 700; line-height: 1.1; text-transform: uppercase; letter-spacing: .03em;
+  color: #000 !important; background: #fff; border: 2px solid #d2d6de; border-radius: 2px; white-space: nowrap;
+}
+#content-main .qct-strip .qct-zone { flex: 1 1 4.5em; }
+#content-main .qct-zone-ok { border-color: #00a65a; }
+#content-main .qct-zone-tolerance { border-color: #f39c12; }
+#content-main .qct-zone-action { border-color: #dd4b39; }
+#content-main .qct-zone-unknown { border-style: dashed; color: #6d7787 !important; }
+#content-main .qct-limit { display: inline-flex; flex-direction: column; align-items: center; flex: 0 0 auto; padding: 0 2px; }
+#content-main .qct-limit-value { font-family: Menlo, Consolas, monospace; font-size: 13px; font-weight: 700; color: #333; }
+#content-main .qct-limit-name { font-size: 11px; color: #6e7785; white-space: nowrap; }
+#content-main .qct-strip-empty { font-size: 13px; font-style: italic; color: #6d7787; }
+#content-main .qct-note { margin: 0; font-size: 12px; line-height: 1.45; color: #6b6b6b; }
+#content-main .qct-warning { margin: 0; font-size: 13px; font-weight: 600; color: #8a6420; }
+#content-main .qct-warning .fa { margin-right: 2px; }
+#content-main .qct-choices { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
+#content-main .qct-choice-row { display: flex; align-items: baseline; gap: 10px; }
+#content-main .qct-choice-row dt { flex: 0 0 auto; margin: 0; }
+#content-main .qct-choice-row dd { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; }
+#content-main .qct-chip { display: inline-block; padding: 1px 7px; font-size: 13px; color: #333; background: #fff; border: 1px solid #d2d6de; border-radius: 3px; }
+#content-main .qct-other { font-size: 13px; font-style: italic; color: #555; }
+
+/* Used In */
+#content-main .qct-used-summary { margin: 0 0 10px; font-size: 14px; color: #333; }
+#content-main .qct-used-summary a, #content-main ul.qct-used-units a { color: #317399; }
+#content-main .qct-used-summary a:hover, #content-main ul.qct-used-units a:hover { color: #285f80; text-decoration: underline; }
+#content-main ul.qct-used-units { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14em, 1fr)); gap: 0 20px; }
+#content-main ul.qct-used-units li { list-style: none; margin: 0; padding: 6px 2px; border-bottom: 1px solid #f4f4f4; font-size: 14px; color: #333; display: flex; align-items: center; gap: 8px; }
+#content-main ul.qct-used-units li a { display: flex; align-items: center; gap: 8px; text-decoration: none; flex: 1 1 auto; min-width: 0; }
+#content-main ul.qct-used-units .fa { color: #8a929e; }
+#content-main .qct-used-units .tl-count-badge { margin-left: auto; }
+#content-main .qct-empty { color: #6d7787; font-size: 13px; font-style: italic; margin: 0; }
+</style>
+<script>
+(function () {
+  "use strict";
+  var configEl = document.getElementById("qct-config");
+  if (!configEl) { return; }
+  var cfg = JSON.parse(configEl.textContent);
+  var FIELDS = ["act_low", "tol_low", "tol_high", "act_high"];
+  var ORDER_MSG = "{% filter escapejs %}{% blocktrans with high='%(high)s' low='%(low)s' %}{{ high }} must be at least {{ low }}.{% endblocktrans %}{% endfilter %}";
+  var BOTH_MSG = "{% filter escapejs %}{% blocktrans with choices='%(choices)s' ok='%(ok)s' %}In both lists: {{ choices }}. These count as {{ ok }}.{% endblocktrans %}{% endfilter %}";
+  var NO_LIMITS = "{{ _('No limits yet. Results are compared with the limits you set here.')|escapejs }}";
+  var NO_CHOICES = "{{ _('No choices yet')|escapejs }}";
+  var UNUSED = "{{ _('Not used for this type. Clear these values before saving, or choose a type that uses them.')|escapejs }}";
+
+  function byId(id) { return document.getElementById(id); }
+  function fill(template, values) {
+    return template.replace(/%\((\w+)\)s/g, function (m, key) { return key in values ? values[key] : m; });
+  }
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text !== undefined) { node.textContent = text; }
+    return node;
+  }
+  function cardOf(fieldName) {
+    var field = document.querySelector("#content-main .qc-field.field-" + fieldName);
+    return field ? field.closest(".qc-card") : null;
+  }
+
+  var typeSelect = byId("id_type");
+  var limitsCard = cardOf("act_low");
+  var choicesCard = cardOf("mc_pass_choices");
+  if (limitsCard) { limitsCard.classList.add("qct-limits-card"); }
+  if (choicesCard) { choicesCard.classList.add("qct-choices-card"); }
+
+  function currentType() {
+    if (typeSelect) { return typeSelect.value; }
+    var preview = byId("qct-limits-preview") || byId("qct-choices-preview");
+    return preview ? preview.getAttribute("data-qct-type") : "";
+  }
+
+  // ---- Type: show the card that fits it ----
+  function hasValues(card) {
+    return Array.prototype.some.call(card.querySelectorAll("input[type=text], input[type=number], textarea"), function (input) {
+      return input.value.trim() !== "";
+    });
+  }
+  function setCard(card, used) {
+    if (!card) { return; }
+    var keep = !used && (hasValues(card) || card.querySelector(".errorlist"));
+    card.classList.toggle("qct-card-off", !used && !keep);
+    card.classList.toggle("qct-card-unused", !!keep);
+    var note = card.querySelector(".qct-unused-note");
+    if (keep && !note) {
+      note = el("p", "qct-unused-note");
+      note.appendChild(el("i", "fa fa-info-circle")).setAttribute("aria-hidden", "true");
+      note.appendChild(document.createTextNode(UNUSED));
+      card.querySelector(".tl-card-body").insertBefore(note, card.querySelector(".tl-card-body").firstChild);
+    } else if (!keep && note) {
+      note.parentNode.removeChild(note);
+    }
+  }
+  function applyType() {
+    var type = currentType();
+    var isChoice = type === cfg.choice;
+    // No type chosen yet (Add page): both cards stay.
+    setCard(limitsCard, !type || !isChoice);
+    setCard(choicesCard, !type || isChoice);
+    document.querySelectorAll("#content-main [data-qct-note-for]").forEach(function (p) {
+      p.hidden = p.getAttribute("data-qct-note-for") !== type;
+    });
+  }
+
+  // ---- Limits preview ----
+  function readLimit(field) {
+    var input = byId("id_" + field);
+    if (!input) { return null; }
+    var text = input.value.trim();
+    if (text === "") { return null; }
+    var value = Number(text);
+    return isFinite(value) ? value : null;
+  }
+  function formatLimit(value) {
+    var text = String(parseFloat(value.toPrecision(6))).replace("-", "−");
+    return currentType() === cfg.percent ? text + "%" : text;
+  }
+  function zoneFor(values, x) {
+    var al = values.act_low !== null ? values.act_low : -Infinity;
+    var tl = values.tol_low !== null ? values.tol_low : -Infinity;
+    var th = values.tol_high !== null ? values.tol_high : Infinity;
+    var ah = values.act_high !== null ? values.act_high : Infinity;
+    if (!(al <= x && x <= ah)) { return "action"; }
+    if (!(tl <= x && x <= th)) { return "tolerance"; }
+    return "ok";
+  }
+  function zoneEl(zone) {
+    return el("span", "qct-zone qct-zone-" + (zone || "unknown"), zone ? cfg.words[zone] : "?");
+  }
+  function drawLimits() {
+    var strip = byId("qct-limits-strip");
+    var warningBox = document.querySelector("#qct-limits-warning > span");
+    if (!strip || !byId("id_act_low")) { return; }
+    var values = {};
+    FIELDS.forEach(function (f) { values[f] = readLimit(f); });
+    var limits = FIELDS.filter(function (f) { return values[f] !== null; });
+    var warning = "";
+    for (var i = 0; i + 1 < limits.length; i++) {
+      if (values[limits[i]] > values[limits[i + 1]]) {
+        warning = fill(ORDER_MSG, { high: cfg.labels[limits[i + 1]], low: cfg.labels[limits[i]] });
+        break;
+      }
+    }
+    strip.textContent = "";
+    if (!limits.length) {
+      strip.appendChild(el("span", "qct-strip-empty", NO_LIMITS));
+    } else {
+      var nums = limits.map(function (f) { return values[f]; });
+      var points = [nums[0] - 1];
+      for (var j = 0; j + 1 < nums.length; j++) { points.push((nums[j] + nums[j + 1]) / 2); }
+      points.push(nums[nums.length - 1] + 1);
+      strip.appendChild(zoneEl(warning ? null : zoneFor(values, points[0])));
+      limits.forEach(function (f, k) {
+        var limit = el("span", "qct-limit");
+        limit.setAttribute("data-field", f);
+        limit.appendChild(el("span", "qct-limit-value", formatLimit(values[f])));
+        limit.appendChild(el("span", "qct-limit-name", cfg.labels[f]));
+        strip.appendChild(limit);
+        strip.appendChild(zoneEl(warning ? null : zoneFor(values, points[k + 1])));
+      });
+    }
+    if (warningBox) {
+      warningBox.querySelector(".qct-warning-text").textContent = warning;
+      warningBox.hidden = !warning;
+    }
+  }
+
+  // ---- Multiple choice preview ----
+  function readChoices(id) {
+    var input = byId(id);
+    return input ? input.value.split(",").map(function (c) { return c.trim(); }).filter(Boolean) : null;
+  }
+  function drawChoiceList(target, choices) {
+    if (!target) { return; }
+    target.textContent = "";
+    if (!choices.length) { target.appendChild(el("span", "qct-strip-empty", NO_CHOICES)); }
+    choices.forEach(function (c) { target.appendChild(el("span", "qct-chip", c)); });
+  }
+  function drawChoices() {
+    var ok = readChoices("id_mc_pass_choices");
+    var tol = readChoices("id_mc_tol_choices");
+    if (ok === null || tol === null) { return; }
+    drawChoiceList(byId("qct-choices-ok"), ok);
+    drawChoiceList(byId("qct-choices-tol"), tol);
+    var lowered = ok.map(function (c) { return c.toLowerCase(); });
+    var both = tol.filter(function (c) { return lowered.indexOf(c.toLowerCase()) >= 0; });
+    var box = document.querySelector("#qct-choices-warning > span");
+    if (box) {
+      box.querySelector(".qct-warning-text").textContent = both.length ? fill(BOTH_MSG, { choices: both.join(", "), ok: cfg.words.ok }) : "";
+      box.hidden = !both.length;
+    }
+  }
+
+  function update() {
+    drawLimits();
+    drawChoices();
+    applyType();
+  }
+
+  var form = typeSelect ? typeSelect.form : null;
+  if (form) {
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+  }
+  // The server drew the previews already; redrawing at once picks up anything the
+  // browser restored (e.g. on Back). View-only pages have no inputs to read.
+  if (typeSelect) { update(); } else { applyType(); }
+})();
+</script>

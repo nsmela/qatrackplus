@@ -1,0 +1,20 @@
+{% load i18n %}{% comment %}
+Tolerance limits preview (ToleranceAdmin.limits_preview): the result zones from low to
+high with the limits between them. tolerance_assets.html redraws #qct-limits-strip the
+same way as limits are typed. Context: items (zones and limits), warning, type.
+{% endcomment %}<div class="qct-preview" id="qct-limits-preview" data-qct-type="{{ type }}">
+  <div class="qct-strip" id="qct-limits-strip">
+    {% for item in items %}
+      {% if item.limit %}
+        <span class="qct-limit" data-field="{{ item.field }}"><span class="qct-limit-value">{{ item.value }}</span><span class="qct-limit-name">{{ item.label }}</span></span>
+      {% else %}
+        <span class="qct-zone qct-zone-{{ item.zone }}">{{ item.word }}</span>
+      {% endif %}
+    {% empty %}
+      <span class="qct-strip-empty">{% trans "No limits yet. Results are compared with the limits you set here." %}</span>
+    {% endfor %}
+  </div>
+  <p class="qct-note" data-qct-note-for="absolute"{% if type != "absolute" %} hidden{% endif %}>{% trans "Limits are differences from the reference value: a result is compared with the reference plus each limit." %}</p>
+  <p class="qct-note" data-qct-note-for="percent"{% if type != "percent" %} hidden{% endif %}>{% trans "Limits are percentage differences from the reference value." %}</p>
+  <p class="qct-warning" id="qct-limits-warning" aria-live="polite"><span{% if not warning %} hidden{% endif %}><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> <span class="qct-warning-text">{{ warning }}</span> {% trans "Limits run from low to high, so this tolerance can't be saved yet." %}</span></p>
+</div>

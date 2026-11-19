@@ -1,0 +1,22 @@
+{% load i18n %}{% comment %}
+Multiple choice tolerance preview (ToleranceAdmin.choices_preview): which status each
+choice gives. tolerance_assets.html redraws it as the lists are typed. Context:
+pass_choices, tol_choices, in_both, words, type.
+{% endcomment %}<div class="qct-preview" id="qct-choices-preview" data-qct-type="{{ type }}">
+  <dl class="qct-choices">
+    <div class="qct-choice-row">
+      <dt><span class="qct-zone qct-zone-ok">{{ words.ok }}</span></dt>
+      <dd id="qct-choices-ok">{% for choice in pass_choices %}<span class="qct-chip">{{ choice }}</span>{% empty %}<span class="qct-strip-empty">{% trans "No choices yet" %}</span>{% endfor %}</dd>
+    </div>
+    <div class="qct-choice-row">
+      <dt><span class="qct-zone qct-zone-tolerance">{{ words.tolerance }}</span></dt>
+      <dd id="qct-choices-tol">{% for choice in tol_choices %}<span class="qct-chip">{{ choice }}</span>{% empty %}<span class="qct-strip-empty">{% trans "No choices yet" %}</span>{% endfor %}</dd>
+    </div>
+    <div class="qct-choice-row">
+      <dt><span class="qct-zone qct-zone-action">{{ words.action }}</span></dt>
+      <dd><span class="qct-other">{% trans "Any other choice" %}</span></dd>
+    </div>
+  </dl>
+  <p class="qct-note">{% trans "Choices are matched ignoring upper and lower case." %}</p>
+  <p class="qct-warning" id="qct-choices-warning" aria-live="polite"><span{% if not in_both %} hidden{% endif %}><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> <span class="qct-warning-text">{% if in_both %}{% blocktrans with choices=in_both|join:", " ok=words.ok %}In both lists: {{ choices }}. These count as {{ ok }}.{% endblocktrans %}{% endif %}</span></span></p>
+</div>
