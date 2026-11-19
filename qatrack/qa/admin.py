@@ -3093,28 +3093,300 @@ class TestListAssignMachineForm(UnitTestCollectionForm):
         self.fields["visible_to"].queryset = self.fields["visible_to"].queryset.order_by("name")
 
 
+# The two kinds of tests collection a unit can be assigned (UnitTestCollection.content_type).
+UTC_COLLECTION_MODELS = ("testlist", "testlistcycle")
+UTC_SEARCH_LIMIT = 25
+
+
+def _utc_collection_type(raw_id):
+    """The ContentType with this (posted) id when it is Test List or Test List Cycle, else None."""
+    try:
+        return ContentType.objects.get(pk=int(raw_id), app_label="qa", model__in=UTC_COLLECTION_MODELS)
+    except (ValueError, TypeError, ContentType.DoesNotExist):
+        return None
+
+
+def _utc_collection(raw_type_id, raw_object_id):
+    """``(content type, test list or cycle)`` for posted ids; either may be None when not found."""
+    ct = _utc_collection_type(raw_type_id)
+    if ct is None:
+        return None, None
+    model = ct.model_class()
+    try:
+        return ct, model.objects.get(pk=int(raw_object_id))
+    except (ValueError, TypeError, model.DoesNotExist):
+        return ct, None
+
+
+def _utc_type_label(ct):
+    """"Test List" / "Test List Cycle" for a collection content type."""
+    if ct is None:
+        return ""
+    return _("Test List Cycle") if ct.model == "testlistcycle" else _("Test List")
+
+
+@admin.display(
+    description=_l("Frequency"),
+    ordering="frequency__name",
+)
+def utc_frequency_tag(obj):
+    """The assignment list's Frequency column (freq_name) as a small tag."""
+    css = "utc-tag" if obj.frequency_id else "utc-tag utc-tag-adhoc"
+    return format_html('<span class="{}">{}</span>', css, freq_name(obj))
+
+
+@admin.display(
+    description=_l("Assigned To"),
+    ordering="assigned_to__name",
+)
+def utc_assigned_to_tag(obj):
+    """The assignment list's Assigned To column (assigned_to_name) as a small tag."""
+    name = assigned_to_name(obj)
+    if name is None:
+        return format_html('<span class="utc-tag-none">{}</span>', assigned_to_name.empty_value_display)
+    return format_html('<span class="utc-tag utc-tag-group"><i class="fa fa-users" aria-hidden="true"></i> {}</span>', name)
+
+
+def _utc_search_results(ct, q):
+    """The test lists or cycles of type ``ct`` matching ``q`` (by name or slug), for the picker."""
+    model = ct.model_class()
+    qs = model.objects.all()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(slug__icontains=q))
+    if model is models.TestList:
+        qs = qs.annotate(
+            utc_n_tests=Count("testlistmembership", distinct=True),
+            utc_n_sublists=Count("children", distinct=True),
+        )
+    else:
+        qs = qs.annotate(utc_n_days=Count("testlistcyclemembership", distinct=True))
+    return list(qs.order_by("name")[:UTC_SEARCH_LIMIT])
+
+
+def _utc_preview_context(user, ct, obj):
+    """Context for the assignment page's contents preview (partials/_preview.html).
+
+    A test list lists its tests in Perform QC order (sublists included); a cycle
+    lists its days with each day's test list.
+    """
+    ctx = {
+        "utc_ct": ct,
+        "utc_obj": obj,
+        "utc_type_label": _utc_type_label(ct),
+        "utc_is_cycle": bool(ct and ct.model == "testlistcycle"),
+        "utc_open_url": None,
+    }
+    if obj is None:
+        return ctx
+    if isinstance(obj, models.TestList):
+        if user.has_perm("qa.change_testlist") or user.has_perm("qa.view_testlist"):
+            ctx["utc_open_url"] = reverse("admin:qa_testlist_change", args=[obj.pk])
+        ctx["utc_tests"] = obj.ordered_tests()
+        ctx["utc_sublists"] = [s.child for s in obj.get_children()]
+    else:
+        if user.has_perm("qa.change_testlistcycle") or user.has_perm("qa.view_testlistcycle"):
+            ctx["utc_open_url"] = reverse("admin:qa_testlistcycle_change", args=[obj.pk])
+        can_open_lists = user.has_perm("qa.change_testlist") or user.has_perm("qa.view_testlist")
+        days = []
+        memberships = obj.testlistcyclemembership_set.select_related("test_list").order_by("order")
+        for day, membership in enumerate(memberships, start=1):
+            tl = membership.test_list
+            days.append({
+                "day": day,
+                "test_list": tl,
+                "n_tests": len(tl.ordered_tests()),
+                "url": reverse("admin:qa_testlist_change", args=[tl.pk]) if can_open_lists else None,
+            })
+        ctx["utc_days"] = days
+    return ctx
+
+
+class UTCLockedSelect(forms.Select):
+    """The unit select on a saved assignment's page: shown as read-only text.
+
+    The real select is still drawn (so its value is posted and
+    UnitTestCollectionForm's "can't change the unit" check still runs) but tucked
+    in a closed ``<details>``, which only opens to pick a unit for a Save as New
+    copy. Without Save as New it is a hidden input beside the text.
+    """
+
+    def __init__(self, *args, display="", allow_change=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.display = display
+        self.allow_change = allow_change
+
+    def render(self, name, value, attrs=None, renderer=None):
+        shown = format_html('<span class="qc-readonly utc-locked-value">{}</span>', self.display)
+        if not self.allow_change:
+            hidden = forms.HiddenInput().render(name, value, attrs, renderer)
+            return format_html('<div class="utc-locked">{}{}</div>', shown, hidden)
+        select = super().render(name, value, attrs, renderer)
+        return format_html(
+            '<div class="utc-locked">{}<details class="utc-unlock"><summary>{}</summary>{}</details></div>',
+            shown, _("Choose another unit for Save as New"), select,
+        )
+
+
+class UnitTestCollectionAdminForm(UnitTestCollectionForm):
+    """UnitTestCollectionForm with the widgets of the assignment admin page.
+
+    Same fields and validation (the Test List builder's Assign to Machine dialog
+    uses UnitTestCollectionForm too, through TestListAssignMachineForm). Here the
+    content type is a pair of radio buttons ("Test List" / "Test List Cycle") for
+    the htmx object picker, and a saved assignment's unit is shown read-only
+    (UTCLockedSelect), since UnitTestCollectionForm refuses to change it.
+    """
+
+    # Set per request by UnitTestCollectionAdmin.get_form: may this user Save as New?
+    utc_can_save_as_new = False
+
+    class Meta:
+        model = models.UnitTestCollection
+        fields = "__all__"
+        error_messages = {
+            NON_FIELD_ERRORS: {
+                "unique_together": _l(
+                    "This test list or cycle is already assigned to this unit at this frequency. "
+                    "Choose a different unit, frequency or test list."
+                ),
+            },
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        ct = self.fields["content_type"]
+        ct.empty_label = None
+        ct.label_from_instance = _utc_type_label
+        ct.widget = forms.RadioSelect(attrs={"class": "utc-type-radio"})
+        ct.widget.choices = ct.choices
+        ct.widget.is_required = ct.required
+        self.fields["object_id"].widget.attrs["class"] = "utc-object-raw"
+        if self.instance.pk:
+            unit = self.fields["unit"]
+            unit.widget = UTCLockedSelect(
+                choices=unit.choices,
+                display=self.instance.unit.name,
+                allow_change=self.utc_can_save_as_new,
+            )
+
+
 class UnitTestCollectionAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     # readonly_fields = ("unit","frequency",)
     filter_horizontal = ("visible_to",)
     list_display = ['name', site_name, unit_name, freq_name, assigned_to_name, 'get_content_type', "active"]
     list_filter = [SiteFilter, UnitFilter, FrequencyFilter, AssignedToFilter, ActiveFilter]
     search_fields = ['name', "unit__name", "frequency__name"]
-    change_form_template = "admin/treenav/menuitem/change_form.html"
+    change_form_template = "admin/qa/unittestcollection/change_form.html"
+    change_list_template = "admin/qa/unittestcollection/change_list.html"
     list_editable = ["active"]
     save_as = True
-    form = UnitTestCollectionForm
+    form = UnitTestCollectionAdminForm
+
+    # The cards of admin/qa/unittestcollection/change_form.html. "What" (the test
+    # list or cycle) is drawn by the page's own picker card; the others by the
+    # shared QC card. Same fields as before: every editable model field.
+    fieldsets = [
+        (_l("What"), {"fields": ["content_type", "object_id"], "classes": ["utc-what"]}),
+        (_l("Where & When"), {"fields": ["unit", "frequency", "due_date", "auto_schedule", "active"]}),
+        (_l("Who"), {"fields": ["assigned_to", "visible_to"]}),
+    ]
+
+    @property
+    def qc_fieldset_icons(self):
+        # built when read, so the keys match the fieldset names in the user's language
+        return {_("Where & When"): "fa-calendar", _("Who"): "fa-users"}
 
     class Media:
+        # The page's styles and JS are inlined (admin/qa/unittestcollection/utc_assets.html)
+        # so they load under DEBUG=False without a collectstatic step.
         js = (
-            'jquery/js/jquery.min.js',
-            "js/jquery-ui.init.js",
-            "js/jquery-ui.min.js",
-            "js/select2.min.js",
+            "htmx/js/htmx.min.js",
         )
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
         return qs.select_related("unit", "unit__site", "frequency", "assigned_to", "content_type")
+
+    def get_list_display(self, request):
+        # Frequency and Assigned To are drawn as small tags. list_display keeps the
+        # plain columns (their ordering and empty values) at the same positions.
+        tags = {freq_name: utc_frequency_tag, assigned_to_name: utc_assigned_to_tag}
+        return [tags.get(col, col) for col in super().get_list_display(request)]
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        if change and obj is not None and not self.has_change_permission(request, obj):
+            # View only: every field is read-only, so the form has none, and
+            # UnitTestCollectionForm.__init__ (which sets up the unit and
+            # frequency fields) can't run without them.
+            kwargs["form"] = forms.ModelForm
+            return super().get_form(request, obj, change=change, **kwargs)
+        form = super().get_form(request, obj, change=change, **kwargs)
+        can_save_as_new = self.save_as and self.has_add_permission(request)
+        return type(form.__name__, (form,), {"utc_can_save_as_new": can_save_as_new})
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        """Context for the What card's picker and the contents preview."""
+        form = context["adminform"].form
+        if form.is_bound:
+            raw_type, raw_obj = form.data.get("content_type"), form.data.get("object_id")
+        elif obj is not None and obj.pk:
+            raw_type, raw_obj = obj.content_type_id, obj.object_id
+        else:
+            raw_type, raw_obj = form.initial.get("content_type"), form.initial.get("object_id")
+        ct, chosen = _utc_collection(raw_type, raw_obj)
+        context.update(_utc_preview_context(request.user, ct, chosen))
+        context["utc_locked"] = bool(change and obj is not None and obj.pk and "content_type" in form.fields)
+        context["utc_can_save_as_new"] = getattr(form, "utc_can_save_as_new", False)
+        if obj is not None and obj.pk:
+            context["utc_saved_type_label"] = _utc_type_label(obj.content_type)
+            context["utc_saved_is_cycle"] = obj.content_type.model == "testlistcycle"
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "search-collections/",
+                self.admin_site.admin_view(self.search_collections_view),
+                name="qa_unittestcollection_search",
+            ),
+            path(
+                "contents-preview/",
+                self.admin_site.admin_view(self.contents_preview_view),
+                name="qa_unittestcollection_preview",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def search_collections_view(self, request):
+        """htmx: the test lists (or cycles) matching ``q``, for the What card's picker.
+
+        GET ``content_type`` (Test List or Test List Cycle) and ``q``. For users who
+        can add or change assignments.
+        """
+        if not (self.has_add_permission(request) or self.has_change_permission(request)):
+            return HttpResponseForbidden(_("You don't have permission to assign test lists to units."))
+        ct = _utc_collection_type(request.GET.get("content_type"))
+        if ct is None:
+            return HttpResponseBadRequest(_("Choose Test List or Test List Cycle first."))
+        q = (request.GET.get("q") or "").strip()
+        return render(request, "admin/qa/unittestcollection/partials/_search_results.html", {
+            "results": _utc_search_results(ct, q),
+            "query": q,
+            "is_cycle": ct.model == "testlistcycle",
+            "utc_type_label": _utc_type_label(ct),
+            "limit": UTC_SEARCH_LIMIT,
+        })
+
+    def contents_preview_view(self, request):
+        """htmx: the contents preview card's body for ``content_type`` and ``object_id``."""
+        if not self.has_view_or_change_permission(request):
+            return HttpResponseForbidden(_("You don't have permission to view test list assignments."))
+        ct, chosen = _utc_collection(request.GET.get("content_type"), request.GET.get("object_id"))
+        return render(
+            request,
+            "admin/qa/unittestcollection/partials/_preview.html",
+            _utc_preview_context(request.user, ct, chosen),
+        )
 
     @admin.display(
         description=_l("Content Type"),

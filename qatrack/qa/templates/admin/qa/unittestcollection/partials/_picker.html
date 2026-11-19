@@ -1,0 +1,57 @@
+{% load i18n %}
+{% comment %}
+The test list / cycle picker (in _what_card.html). Context: f (the form), utc_obj,
+utc_type_label, utc_is_cycle, start_searching (open the search straight away, for the
+Save as New picker on a saved assignment).
+
+The real fields are always drawn by the server: the content type radios and the
+object_id number input. With JS (utc_assets.html) the number input is visually
+replaced by a search box (results from admin:qa_unittestcollection_search over
+htmx) and a chip showing the choice; picking a result fills in object_id. Without
+JS the two fields work as plain inputs.
+{% endcomment %}
+<div class="utc-picker" id="utc-picker" data-start-searching="{{ start_searching|yesno:'1,0' }}">
+  <div class="tlb-form qc-form">
+    <div class="tlb-field qc-field tl-col-full field-content_type{% if f.content_type.errors %} qc-has-error{% endif %}">
+      <span class="qc-label" id="utc-type-label">{% trans "Type" %} <em class="tl-req" aria-hidden="true">*</em></span>
+      {{ f.content_type.errors }}
+      <div class="utc-type-choice" role="group" aria-labelledby="utc-type-label">{{ f.content_type }}</div>
+    </div>
+    <div class="tlb-field qc-field tl-col-full field-object_id{% if f.object_id.errors %} qc-has-error{% endif %}">
+      <label for="{{ f.object_id.id_for_label }}">{% trans "Test List or Cycle" %} <em class="tl-req" aria-hidden="true">*</em></label>
+      {{ f.object_id.errors }}
+      <div class="utc-object-raw-wrap">
+        {{ f.object_id }}
+        <span class="qc-help utc-nojs-help">{% trans "Enter the ID number of the test list or cycle (shown on its page)." %}</span>
+      </div>
+
+      <div class="utc-chip utc-chosen" data-utc-chosen{% if not utc_obj or start_searching %} hidden{% endif %}>
+        <i class="fa {% if utc_is_cycle %}fa-refresh{% else %}fa-list{% endif %}" aria-hidden="true" data-utc-chosen-icon></i>
+        <strong class="utc-chip-name" data-utc-chosen-name>{{ utc_obj.name }}</strong>
+        <span class="utc-type-chip" data-utc-chosen-type>{{ utc_type_label }}</span>
+        <button type="button" class="utc-btn" data-utc-change hidden>
+          <i class="fa fa-pencil" aria-hidden="true"></i> {% trans "Change" %}
+        </button>
+      </div>
+
+      <div class="utc-search" data-utc-search hidden>
+        <div class="tl-search-input-wrap">
+          <i class="fa fa-search tl-search-input-icon" aria-hidden="true"></i>
+          {# form="": not part of the change form, so Enter here doesn't save the page and q isn't posted #}
+          <input type="text" id="utc-search-input" name="q" class="tl-search-input" form="utc-search-no-form"
+                 placeholder="{% trans 'Type to filter…' %}" aria-label="{% trans 'Search test lists and cycles' %}"
+                 autocomplete="off"
+                 hx-get="{% url 'admin:qa_unittestcollection_search' %}"
+                 hx-trigger="input changed delay:200ms, utc-search"
+                 hx-include="#utc-picker input[name='content_type']:checked"
+                 hx-target="#utc-search-results"
+                 hx-sync="this:replace">
+        </div>
+        <div id="utc-search-results" class="tl-search-results-container" aria-live="polite">
+          <div class="tl-search-initial-hint">{% trans "Choose Test List or Test List Cycle above, then type to search." %}</div>
+        </div>
+        <button type="button" class="utc-btn utc-search-cancel" data-utc-cancel hidden>{% trans "Cancel" %}</button>
+      </div>
+    </div>
+  </div>
+</div>

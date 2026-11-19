@@ -1,0 +1,10 @@
+{% load i18n %}{# A test list or cycle shown read-only as a chip. Context: chosen_obj, chosen_label, chosen_is_cycle. #}
+{% if chosen_obj %}
+  <span class="utc-chip utc-chip-readonly">
+    <i class="fa {% if chosen_is_cycle %}fa-refresh{% else %}fa-list{% endif %}" aria-hidden="true"></i>
+    <strong class="utc-chip-name">{{ chosen_obj.name }}</strong>
+    <span class="utc-type-chip">{{ chosen_label }}</span>
+  </span>
+{% else %}
+  <span class="qc-empty">{% trans "Not specified" %}</span>
+{% endif %}

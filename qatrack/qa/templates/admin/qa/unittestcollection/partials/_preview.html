@@ -1,0 +1,83 @@
+{% load i18n %}
+{% comment %}
+The Contents card: what the chosen test list (its tests, in Perform QC order) or
+cycle (its days) contains, read-only. Drawn with the page and redrawn whole by
+UnitTestCollectionAdmin.contents_preview_view when the choice changes. Context:
+qatrack.qa.admin._utc_preview_context.
+{% endcomment %}
+<div class="tl-details-card qc-card utc-preview-card" id="utc-preview-card" aria-live="polite">
+  <div class="tl-card-header">
+    <i class="fa fa-eye" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{% trans "Contents" %}</h2>
+    {% if utc_obj %}
+      {% if utc_is_cycle %}
+        <span class="tl-count-badge">{% blocktrans count counter=utc_days|length %}{{ counter }} day{% plural %}{{ counter }} days{% endblocktrans %}</span>
+      {% else %}
+        <span class="tl-count-badge">{% blocktrans count counter=utc_tests|length %}{{ counter }} test{% plural %}{{ counter }} tests{% endblocktrans %}</span>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="tl-card-body utc-preview-body">
+    {% if not utc_obj %}
+      <p class="utc-preview-empty">{% trans "Choose a test list or cycle to see what it contains." %}</p>
+    {% else %}
+      <div class="utc-preview-head">
+        <span class="utc-chip utc-chip-readonly">
+          <i class="fa {% if utc_is_cycle %}fa-refresh{% else %}fa-list{% endif %}" aria-hidden="true"></i>
+          <strong class="utc-chip-name">{{ utc_obj.name }}</strong>
+          <span class="utc-type-chip">{{ utc_type_label }}</span>
+        </span>
+        {% if utc_open_url %}
+          <a href="{{ utc_open_url }}" class="utc-open-link" target="_blank" rel="noopener" id="utc-open-link">
+            <i class="fa fa-external-link" aria-hidden="true"></i>
+            {% if utc_is_cycle %}{% trans "Open Test List Cycle" %}{% else %}{% trans "Open in Test List Builder" %}{% endif %}
+            <span class="tl-visually-hidden">{% trans "(opens in a new tab)" %}</span>
+          </a>
+        {% endif %}
+      </div>
+
+      {% if utc_is_cycle %}
+        {% if utc_days %}
+          <table class="utc-preview-table">
+            <thead><tr><th scope="col">{% trans "Day" %}</th><th scope="col">{% trans "Test List" %}</th><th scope="col" class="utc-num">{% trans "Tests" %}</th></tr></thead>
+            <tbody>
+              {% for d in utc_days %}
+                <tr>
+                  <td class="utc-num">{{ d.day }}</td>
+                  <td>{% if d.url %}<a href="{{ d.url }}" target="_blank" rel="noopener">{{ d.test_list.name }}</a>{% else %}{{ d.test_list.name }}{% endif %}</td>
+                  <td class="utc-num">{{ d.n_tests }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="utc-preview-empty">{% trans "This cycle has no test lists yet, so there would be nothing to perform." %}</p>
+        {% endif %}
+      {% else %}
+        {% if utc_tests %}
+          <table class="utc-preview-table">
+            <thead><tr><th scope="col" class="utc-num">#</th><th scope="col">{% trans "Test" %}</th><th scope="col">{% trans "Type" %}</th></tr></thead>
+            <tbody>
+              {% for t in utc_tests %}
+                <tr>
+                  <td class="utc-num">{{ forloop.counter }}</td>
+                  <td>{{ t.name }}</td>
+                  <td><span class="utc-type-chip">{{ t.get_type_display }}</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="utc-preview-empty">{% trans "This test list has no tests yet, so there would be nothing to perform." %}</p>
+        {% endif %}
+        {% if utc_sublists %}
+          <p class="utc-preview-note">
+            <i class="fa fa-folder-o" aria-hidden="true"></i>
+            {% trans "Includes the tests of these sublists:" %}
+            {% for s in utc_sublists %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </p>
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
