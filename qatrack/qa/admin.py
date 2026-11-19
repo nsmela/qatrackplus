@@ -3288,13 +3288,103 @@ def utc_unit_name(obj):
     return obj.unit_test_collection.unit.name
 
 
+def qci_status_label(status):
+    """A test instance status as the design spec's status label: its colour as the
+    border, black text, the status name (status colours always come with their word)."""
+    if status is None:
+        return ""
+    return format_html('<span class="qci-label" style="border-color: {}">{}</span>', status.colour, status.name)
+
+
+def qci_pass_fail_label(pass_fail):
+    """A test instance's pass/fail result as a status label, using the site's own name for it."""
+    if not pass_fail:
+        return ""
+    return format_html(
+        '<span class="qci-label qci-pf-{}">{}</span>',
+        pass_fail,
+        models.PASS_FAIL_CHOICES_DISPLAY.get(pass_fail, pass_fail),
+    )
+
+
+TLI_PERFORMED = _l("Performed")
+TLI_REVIEW = _l("Review")
+TLI_RECORD = _l("Scheduling & Record")
+TLI_COMMENTS = _l("Comments")
+
+
 class TestListInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
-    list_display = ["__str__", utc_unit_name, "test_list", "work_completed", "created_by"]
+    list_display = ["instance_id", utc_unit_name, "test_list", "work_completed", "created_by", "review_state"]
+    list_display_links = ["instance_id"]
     list_filter = [
         "unit_test_collection__unit",
         "test_list",
     ]
     inlines = [get_attachment_inline("testlistinstance")]
+
+    # Every field that's editable on the model stays editable (work_started,
+    # work_completed, due_date, day, in_progress, all_reviewed, reviewed,
+    # include_for_scheduling, user_key, modified); the rest are shown read-only.
+    fieldsets = (
+        (TLI_PERFORMED, {
+            "fields": (
+                "unit_test_collection", "test_list", "day", "due_date", "work_started", "work_completed",
+                "created_by", "created",
+            ),
+        }),
+        (TLI_REVIEW, {
+            "fields": ("in_progress", "all_reviewed", "reviewed", "reviewed_by", "flagged"),
+        }),
+        (TLI_RECORD, {
+            "fields": ("include_for_scheduling", "user_key", "modified", "modified_by"),
+        }),
+        (TLI_COMMENTS, {
+            "fields": ("comments_display",),
+        }),
+    )
+    readonly_fields = (
+        "unit_test_collection", "test_list", "created_by", "created", "reviewed_by", "flagged", "modified_by",
+        "comments_display",
+    )
+    qc_fieldset_icons = {
+        TLI_PERFORMED: "fa-clipboard",
+        TLI_REVIEW: "fa-check-square-o",
+        TLI_RECORD: "fa-history",
+        TLI_COMMENTS: "fa-commenting-o",
+    }
+    qc_wide_fields = ("comments_display",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("unit_test_collection__unit", "test_list", "created_by")
+
+    @admin.display(description=_l("ID"), ordering="pk")
+    def instance_id(self, obj):
+        return obj.pk
+
+    @admin.display(description=_l("Review Status"), ordering="all_reviewed")
+    def review_state(self, obj):
+        if obj.in_progress:
+            return format_html('<span class="qci-label qci-pf-not_done">{}</span>', _("In Progress"))
+        if obj.all_reviewed:
+            return format_html('<span class="qci-label qci-pf-ok">{}</span>', _("Reviewed"))
+        return format_html('<span class="qci-label qci-pf-tolerance">{}</span>', _("Unreviewed"))
+
+    @admin.display(description=_l("Comments"))
+    def comments_display(self, obj):
+        """The session's comments, oldest first (they're added on the review page, not here)."""
+        comments = list(obj.comments.select_related("user").order_by("submit_date")) if obj.pk else []
+        if not comments:
+            return format_html('<span class="qc-empty">{}</span>', _("No comments"))
+        rows = format_html_join(
+            "",
+            '<li><span class="qci-comment-meta">{} &middot; {}</span><span class="qci-comment-text">{}</span></li>',
+            (
+                (c.name, date_formatter(timezone.localtime(c.submit_date), "DATETIME_FORMAT"), c.comment)
+                for c in comments
+            ),
+        )
+        return format_html('<ul class="qci-comments">{}</ul>', rows)
 
     def render_delete_form(self, request, context):
         instance = context['object']
@@ -3306,6 +3396,10 @@ class TestListInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, B
         se_ib_qs = instance.serviceevents_initiated.all()
         default_ses = ServiceEventStatus.get_default()
         context.update({'se_rtsqa_qs': se_rtsqa_qs, 'se_ib_qs': se_ib_qs, 'default_ses': default_ses})
+        # The test instances deleted with it, listed on the confirmation page
+        context['test_instances'] = instance.testinstance_set.select_related(
+            "unit_test_info__test", "status", "modified_by",
+        ).order_by("order", "pk")
         return super().render_delete_form(request, context)
 
     def has_add_permission(self, request):
@@ -3313,24 +3407,95 @@ class TestListInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, B
         return False
 
 
+TI_RESULT = _l("Result")
+TI_CONTEXT = _l("Context")
+TI_STORED = _l("Stored Analysis Results")
+
+
 class TestInstanceAdmin(QCAdminDesignMixin, SaveInlineAttachmentUserMixin, BaseQATrackAdmin):
 
     list_display = [
-        "__str__",
-        "test_list_instance",
+        "instance_id",
         "test_name",
         "unit_name",
         "test_list_name",
+        "test_list_instance_id",
+        "status_label",
+        "pass_fail_label",
         "work_completed",
         "created_by",
     ]
+    list_display_links = ["instance_id"]
     inlines = [get_attachment_inline("testinstance")]
+
+    # Every field that's editable on the model stays editable (status, the values,
+    # skipped, comment, work_completed, order, created); the rest are shown read-only.
+    fieldsets = (
+        (TI_RESULT, {
+            "fields": (
+                "value", "string_value", "date_value", "datetime_value", "skipped", "status",
+                "pass_fail_label", "reviewed_by", "review_date", "comment",
+            ),
+        }),
+        (TI_CONTEXT, {
+            "fields": (
+                "unit_test_info_link", "test_list_instance_link", "reference", "tolerance", "work_started",
+                "work_completed", "order", "created", "created_by", "modified", "modified_by",
+            ),
+        }),
+        (TI_STORED, {
+            "fields": ("json_value",),
+        }),
+    )
+    readonly_fields = (
+        "pass_fail_label", "reviewed_by", "review_date", "unit_test_info_link", "test_list_instance_link",
+        "reference", "tolerance", "work_started", "created_by", "modified", "modified_by",
+    )
+    qc_fieldset_icons = {
+        TI_RESULT: "fa-check-circle-o",
+        TI_CONTEXT: "fa-sitemap",
+        TI_STORED: "fa-database",
+    }
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related(
             "test_list_instance", "test_list_instance__test_list", "unit_test_info", "unit_test_info__test",
-            "created_by"
+            "created_by", "unit_test_info__unit", "status",
+        )
+
+    @admin.display(description=_l("ID"), ordering="pk")
+    def instance_id(self, obj):
+        return obj.pk
+
+    @admin.display(description=_l("Test List Instance"), ordering="test_list_instance_id")
+    def test_list_instance_id(self, obj):
+        return obj.test_list_instance_id
+
+    @admin.display(description=_l("Status"), ordering="status__name")
+    def status_label(self, obj):
+        return qci_status_label(obj.status)
+
+    @admin.display(description=_l("Pass Fail"), ordering="pass_fail")
+    def pass_fail_label(self, obj):
+        return qci_pass_fail_label(obj.pass_fail)
+
+    @admin.display(description=_l("Unit Test Info"))
+    def unit_test_info_link(self, obj):
+        uti = obj.unit_test_info
+        url = reverse("admin:qa_unittestinfo_change", args=(uti.pk,), current_app=self.admin_site.name)
+        return format_html('<a href="{}">{} &middot; {}</a>', url, uti.test.name, uti.unit.name)
+
+    @admin.display(description=_l("Test List Instance"))
+    def test_list_instance_link(self, obj):
+        tli = obj.test_list_instance
+        url = reverse("admin:qa_testlistinstance_change", args=(tli.pk,), current_app=self.admin_site.name)
+        completed = date_formatter(timezone.localtime(tli.work_completed), "DATETIME_FORMAT") if tli.work_completed else ""
+        return format_html(
+            '<a href="{}">{} &middot; {}</a>',
+            url,
+            tli.test_list.name,
+            completed or _("ID %(id)s") % {"id": tli.pk},
         )
 
     @admin.display(

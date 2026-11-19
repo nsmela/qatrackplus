@@ -1,0 +1,53 @@
+{% load i18n %}
+{% comment %}
+One card of service events linked to the Test List Instance being deleted
+(admin/qa/testlistinstance/delete_confirmation.html). Context: events, card_id, title,
+note, and default_ses (the default service event status). A service event whose status
+doesn't require review goes back to the default status when the session is deleted.
+{% endcomment %}
+<div class="tl-details-card qc-card" id="{{ card_id }}">
+  <div class="tl-card-header">
+    <i class="fa fa-wrench" aria-hidden="true"></i>
+    <h2 class="tl-card-title">{{ title }}</h2>
+    <span class="tl-count-badge">{{ events|length }}</span>
+  </div>
+  <div class="tl-card-body qci-card-body-flush">
+    <p class="qci-note"><i class="fa fa-info-circle" aria-hidden="true"></i>{{ note }}</p>
+    <div class="qci-table-scroll">
+      <table class="qci-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Service Event" %}</th>
+            <th scope="col">{% trans "Date of Service" %}</th>
+            <th scope="col">{% trans "Status After Deleting" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for se in events %}
+            <tr class="qci-se-row" data-se="{{ se.pk }}">
+              <td>
+                {% if perms.service_log.view_serviceevent %}
+                  <a href="{% url 'sl_details' pk=se.pk %}">{% blocktrans with id=se.pk %}Service Event {{ id }}{% endblocktrans %}</a>
+                {% else %}
+                  {% blocktrans with id=se.pk %}Service Event {{ id }}{% endblocktrans %}
+                {% endif %}
+              </td>
+              <td>{{ se.datetime_service }}</td>
+              <td>
+                <span class="qci-label" style="border-color: {{ se.service_status.colour }}">{{ se.service_status.name }}</span>
+                {% if not se.service_status.is_review_required %}
+                  {% if default_ses %}
+                    <i class="fa fa-long-arrow-right qci-arrow" aria-hidden="true"></i><span class="tl-visually-hidden">{% trans "changes to" %}</span>
+                    <span class="qci-label qci-new-status" style="border-color: {{ default_ses.colour }}">{{ default_ses.name }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="qci-meta">{% trans "(no change)" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

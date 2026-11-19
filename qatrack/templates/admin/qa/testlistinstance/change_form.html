@@ -1,0 +1,28 @@
+{% extends "admin/qa/change_form.html" %}
+{% load i18n %}
+
+{% comment %}
+Test List Instance (a performed QC session) in the admin: the shared QC card layout
+(TestListInstanceAdmin.fieldsets: Performed, Review, Scheduling & Record, Comments) and
+the attachments card, with a "View on Site" button to the session's page on the main
+site. Instances are only created by performing QC, so there's no add page.
+{% endcomment %}
+
+{# The model has no verbose_name ("Test list instance"), so the titles are spelled out in Title Case. #}
+{% block title %}{{ original.test_list.name|truncatewords:"18" }} | {% if has_change_permission %}{% trans "Edit Test List Instance" %}{% else %}{% trans "View Test List Instance" %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block qc_title %}{% if has_change_permission %}{% trans "Edit Test List Instance" %}{% else %}{% trans "View Test List Instance" %}{% endif %}{% endblock %}
+
+{% block qc_header_meta %}{{ original.test_list.name }} &middot; {{ original.unit_test_collection.unit.name }}{% if original.work_completed %} &middot; {{ original.work_completed }}{% endif %}{% endblock %}
+
+{% block qc_header_actions_extra %}
+  {% if original.pk and perms.qa.can_view_completed and not is_popup %}
+    <a href="{% url 'view_test_list_instance' pk=original.pk %}" class="tl-top-btn tl-top-btn-secondary" id="qci-view-on-site-btn"
+       title="{% trans "Open this QC session's details page on the main site" %}">
+      <i class="fa fa-external-link" aria-hidden="true"></i> {% trans "View on Site" %}
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block form_top %}{{ block.super }}
+{% include "admin/qa/testlistinstance/_instance_assets.html" %}
+{% endblock %}

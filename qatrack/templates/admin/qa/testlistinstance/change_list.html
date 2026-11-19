@@ -1,0 +1,12 @@
+{% extends "admin/qa/change_list.html" %}
+
+{% comment %}
+Test List Instance list: the shared QC list, plus the status label styles for its
+Review Status column. No Add button: instances are only created by performing QC.
+{% endcomment %}
+
+{% block object-tools %}{{ block.super }}
+{% include "admin/qa/testlistinstance/_instance_assets.html" %}
+{% endblock %}
+
+{% block qc_results_icon %}fa-clipboard{% endblock %}
