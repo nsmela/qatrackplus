@@ -65,23 +65,25 @@ Remove this file before the branch is merged.
 - [x] Tests: `qatrack/qa/tests/test_qc_admin_design.py` (cards, buttons, saves,
       errors, view-only, every QC list/add/change page renders).
 
-## Step 2A: Statuses, Tolerances, Auto Review
+## Step 2A: Statuses, Tolerances, Auto Review ✅
 
-- [ ] **Test Instance Statuses:** fieldsets (Details; Behaviour: default,
+- [x] **Test Instance Statuses:** fieldsets (Details; Behaviour: default,
       requires review, valid, export; Colour). Colour picker still works.
       List: the colour column becomes the design spec's status label (coloured
       border, black text, the status name). Feature: **live label preview**
       beside the colour field, updating as the name or colour changes.
-- [ ] **Tolerances:** fieldsets by type ("Type", "Limits"), `tolerance_admin.js`
+- [x] **Tolerances:** fieldsets by type ("Type", "Limits"), `tolerance_admin.js`
       still shows/hides the right fields. Feature: **limits preview**: a strip
       showing Act low / Tol low / Tol high / Act high (or the multiple-choice
       OK / Tolerance lists) as they're typed, with an inline warning when the
       limits are out of order (the server check stays). Feature: **Used In**
       card on the change page: how many Unit Test Infos use this tolerance,
-      linking to the Unit Test Info list filtered to them.
-- [ ] **Auto Review Rules:** list_editable pass/fail and status work in the
+      linking to the Unit Test Info list filtered to them. (The old script
+      hid fields by `.form-row`, which the cards don't have, so
+      `tolerance_assets.html` does it now and the script isn't loaded.)
+- [x] **Auto Review Rules:** list_editable pass/fail and status work in the
       restyled list; status shown as a label.
-- [ ] **Auto Review Rule Sets:** Feature: the `filter_horizontal` rules picker
+- [x] **Auto Review Rule Sets:** Feature: the `filter_horizontal` rules picker
       becomes a **checkbox list of rules** grouped by pass/fail, each with its
       status label. The "must be one default" error still renders. Used In
       card: tests using this rule set.
