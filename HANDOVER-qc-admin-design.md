@@ -225,10 +225,11 @@ are unchanged.
     reason.
   - 15 tests in `TestSetMultipleAction` (`test_qc_admin_3c.py`); checked in a
     browser (error path, then a save and its history).
-  - `docs/admin/qa/setting_refs_and_tols.rst` describes it; its two
-    screenshots are out of date.
-  - Its new strings aren't in the translation catalogues yet: run
-    `makemessages` again before the PR (see Translations).
+  - `docs/admin/qa/setting_refs_and_tols.rst` describes it, with new
+    `set_multiple_list.png` and `set_multiple_value.png` screenshots
+    (2026-11-20).
+  - Its new strings are in the catalogues (makemessages re-run 2026-11-20),
+    untranslated like the rest of this branch's.
 - Copying references and tolerances (`copy_references`, `.update()`) writes no
   history entries.
 - `CopyReferencesAndTolerances` (a FormPreview in `views/admin.py`) is dead
@@ -416,9 +417,13 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
    Most of this has now been done; see [Checked after merging](#checked-after-merging)
    for what hasn't.
 6. ~~Docs.~~ Done in the second session. Still to do: new screenshots for
-   `test_list_cycles.rst`, `assign_to_unit.rst`, `testpack.rst` and
-   `setting_refs_and_tols.rst`.
-7. Run `uv run ruff check .` and `uv run pre-commit run --all-files`.
+   `test_list_cycles.rst`, `assign_to_unit.rst`, `testpack.rst` and the rest of
+   `setting_refs_and_tols.rst` (its two set-multiple screenshots were retaken
+   on 2026-11-20).
+7. Run `uv run ruff check .` and `uv run pre-commit run --all-files`. Both
+   passed on 2026-11-20, once `django-upgrade`'s rewrite of
+   `qatrack/api/qa/tests/test_round2_N30_api.py` (from `feat/test-builder`)
+   was committed.
 8. **Open questions for the maintainer:**
    - ~~Approve the Autosave Recover link change?~~ Approved 2026-11-19.
    - ~~Approve the cycle picker refusing a test list that's already in the cycle?~~
