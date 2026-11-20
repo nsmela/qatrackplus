@@ -204,9 +204,31 @@ are unchanged.
   left out of the form (`exclude`) and shown read-only as indented JSON in a
   "Saved Data" field (`AutoSaveAdmin.saved_data`). A posted `data` value is
   ignored. Tested in `test_qc_admin_2b.py` and checked in a browser.
-- **The "set multiple references & tolerances" action can't be reached:** it
+- ~~**The "set multiple references & tolerances" action can't be reached:** it
   isn't in `actions`. 3C repaired its template and context but didn't register
-  it, because its save ignores the comment and writes no history.
+  it, because its save ignores the comment and writes no history.~~
+  **Rebuilt and registered 2026-11-20** at the maintainer's request (it had been
+  missing since 4.0, when `5639f240a` dropped `actions`). Now:
+  - `UnitTestInfoAdmin.actions` lists it, as "Set references and tolerances for
+    selected tests", for users who can change (`permissions=["change"]`).
+  - The selected tests must be one kind (numerical, Boolean, or text and
+    multiple choice); upload and date tests are refused with a message. Only
+    tolerance types every selected test accepts are offered (wraparound:
+    absolute only).
+  - `SetMultipleReferencesAndTolerancesForm`: tolerance (keep / clear / one),
+    reference (blank keeps each test's own; Yes/No for Boolean; none for
+    text), comment.
+  - Each test is validated with `UnitTestInfoForm` (via
+    `SetMultipleUnitTestInfoForm`) before anything is saved. All are saved in
+    one transaction, each with a `UnitTestInfoChange` carrying the comment. If
+    any test fails, nothing is saved and the table marks that test with the
+    reason.
+  - 15 tests in `TestSetMultipleAction` (`test_qc_admin_3c.py`); checked in a
+    browser (error path, then a save and its history).
+  - `docs/admin/qa/setting_refs_and_tols.rst` describes it; its two
+    screenshots are out of date.
+  - Its new strings aren't in the translation catalogues yet: run
+    `makemessages` again before the PR (see Translations).
 - Copying references and tolerances (`copy_references`, `.update()`) writes no
   history entries.
 - `CopyReferencesAndTolerances` (a FormPreview in `views/admin.py`) is dead
@@ -401,7 +423,8 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
    - ~~Approve the Autosave Recover link change?~~ Approved 2026-11-19.
    - ~~Approve the cycle picker refusing a test list that's already in the cycle?~~
      Approved 2026-11-19.
-   - Register the set-multiple action?
+   - ~~Register the set-multiple action?~~ Rebuilt and registered 2026-11-20
+     (see [Found but not fixed](#found-but-not-fixed-decide-or-file)).
    - What to do about the test pack import script? (The Autosave `data` field
      was made read-only on 2026-11-19.)
    - ~~Which branch should the PR target?~~ Decided 2026-11-19:

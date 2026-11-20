@@ -446,3 +446,189 @@ class TestSetMultiplePage(TestCase):
         table = html[html.index('id="qcr-set-multiple-tests"') :]
         self.assertIn(self.uti.test.name, table)
         self.assertIn('>7<', table)
+
+
+class TestSetMultipleAction(TestCase):
+    """The Set References & Tolerances list action, through the list page itself."""
+
+    ACTION = 'set_multiple_references_and_tolerances'
+
+    def setUp(self):
+        self.user = create_user(is_superuser=True, uname='user', pwd='pwd')
+        self.client.login(username='user', password='pwd')
+        self.url = reverse('admin:qa_unittestinfo_changelist')
+        self.unit = qa_utils.create_unit(name='Linac 3')
+        self.old_tol = qa_utils.create_tolerance(act_low=-3, tol_low=-2, tol_high=2, act_high=3)
+        self.new_tol = qa_utils.create_tolerance(act_low=-5, tol_low=-4, tol_high=4, act_high=5)
+        self.percent = qa_utils.create_tolerance(tol_type=models.PERCENT)
+        self.ref = qa_utils.create_reference(value=10)
+        self.a = qa_utils.create_unit_test_info(
+            unit=self.unit, test=qa_utils.create_test(name='Output A'), ref=self.ref, tol=self.old_tol,
+        )
+        self.b = qa_utils.create_unit_test_info(
+            unit=self.unit, test=qa_utils.create_test(name='Output B'), ref=self.ref, tol=self.old_tol,
+        )
+
+    def post(self, utis, **data):
+        payload = {'action': self.ACTION, '_selected_action': [u.pk for u in utis], 'post': 'yes'}
+        payload.update(data)
+        return self.client.post(self.url, payload)
+
+    def refresh(self):
+        self.a.refresh_from_db()
+        self.b.refresh_from_db()
+
+    def test_offered_in_the_list_to_users_who_can_change(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('value="%s"' % self.ACTION, html)
+
+    def test_not_offered_to_view_only_users(self):
+        viewer = create_user(uname='viewer', pwd='pwd', is_staff=True, is_superuser=False)
+        viewer.user_permissions.add(Permission.objects.get(codename='view_unittestinfo'))
+        self.client.logout()
+        self.client.login(username='viewer', password='pwd')
+        html = self.client.get(self.url).content.decode()
+        self.assertNotIn('value="%s"' % self.ACTION, html)
+
+    def test_first_post_shows_the_page(self):
+        resp = self.client.post(self.url, {'action': self.ACTION, '_selected_action': [self.a.pk, self.b.pk]})
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn('id="qc-card-set-multiple"', html)
+        self.assertIn('Output A', html)
+        self.assertIn('Output B', html)
+        # numerical tests: no Boolean or multiple choice tolerances on offer
+        self.assertIn('<option value="%d"' % self.percent.pk, html)
+        self.assertIn("Keep each test&#x27;s current tolerance", html)
+
+    def test_sets_both_and_records_history_with_the_comment(self):
+        resp = self.post([self.a, self.b], tolerance=self.new_tol.pk, reference='12.5', comment='New chamber')
+        self.assertEqual(resp.status_code, 302)
+        self.refresh()
+        for uti in (self.a, self.b):
+            self.assertEqual(uti.tolerance, self.new_tol)
+            self.assertEqual(uti.reference.value, 12.5)
+            change = models.UnitTestInfoChange.objects.get(unit_test_info=uti)
+            self.assertEqual(change.comment, 'New chamber')
+            self.assertEqual(change.changed_by, self.user)
+            self.assertEqual(change.reference, self.ref)
+            self.assertEqual(change.tolerance, self.old_tol)
+            self.assertTrue(change.reference_changed)
+            self.assertTrue(change.tolerance_changed)
+        messages = [str(m) for m in resp.wsgi_request._messages]
+        self.assertIn('Set the reference and tolerance for 2 tests.', messages)
+
+    def test_blank_reference_keeps_each_tests_own(self):
+        other_ref = qa_utils.create_reference(value=20)
+        self.b.reference = other_ref
+        self.b.save()
+        self.post([self.a, self.b], tolerance=self.new_tol.pk, reference='')
+        self.refresh()
+        self.assertEqual(self.a.reference, self.ref)
+        self.assertEqual(self.b.reference, other_ref)
+        self.assertEqual(self.a.tolerance, self.new_tol)
+        change = models.UnitTestInfoChange.objects.get(unit_test_info=self.a)
+        self.assertFalse(change.reference_changed)
+        self.assertTrue(change.tolerance_changed)
+
+    def test_kept_tolerance_stays(self):
+        self.post([self.a, self.b], tolerance='', reference='11')
+        self.refresh()
+        self.assertEqual(self.a.tolerance, self.old_tol)
+        self.assertEqual(self.a.reference.value, 11)
+        change = models.UnitTestInfoChange.objects.get(unit_test_info=self.a)
+        self.assertFalse(change.tolerance_changed)
+
+    def test_no_tolerance_clears_it(self):
+        self.post([self.a, self.b], tolerance='none')
+        self.refresh()
+        self.assertIsNone(self.a.tolerance)
+        self.assertIsNone(self.b.tolerance)
+        self.assertEqual(self.a.reference, self.ref)
+
+    def test_nothing_chosen_changes_nothing(self):
+        resp = self.post([self.a, self.b], tolerance='', reference='', comment='just a note')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('leaving both as they are would change nothing', resp.content.decode())
+        self.assertFalse(models.UnitTestInfoChange.objects.exists())
+
+    def test_one_bad_test_saves_nothing(self):
+        # a percent tolerance needs a non-zero reference: B has none, so A mustn't change either
+        self.b.reference = None
+        self.b.save()
+        resp = self.post([self.a, self.b], tolerance=self.percent.pk, reference='')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("Nothing was saved: 1 test can't take these values", html)
+        self.assertIn('class="qcr-row-error qcr-row-error-msg"', html)
+        self.assertIn('A reference value is required when using a percent tolerance', html)
+        # the table still shows the saved tolerance, not the refused one
+        self.assertEqual({row['uti'].tolerance for row in resp.context['rows']}, {self.old_tol})
+        self.refresh()
+        self.assertEqual(self.a.tolerance, self.old_tol)
+        self.assertEqual(self.b.tolerance, self.old_tol)
+        self.assertFalse(models.UnitTestInfoChange.objects.exists())
+
+    def test_mixed_kinds_are_refused(self):
+        boolean = qa_utils.create_unit_test_info(
+            unit=self.unit, test=qa_utils.create_test(name='Door', test_type=models.BOOLEAN),
+        )
+        resp = self.post([self.a, boolean], tolerance=self.new_tol.pk, reference='1')
+        self.assertEqual(resp.status_code, 302)
+        messages = [str(m) for m in resp.wsgi_request._messages]
+        self.assertTrue(any('Choose tests of one kind' in m for m in messages))
+        self.refresh()
+        self.assertEqual(self.a.tolerance, self.old_tol)
+
+    def test_upload_tests_are_refused(self):
+        upload = qa_utils.create_unit_test_info(
+            unit=self.unit, test=qa_utils.create_test(name='Image', test_type=models.UPLOAD),
+        )
+        resp = self.client.post(self.url, {'action': self.ACTION, '_selected_action': [upload.pk]})
+        self.assertEqual(resp.status_code, 302)
+        messages = [str(m) for m in resp.wsgi_request._messages]
+        self.assertTrue(any("don't use references or tolerances" in m for m in messages))
+
+    def test_wraparound_only_offers_absolute_tolerances(self):
+        wrap = qa_utils.create_unit_test_info(
+            unit=self.unit,
+            test=qa_utils.create_test(name='Gantry', test_type=models.WRAPAROUND, wrap_low=0, wrap_high=360),
+        )
+        resp = self.client.post(self.url, {'action': self.ACTION, '_selected_action': [self.a.pk, wrap.pk]})
+        html = resp.content.decode()
+        self.assertIn('<option value="%d"' % self.new_tol.pk, html)
+        self.assertNotIn('<option value="%d"' % self.percent.pk, html)
+
+    def test_string_tests_have_no_reference_and_take_choices(self):
+        mc = qa_utils.create_tolerance(tol_type=models.MULTIPLE_CHOICE, mc_pass_choices='a,b', mc_tol_choices='c')
+        utis = [
+            qa_utils.create_unit_test_info(
+                unit=self.unit, test=qa_utils.create_test(name=name, test_type=models.MULTIPLE_CHOICE, choices='a,b,c'),
+            )
+            for name in ('Choice 1', 'Choice 2')
+        ]
+        resp = self.client.post(self.url, {'action': self.ACTION, '_selected_action': [u.pk for u in utis]})
+        html = resp.content.decode()
+        self.assertNotIn('name="reference"', html)
+        self.assertIn('<option value="%d"' % mc.pk, html)
+        self.assertNotIn('<option value="%d"' % self.new_tol.pk, html)
+        self.post(utis, tolerance=mc.pk)
+        for uti in utis:
+            uti.refresh_from_db()
+            self.assertEqual(uti.tolerance, mc)
+            self.assertIsNone(uti.reference)
+
+    def test_boolean_tests_take_yes_or_no(self):
+        bool_tol = models.Tolerance.objects.filter(type=models.BOOLEAN).first()
+        utis = [
+            qa_utils.create_unit_test_info(
+                unit=self.unit, test=qa_utils.create_test(name=name, test_type=models.BOOLEAN),
+            )
+            for name in ('Door 1', 'Door 2')
+        ]
+        resp = self.post(utis, tolerance=bool_tol.pk if bool_tol else '', reference='1', comment='Interlocks')
+        self.assertEqual(resp.status_code, 302)
+        for uti in utis:
+            uti.refresh_from_db()
+            self.assertEqual(uti.reference.type, models.BOOLEAN)
+            self.assertEqual(str(uti.reference), 'Yes')

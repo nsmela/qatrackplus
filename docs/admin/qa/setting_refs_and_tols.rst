@@ -108,11 +108,33 @@ to set:
 
    Setting multiple references & Tolerance
 
-then select ``Set multiple references and tolerances`` from the
-``Actions`` dropdown list at the top and click ``Go``.
+then select ``Set references and tolerances for selected tests`` from the
+``Action`` dropdown list at the top and click ``Go``.
 
-On the next page set the desired reference & tolerance value then click
-``Set tolerances and references``.
+The tests you select must all be of one kind, so that one tolerance suits
+them all: all numerical, all Boolean (Yes/No), or all text and multiple
+choice. Upload and date tests don't use references or tolerances, so leave
+them out. If your selection mixes kinds, you'll be sent back to the list with
+a message explaining why.
+
+On the next page choose the tolerance and reference to give every selected
+test, add a comment saying why you're making the change (it is saved in each
+test's reference & tolerance history), then click
+``Set References & Tolerances``.
+
+* Leave the tolerance on ``Keep each test's current tolerance`` to change only
+  the reference, or choose ``No tolerance (clear it)`` to remove it.
+* Leave the reference blank to keep each test's own reference and change only
+  the tolerance. Boolean tests offer ``Yes`` or ``No`` instead, and text and
+  multiple choice tests have no reference at all.
+* Only the tolerances that suit the selected tests are offered: wraparound
+  tests, for example, can only use absolute tolerances.
+
+Every selected test is checked against the same rules as the single-test page
+before anything is saved. If even one test can't take the new values (a
+percent tolerance on a test with no reference, for example), nothing is saved
+and that test is marked in the table with the reason, so you can fix your
+choice or your selection and try again.
 
 .. figure:: images/setting_refs_and_tols/set_multiple_value.png
    :alt: Setting multiple references & Tolerance

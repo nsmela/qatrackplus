@@ -3,13 +3,17 @@
 
 {% comment %}
 Intermediate page of UnitTestInfoAdmin.set_multiple_references_and_tolerances: a
-title row and cards in the QC admin style. The new tolerance and reference
-(SetMultipleReferencesAndTolerancesForm's fields) in one card, the selected tests
-with their current values in another. It posts back to the list with the same
-action, the selected ids and post=yes, as before.
+title row and cards in the QC admin style. The new tolerance, reference and comment
+(SetMultipleReferencesAndTolerancesForm) in one card, the selected tests with their
+current values in another. It posts back to the list with the same action, the
+selected ids and post=yes. Context: form, kind, rows ({uti, errors}: a test's
+errors when it failed UnitTestInfoForm, in which case nothing was saved) and
+test_errors (the failed ones).
 {% endcomment %}
 
 {% block title %}{% trans "Set References & Tolerances" %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{# the title row below is the page's heading #}
+{% block content_title %}{% endblock %}
 {% block bodyclass %}{{ block.super }} app-qa model-unittestinfo change-form qcr-set-multiple-page{% endblock %}
 
 {% block breadcrumbs %}
@@ -46,19 +50,28 @@ action, the selected ids and post=yes, as before.
     </div>
   </div>
 
+  {% if form.non_field_errors or test_errors %}
+    <p class="errornote" role="alert">
+      {% if test_errors %}{% blocktrans count counter=test_errors|length %}Nothing was saved: {{ counter }} test can't take these values. See below.{% plural %}Nothing was saved: {{ counter }} tests can't take these values. See below.{% endblocktrans %}{% else %}{% for e in form.non_field_errors %}{{ e }}{% endfor %}{% endif %}
+    </p>
+  {% elif form.errors %}
+    <p class="errornote" role="alert">{% trans "Please correct the errors below. Nothing has been saved." %}</p>
+  {% endif %}
+
   <div class="tl-details-card qc-card qcr-card" id="qc-card-set-multiple">
     <div class="tl-card-header">
       <i class="fa fa-sliders" aria-hidden="true"></i>
       <h2 class="tl-card-title">{% trans "New Reference & Tolerance" %}</h2>
     </div>
     <div class="tl-card-body">
-      <p class="qc-card-desc">{% trans "Choose the tolerance and reference to give every selected test. Leave a field blank to keep each test's current value." %}</p>
+      <p class="qc-card-desc">{% trans "Choose the tolerance and reference to give every selected test. Leave a field blank to keep each test's current value. Each test is checked first: if any of them can't take these values, nothing is saved." %}</p>
+      {% if kind == "string" %}<p class="qc-card-desc">{% trans "Text and multiple choice tests are judged by their tolerance's choices alone, so they have no reference." %}</p>{% endif %}
       <div class="tlb-form qc-form">
         {% for field in form.visible_fields %}
           <div class="tlb-field qc-field field-{{ field.name }}{% if field.name == 'comment' %} tl-col-full{% endif %}{% if field.errors %} qc-has-error{% endif %}">
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field.errors }}
             <div class="qc-widget">{{ field }}</div>
+            {{ field.errors }}
             {% if field.help_text %}<span class="qc-help">{{ field.help_text|safe }}</span>{% endif %}
           </div>
         {% endfor %}
@@ -83,14 +96,19 @@ action, the selected ids and post=yes, as before.
           </tr>
         </thead>
         <tbody>
-          {% for uti in queryset %}
-          <tr>
+          {% for row in rows %}{% with uti=row.uti %}
+          <tr{% if row.errors %} class="qcr-row-error"{% endif %}>
             <td>{{ uti.test.name }}</td>
             <td>{{ uti.unit.name }}</td>
             <td>{% if uti.reference %}{{ uti.reference|reference_display:uti.test }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
             <td>{% if uti.tolerance %}{{ uti.tolerance }}{% else %}<span class="qc-empty">{% trans "Not set" %}</span>{% endif %}</td>
           </tr>
-          {% endfor %}
+          {% if row.errors %}
+          <tr class="qcr-row-error qcr-row-error-msg">
+            <td colspan="4"><ul class="errorlist">{% for e in row.errors %}<li>{{ e }}</li>{% endfor %}</ul></td>
+          </tr>
+          {% endif %}
+          {% endwith %}{% endfor %}
         </tbody>
       </table>
     </div>

@@ -33,6 +33,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import Truncator, slugify
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _l
+from django.utils.translation import ngettext
 from django_mptt_admin.admin import DjangoMpttAdmin
 from dynamic_raw_id.admin import DynamicRawIDMixin
 from dynamic_raw_id.widgets import DynamicRawIDWidget
@@ -405,21 +406,116 @@ def test_type(obj):
             return display
 
 
+# What the Set References & Tolerances action can give several tests at once. Every
+# selected test must be of one kind, so one tolerance and one reference suit them all.
+SET_MULTIPLE_BOOLEAN = "boolean"
+SET_MULTIPLE_STRING = "string"
+SET_MULTIPLE_NUMERICAL = "numerical"
+
+
+def set_multiple_kind(test):
+    """The set-multiple kind of a test, or None for one that never uses limits."""
+    if test.type in NO_LIMIT_TEST_TYPES:
+        return None
+    if test.is_boolean():
+        return SET_MULTIPLE_BOOLEAN
+    if test.is_string_type():
+        return SET_MULTIPLE_STRING
+    return SET_MULTIPLE_NUMERICAL
+
+
+def set_multiple_tolerance_types(test):
+    """Tolerance types UnitTestInfoForm accepts for this test (see its __init__)."""
+    if test.is_boolean():
+        return {models.BOOLEAN}
+    if test.is_string_type():
+        return {models.MULTIPLE_CHOICE}
+    if test.type == models.WRAPAROUND:
+        return {models.ABSOLUTE}
+    return {models.ABSOLUTE, models.PERCENT}
+
+
 class SetMultipleReferencesAndTolerancesForm(forms.Form):
-    _selected_action = forms.CharField(widget=forms.MultipleHiddenInput)
-    contenttype = forms.CharField(widget=forms.HiddenInput, required=False)
-    tolerance = forms.ModelChoiceField(
-        queryset=models.Tolerance.objects.all(),
+    """The Set References & Tolerances action's page: one reference, tolerance and
+    comment for every selected test. Blank keeps each test's current value; "No
+    tolerance" clears it. Each test is then validated and saved with
+    UnitTestInfoForm, the form the single-test page uses (see
+    UnitTestInfoAdmin.set_multiple_references_and_tolerances).
+    """
+
+    KEEP = ""
+    CLEAR = "none"
+
+    tolerance = forms.ChoiceField(label=_l("Tolerance"), required=False)
+    reference = forms.CharField(
+        label=_l("Reference"),
         required=False,
-        empty_label=_("No Tolerance Set"),
+        help_text=_l("Leave this blank to keep each test's current reference."),
     )
-    reference = forms.FloatField(required=False)
     comment = forms.CharField(
         label=_l("Comment"),
-        widget=forms.Textarea,
+        widget=forms.Textarea(attrs={"rows": 3}),
         required=False,
-        help_text=_("Include an optional comment about why these references/tolerances are being updated")
+        help_text=_l("Why are you changing these? Saved with each test's history."),
     )
+
+    def __init__(self, *args, kind=None, tolerance_types=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.kind = kind
+        tolerances = models.Tolerance.objects.filter(type__in=tolerance_types).order_by("type", "pk")
+        self.tolerances = {str(t.pk): t for t in tolerances}
+        self.fields["tolerance"].choices = [
+            (self.KEEP, _("Keep each test's current tolerance")),
+            (self.CLEAR, _("No tolerance (clear it)")),
+        ] + [(pk, tol.plain_display()) for pk, tol in self.tolerances.items()]
+        if kind == SET_MULTIPLE_BOOLEAN:
+            self.fields["reference"] = forms.ChoiceField(
+                label=_("Reference"),
+                required=False,
+                choices=[(self.KEEP, _("Keep each test's current reference")), ("0", _("No")), ("1", _("Yes"))],
+            )
+        elif kind == SET_MULTIPLE_STRING:
+            # string tests are judged by their tolerance's choices alone
+            del self.fields["reference"]
+
+    def clean_reference(self):
+        value = self.cleaned_data.get("reference")
+        value = "" if value is None else str(value).strip()
+        if self.kind == SET_MULTIPLE_BOOLEAN:
+            # "1.0" / "True" as well as the select's own "1" (older forms posted those)
+            value = {"1.0": "1", "true": "1", "0.0": "0", "false": "0"}.get(value.lower(), value)
+        return value
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("tolerance", self.KEEP) == self.KEEP and not cleaned.get("reference"):
+            raise forms.ValidationError(
+                _("Choose a tolerance or enter a reference: leaving both as they are would change nothing.")
+            )
+        return cleaned
+
+    def unit_test_info_data(self, uti):
+        """The data UnitTestInfoForm gets for one selected test."""
+        tolerance = self.cleaned_data["tolerance"]
+        if tolerance == self.KEEP:
+            tolerance = uti.tolerance_id or ""
+        elif tolerance == self.CLEAR:
+            tolerance = ""
+        return {
+            "tolerance": tolerance,
+            "reference_value": self.cleaned_data.get("reference", ""),
+            "comment": self.cleaned_data.get("comment", ""),
+        }
+
+
+class SetMultipleUnitTestInfoForm(UnitTestInfoForm):
+    """UnitTestInfoForm for one test of the Set References & Tolerances action: the
+    same tolerance filtering, validation and Reference creation, for just the
+    tolerance and reference."""
+
+    class Meta:
+        model = models.UnitTestInfo
+        fields = ["tolerance"]
 
 
 # see http://stackoverflow.com/questions/851636/default-filter-in-django-admin
@@ -499,6 +595,7 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
 
     change_list_template = "admin/qa/unittestinfo/change_list.html"
     form = UnitTestInfoForm
+    actions = ["set_multiple_references_and_tolerances"]
 
     # admin/qa/unittestinfo/change_form.html draws these as three cards: Details (a
     # read-only description list of what's set now), Reference & Tolerance (the
@@ -680,110 +777,91 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
             form.changed_data,
         )
 
-    @admin.action(description=_("Set references and tolerances for selected tests"))
+    @admin.action(description=_l("Set references and tolerances for selected tests"), permissions=["change"])
     def set_multiple_references_and_tolerances(self, request, queryset):
-        """Set references and tolerances for multiple UnitTestInfo objects"""
-        if request.POST.get('post') == 'yes':
-            tolerance_id = request.POST.get('tolerance')
-            reference_value = request.POST.get('reference')
+        """Give the selected tests one reference and/or tolerance, with one comment.
 
-            if tolerance_id:
-                try:
-                    tolerance = models.Tolerance.objects.get(pk=tolerance_id)
-                except models.Tolerance.DoesNotExist:
-                    self.message_user(request, _("Invalid tolerance selected"), level=messages.ERROR)
-                    return None
-            else:
-                tolerance = None
+        Every selected test is validated with UnitTestInfoForm (the single-test
+        page's rules) before anything is saved; then all of them are saved in one
+        transaction, each with a history entry. If any test fails, nothing is saved
+        and the page shows why. The tests must all be of one kind (numerical,
+        Boolean or string), so one tolerance can suit them all.
+        """
+        def selected():
+            return list(
+                queryset.select_related("unit", "test", "reference", "tolerance").order_by("unit__name", "test__name")
+            )
 
-            # Check if all tests are of the same type
-            test_types = set(uti.test.type for uti in queryset)
-            if len(test_types) > 1:
-                self.message_user(
-                    request,
-                    _("Cannot set the same reference value for tests of different types"),
-                    level=messages.ERROR
-                )
-                return None
-
-            test_type = test_types.pop() if test_types else None
-
-            # Check for incompatible tolerance/test type combinations
-            if test_type and tolerance:
-                incompatible = False
-
-                # Boolean tests can only use boolean tolerances
-                if test_type == models.BOOLEAN and tolerance.type != models.BOOLEAN:
-                    incompatible = True
-                # Multiple choice tests can only use multiple choice tolerances
-                elif test_type == models.MULTIPLE_CHOICE and tolerance.type != models.MULTIPLE_CHOICE:
-                    incompatible = True
-                # Boolean/MC tolerances can only be used with their respective test types
-                elif tolerance.type == models.BOOLEAN and test_type != models.BOOLEAN:
-                    incompatible = True
-                elif tolerance.type == models.MULTIPLE_CHOICE and test_type != models.MULTIPLE_CHOICE:
-                    incompatible = True
-
-                if incompatible:
-                    self.message_user(
-                        request, _("The selected tolerance is not compatible with the test type"), level=messages.ERROR
-                    )
-                    return None
-
-            for uti in queryset:
-                changed = False
-
-                if tolerance:
-                    uti.tolerance = tolerance
-                    changed = True
-
-                if reference_value:
-                    if uti.test.type == models.BOOLEAN:
-                        try:
-                            value = bool(int(reference_value))
-                        except (ValueError, TypeError):
-                            self.message_user(request, _("Invalid boolean value"), level=messages.ERROR)
-                            return None
-                    elif uti.test.type == models.MULTIPLE_CHOICE:
-                        if not uti.test.choices or reference_value not in uti.test.choices.split(","):
-                            self.message_user(
-                                request, _("Invalid choice for multiple choice test"), level=messages.ERROR
-                            )
-                            return None
-                        value = reference_value
-                    else:
-                        try:
-                            # For numerical tests, convert to float since the test expects float values
-                            value = float(reference_value)
-                        except (ValueError, TypeError):
-                            self.message_user(request, _("Invalid numerical value"), level=messages.ERROR)
-                            return None
-
-                    ref = models.Reference(
-                        value=value,
-                        name=str(value),
-                        type=models.BOOLEAN if uti.test.type == models.BOOLEAN else models.NUMERICAL,
-                        created_by=request.user,
-                        modified_by=request.user,
-                    )
-                    ref.save()
-                    uti.reference = ref
-                    changed = True
-
-                if changed:
-                    uti.save()
-
-            self.message_user(request, _("Successfully updated references and tolerances"))
+        utis = selected()
+        kinds = {set_multiple_kind(uti.test) for uti in utis}
+        if None in kinds:
+            self.message_user(
+                request,
+                _("Upload and date tests don't use references or tolerances. Leave them out of your selection."),
+                level=messages.ERROR,
+            )
             return None
+        if len(kinds) > 1:
+            self.message_user(
+                request,
+                _(
+                    "Choose tests of one kind: all numerical, all Boolean (Yes/No) or all text and multiple "
+                    "choice. They can't share a tolerance otherwise."
+                ),
+                level=messages.ERROR,
+            )
+            return None
+        kind = kinds.pop() if kinds else None
+        tolerance_types = set.intersection(*(set_multiple_tolerance_types(uti.test) for uti in utis)) if utis else set()
 
+        form_kwargs = {"kind": kind, "tolerance_types": tolerance_types}
+        test_errors = []
+        if request.POST.get("post") == "yes":
+            form = SetMultipleReferencesAndTolerancesForm(request.POST, **form_kwargs)
+            if form.is_valid():
+                # the values before validation: validating puts the new tolerance on each instance
+                old = {uti.pk: (uti.reference, uti.tolerance) for uti in utis}
+                uti_forms = [
+                    (uti, SetMultipleUnitTestInfoForm(
+                        form.unit_test_info_data(uti), instance=uti, initial={"modified_by": request.user},
+                    ))
+                    for uti in utis
+                ]
+                for uti, uti_form in uti_forms:
+                    if not uti_form.is_valid():
+                        errors = [str(e) for field_errors in uti_form.errors.values() for e in field_errors]
+                        test_errors.append({"uti": uti, "errors": errors})
+                if not test_errors:
+                    with transaction.atomic():
+                        for uti, uti_form in uti_forms:
+                            saved = uti_form.save()
+                            old_reference, old_tolerance = old[uti.pk]
+                            record_unit_test_info_change(
+                                saved, old_reference, old_tolerance, form.cleaned_data.get("comment"), request.user,
+                                uti_form.changed_data,
+                            )
+                    self.message_user(request, ngettext(
+                        "Set the reference and tolerance for %(count)d test.",
+                        "Set the reference and tolerance for %(count)d tests.",
+                        len(utis),
+                    ) % {"count": len(utis)}, level=messages.SUCCESS)
+                    return None
+                # validating put the refused values on each instance: show what is really saved
+                utis = selected()
+        else:
+            form = SetMultipleReferencesAndTolerancesForm(**form_kwargs)
+
+        errors_by_pk = {entry["uti"].pk: entry["errors"] for entry in test_errors}
         context = {
             **self.admin_site.each_context(request),
             'title': _("Set references and tolerances"),
-            'queryset': queryset,
+            'queryset': utis,
+            'rows': [{"uti": uti, "errors": errors_by_pk.get(uti.pk, [])} for uti in utis],
             'opts': self.model._meta,
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
-            # the page's fields (the template used to look for a form that was never passed)
-            'form': SetMultipleReferencesAndTolerancesForm(),
+            'form': form,
+            'kind': kind,
+            'test_errors': test_errors,
         }
         return TemplateResponse(request, 'admin/qa/unittestinfo/set_multiple_refs_and_tols.html', context)
 
