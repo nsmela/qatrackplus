@@ -404,8 +404,8 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
      **`feature/htmx` on `nsmela/qatrackplus`** (`origin`). This branch sits on
      `feat/test-builder` (at `9fcb7918`), which isn't in `feature/htmx` yet, so
      a PR opened now would carry 117 commits: 90 from test-builder and 27 of this
-     branch's own. Land `feat/test-builder` in `feature/htmx` first, then this PR
-     shows only its own. Note that `origin/feat/test-builder` has moved 53
+     branch's own. The maintainer will squash-merge it later, so one combined
+     PR is fine; there's no need to land test-builder first. Note that `origin/feat/test-builder` has moved 53
      commits on since (it merged `develop`), so this branch may need those
      merged in too.
    - Should the branch be pushed?
