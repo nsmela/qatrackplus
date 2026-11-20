@@ -400,8 +400,14 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
    - Register the set-multiple action?
    - What to do about the test pack import script and the Autosave `data`
      field?
-   - Which branch should the PR target: `feat/test-builder`, or `develop` after
-     test-builder lands? `AGENTS.md` says `develop`.
+   - ~~Which branch should the PR target?~~ Decided 2026-11-19:
+     **`feature/htmx` on `nsmela/qatrackplus`** (`origin`). This branch sits on
+     `feat/test-builder` (at `9fcb7918`), which isn't in `feature/htmx` yet, so
+     a PR opened now would carry 117 commits: 90 from test-builder and 27 of this
+     branch's own. Land `feat/test-builder` in `feature/htmx` first, then this PR
+     shows only its own. Note that `origin/feat/test-builder` has moved 53
+     commits on since (it merged `develop`), so this branch may need those
+     merged in too.
    - Should the branch be pushed?
 9. Once merged, remove the agent worktrees:
    `git worktree remove .claude/worktrees/agent-<id>` for each `qc-admin/*`
