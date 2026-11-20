@@ -4751,6 +4751,12 @@ class AutoSaveAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
     list_display = (
         "created", "created_by", 'modified', 'modified_by', 'unit', 'unit_test_collection', 'test_list', 'recover'
     )
+    # The saved values are shown, not edited: qatrack_core's JSONField has no form field
+    # of its own, so the form would show them as Python text and save that text back
+    # as a plain string, which Perform QC can no longer recover.
+    exclude = ("data",)
+    readonly_fields = ("saved_data",)
+    qc_wide_fields = ("saved_data",)
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
@@ -4772,6 +4778,14 @@ class AutoSaveAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         else:
             base = reverse("perform_qa", kwargs={'pk': obj.unit_test_collection_id})
         return base + "?autosave_id=%d&day=%d" % (obj.pk, obj.day + 1)
+
+    @admin.display(description=_l("Saved Data"))
+    def saved_data(self, obj):
+        """The auto save's values as indented JSON, read-only."""
+        if obj is None or obj.data in (None, "", {}, []):
+            return format_html('<span class="qc-empty">{}</span>', _("Nothing saved yet"))
+        text = json.dumps(obj.data, indent=2, sort_keys=True, ensure_ascii=False, default=str)
+        return format_html('<pre class="qcas-data">{}</pre>', text)
 
     @admin.display(description=_l("Recover"))
     def recover(self, obj):

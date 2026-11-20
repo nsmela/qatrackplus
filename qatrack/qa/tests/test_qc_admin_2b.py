@@ -526,16 +526,28 @@ class TestAutoSaveAdmin(TestCase):
         self.assertIn('href="%s"' % url, html)
         self.assertIn('Changes to a test list already performed', html)
 
-    def test_save_still_saves(self):
+    def test_save_still_saves_and_leaves_the_data_alone(self):
+        before = self.auto.data
         resp = self.client.post(self.url, {
             'work_started_0': '2026-11-19', 'work_started_1': '10:00',
             'work_completed_0': '2026-11-19', 'work_completed_1': '10:30',
-            'day': '0', 'data': '{"tests": {"output": 2}}',
+            'day': '1', 'data': '{"tests": {"output": 2}}',
             '_continue': 'Save and Continue Editing',
         })
         self.assertEqual(resp.status_code, 302, getattr(resp, 'context', None) and resp.context['adminform'].form.errors)
         self.auto.refresh_from_db()
-        self.assertEqual(self.auto.data, {"tests": {"output": 2}})
+        self.assertEqual(self.auto.day, 1)
+        # data is read-only: a posted value is ignored and the saved values stay a dict
+        self.assertEqual(self.auto.data, before)
+
+    def test_data_is_shown_read_only_as_json(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertNotIn('name="data"', html)
+        self.assertIn('Saved Data', html)
+        self.assertIn('<pre class="qcas-data">', html)
+        # JSON, not Python text (double quotes, null rather than None)
+        self.assertIn('&quot;looks fine&quot;', html)
+        self.assertIn('&quot;blank&quot;: null', html)
 
     def test_view_only_user_sees_summary_read_only(self):
         _login_viewer(self.client, 'view_autosave')

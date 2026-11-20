@@ -197,10 +197,13 @@ are unchanged.
   rows with DataTables `row.add()`, which renders descriptions from an uploaded
   test pack file as HTML. A crafted test pack can run script on the import
   page. Fixing it means changing a static JS file, so it needs a collectstatic.
-- **Data risk, already in the code:** the Autosave `data` field shows as Python
+- ~~**Data risk, already in the code:** the Autosave `data` field shows as Python
   text, because `qatrack_core.fields.JSONField` has no form field. Saving that
   admin page unchanged would store plain text, and the autosave could no longer
-  be recovered. Making `data` read-only would prevent it.
+  be recovered.~~ **Fixed 2026-11-19** at the maintainer's request: `data` is
+  left out of the form (`exclude`) and shown read-only as indented JSON in a
+  "Saved Data" field (`AutoSaveAdmin.saved_data`). A posted `data` value is
+  ignored. Tested in `test_qc_admin_2b.py` and checked in a browser.
 - **The "set multiple references & tolerances" action can't be reached:** it
   isn't in `actions`. 3C repaired its template and context but didn't register
   it, because its save ignores the comment and writes no history.
@@ -281,8 +284,9 @@ the server log.
 Small things noticed: fixed in the second session (see below), except one:
 the Autosave change page marks **Work completed** as required, though an
 autosave in progress has none, so saving that page as it stands fails
-validation (`null=True` without `blank=True`; already so on `feat/test-builder`). That sits with the Autosave `data` question under
-[Found but not fixed](#found-but-not-fixed-decide-or-file).
+validation (`null=True` without `blank=True`; already so on `feat/test-builder`). Not fixed: `data` is now read-only (see
+[Found but not fixed](#found-but-not-fixed-decide-or-file)), but this one is
+still open.
 
 ## Second session (2026-11-19)
 
@@ -398,8 +402,8 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
    - ~~Approve the cycle picker refusing a test list that's already in the cycle?~~
      Approved 2026-11-19.
    - Register the set-multiple action?
-   - What to do about the test pack import script and the Autosave `data`
-     field?
+   - What to do about the test pack import script? (The Autosave `data` field
+     was made read-only on 2026-11-19.)
    - ~~Which branch should the PR target?~~ Decided 2026-11-19:
      **`feature/htmx` on `nsmela/qatrackplus`** (`origin`). This branch sits on
      `feat/test-builder` (at `9fcb7918`), which isn't in `feature/htmx` yet, so
