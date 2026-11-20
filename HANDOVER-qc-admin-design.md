@@ -440,7 +440,8 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
      PR is fine; there's no need to land test-builder first. Note that `origin/feat/test-builder` has moved 53
      commits on since (it merged `develop`), so this branch may need those
      merged in too.
-   - Should the branch be pushed?
+   - ~~Should the branch be pushed?~~ Pushed to `origin` (`nsmela/qatrackplus`)
+     on 2026-11-20, with upstream tracking. No PR opened yet.
 9. Once merged, remove the agent worktrees:
    `git worktree remove .claude/worktrees/agent-<id>` for each `qc-admin/*`
    worktree. They are locked, so unlock them first.
