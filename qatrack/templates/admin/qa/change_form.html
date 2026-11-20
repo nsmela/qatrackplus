@@ -51,9 +51,10 @@ View-only users keep the same cards, with every field read-only.
       {% endif %}
     {% endif %}
     {% if not is_popup %}
-      <a href="{% url opts|admin_urlname:'changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="qc-cancel-btn">{% if add or has_change_permission %}{% trans "Cancel" %}{% else %}{% trans "Back" %}{% endif %}</a>
+      {% url opts|admin_urlname:'changelist' as changelist_url %}
+      <a href="{% add_preserved_filters changelist_url %}" class="tl-top-btn tl-top-btn-secondary" id="qc-cancel-btn">{% if add or has_change_permission %}{% trans "Cancel" %}{% else %}{% trans "Back" %}{% endif %}</a>
     {% endif %}
-    {% if change and has_change_permission and save_as and has_add_permission %}
+    {% if change and has_change_permission and save_as and has_add_permission and not is_popup %}
       {# Django's "Save as new": a copy with these values; the original is left as it was saved. #}
       <button type="submit" name="_saveasnew" class="tl-top-btn tl-top-btn-secondary" id="qc-saveas-btn"
               title="{% blocktrans with name=opts.verbose_name %}Save these values as a new {{ name }} and leave this one unchanged{% endblocktrans %}">

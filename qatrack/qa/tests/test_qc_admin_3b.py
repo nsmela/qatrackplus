@@ -6,6 +6,8 @@ assignment, validation errors, view-only users and the list page's tags and
 list_editable Active column.
 """
 
+import re
+
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
@@ -370,6 +372,15 @@ class TestPreviewEndpoint(UTCAdminTestCase):
         self.assertIn('Morning Output', html)
         self.assertIn('Monthly Mechanical', html)
         self.assertIn('2 days', html)
+
+    def test_cancel_keeps_the_list_filters_and_popups_have_no_save_as_new(self):
+        html = self.client.get(self.url_change, {'_changelist_filters': 'active__exact=1'}).content.decode()
+        cancel = re.search(r'<a href="([^"]*)"[^>]*id="qc-cancel-btn"', html).group(1)
+        self.assertEqual(cancel, self.url_list + '?active__exact=1')
+        self.assertIn('id="qc-saveas-btn"', html)
+        popup = self.client.get(self.url_change, {'_popup': '1'}).content.decode()
+        self.assertNotIn('id="qc-saveas-btn"', popup)
+        self.assertNotIn('id="qc-cancel-btn"', popup)
 
     def test_cycle_day_counts_in_one_query_however_many_days(self):
         from django.db import connection

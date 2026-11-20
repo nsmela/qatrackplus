@@ -452,6 +452,19 @@ each with a test; the two browser-side ones were also checked in a browser.
   the cycle page counts them.
 - The cycle page's Used In card says "Not assigned" when nobody is.
 
+**Second pass (same day):**
+
+- Set-multiple: a reference that isn't a number, with the tolerance kept, also
+  showed "leaving both as they are would change nothing" in the top banner. The
+  form's `clean()` now stops when a field already has an error.
+- Set-multiple for text and multiple choice tests says "Choose a tolerance"
+  without mentioning a reference they have no field for.
+- Removed the Boolean reference normalisation in `clean_reference()`: the
+  select only accepts "", "0" and "1", so it never ran.
+- Shared change form: no Save as New in a popup, and Cancel/Back keeps the list's
+  filters (`add_preserved_filters`). The Test and Test List pages (from
+  `feat/test-builder`, not changed here) still link Cancel to the bare list.
+
 ## Next steps
 
 1. **Read every diff.** `AGENTS.md` requires a human to read and understand each

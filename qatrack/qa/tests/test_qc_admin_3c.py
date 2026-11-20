@@ -592,6 +592,14 @@ class TestSetMultipleAction(TestCase):
         self.assertEqual(self.a.tolerance, self.old_tol)
         self.assertFalse(models.UnitTestInfoChange.objects.exists())
 
+    def test_bad_reference_with_kept_tolerance_gets_one_message(self):
+        resp = self.post([self.a, self.b], tolerance='', reference='abc')
+        html = resp.content.decode()
+        self.assertIn('Enter the reference as a number', html)
+        # not also "you left both blank": the reference was typed, just not a number
+        self.assertNotIn('leaving both as they are would change nothing', html)
+        self.assertIn('Please correct the errors below. Nothing has been saved.', html)
+
     def test_mixed_kinds_are_refused(self):
         boolean = qa_utils.create_unit_test_info(
             unit=self.unit, test=qa_utils.create_test(name='Door', test_type=models.BOOLEAN),
@@ -634,6 +642,10 @@ class TestSetMultipleAction(TestCase):
         html = resp.content.decode()
         self.assertNotIn('name="reference"', html)
         self.assertIn('<option value="%d"' % mc.pk, html)
+        # nothing chosen: no mention of a reference they can't enter
+        html = self.post(utis, tolerance='').content.decode()
+        self.assertIn('Choose a tolerance: leaving it as it is would change nothing.', html)
+        self.assertNotIn('or enter a reference', html)
         self.assertNotIn('<option value="%d"' % self.new_tol.pk, html)
         self.post(utis, tolerance=mc.pk)
         for uti in utis:

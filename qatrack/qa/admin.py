@@ -511,17 +511,23 @@ class SetMultipleReferencesAndTolerancesForm(forms.Form):
     def clean_reference(self):
         value = self.cleaned_data.get("reference")
         value = "" if value is None else str(value).strip()
-        if self.kind == SET_MULTIPLE_BOOLEAN:
-            # "1.0" / "True" as well as the select's own "1" (older forms posted those)
-            value = {"1.0": "1", "true": "1", "0.0": "0", "false": "0"}.get(value.lower(), value)
-        elif self.kind == SET_MULTIPLE_NUMERICAL and value:
+        # (Boolean tests: the select only allows "", "0" and "1", so nothing to do.)
+        if self.kind == SET_MULTIPLE_NUMERICAL and value:
             # once here, rather than once per selected test
             parse_reference_number(value)
         return value
 
     def clean(self):
         cleaned = super().clean()
+        if self.errors:
+            # a field already says what's wrong (e.g. a reference that isn't a
+            # number, which leaves "reference" out of cleaned_data); don't add a
+            # banner claiming both were left blank
+            return cleaned
         if cleaned.get("tolerance", self.KEEP) == self.KEEP and not cleaned.get("reference"):
+            if self.kind == SET_MULTIPLE_STRING:
+                # these tests have no reference field
+                raise forms.ValidationError(_("Choose a tolerance: leaving it as it is would change nothing."))
             raise forms.ValidationError(
                 _("Choose a tolerance or enter a reference: leaving both as they are would change nothing.")
             )
