@@ -395,6 +395,63 @@ ran for fr, fr_CA and es, for both `django` and `djangojs`, then
 - `test_translation_catalogues.py` and the full non-Selenium suite pass
   (2161 passed, 5 skipped).
 
+## Code review fixes (2026-11-20)
+
+A review of `9fcb7918..aa33ca90` found the following. All but the last are fixed,
+each with a test; the two browser-side ones were also checked in a browser.
+
+**Must fix:**
+
+1. **500 on a non-numeric reference** (set-multiple and the single-test page):
+   "abc", "1,5", "nan" or "inf" reached `Reference.value` (a FloatField). Both
+   forms now check it with `parse_reference_number()` (finite numbers only, a
+   point for decimals) and say so under the field.
+2. **Fieldset icons lost in French and Spanish:** `qc_fieldset_icon` looked up
+   lazy-translated keys by hash, which only matches in the language the class
+   was built in. It now compares them as text (and still treats `None` as the
+   unnamed fieldset). `UnitTestCollectionAdmin`'s property workaround is a plain
+   dict again.
+3. **Add-only users got 403 on the assignment Contents preview:** it now allows
+   add permission, like the picker beside it.
+4. **Working files** (`HANDOVER-qc-admin-design.md`,
+   `HANDOVER-qc-admin-agent-brief.md`, `TODO-qc-admin-design.md`, and from
+   `feat/test-builder` `TODO-Issues.md`, `TODO-test-builder.md`): **not removed
+   yet**. They're still in use; delete them in the last commit before the PR
+   leaves draft.
+
+**Medium:**
+
+5. **False "couldn't be refreshed" error** after a pencil-dialog save on a
+   filtered or sorted Set References & Tolerances list: the row was re-read from
+   a fresh copy of the page, where the filter could hide it. The save's JSON now
+   carries the list's own cell HTML (`reference_cell_html`,
+   `tolerance_cell_html`, built by `unit_test_info_reference_html` /
+   `unit_test_info_tolerance_html`), and the row is redrawn from that.
+6. **Spurious OK zone between equal limits** in the Tolerance limits preview:
+   no zone is drawn between two equal neighbouring limits, on the server
+   (`tolerance_limit_zones`) and in the browser (`drawLimits`).
+7. **`window.__QC_ADMIN_INITIALIZED__`** stopped the shared QC script running
+   again on an hx-boost page swap. Removed; every init already marks its own
+   element.
+
+**Minor:**
+
+- Status colours are checked against `color_re` before going in a style
+  attribute everywhere: `qci_status_label` and a new `qc_colour` filter used
+  by the Test List Instance delete pages.
+- Field errors sit under the input on the single-test, Copy, test pack export
+  and import pages too.
+- The browser tab title says "View …" for view-only users on the shared change
+  form and the assignment page, as the heading does.
+- `assign_to_unit.rst`: the Test List Cycle link was missing `:ref:`.
+- The Frequency page's recurrence watcher stops when the page is swapped out.
+- `TestListCycleAdmin.add_row_view` checks the membership inline's add
+  permission (as the Add Test List button does), and its reorder flag uses the
+  inline's change permission.
+- The assignment preview counts each cycle day's tests in one query, the way
+  the cycle page counts them.
+- The cycle page's Used In card says "Not assigned" when nobody is.
+
 ## Next steps
 
 1. **Read every diff.** `AGENTS.md` requires a human to read and understand each

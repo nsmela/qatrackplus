@@ -247,6 +247,14 @@ class TestCycleChangeForm(CycleAdminTestCase):
         self.assertIn(">Active<", used)
         self.assertIn("1 assignment", html)
 
+    def test_used_in_card_says_when_nobody_is_assigned(self):
+        cycle = self.make_cycle()
+        utc = qa_utils.create_unit_test_collection(test_collection=cycle)
+        models.UnitTestCollection.objects.filter(pk=utc.pk).update(assigned_to=None)
+        html = self.client.get(reverse("admin:qa_testlistcycle_change", args=(cycle.pk,))).content.decode()
+        used = html[html.index('id="qcy-used-card"'):]
+        self.assertIn('<span class="qc-empty">Not assigned</span>', used)
+
     def test_used_in_card_when_not_assigned(self):
         cycle = self.make_cycle()
         html = self.client.get(reverse("admin:qa_testlistcycle_change", args=(cycle.pk,))).content.decode()
@@ -379,6 +387,19 @@ class TestCyclePicker(CycleAdminTestCase):
         self.client.logout()
         resp = self.client.get(reverse("admin:qa_testlistcycle_search_lists"))
         self.assertEqual(resp.status_code, 302)
+
+    def test_add_row_needs_permission_to_add_days(self):
+        """Changing a cycle isn't enough: adding a day needs the membership's add permission,
+        as the page's Add Test List button does."""
+        editor = create_user(uname="editor", pwd="pwd", is_staff=True, is_superuser=False)
+        for codename in ("view_testlistcycle", "change_testlistcycle"):
+            editor.user_permissions.add(Permission.objects.get(codename=codename))
+        self.client.logout()
+        self.client.login(username="editor", password="pwd")
+        url = reverse("admin:qa_testlistcycle_add_row")
+        self.assertEqual(self.client.get(url, {"test_list": self.tl1.pk, "index": 0}).status_code, 403)
+        editor.user_permissions.add(Permission.objects.get(codename="add_testlistcyclemembership"))
+        self.assertEqual(self.client.get(url, {"test_list": self.tl1.pk, "index": 0}).status_code, 200)
 
 
 class TestCycleChangeList(CycleAdminTestCase):

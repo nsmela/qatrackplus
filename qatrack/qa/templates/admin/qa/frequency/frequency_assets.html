@@ -81,7 +81,9 @@ table.recurrence-calendar { background: #fff; color: #333; box-shadow: 0 2px 6px
     var rec = document.getElementById("id_recurrences");
     if (rec) {
       var last = rec.value;
-      setInterval(function () {
+      var timer = setInterval(function () {
+        // stop once the page is swapped out (hx-boost), rather than polling forever
+        if (!rec.isConnected) { clearInterval(timer); return; }
         if (rec.value !== last) { last = rec.value; changed(); }
       }, 250);
     }

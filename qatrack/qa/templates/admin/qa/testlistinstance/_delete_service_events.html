@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n qc_admin %}
 {% comment %}
 One card of service events linked to the Test List Instance being deleted
 (admin/qa/testlistinstance/delete_confirmation.html). Context: events, card_id, title,
@@ -34,11 +34,11 @@ doesn't require review goes back to the default status when the session is delet
               </td>
               <td>{{ se.datetime_service }}</td>
               <td>
-                <span class="qci-label" style="border-color: {{ se.service_status.colour }}">{{ se.service_status.name }}</span>
+                <span class="qci-label" style="border-color: {{ se.service_status.colour|qc_colour }}">{{ se.service_status.name }}</span>
                 {% if not se.service_status.is_review_required %}
                   {% if default_ses %}
                     <i class="fa fa-long-arrow-right qci-arrow" aria-hidden="true"></i><span class="tl-visually-hidden">{% trans "changes to" %}</span>
-                    <span class="qci-label qci-new-status" style="border-color: {{ default_ses.colour }}">{{ default_ses.name }}</span>
+                    <span class="qci-label qci-new-status" style="border-color: {{ default_ses.colour|qc_colour }}">{{ default_ses.name }}</span>
                   {% endif %}
                 {% else %}
                   <span class="qci-meta">{% trans "(no change)" %}</span>

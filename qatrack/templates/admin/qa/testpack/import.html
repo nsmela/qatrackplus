@@ -167,11 +167,11 @@ title row submits the form (form="qtp-import-form").
           <div class="tlb-form qc-form qtp-form">
             <div class="tlb-field qc-field field-testpack{% if form.testpack_data.errors %} qc-has-error{% endif %}">
               <label for="id_testpack">{% trans "Test Pack File" %} <em class="tl-req" aria-hidden="true">*</em></label>
-              {{ form.testpack_data.errors }}
               <div class="qc-widget">
                 <input type="file" name="testpack" id="id_testpack" required="">
                 {{ form.testpack_data }}
               </div>
+              {{ form.testpack_data.errors }}
             </div>
           </div>
         </div>

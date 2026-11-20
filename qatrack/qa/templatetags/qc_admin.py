@@ -31,11 +31,31 @@ def qc_fieldset_title(fieldset):
 
 @register.simple_tag
 def qc_fieldset_icon(model_admin, fieldset, first=False):
-    """The Font Awesome icon for a fieldset's card."""
+    """The Font Awesome icon for a fieldset's card.
+
+    Keys are compared as text, not looked up by hash: the admins key their icons by
+    lazy translations, and a dict hashes a lazy key once, in the language active
+    when the class was built. In French or Spanish a hash lookup would miss.
+    """
     icons = getattr(model_admin, "qc_fieldset_icons", None) or {}
-    if fieldset.name in icons:
-        return icons[fieldset.name]
+    name = fieldset.name
+    for key, icon in icons.items():
+        if key is None or name is None:
+            if key is None and name is None:  # the unnamed fieldset
+                return icon
+        elif str(key) == str(name):
+            return icon
     return DEFAULT_FIRST_ICON if first else DEFAULT_ICON
+
+
+@register.filter
+def qc_colour(colour):
+    """A status colour for a style attribute: the saved colour when it is a valid one
+    (``rgba(r,g,b,a)``, as the status models check), otherwise "transparent", so a
+    stray value never ends up inside the style."""
+    from qatrack.qa.models import color_re
+
+    return colour if colour and color_re.match(str(colour)) else "transparent"
 
 
 @register.simple_tag

@@ -82,7 +82,7 @@ admin/qa/testlistcycle/testlistcycle_assets.html.
                     {% endif %}
                   </td>
                   <td>{% if utc.frequency %}{{ utc.frequency.name }}{% else %}{% trans "Ad Hoc" %}{% endif %}</td>
-                  <td>{{ utc.assigned_to.name }}</td>
+                  <td>{% if utc.assigned_to %}{{ utc.assigned_to.name }}{% else %}<span class="qc-empty">{% trans "Not assigned" %}</span>{% endif %}</td>
                   <td>
                     {% if utc.active %}
                       <span class="qcy-status qcy-status-active">{% trans "Active" %}</span>

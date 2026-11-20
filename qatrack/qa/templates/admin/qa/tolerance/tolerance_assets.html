@@ -214,6 +214,8 @@ translated fieldset names.
         limit.appendChild(el("span", "qct-limit-value", formatLimit(values[f])));
         limit.appendChild(el("span", "qct-limit-name", cfg.labels[f]));
         strip.appendChild(limit);
+        // equal neighbouring limits leave no gap, so no zone between them (as on the server)
+        if (k + 1 < nums.length && nums[k + 1] === nums[k]) { return; }
         strip.appendChild(zoneEl(warning ? null : zoneFor(values, points[k + 1])));
       });
     }

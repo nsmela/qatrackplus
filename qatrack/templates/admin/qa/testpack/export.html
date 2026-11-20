@@ -197,14 +197,14 @@ Descriptions are stored as HTML, so the tables show them as plain text.
           <div class="tlb-form qc-form qtp-form">
             <div class="tlb-field qc-field field-name{% if form.name.errors %} qc-has-error{% endif %}">
               <label for="{{ form.name.id_for_label }}">{% trans "Test Pack Name" %} <em class="tl-req" aria-hidden="true">*</em></label>
-              {{ form.name.errors }}
               <div class="qc-widget">{{ form.name }}</div>
+              {{ form.name.errors }}
               <span class="qc-help">{% trans "Used as the file name: letters, numbers, hyphens and underscores only." %}</span>
             </div>
             <div class="tlb-field qc-field field-description{% if form.description.errors %} qc-has-error{% endif %}">
               <label for="{{ form.description.id_for_label }}">{% trans "Description" %}</label>
-              {{ form.description.errors }}
               <div class="qc-widget">{{ form.description }}</div>
+              {{ form.description.errors }}
             </div>
           </div>
         </form>

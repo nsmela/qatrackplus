@@ -208,6 +208,49 @@ class TestQCCardLabels(TestCase):
         self.assertRegex(html, r'<label>Rules <em class="tl-req"')
 
 
+class TestFieldsetIconsInEveryLanguage(TestCase):
+    """qc_fieldset_icon matches lazy-translated keys in the user's language."""
+
+    def test_icon_found_in_french_and_spanish(self):
+        from types import SimpleNamespace
+
+        from django.utils import translation
+        from django.utils.translation import gettext_lazy as _l
+
+        from qatrack.qa.templatetags.qc_admin import qc_fieldset_icon
+
+        model_admin = SimpleNamespace(qc_fieldset_icons={_l("Comments"): "fa-commenting-o"})
+        fieldset = SimpleNamespace(name=_l("Comments"))
+        for lang in ('en', 'fr', 'es'):
+            with self.subTest(lang=lang), translation.override(lang):
+                if lang != 'en':
+                    # otherwise this test proves nothing
+                    self.assertNotEqual(str(_l("Comments")), "Comments")
+                self.assertEqual(qc_fieldset_icon(model_admin, fieldset), "fa-commenting-o")
+                self.assertEqual(qc_fieldset_icon(model_admin, SimpleNamespace(name=None), first=True), "fa-info-circle")
+                self.assertEqual(qc_fieldset_icon(model_admin, SimpleNamespace(name=_l("Unit"))), "fa-sliders")
+
+    def test_none_is_the_key_for_the_unnamed_fieldset(self):
+        from types import SimpleNamespace
+
+        from qatrack.qa.templatetags.qc_admin import qc_fieldset_icon
+
+        model_admin = SimpleNamespace(qc_fieldset_icons={None: "fa-cog", "Other": "fa-x"})
+        self.assertEqual(qc_fieldset_icon(model_admin, SimpleNamespace(name=None), first=True), "fa-cog")
+        self.assertEqual(qc_fieldset_icon(model_admin, SimpleNamespace(name="Other")), "fa-x")
+        self.assertEqual(qc_fieldset_icon(model_admin, SimpleNamespace(name="None")), "fa-sliders")
+
+    def test_status_colours_are_checked_before_going_in_a_style(self):
+        from qatrack.qa.admin import qci_status_label
+        from qatrack.qa.templatetags.qc_admin import qc_colour
+
+        self.assertEqual(qc_colour('rgba(60,141,188,1)'), 'rgba(60,141,188,1)')
+        for bad in ('red; background: url(x)', '', None, 'rgba(1,2,3)'):
+            self.assertEqual(qc_colour(bad), 'transparent')
+        status = models.TestInstanceStatus(name='Odd', colour='red;x')
+        self.assertIn('border-color: transparent', qci_status_label(status))
+
+
 class TestSharedDialogStyles(TestCase):
     """The dialog frame and the Reference and Tolerance dialog have one copy of their CSS."""
 

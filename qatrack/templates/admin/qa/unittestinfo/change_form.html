@@ -89,8 +89,8 @@ admin/qa/unittestinfo/unittestinfo_assets.html.
                   {% qc_help_text field as help %}
                   <div class="tlb-field qc-field field-{{ fname }}{% if wide %} tl-col-full{% endif %}{% if field.errors %} qc-has-error{% endif %}">
                     <label for="{{ field.field.id_for_label }}">{{ label }}{% if required %} <em class="tl-req" aria-hidden="true">*</em>{% endif %}</label>
-                    {{ field.errors }}
                     <div class="qc-widget">{{ field.field }}</div>
+                    {{ field.errors }}
                     {% if help %}<span class="qc-help" id="{{ field.field.id_for_label }}_helptext">{{ help|safe }}</span>{% endif %}
                   </div>
                 {% endif %}

@@ -182,10 +182,12 @@ class TestListPencil(TestCase):
         change = models.UnitTestInfoChange.objects.get(unit_test_info=self.uti)
         self.assertEqual(change.comment, 'From the list')
 
-        # the list (what the glue script re-reads for the row) shows the new values
+        # the response carries the list's own cell HTML, which the glue script puts in the row
         row = row_html(self.client.get(self.url).content.decode(), self.uti)
         self.assertEqual(cell(row, 'reference_display'), '101')
         self.assertIn(self.tol.name, cell(row, 'tolerance_display'))
+        self.assertEqual(resp.json()['reference_cell_html'], cell(row, 'reference_display'))
+        self.assertEqual(resp.json()['tolerance_cell_html'], cell(row, 'tolerance_display'))
 
     def test_dialog_errors_come_back_as_422(self):
         self._login('view_unittestinfo', 'change_unittestinfo')
@@ -267,6 +269,16 @@ class TestChangeForm(TestCase):
         for name in ('reference_value', 'tolerance', 'comment'):
             self.assertEqual(html.count('name="%s"' % name), 1, name)
         self.assertIn('Leave this blank to keep the current reference.', html)
+
+    def test_non_numeric_reference_is_refused_not_a_server_error(self):
+        for bad in ('abc', '1,5', 'nan', 'inf'):
+            with self.subTest(reference=bad):
+                resp = self._post(reference_value=bad)
+                self.assertEqual(resp.status_code, 200)
+                html = resp.content.decode()
+                self.assertIn('Enter the reference as a number', html)
+        self.uti.refresh_from_db()
+        self.assertEqual(self.uti.reference, self.ref)
 
     def test_saving_a_new_reference_writes_history(self):
         resp = self._post(reference_value='105', comment='New output factor')
@@ -567,6 +579,17 @@ class TestSetMultipleAction(TestCase):
         self.refresh()
         self.assertEqual(self.a.tolerance, self.old_tol)
         self.assertEqual(self.b.tolerance, self.old_tol)
+        self.assertFalse(models.UnitTestInfoChange.objects.exists())
+
+    def test_non_numeric_reference_is_refused_not_a_server_error(self):
+        for bad in ('abc', '1,5', 'nan', 'inf', '-Infinity'):
+            with self.subTest(reference=bad):
+                resp = self.post([self.a, self.b], tolerance=self.new_tol.pk, reference=bad)
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn('Enter the reference as a number', resp.content.decode())
+        self.refresh()
+        self.assertEqual(self.a.reference, self.ref)
+        self.assertEqual(self.a.tolerance, self.old_tol)
         self.assertFalse(models.UnitTestInfoChange.objects.exists())
 
     def test_mixed_kinds_are_refused(self):

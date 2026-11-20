@@ -1,5 +1,5 @@
 {% extends "admin/delete_confirmation.html" %}
-{% load i18n admin_urls %}
+{% load i18n admin_urls qc_admin %}
 
 {% comment %}
 Delete confirmation for a Test List Instance (a performed QC session), in the QC card
@@ -114,7 +114,7 @@ default_ses and test_instances, on top of Django's own delete context.
                 <td>{{ ti.unit_test_info.test }}</td>
                 <td>{{ ti.work_completed }}</td>
                 <td>{{ ti.modified_by }}</td>
-                <td><span class="qci-label" style="border-color: {{ ti.status.colour }}">{{ ti.status.name }}</span></td>
+                <td><span class="qci-label" style="border-color: {{ ti.status.colour|qc_colour }}">{{ ti.status.name }}</span></td>
               </tr>
             {% endfor %}
           </tbody>

@@ -1,4 +1,5 @@
 import json
+import math
 import re
 
 from django import VERSION, forms
@@ -116,6 +117,25 @@ class CategoryAdmin(QCAdminDesignMixin, DjangoMpttAdmin):
         return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
 
 
+def parse_reference_number(value):
+    """The reference typed for a numerical test, as a finite float.
+
+    Raises forms.ValidationError for anything else ("abc", "1,5", "nan", "inf"):
+    Reference.value is a FloatField, so saving text there would fail with a
+    server error, and an infinite or NaN reference would make every result fail.
+    """
+    try:
+        number = float(str(value).strip())
+    except (TypeError, ValueError):
+        number = None
+    if number is None or not math.isfinite(number):
+        raise forms.ValidationError(
+            _("Enter the reference as a number, using a point for decimals (for example 1.5)."),
+            code="invalid_reference",
+        )
+    return number
+
+
 class UnitTestInfoForm(forms.ModelForm):
     """Form for UnitTestInfo model"""
 
@@ -206,6 +226,16 @@ class UnitTestInfoForm(forms.ModelForm):
             # left as it was: save() keeps the current reference, so check that one
             reference_value = self._kept_reference_value()
         tolerance = cleaned_data.get("tolerance")
+
+        test = self.instance.test
+        numerical = not (test.type == models.BOOLEAN or test.is_string_type())
+        if numerical and self._reference_value_changed() and reference_value not in (None, ""):
+            try:
+                parse_reference_number(reference_value)
+            except forms.ValidationError as e:
+                # the checks below would only repeat this in other words
+                self.add_error('reference_value', e)
+                return cleaned_data
 
         # Validate percent tolerance requires numerical reference
         if tolerance and tolerance.type == models.PERCENT:
@@ -484,6 +514,9 @@ class SetMultipleReferencesAndTolerancesForm(forms.Form):
         if self.kind == SET_MULTIPLE_BOOLEAN:
             # "1.0" / "True" as well as the select's own "1" (older forms posted those)
             value = {"1.0": "1", "true": "1", "0.0": "0", "false": "0"}.get(value.lower(), value)
+        elif self.kind == SET_MULTIPLE_NUMERICAL and value:
+            # once here, rather than once per selected test
+            parse_reference_number(value)
         return value
 
     def clean(self):
@@ -582,6 +615,14 @@ def unit_test_info_missing_html(uti, part):
     return format_html('<span class="qcr-none">{}</span>', _("Not set"))
 
 
+def unit_test_info_reference_html(uti):
+    """The reference as the Unit Test Info list and Details card show it (HTML):
+    Yes/No for Boolean tests, "Not set" / "Not used" when there's none."""
+    if uti.reference is None:
+        return unit_test_info_missing_html(uti, "reference")
+    return escape(uti.reference.value_display(uti.test))
+
+
 def unit_test_info_tolerance_html(uti):
     """The tolerance as the Unit Test Info list and Details card show it: its stored
     name (as before), with the plain-language reading as a tooltip."""
@@ -672,9 +713,7 @@ class UnitTestInfoAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         """
         if obj is None:
             return None
-        if obj.reference is None:
-            return unit_test_info_missing_html(obj, "reference")
-        return obj.reference.value_display(obj.test)
+        return unit_test_info_reference_html(obj)
 
     @admin.display(description=_l("Tolerance"), ordering="tolerance")
     def tolerance_display(self, obj):
@@ -2188,11 +2227,17 @@ def testlist_machine_ref_tol(request, uti_id):
                 saved, old_reference, old_tolerance, form.cleaned_data.get("comment"), request.user,
                 form.changed_data,
             )
-            fresh = models.UnitTestInfo.objects.select_related("test", "reference", "tolerance").get(pk=uti.pk)
+            fresh = models.UnitTestInfo.objects.select_related("unit", "test", "reference", "tolerance").get(
+                pk=uti.pk,
+            )
             data = machine_values_display(fresh)
             data.update({
                 "ok": True,
                 "uti_id": fresh.pk,
+                # the Set References & Tolerances list's two cells, so it can redraw the
+                # row without reloading (which a filter or sort might no longer show)
+                "reference_cell_html": str(unit_test_info_reference_html(fresh)),
+                "tolerance_cell_html": str(unit_test_info_tolerance_html(fresh)),
                 "uti_url": reverse("admin:qa_unittestinfo_change", args=[fresh.pk]),
                 "test_id": fresh.test_id,
                 "unit_id": fresh.unit_id,
@@ -3376,13 +3421,18 @@ def _utc_preview_context(user, ct, obj):
             ctx["utc_open_url"] = reverse("admin:qa_testlistcycle_change", args=[obj.pk])
         can_open_lists = user.has_perm("qa.change_testlist") or user.has_perm("qa.view_testlist")
         days = []
-        memberships = obj.testlistcyclemembership_set.select_related("test_list").order_by("order")
+        memberships = list(obj.testlistcyclemembership_set.select_related("test_list").order_by("order"))
+        # one query for every day's test count, counted as the cycle page counts them
+        counted = _cycle_test_lists_with_counts(
+            models.TestList.objects.filter(pk__in={m.test_list_id for m in memberships})
+        )
+        n_tests = {tl.pk: tl.qcy_own_tests + tl.qcy_sublist_tests for tl in counted}
         for day, membership in enumerate(memberships, start=1):
             tl = membership.test_list
             days.append({
                 "day": day,
                 "test_list": tl,
-                "n_tests": len(tl.ordered_tests()),
+                "n_tests": n_tests.get(tl.pk, 0),
                 "url": reverse("admin:qa_testlist_change", args=[tl.pk]) if can_open_lists else None,
             })
         ctx["utc_days"] = days
@@ -3479,10 +3529,7 @@ class UnitTestCollectionAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         (_l("Who"), {"fields": ["assigned_to", "visible_to"]}),
     ]
 
-    @property
-    def qc_fieldset_icons(self):
-        # built when read, so the keys match the fieldset names in the user's language
-        return {_("Where & When"): "fa-calendar", _("Who"): "fa-users"}
+    qc_fieldset_icons = {_l("Where & When"): "fa-calendar", _l("Who"): "fa-users"}
 
     class Media:
         # The page's styles and JS are inlined (admin/qa/unittestcollection/utc_assets.html)
@@ -3566,8 +3613,12 @@ class UnitTestCollectionAdmin(QCAdminDesignMixin, BaseQATrackAdmin):
         })
 
     def contents_preview_view(self, request):
-        """htmx: the contents preview card's body for ``content_type`` and ``object_id``."""
-        if not self.has_view_or_change_permission(request):
+        """htmx: the contents preview card's body for ``content_type`` and ``object_id``.
+
+        For anyone who can open an assignment page: view or change, and also add, since
+        the Add page's picker (search_collections_view) is open to add-only users.
+        """
+        if not (self.has_view_or_change_permission(request) or self.has_add_permission(request)):
             return HttpResponseForbidden(_("You don't have permission to view test list assignments."))
         ct, chosen = _utc_collection(request.GET.get("content_type"), request.GET.get("object_id"))
         return render(
@@ -3831,14 +3882,16 @@ class TestListCycleAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachment
         and fk as the rows Django renders), so it saves like any other row once the
         page bumps TOTAL_FORMS.
         """
-        if not self._can_edit_days(request):
+        cycle_pk = _int_param(request.GET.get("cycle"))
+        cycle = self.model.objects.filter(pk=cycle_pk).first() if cycle_pk else None
+        inline = TestListCycleMembershipInline(self.model, self.admin_site)
+        # the same rule as the page's Add Test List button (qcy_can_add_rows): the
+        # membership model has permissions of its own
+        if not (self._can_edit_days(request) and inline.has_add_permission(request, cycle)):
             return HttpResponseForbidden(_("You don't have permission to change test list cycles."))
         test_list = get_object_or_404(_cycle_test_lists_with_counts(), pk=_int_param(request.GET.get("test_list"), 0))
         index = _int_param(request.GET.get("index"), 0)
-        cycle_pk = _int_param(request.GET.get("cycle"))
-        cycle = self.model.objects.filter(pk=cycle_pk).first() if cycle_pk else None
 
-        inline = TestListCycleMembershipInline(self.model, self.admin_site)
         FormSet = inline.get_formset(request, cycle)
         formset = FormSet(instance=cycle or self.model(), prefix=FormSet.get_default_prefix())
         # what BaseFormSet.empty_form does, at a real index and with the test list filled in
@@ -3860,7 +3913,7 @@ class TestListCycleAdmin(QCAdminDesignMixin, SaveUserMixin, SaveInlineAttachment
                 "day": index + 1,
             },
             "qcy_editable": True,
-            "qcy_can_reorder": True,
+            "qcy_can_reorder": inline.has_change_permission(request, cycle),
             "qcy_can_view_test_lists": _can_view_test_lists(request.user),
         })
 
@@ -4178,7 +4231,8 @@ def qci_status_label(status):
     border, black text, the status name (status colours always come with their word)."""
     if status is None:
         return ""
-    return format_html('<span class="qci-label" style="border-color: {}">{}</span>', status.colour, status.name)
+    colour = status.colour if status.colour and models.color_re.match(status.colour) else "transparent"
+    return format_html('<span class="qci-label" style="border-color: {}">{}</span>', colour, status.name)
 
 
 def qci_pass_fail_label(pass_fail):
@@ -4523,6 +4577,8 @@ def tolerance_limit_zones(tol):
     Returns ``[zone, (field, value), zone, …]``: each zone is OK, TOLERANCE or ACTION
     and each ``(field, value)`` a limit that is set. A blank limit isn't used, as in
     TestInstance.float_pass_fail, so a zone runs on to the next limit that is set.
+    Two equal limits next to each other (allowed: Tolerance.clean_tols only needs
+    them in order) have no zone between them, since no value lies strictly between.
     Limits that are out of order (which won't save) give ``None`` for every zone.
     tolerance_assets.html draws the same zones in the browser as limits are typed.
     """
@@ -4551,8 +4607,12 @@ def tolerance_limit_zones(tol):
     # A point inside each gap between limits (and beyond each end) tells its zone.
     points = [values[0] - 1] + [(a + b) / 2. for a, b in zip(values, values[1:])] + [values[-1] + 1]
     result = [zone(points[0])]
-    for (field, value), point in zip(limits, points[1:]):
-        result += [(field, value), zone(point)]
+    for i, ((field, value), point) in enumerate(zip(limits, points[1:])):
+        result.append((field, value))
+        if i + 1 < len(limits) and limits[i + 1][1] == value:
+            # no gap between equal limits, so no zone to show
+            continue
+        result.append(zone(point))
     return result
 
 

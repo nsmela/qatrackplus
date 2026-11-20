@@ -136,8 +136,8 @@ below for its dark theme.
 <script>
 (function () {
   "use strict";
-  if (window.__QC_ADMIN_INITIALIZED__) { return; }
-  window.__QC_ADMIN_INITIALIZED__ = true;
+  // No page-wide "already ran" flag: under hx-boost this script runs again on each
+  // swapped-in page, and every init below marks its own element instead.
 
   var SEARCH_PLACEHOLDER = "{{ _('Search…')|escapejs }}";
 

@@ -371,6 +371,22 @@ class TestPreviewEndpoint(UTCAdminTestCase):
         self.assertIn('Monthly Mechanical', html)
         self.assertIn('2 days', html)
 
+    def test_cycle_day_counts_in_one_query_however_many_days(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def preview(cycle):
+            with CaptureQueriesContext(connection) as queries:
+                ctx = qa_admin._utc_preview_context(self.user, self.cycle_ct, cycle)
+            return [d['n_tests'] for d in ctx['utc_days']], len(queries)
+
+        counts, two_day_queries = preview(self.cycle)
+        self.assertEqual(counts, [2, 0])
+        longer = qa_utils.create_cycle(test_lists=[self.tl_1, self.tl_2, self.tl_1, self.tl_2], name='Long Cycle')
+        counts, four_day_queries = preview(longer)
+        self.assertEqual(counts, [2, 0, 2, 0])
+        self.assertEqual(four_day_queries, two_day_queries)
+
     def test_nothing_chosen(self):
         for params in (
             {},
@@ -387,6 +403,13 @@ class TestPreviewEndpoint(UTCAdminTestCase):
         params = {'content_type': self.tl_ct.pk, 'object_id': self.tl_1.pk}
         self.assertEqual(self.client.get(self.url_preview, params).status_code, 403)
         self.login_as('view_unittestcollection', uname='viewer')
+        self.assertEqual(self.client.get(self.url_preview, params).status_code, 200)
+
+    def test_add_only_user_can_preview_what_they_picked(self):
+        # the Add page's picker is open to them, so its preview must be too
+        self.login_as('add_unittestcollection', uname='adder')
+        params = {'content_type': self.tl_ct.pk, 'object_id': self.tl_1.pk}
+        self.assertEqual(self.client.get(self.url_search, {'content_type': self.tl_ct.pk}).status_code, 200)
         self.assertEqual(self.client.get(self.url_preview, params).status_code, 200)
 
 

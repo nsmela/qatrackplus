@@ -162,7 +162,6 @@ builder's (admin/qa/shared/_modal_css.html and _reftol_dialog_css.html).
     saveFailed: "{{ _("Couldn't save the reference and tolerance. Nothing was changed. Try again.")|escapejs }}",
     newTolOpenFailed: "{{ _("Couldn't open the New Tolerance dialog. Nothing was saved. Try again.")|escapejs }}",
     newTolFailed: "{{ _("Couldn't create the tolerance. Nothing was saved. Try again.")|escapejs }}",
-    refreshFailed: "{{ _("Saved, but this row couldn't be refreshed. Reload the page to see the new values.")|escapejs }}",
     saving: "{{ _('Saving…')|escapejs }}",
     save: "{{ _('Save')|escapejs }}",
     creating: "{{ _('Creating…')|escapejs }}",
@@ -293,30 +292,24 @@ builder's (admin/qa/shared/_modal_css.html and _reftol_dialog_css.html).
     if (alert && text) { text.textContent = msg; alert.hidden = false; }
   }
 
-  // Redraw the saved row's Reference and Tolerance cells from a fresh copy of this page.
-  function refreshRow(utiId) {
-    var selector = 'button.qcr-reftol-btn[data-uti-id="' + String(utiId).replace(/[^0-9]/g, "") + '"]';
+  // Redraw the saved row's Reference and Tolerance cells from the save's response:
+  // the server sends the list's own (escaped) cell HTML, so this works whatever the
+  // filter, sort or page, even when the new values no longer match the filter.
+  function updateRow(data) {
+    var selector = 'button.qcr-reftol-btn[data-uti-id="' + String(data.uti_id).replace(/[^0-9]/g, "") + '"]';
     var btn = document.querySelector("#result_list " + selector);
     var row = btn ? btn.closest("tr") : null;
     if (!row) { return; }
-    request(window.location.href)
-      .then(function (res) {
-        if (!res.ok) { throw new Error(String(res.status)); }
-        return res.text();
-      })
-      .then(function (html) {
-        var doc = new DOMParser().parseFromString(html, "text/html");
-        var freshBtn = doc.querySelector("#result_list " + selector);
-        var freshRow = freshBtn ? freshBtn.closest("tr") : null;
-        if (!freshRow) { throw new Error("row not found"); }
-        ["field-reference_display", "field-tolerance_display"].forEach(function (cls) {
-          var cell = row.querySelector("td." + cls), fresh = freshRow.querySelector("td." + cls);
-          if (cell && fresh) { cell.innerHTML = fresh.innerHTML; }
-        });
-        row.classList.add("qcr-row-saved");
-        setTimeout(function () { row.classList.remove("qcr-row-saved"); }, 2500);
-      })
-      .catch(function () { showNote(MSG.refreshFailed, true); });
+    var cells = {
+      "field-reference_display": data.reference_cell_html,
+      "field-tolerance_display": data.tolerance_cell_html
+    };
+    Object.keys(cells).forEach(function (cls) {
+      var cell = row.querySelector("td." + cls);
+      if (cell && typeof cells[cls] === "string") { cell.innerHTML = cells[cls]; }
+    });
+    row.classList.add("qcr-row-saved");
+    setTimeout(function () { row.classList.remove("qcr-row-saved"); }, 2500);
   }
 
   function submitRefTol(form) {
@@ -336,7 +329,7 @@ builder's (admin/qa/shared/_modal_css.html and _reftol_dialog_css.html).
           if (!data || !data.ok) { throw new Error("bad response"); }
           closeRefTol();
           showNote(data.message, false);
-          refreshRow(data.uti_id);
+          updateRow(data);
         });
       })
       .catch(function () {

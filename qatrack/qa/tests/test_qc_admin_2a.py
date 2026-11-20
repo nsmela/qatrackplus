@@ -195,6 +195,18 @@ class TestToleranceAdmin(TestCase):
         )
         self.assertEqual(qa_admin.tolerance_limit_zones(models.Tolerance(type=models.ABSOLUTE)), [])
 
+    def test_equal_neighbouring_limits_have_no_zone_between(self):
+        tol = models.Tolerance(type=models.ABSOLUTE, act_low=-2, tol_low=-2, tol_high=2, act_high=2)
+        self.assertEqual(
+            qa_admin.tolerance_limit_zones(tol),
+            [models.ACTION, ('act_low', -2), ('tol_low', -2), models.OK, ('tol_high', 2), ('act_high', 2), models.ACTION],
+        )
+        tol = models.Tolerance(type=models.ABSOLUTE, act_low=0, tol_low=0, tol_high=0, act_high=0)
+        self.assertEqual(
+            qa_admin.tolerance_limit_zones(tol),
+            [models.ACTION, ('act_low', 0), ('tol_low', 0), ('tol_high', 0), ('act_high', 0), models.ACTION],
+        )
+
     def test_out_of_order_limits_warn_and_still_fail_on_server(self):
         before = models.Tolerance.objects.count()
         resp = self.client.post(self.add_url, self.data(tol_low='2', tol_high='1'))

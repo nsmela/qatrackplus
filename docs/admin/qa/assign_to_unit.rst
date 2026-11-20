@@ -63,8 +63,8 @@ historical data).
 Test List or Test List Cycle
 ----------------------------
 
-Choose whether you are assigning a :ref:`Test List <qa_test_lists>` or a `Test
-List Cycle <qa_test_list_cycles>` to this unit, using the **Test List** and
+Choose whether you are assigning a :ref:`Test List <qa_test_lists>` or a
+:ref:`Test List Cycle <qa_test_list_cycles>` to this unit, using the **Test List** and
 **Test List Cycle** buttons in the **What** card. A search box then lists the
 test lists (or cycles) you can choose from; type part of a name to narrow the
 list, and click **Choose** beside the one you want. It then shows as a chip

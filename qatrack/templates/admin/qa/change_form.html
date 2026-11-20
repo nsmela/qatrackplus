@@ -18,7 +18,7 @@ Styles and JS: admin/qa/shared/_qc_assets.html.
 View-only users keep the same cards, with every field read-only.
 {% endcomment %}
 
-{% block title %}{% if add %}{% blocktrans with name=opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }} | {% blocktrans with name=opts.verbose_name|capfirst %}Edit {{ name }}{% endblocktrans %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
+{% block title %}{% if add %}{% blocktrans with name=opts.verbose_name|capfirst %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }} | {% if has_change_permission %}{% blocktrans with name=opts.verbose_name|capfirst %}Edit {{ name }}{% endblocktrans %}{% else %}{% blocktrans with name=opts.verbose_name|capfirst %}View {{ name }}{% endblocktrans %}{% endif %}{% endif %} | {% trans 'QATrack+ Admin Site' %}{% endblock %}
 {% block pretitle %}{% endblock %}
 {% block content_title %}{% endblock %}
 {% block content_subtitle %}{% endblock %}
