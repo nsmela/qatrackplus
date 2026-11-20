@@ -34,7 +34,7 @@ class TestChoicesLabelInAPI(APITestCase):
         return match.group(1).strip()
 
     def test_browsable_api_filter_form(self):
-        resp = self.client.get(reverse('test-list'), HTTP_ACCEPT='text/html')
+        resp = self.client.get(reverse('test-list'), headers={"accept": 'text/html'})
         assert resp.status_code == status.HTTP_200_OK
         html = resp.content.decode()
         assert self.label_for(html, 'choices__icontains') == 'Choices contains:'
