@@ -7,6 +7,7 @@ list's Recover button and the change page's summary card.
 """
 
 import re
+import time
 from unittest import mock
 
 from django.contrib.auth.models import Permission
@@ -54,6 +55,19 @@ class TestFrequencyChangeForm(TestCase):
         # One save button group, Django's bottom row isn't drawn
         self.assertIn('id="qc-save-btn"', html)
         self.assertNotIn('class="submit-row"', html)
+
+    def test_save_and_add_another_is_offered(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('name="_addanother"', html)
+        self.assertNotIn('id="qc-view-on-site-btn"', html)  # frequencies have no page of their own
+
+    def test_a_rule_repeating_every_zero_weeks_is_refused(self):
+        resp = self.client.post(self.url, {
+            'name': 'Daily', 'slug': 'daily', 'recurrences': 'RRULE:FREQ=WEEKLY;INTERVAL=0;BYDAY=MO',
+            'window_start': '', 'window_end': '0', '_save': 'Save',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Each rule must repeat every 1 or more', resp.content.decode())
 
     def test_schedule_card_has_full_width_recurrence_widget(self):
         html = self.client.get(self.url).content.decode()
@@ -222,6 +236,54 @@ class TestFrequencyNextDueDates(TestCase):
                 self.assertEqual(result['dates'], [])
                 self.assertEqual(result['is_error'], is_error)
                 self.assertIn(message, result['message'])
+
+    def test_rules_that_would_search_for_ever(self):
+        # dateutil never finishes an interval of 0, and searches to the year 9999 for a
+        # rule no date matches or a schedule whose exclusions remove every date
+        cases = [
+            ('RRULE:FREQ=WEEKLY;INTERVAL=0;BYDAY=MO', 'Each rule must repeat every 1 or more'),
+            ('RRULE:FREQ=DAILY\nEXRULE:FREQ=DAILY;INTERVAL=0', 'Each rule must repeat every 1 or more'),
+            ('RRULE:FREQ=HOURLY', 'only be listed for daily, weekly, monthly and yearly'),
+            ('RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30', 'No date can match'),
+            ('RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30;UNTIL=20300101T050000Z', 'No date can match'),
+            ('RRULE:FREQ=DAILY\nEXRULE:FREQ=DAILY', 'no due dates after today'),
+        ]
+        for rule, message in cases:
+            with self.subTest(rule=rule):
+                start = time.monotonic()
+                result = qa_admin.frequency_next_due_dates({'recurrences': rule, 'window_end': '0'})
+                self.assertLess(time.monotonic() - start, 3)
+                self.assertTrue(result['is_error'])
+                self.assertEqual(result['dates'], [])
+                self.assertIn(message, result['message'])
+
+    def test_rules_no_date_matches_are_left_out(self):
+        tz = timezone.get_current_timezone()
+        now = timezone.datetime(2026, 11, 19, 10, 0, tzinfo=tz)
+        cases = [
+            # a date of its own beside an impossible rule
+            'RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30\nRDATE:20301001T150000Z',
+            # an impossible exclusion excludes nothing
+            'RRULE:FREQ=DAILY;BYMONTH=2;BYMONTHDAY=30\nRRULE:FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1\n'
+            'EXRULE:FREQ=DAILY;BYMONTH=4;BYMONTHDAY=31',
+        ]
+        for rule in cases:
+            with self.subTest(rule=rule):
+                start = time.monotonic()
+                result = qa_admin.frequency_next_due_dates({'recurrences': rule, 'window_end': '0'}, now=now)
+                self.assertLess(time.monotonic() - start, 3)
+                self.assertFalse(result['is_error'], result['message'])
+                first = timezone.localtime(result['dates'][0]['due']).date()
+                self.assertEqual((first.month, first.day), (10, 1))
+
+    def test_leap_days_are_found(self):
+        tz = timezone.get_current_timezone()
+        now = timezone.datetime(2026, 11, 19, 10, 0, tzinfo=tz)
+        result = qa_admin.frequency_next_due_dates(
+            {'recurrences': 'RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29', 'window_end': '0'}, now=now,
+        )
+        self.assertEqual(timezone.localtime(result['dates'][0]['due']).date(), timezone.datetime(2028, 2, 29).date())
+        self.assertEqual(len(result['dates']), 8)
 
     def test_endpoint_returns_the_list(self):
         resp = self.client.post(self.url, {

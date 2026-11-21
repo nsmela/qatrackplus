@@ -230,6 +230,26 @@ class TestCycleChangeForm(CycleAdminTestCase):
         cycle.refresh_from_db()
         self.assertEqual(cycle.name, "Daily Cycle")
 
+    def test_an_add_that_failed_leaves_no_day_behind(self):
+        # The page takes a formset index before asking for a row; when that request
+        # fails the index stays counted in TOTAL_FORMS with nothing posted for it.
+        cycle = self.make_cycle()
+        rows = self.change_rows(cycle) + [{}]
+        url = reverse("admin:qa_testlistcycle_change", args=(cycle.pk,))
+        page = self.client.get(url)
+        data = cycle_post_data("", slugify(cycle.name), rows, initial=3, **self.attachment_management(page))
+        resp = self.client.post(url, data)
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("qc-has-error", html)
+        self.assertNotIn("Test list not found", html)
+        self.assertEqual(len(re.findall(r'<tr[^>]*class="[^"]*qcy-row[ "]', html)), 3)
+        # and with the name put right, it saves the three days
+        data["name"] = cycle.name
+        resp = self.client.post(url, data)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(cycle.testlistcyclemembership_set.count(), 3)
+
     def test_used_in_card_lists_assignments(self):
         cycle = self.make_cycle()
         unit = qa_utils.create_unit(name="Linac 1")

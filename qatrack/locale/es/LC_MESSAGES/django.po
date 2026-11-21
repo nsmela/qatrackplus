@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 13:04-0700\n"
+"POT-Creation-Date: 2026-11-20 20:54-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,7 +23,7 @@ msgstr ""
 msgid "Admin Status"
 msgstr "Estado de administración"
 
-#: qatrack/accounts/admin.py:30 qatrack/qa/admin.py:505
+#: qatrack/accounts/admin.py:30 qatrack/qa/admin.py:508
 #: qatrack/qa/models.py:701 qatrack/qa/models.py:2400
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:114
 #: qatrack/qa/templates/qa/testlistinstance_review.html:126
@@ -38,7 +38,7 @@ msgstr "Estado de administración"
 msgid "Yes"
 msgstr "Sí"
 
-#: qatrack/accounts/admin.py:31 qatrack/qa/admin.py:505
+#: qatrack/accounts/admin.py:31 qatrack/qa/admin.py:508
 #: qatrack/qa/models.py:701 qatrack/qa/models.py:2400
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:116
 #: qatrack/qa/templates/qa/testlistinstance_review.html:128
@@ -176,7 +176,7 @@ msgstr "Use los iconos/enlaces a continuación para alternar el permiso"
 #: qatrack/parts/templates/parts/part_details.html:45
 #: qatrack/parts/templates/parts/supplier_details.html:47
 #: qatrack/parts/views.py:231 qatrack/parts/views.py:382
-#: qatrack/qa/admin.py:2638 qatrack/qa/models.py:402 qatrack/qa/models.py:537
+#: qatrack/qa/admin.py:2641 qatrack/qa/models.py:402 qatrack/qa/models.py:537
 #: qatrack/qa/models.py:635 qatrack/qa/models.py:664 qatrack/qa/models.py:721
 #: qatrack/qa/models.py:996 qatrack/qa/models.py:1042 qatrack/qa/models.py:1635
 #: qatrack/qa/models.py:1993
@@ -265,7 +265,7 @@ msgid "Login Failed with error {status_code}: {phrase}"
 msgstr "Iniciar sesión falló con error {status_code}: {phrase}"
 
 #: qatrack/api/qa/filters.py:178 qatrack/api/qa/serializers.py:89
-#: qatrack/qa/admin.py:2767 qatrack/qa/admin.py:2822
+#: qatrack/qa/admin.py:2770 qatrack/qa/admin.py:2825
 #: qatrack/templates/admin/qa/test/change_form.html:148
 msgid "Choices"
 msgstr ""
@@ -296,7 +296,7 @@ msgid "Test"
 msgstr "Prueba"
 
 #: qatrack/attachments/admin.py:34 qatrack/attachments/models.py:97
-#: qatrack/qa/admin.py:3364 qatrack/qa/models.py:1603 qatrack/qa/models.py:2512
+#: qatrack/qa/admin.py:3367 qatrack/qa/models.py:1603 qatrack/qa/models.py:2512
 #: qatrack/qa/models.py:2760 qatrack/qa/models.py:2985
 #: qatrack/qa/templates/admin/qa/testlistcycle/partials/_cycle_card.html:48
 #: qatrack/qa/templates/admin/qa/unittestcollection/partials/_preview.html:42
@@ -320,7 +320,7 @@ msgid "Test List"
 msgstr "Lista de pruebas"
 
 #: qatrack/attachments/admin.py:35 qatrack/attachments/models.py:98
-#: qatrack/qa/admin.py:3364
+#: qatrack/qa/admin.py:3367
 #: qatrack/qa/templates/qa/testlistinstance_review.html:63
 #: qatrack/reports/templates/reports/qc/assigned_qc_details.html:20
 #: qatrack/reports/templates/reports/qc/backup_forms.html:29
@@ -336,7 +336,7 @@ msgid "Test Instance"
 msgstr "# de instancias de la lista de pruebas"
 
 #: qatrack/attachments/admin.py:37 qatrack/attachments/models.py:100
-#: qatrack/qa/admin.py:4416 qatrack/qa/admin.py:4434 qatrack/qa/models.py:2181
+#: qatrack/qa/admin.py:4506 qatrack/qa/admin.py:4524 qatrack/qa/models.py:2181
 #: qatrack/qa/models.py:2767
 #, fuzzy
 #| msgid "# of Test List Instances"
@@ -364,7 +364,7 @@ msgid "Attachment Type"
 msgstr "Adjunto"
 
 #: qatrack/attachments/admin.py:167 qatrack/attachments/models.py:93
-#: qatrack/qa/admin.py:4214
+#: qatrack/qa/admin.py:4304
 msgid "Label"
 msgstr ""
 
@@ -407,8 +407,8 @@ msgid "Attachment"
 msgstr "Adjunto"
 
 #: qatrack/attachments/models.py:94 qatrack/faults/forms.py:22
-#: qatrack/faults/templates/faults/fault_form.html:242 qatrack/qa/admin.py:147
-#: qatrack/qa/admin.py:486 qatrack/qa/admin.py:2194 qatrack/qa/models.py:1579
+#: qatrack/faults/templates/faults/fault_form.html:242 qatrack/qa/admin.py:150
+#: qatrack/qa/admin.py:489 qatrack/qa/admin.py:2197 qatrack/qa/models.py:1579
 #: qatrack/qa/models.py:2172
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:283
 #: qatrack/qa/templates/qa/testlistinstance_form.html:553
@@ -438,7 +438,7 @@ msgstr "Falla"
 #: qatrack/attachments/models.py:105 qatrack/faults/models.py:121
 #: qatrack/faults/templates/faults/_fault_record.html:14
 #: qatrack/notifications/templates/service_log/email.html:43
-#: qatrack/qa/admin.py:3107 qatrack/qa/models.py:669 qatrack/qa/models.py:1184
+#: qatrack/qa/admin.py:3110 qatrack/qa/models.py:669 qatrack/qa/models.py:1184
 #: qatrack/qa/models.py:1663 qatrack/qa/models.py:2191
 #: qatrack/qa/models.py:2574 qatrack/qa/models.py:2788
 #: qatrack/reports/models.py:62 qatrack/reports/models.py:198
@@ -524,8 +524,8 @@ msgstr ""
 #: qatrack/notifications/templates/faults/email.html:46
 #: qatrack/notifications/templates/faults_review/email.html:39
 #: qatrack/notifications/templates/service_log_review/email.html:39
-#: qatrack/qa/admin.py:3128 qatrack/qa/admin.py:3180 qatrack/qa/admin.py:3244
-#: qatrack/qa/admin.py:4228 qatrack/qa/admin.py:4911 qatrack/qa/models.py:1499
+#: qatrack/qa/admin.py:3131 qatrack/qa/admin.py:3183 qatrack/qa/admin.py:3247
+#: qatrack/qa/admin.py:4318 qatrack/qa/admin.py:5001 qatrack/qa/models.py:1499
 #: qatrack/qa/models.py:1940
 #: qatrack/qa/templates/admin/qa/testlist/partials/_assign_machine_modal.html:29
 #: qatrack/qa/templates/qa/overview_by_due_date.html:120
@@ -668,9 +668,9 @@ msgstr "Haga clic para ver los detalles de este tipo de falla"
 #: qatrack/faults/models.py:76
 #: qatrack/faults/templates/faults/sections/_se_table.html:5
 #: qatrack/faults/views.py:258 qatrack/issue_tracker/views.py:94
-#: qatrack/qa/admin.py:2634 qatrack/qa/admin.py:4306 qatrack/qa/admin.py:4412
+#: qatrack/qa/admin.py:2637 qatrack/qa/admin.py:4396 qatrack/qa/admin.py:4502
 #: qatrack/service_log/views.py:882
-#: qatrack/templates/admin/qa/change_form.html:34
+#: qatrack/templates/admin/qa/change_form.html:35
 #: qatrack/templates/admin/qa/test/change_form.html:24
 #: qatrack/templates/admin/qa/testlist/change_form.html:36
 #: qatrack/templates/admin/qa/testlistinstance/delete_confirmation.html:35
@@ -731,7 +731,7 @@ msgstr "Eventos de servicio relacionados"
 msgid "Enter the service event IDs of any related service events."
 msgstr "Ver eventos de servicio que son __Format_0__"
 
-#: qatrack/faults/models.py:129 qatrack/qa/admin.py:3117
+#: qatrack/faults/models.py:129 qatrack/qa/admin.py:3120
 #: qatrack/qa/models.py:673 qatrack/qa/models.py:1186 qatrack/qa/models.py:1671
 #: qatrack/qa/models.py:2199 qatrack/qa/models.py:2582
 #: qatrack/qa/models.py:2800 qatrack/qa/views/forms.py:335
@@ -817,12 +817,12 @@ msgid "Record"
 msgstr "Historial"
 
 #: qatrack/faults/templates/faults/_fault_record.html:16
-#: qatrack/qa/admin.py:2682
+#: qatrack/qa/admin.py:2685
 msgid "Last Modified"
 msgstr "Última modificación"
 
 #: qatrack/faults/templates/faults/_fault_record.html:21
-#: qatrack/qa/admin.py:4310 qatrack/qa/templates/qa/review_table_headers.html:9
+#: qatrack/qa/admin.py:4400 qatrack/qa/templates/qa/review_table_headers.html:9
 #: qatrack/qa/views/base.py:238 qatrack/qa/views/base.py:391
 #: qatrack/reports/faults/summary.py:59 qatrack/reports/filters.py:674
 #: qatrack/reports/qc/testlistinstance.py:351
@@ -838,7 +838,7 @@ msgstr "Estado de revisión"
 #: qatrack/faults/templates/faults/_fault_record.html:23
 #: qatrack/faults/templates/faults/_fault_review_status.html:4
 #: qatrack/notifications/templates/service_log/email.html:121
-#: qatrack/qa/admin.py:4315 qatrack/qa/models.py:2558
+#: qatrack/qa/admin.py:4405 qatrack/qa/models.py:2558
 #: qatrack/reports/qc/testlistinstance.py:325
 #: qatrack/reports/qc/testlistinstance.py:330
 #: qatrack/service_log/templates/service_log/log_rtsqa.html:43
@@ -847,7 +847,7 @@ msgstr "Revisado"
 
 #: qatrack/faults/templates/faults/_fault_record.html:25
 #: qatrack/faults/templates/faults/_fault_review_status.html:6
-#: qatrack/qa/admin.py:4316
+#: qatrack/qa/admin.py:4406
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:128
 #: qatrack/service_log/templates/service_log/sl_dash.html:40
 #: qatrack/templates/site_base.html:406 qatrack/templates/site_base.html:745
@@ -875,7 +875,7 @@ msgstr ""
 #: qatrack/service_log/templates/service_log/service_event_update.html:590
 #: qatrack/service_log/templates/service_log/service_event_update.html:655
 #: qatrack/templates/_form_horizontal.html:55
-#: qatrack/templates/admin/qa/change_form.html:49
+#: qatrack/templates/admin/qa/change_form.html:58
 #: qatrack/templates/admin/qa/test/change_form.html:41
 #: qatrack/templates/admin/qa/testlist/change_form.html:48
 #: qatrack/templates/admin/qa/testlistinstance/delete_confirmation.html:19
@@ -898,7 +898,7 @@ msgid "View details of %(fault)s"
 msgstr "Ver detalles de %(fault)s"
 
 #: qatrack/faults/templates/faults/fault_actions.html:9
-#: qatrack/qa/admin.py:4256
+#: qatrack/qa/admin.py:4346
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:441
 #: qatrack/qa/templates/qa/testlistinstance_review.html:262
 #: qatrack/qa/views/review.py:283
@@ -913,7 +913,7 @@ msgstr "Revisar"
 #: qatrack/parts/templates/parts/table_context_p_actions.html:15
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:9
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:33
-#: qatrack/qa/templatetags/qc_admin.py:29
+#: qatrack/qa/templatetags/qc_admin.py:41
 #: qatrack/service_log/templates/service_log/table_context/table_context_se_actions.html:17
 #: qatrack/templates/admin/qa/test/change_form.html:74
 #: qatrack/templates/admin/qa/testlist/change_form.html:192
@@ -943,7 +943,7 @@ msgstr "Are you sure you want to permanently this fault?"
 #: qatrack/qa/templates/qa/testlistinstance_form.html:1052
 #: qatrack/qa/templates/qa/testlistinstance_list.html:98
 #: qatrack/service_log/templates/service_log/service_event_update.html:840
-#: qatrack/templates/admin/qa/change_form.html:55
+#: qatrack/templates/admin/qa/change_form.html:64
 #: qatrack/templates/admin/qa/test/change_form.html:45
 #: qatrack/templates/admin/qa/testlist/change_form.html:53
 #: qatrack/templates/admin/qa/testlistinstance/delete_confirmation.html:40
@@ -964,8 +964,8 @@ msgid "Fault ID %(fault_id)s"
 msgstr "ID de falla %(fault_id)s"
 
 #: qatrack/faults/templates/faults/fault_details.html:71
-#: qatrack/faults/templates/faults/fault_form.html:300 qatrack/qa/admin.py:4258
-#: qatrack/qa/admin.py:4318
+#: qatrack/faults/templates/faults/fault_form.html:300 qatrack/qa/admin.py:4348
+#: qatrack/qa/admin.py:4408
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:483
 #: qatrack/qa/templates/qa/testlistinstance_form.html:739
 #: qatrack/qa/templates/qa/testlistinstance_form.html:783
@@ -1018,8 +1018,8 @@ msgstr "Registre una nueva falla"
 msgid "Fault Details"
 msgstr "Detalles de falla"
 
-#: qatrack/faults/templates/faults/fault_form.html:200 qatrack/qa/admin.py:4665
-#: qatrack/qa/admin.py:4688
+#: qatrack/faults/templates/faults/fault_form.html:200 qatrack/qa/admin.py:4755
+#: qatrack/qa/admin.py:4778
 #: qatrack/qa/templates/admin/qa/shared/_attachments_card.html:60
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1882
 #: qatrack/reports/templates/reports/reports.html:240
@@ -1172,7 +1172,7 @@ msgstr "Código"
 
 #: qatrack/faults/templates/faults/fault_type_details.html:47
 #: qatrack/faults/views.py:973 qatrack/issue_tracker/views.py:98
-#: qatrack/qa/admin.py:102 qatrack/qa/models.py:546 qatrack/qa/models.py:1001
+#: qatrack/qa/admin.py:105 qatrack/qa/models.py:546 qatrack/qa/models.py:1001
 #: qatrack/qa/models.py:1134 qatrack/qa/models.py:1644
 #: qatrack/qa/templates/qa/testlistinstance_form.html:179
 #: qatrack/qa/templates/qa/testlistinstance_form.html:817
@@ -1265,7 +1265,7 @@ msgstr "Nuevo evento de servicio"
 #: qatrack/issue_tracker/views.py:101
 #: qatrack/notifications/templates/service_log/email.html:110
 #: qatrack/notifications/templates/service_log/email.html:137
-#: qatrack/qa/admin.py:4420 qatrack/qa/models.py:618 qatrack/qa/models.py:2145
+#: qatrack/qa/admin.py:4510 qatrack/qa/models.py:618 qatrack/qa/models.py:2145
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:292
 #: qatrack/qa/templates/qa/testlistinstance_form.html:552
 #: qatrack/qa/templates/qa/testlistinstance_list.html:85
@@ -1284,7 +1284,7 @@ msgid "Status"
 msgstr "Estado"
 
 #: qatrack/faults/templates/faults/sections/_se_table.html:7
-#: qatrack/qa/admin.py:144 qatrack/qa/admin.py:1156
+#: qatrack/qa/admin.py:147 qatrack/qa/admin.py:1159
 #: qatrack/qa/templates/qa/unittestcollection_backup.html:39
 #: qatrack/reports/qc/testinstance.py:190
 #: qatrack/reports/templates/reports/_signature.html:16
@@ -1350,7 +1350,7 @@ msgstr "Editar"
 #: qatrack/reports/templates/reports/reports.html:248
 #: qatrack/service_log/templates/service_log/service_event_update.html:142
 #: qatrack/service_log/templates/service_log/service_event_update.html:652
-#: qatrack/templates/admin/qa/change_form.html:69
+#: qatrack/templates/admin/qa/change_form.html:81
 #: qatrack/templates/admin/qa/test/change_form.html:58
 #: qatrack/templates/admin/qa/testlist/change_form.html:65
 #: qatrack/templates/site_base.html:132
@@ -1388,8 +1388,8 @@ msgid "Options limited to the selected unit."
 msgstr "Opciones limitadas a la unidad seleccionada."
 
 #: qatrack/faults/templates/faults/sections/_section_occurrence_read.html:5
-#: qatrack/faults/views.py:260 qatrack/qa/admin.py:3136
-#: qatrack/qa/admin.py:3164 qatrack/qa/views/base.py:233
+#: qatrack/faults/views.py:260 qatrack/qa/admin.py:3139
+#: qatrack/qa/admin.py:3167 qatrack/qa/views/base.py:233
 #: qatrack/qa/views/base.py:385 qatrack/qa/views/review.py:379
 #: qatrack/reports/faults/details.py:115 qatrack/reports/faults/summary.py:151
 #: qatrack/reports/filters.py:95 qatrack/reports/filters.py:178
@@ -1423,8 +1423,8 @@ msgid "Site"
 msgstr "Sitio"
 
 #: qatrack/faults/templates/faults/sections/_section_occurrence_read.html:6
-#: qatrack/faults/views.py:362 qatrack/qa/admin.py:3140
-#: qatrack/qa/admin.py:3298 qatrack/qa/trees.py:21 qatrack/qa/views/base.py:333
+#: qatrack/faults/views.py:362 qatrack/qa/admin.py:3143
+#: qatrack/qa/admin.py:3301 qatrack/qa/trees.py:21 qatrack/qa/views/base.py:333
 #: qatrack/qa/views/base.py:494 qatrack/qa/views/charts.py:130
 #: qatrack/qa/views/perform.py:2072 qatrack/reports/faults/summary.py:56
 #: qatrack/reports/filters.py:96 qatrack/reports/filters.py:179
@@ -1651,7 +1651,7 @@ msgstr "Todos los problemas"
 msgid "Problem Description"
 msgstr "Descripción del problema"
 
-#: qatrack/issue_tracker/views.py:95 qatrack/qa/admin.py:4630
+#: qatrack/issue_tracker/views.py:95 qatrack/qa/admin.py:4720
 #: qatrack/qa/models.py:665 qatrack/qa/models.py:724 qatrack/qa/models.py:1094
 #: qatrack/qa/templates/admin/qa/testlist/partials/_machine_new_tolerance_modal.html:50
 #: qatrack/qa/templates/admin/qa/testlist/partials/_machine_new_tolerance_modal.html:54
@@ -1723,7 +1723,7 @@ msgstr "User"
 msgid "Emails"
 msgstr "Correo electrónico"
 
-#: qatrack/notifications/common/admin.py:143 qatrack/qa/admin.py:3789
+#: qatrack/notifications/common/admin.py:143 qatrack/qa/admin.py:3797
 #: qatrack/qa/models.py:1730 qatrack/qa/models.py:1752
 #: qatrack/qa/models.py:2846
 #: qatrack/qa/templates/admin/qa/testlist/change_list.html:14
@@ -1737,7 +1737,7 @@ msgstr "Correo electrónico"
 msgid "Test Lists"
 msgstr "Listas de pruebas"
 
-#: qatrack/notifications/common/admin.py:172 qatrack/qa/admin.py:2662
+#: qatrack/notifications/common/admin.py:172 qatrack/qa/admin.py:2665
 #: qatrack/qa/templates/qa/charts.html:27 qatrack/units/apps.py:7
 #: qatrack/units/models.py:269
 msgid "Units"
@@ -1969,7 +1969,7 @@ msgstr ""
 #: qatrack/notifications/qcscheduling/models.py:48
 #: qatrack/notifications/service_log_review/models.py:35
 #: qatrack/notifications/service_log_scheduling/models.py:43
-#: qatrack/qa/admin.py:4132 qatrack/qa/models.py:412
+#: qatrack/qa/admin.py:4222 qatrack/qa/models.py:412
 #, fuzzy
 #| msgid "Reference"
 msgid "Recurrences"
@@ -2115,8 +2115,8 @@ msgstr "#%(id)d - Notificación de seguimiento (después de %(num_days)s días)"
 msgid "TestList Group"
 msgstr "Lista de prueba"
 
-#: qatrack/notifications/qccompleted/models.py:11 qatrack/qa/admin.py:479
-#: qatrack/qa/admin.py:724 qatrack/qa/admin.py:2187 qatrack/qa/models.py:113
+#: qatrack/notifications/qccompleted/models.py:11 qatrack/qa/admin.py:482
+#: qatrack/qa/admin.py:727 qatrack/qa/admin.py:2190 qatrack/qa/models.py:113
 #: qatrack/qa/models.py:788 qatrack/qa/models.py:1509 qatrack/qa/models.py:2176
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1881
 #: qatrack/qa/templates/qa/unittestcollection_backup.html:51
@@ -3302,7 +3302,7 @@ msgstr "Cantidad"
 msgid "Locations"
 msgstr "Ubicación"
 
-#: qatrack/parts/views.py:238 qatrack/qa/admin.py:1612
+#: qatrack/parts/views.py:238 qatrack/qa/admin.py:1615
 #: qatrack/qa/models.py:1009 qatrack/qa/models.py:1079
 #: qatrack/qa/templates/admin/qa/testlist/partials/_sublist_card.html:94
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1851
@@ -3330,21 +3330,21 @@ msgstr "Piezas de inventario baja"
 msgid "All Suppliers"
 msgstr "Ver todos los proveedores"
 
-#: qatrack/qa/admin.py:133
+#: qatrack/qa/admin.py:136
 msgid ""
 "Enter the reference as a number, using a point for decimals (for example "
 "1.5)."
 msgstr ""
 
-#: qatrack/qa/admin.py:142 qatrack/qa/admin.py:189
+#: qatrack/qa/admin.py:145 qatrack/qa/admin.py:192
 msgid "New reference value"
 msgstr "Nuevo valor de referencia"
 
-#: qatrack/qa/admin.py:143
+#: qatrack/qa/admin.py:146
 msgid "Set by"
 msgstr "Ahorrar"
 
-#: qatrack/qa/admin.py:150
+#: qatrack/qa/admin.py:153
 msgid ""
 "Include an optional comment about why this reference/tolerance is being "
 "updated"
@@ -3352,30 +3352,30 @@ msgstr ""
 "Incluya un comentario opcional sobre por qué se está actualizando esta "
 "referencia/tolerancia"
 
-#: qatrack/qa/admin.py:212
+#: qatrack/qa/admin.py:215
 msgid ""
 "Leave this blank to keep the current reference. Enter a value only when you "
 "want to change it."
 msgstr ""
 
-#: qatrack/qa/admin.py:243
+#: qatrack/qa/admin.py:246
 msgid "A reference value is required when using a percent tolerance"
 msgstr ""
 "Se requiere un valor de referencia cuando se usa un porcentaje de tolerancia"
 
-#: qatrack/qa/admin.py:249
+#: qatrack/qa/admin.py:252
 msgid "Reference value cannot be zero when using a percent tolerance"
 msgstr ""
 "El valor de referencia no puede ser cero cuando se usa un porcentaje de "
 "tolerancia"
 
-#: qatrack/qa/admin.py:253
+#: qatrack/qa/admin.py:256
 msgid "A numerical reference value is required when using a percent tolerance"
 msgstr ""
 "Se requiere un valor de referencia numérico cuando se usa un porcentaje de "
 "tolerancia"
 
-#: qatrack/qa/admin.py:264
+#: qatrack/qa/admin.py:267
 #, python-format
 msgid ""
 "Reference value must be between %(low)s and %(high)s for wraparound tests"
@@ -3383,13 +3383,13 @@ msgstr ""
 "El valor de referencia debe estar entre %(low)s y %(high)s para pruebas de "
 "envoltura"
 
-#: qatrack/qa/admin.py:270
+#: qatrack/qa/admin.py:273
 msgid "Reference value must be a number for wraparound tests"
 msgstr ""
 "El valor de referencia debe ser un número para las pruebas de envoltura"
 
-#: qatrack/qa/admin.py:481 qatrack/qa/admin.py:503 qatrack/qa/admin.py:712
-#: qatrack/qa/admin.py:2184 qatrack/qa/models.py:678 qatrack/qa/models.py:2175
+#: qatrack/qa/admin.py:484 qatrack/qa/admin.py:506 qatrack/qa/admin.py:715
+#: qatrack/qa/admin.py:2187 qatrack/qa/models.py:678 qatrack/qa/models.py:2175
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1880
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:282
 #: qatrack/qa/templates/qa/testlistinstance_form.html:556
@@ -3408,85 +3408,85 @@ msgstr ""
 msgid "Reference"
 msgstr "Referencia"
 
-#: qatrack/qa/admin.py:483
+#: qatrack/qa/admin.py:486
 msgid "Leave this blank to keep each test's current reference."
 msgstr ""
 
-#: qatrack/qa/admin.py:489
+#: qatrack/qa/admin.py:492
 msgid "Why are you changing these? Saved with each test's history."
 msgstr ""
 
-#: qatrack/qa/admin.py:498
+#: qatrack/qa/admin.py:501
 #, fuzzy
 #| msgid "Current tolerance"
 msgid "Keep each test's current tolerance"
 msgstr "Tolerancia actual"
 
-#: qatrack/qa/admin.py:499
+#: qatrack/qa/admin.py:502
 #, fuzzy
 #| msgid "No Tolerance Set"
 msgid "No tolerance (clear it)"
 msgstr "Sin conjunto de tolerancia"
 
-#: qatrack/qa/admin.py:505
+#: qatrack/qa/admin.py:508
 #, fuzzy
 #| msgid "Current reference"
 msgid "Keep each test's current reference"
 msgstr "Referencia actual"
 
-#: qatrack/qa/admin.py:530
+#: qatrack/qa/admin.py:533
 msgid "Choose a tolerance: leaving it as it is would change nothing."
 msgstr ""
 
-#: qatrack/qa/admin.py:532
+#: qatrack/qa/admin.py:535
 msgid ""
 "Choose a tolerance or enter a reference: leaving both as they are would "
 "change nothing."
 msgstr ""
 
-#: qatrack/qa/admin.py:566 qatrack/qa/admin.py:1518
+#: qatrack/qa/admin.py:569 qatrack/qa/admin.py:1521
 msgid "Active Unit Assignments"
 msgstr "Asignaciones de unidades activas"
 
-#: qatrack/qa/admin.py:573 qatrack/qa/templates/qa/charts.html:33
+#: qatrack/qa/admin.py:576 qatrack/qa/templates/qa/charts.html:33
 #: qatrack/units/templates/units/unittype_choose_for_review.html:43
 #: qatrack/units/templates/units/unittype_choose_for_review.html:95
 msgid "All"
 msgstr "All"
 
-#: qatrack/qa/admin.py:574 qatrack/qa/admin.py:1526
+#: qatrack/qa/admin.py:577 qatrack/qa/admin.py:1529
 msgid "At Least One Active Unit Assignment"
 msgstr "Al menos una asignación de unidad activa"
 
-#: qatrack/qa/admin.py:575 qatrack/qa/admin.py:1525
+#: qatrack/qa/admin.py:578 qatrack/qa/admin.py:1528
 msgid "No Active Unit Assignments"
 msgstr "No hay asignaciones de unidades activas"
 
-#: qatrack/qa/admin.py:610
+#: qatrack/qa/admin.py:613
 #: qatrack/templates/admin/qa/unittestinfo/change_form.html:83
 msgid ""
 "This test type doesn't use a reference: its results are judged by the "
 "tolerance alone."
 msgstr ""
 
-#: qatrack/qa/admin.py:612
+#: qatrack/qa/admin.py:615
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1872
 msgid "Limits don't apply to this test type: its results never pass or fail."
 msgstr ""
 
-#: qatrack/qa/admin.py:613
+#: qatrack/qa/admin.py:616
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1876
 #, fuzzy
 #| msgid "Not Done"
 msgid "Not used"
 msgstr "Not Done"
 
-#: qatrack/qa/admin.py:615
+#: qatrack/qa/admin.py:618
 #, python-format
 msgid "No limits set: results on %(unit)s will show No Tol Set"
 msgstr ""
 
-#: qatrack/qa/admin.py:619 qatrack/qa/admin.py:621
+#: qatrack/qa/admin.py:622 qatrack/qa/admin.py:624
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:69
 #: qatrack/qa/templates/qa/testlistinstance_review.html:80
 #: qatrack/templates/admin/qa/test/change_form.html:302
@@ -3506,7 +3506,7 @@ msgstr ""
 msgid "Not set"
 msgstr "No establecido"
 
-#: qatrack/qa/admin.py:660
+#: qatrack/qa/admin.py:663
 #: qatrack/qa/templates/admin/qa/testlist/partials/_sublist_card.html:97
 #: qatrack/templates/admin/qa/testlist/change_form.html:327
 #, fuzzy
@@ -3514,13 +3514,13 @@ msgstr "No establecido"
 msgid "Reference & Tolerance"
 msgstr "Establecer referencias y tolerancias"
 
-#: qatrack/qa/admin.py:671 qatrack/qa/templates/qa/review_table_headers.html:10
+#: qatrack/qa/admin.py:674 qatrack/qa/templates/qa/review_table_headers.html:10
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:284
 #: qatrack/qa/templates/qa/testlistinstance_form.html:559
 #: qatrack/qa/templates/qa/testlistinstance_review.html:283
 #: qatrack/qa/templates/qa/testlistinstance_review.html:554
 #: qatrack/qa/templates/qa/unittestcollection_actions.html:14
-#: qatrack/templates/admin/qa/change_form.html:44
+#: qatrack/templates/admin/qa/change_form.html:53
 #: qatrack/templates/admin/qa/test/change_form.html:37
 #: qatrack/templates/admin/qa/testlist/change_form.html:44
 #: qatrack/templates/explorer/base.html:64
@@ -3528,44 +3528,44 @@ msgstr "Establecer referencias y tolerancias"
 msgid "History"
 msgstr "Historia"
 
-#: qatrack/qa/admin.py:731
+#: qatrack/qa/admin.py:734
 #, fuzzy
 #| msgid "Set by"
 msgid "Set"
 msgstr "Ahorrar"
 
-#: qatrack/qa/admin.py:739
+#: qatrack/qa/admin.py:742
 #, fuzzy, python-format
 #| msgid "Set references and tolerances for selected tests"
 msgid "Set reference and tolerance for %(test)s on %(unit)s"
 msgstr "Establecer referencias y tolerancias para pruebas seleccionadas"
 
-#: qatrack/qa/admin.py:761
+#: qatrack/qa/admin.py:764
 msgid "Reference & Tolerance History"
 msgstr "Historial de referencia y tolerancia"
 
-#: qatrack/qa/admin.py:765 qatrack/qa/admin.py:770
+#: qatrack/qa/admin.py:768 qatrack/qa/admin.py:773
 #: qatrack/templates/admin/qa/unittestinfo/change_form.html:55
 msgid "No history available"
 msgstr "No hay historial disponible"
 
-#: qatrack/qa/admin.py:825
+#: qatrack/qa/admin.py:828
 msgid "Set references and tolerances for selected tests"
 msgstr "Establecer referencias y tolerancias para pruebas seleccionadas"
 
-#: qatrack/qa/admin.py:845
+#: qatrack/qa/admin.py:848
 msgid ""
 "Upload and date tests don't use references or tolerances. Leave them out of "
 "your selection."
 msgstr ""
 
-#: qatrack/qa/admin.py:853
+#: qatrack/qa/admin.py:856
 msgid ""
 "Choose tests of one kind: all numerical, all Boolean (Yes/No) or all text "
 "and multiple choice. They can't share a tolerance otherwise."
 msgstr ""
 
-#: qatrack/qa/admin.py:889
+#: qatrack/qa/admin.py:892
 #, fuzzy, python-format
 #| msgid "Set references and tolerances for selected tests"
 msgid "Set the reference and tolerance for %(count)d test."
@@ -3573,11 +3573,11 @@ msgid_plural "Set the reference and tolerance for %(count)d tests."
 msgstr[0] "Establecer referencias y tolerancias para pruebas seleccionadas"
 msgstr[1] "Establecer referencias y tolerancias para pruebas seleccionadas"
 
-#: qatrack/qa/admin.py:902
+#: qatrack/qa/admin.py:905
 msgid "Set references and tolerances"
 msgstr "Establecer referencias y tolerancias"
 
-#: qatrack/qa/admin.py:980
+#: qatrack/qa/admin.py:983
 #, python-format
 msgid ""
 "A test list with the slug '%(test_name)s' already exists in the database"
@@ -3585,7 +3585,7 @@ msgstr ""
 "Ya existe una lista de pruebas con el slug '%(test_name)s' en la base de "
 "datos"
 
-#: qatrack/qa/admin.py:1035
+#: qatrack/qa/admin.py:1038
 #, python-format
 msgid ""
 "This test list has %(test_count)d tests, counting the tests in its sublists. "
@@ -3593,74 +3593,74 @@ msgid ""
 "then save again."
 msgstr ""
 
-#: qatrack/qa/admin.py:1047
+#: qatrack/qa/admin.py:1050
 #, python-format
 msgid "%(test_name)s (%(macro_name)s)"
 msgstr ""
 
-#: qatrack/qa/admin.py:1051
+#: qatrack/qa/admin.py:1054
 #, python-format
 msgid ""
 "These tests appear more than once in this test list, directly or through a "
 "sublist: %(tests)s. Remove the extra copies, then save again."
 msgstr ""
 
-#: qatrack/qa/admin.py:1105 qatrack/qa/models.py:904
+#: qatrack/qa/admin.py:1108 qatrack/qa/models.py:904
 #, python-format
 msgid "%(low)s to %(high)s"
 msgstr ""
 
-#: qatrack/qa/admin.py:1131 qatrack/reports/reports.py:83
+#: qatrack/qa/admin.py:1134 qatrack/reports/reports.py:83
 #, fuzzy
 #| msgid "Generated"
 msgid "General"
 msgstr "Generated"
 
-#: qatrack/qa/admin.py:1138 qatrack/qa/models.py:980
+#: qatrack/qa/admin.py:1141 qatrack/qa/models.py:980
 msgid "Boolean"
 msgstr "Booleano"
 
-#: qatrack/qa/admin.py:1140
+#: qatrack/qa/admin.py:1143
 msgid "Numerical"
 msgstr ""
 
-#: qatrack/qa/admin.py:1142 qatrack/qa/models.py:1321 qatrack/qa/models.py:1322
+#: qatrack/qa/admin.py:1145 qatrack/qa/models.py:1321 qatrack/qa/models.py:1322
 msgid "Wraparound"
 msgstr "Envoltura"
 
-#: qatrack/qa/admin.py:1144 qatrack/qa/models.py:1339
+#: qatrack/qa/admin.py:1147 qatrack/qa/models.py:1339
 msgid "Multiple Choice"
 msgstr "Opción múltiple"
 
-#: qatrack/qa/admin.py:1146
+#: qatrack/qa/admin.py:1149
 #, fuzzy
 #| msgid "Completed"
 msgid "Composite"
 msgstr "Completed"
 
-#: qatrack/qa/admin.py:1148 qatrack/qa/models.py:1315
+#: qatrack/qa/admin.py:1151 qatrack/qa/models.py:1315
 msgid "Constant"
 msgstr "Constante"
 
-#: qatrack/qa/admin.py:1150
+#: qatrack/qa/admin.py:1153
 msgid "String"
 msgstr ""
 
-#: qatrack/qa/admin.py:1152
+#: qatrack/qa/admin.py:1155
 msgid "String Composite"
 msgstr ""
 
-#: qatrack/qa/admin.py:1154
+#: qatrack/qa/admin.py:1157
 msgid "File Upload"
 msgstr ""
 
-#: qatrack/qa/admin.py:1156
+#: qatrack/qa/admin.py:1159
 #, fuzzy
 #| msgid "Date/time"
 msgid "Date & Time"
 msgstr "Fecha/hora"
 
-#: qatrack/qa/admin.py:1273
+#: qatrack/qa/admin.py:1276
 #, python-format
 msgid ""
 "A Test List can not be its own child. Please remove Sublist ID "
@@ -3669,7 +3669,7 @@ msgstr ""
 "Una lista de pruebas no puede ser su propio hijo.Eliminar la identificación "
 "sublista %(sublist_id)d e intente nuevamente"
 
-#: qatrack/qa/admin.py:1280
+#: qatrack/qa/admin.py:1283
 #, python-format
 msgid ""
 "Test Lists can not be nested more than 1 level. Test List(s) "
@@ -3680,7 +3680,7 @@ msgstr ""
 "%(test_list_names)s ya tiene (tener) un sublista y, por lo tanto, no se "
 "puede usar como sublista."
 
-#: qatrack/qa/admin.py:1287
+#: qatrack/qa/admin.py:1290
 #, python-format
 msgid ""
 "This Test List is a Sublist of Test Lists: %(sublist_name)s and therefore "
@@ -3689,7 +3689,7 @@ msgstr ""
 "Esta lista de pruebas es un sublista de listas de pruebas: %(sublist_name)s "
 "y, por lo tanto, no puede tener sublistas propios."
 
-#: qatrack/qa/admin.py:1435 qatrack/qa/admin.py:1494
+#: qatrack/qa/admin.py:1438 qatrack/qa/admin.py:1497
 #: qatrack/qa/templates/admin/qa/testlist/partials/_type_value_cell.html:9
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1875
 #: qatrack/qa/templates/qa/charts.html:34
@@ -3698,27 +3698,27 @@ msgstr ""
 msgid "None"
 msgstr "None"
 
-#: qatrack/qa/admin.py:1546
+#: qatrack/qa/admin.py:1549
 #, fuzzy
 #| msgid "Assigned To"
 msgid "Assigned to Unit"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:1566
+#: qatrack/qa/admin.py:1569
 #, fuzzy
 #| msgid "Assigned To"
 msgid "Assigned to Site"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:1587
+#: qatrack/qa/admin.py:1590
 #, fuzzy
 #| msgid "View QC Organized by Unit & Frequency"
 msgid "Assigned To Units by Frequency"
 msgstr "Ver QC Organizado por unidad y frecuencia"
 
-#: qatrack/qa/admin.py:1593 qatrack/qa/admin.py:1924 qatrack/qa/admin.py:1988
-#: qatrack/qa/admin.py:2310 qatrack/qa/admin.py:2654 qatrack/qa/admin.py:3148
-#: qatrack/qa/admin.py:3200 qatrack/qa/admin.py:3330 qatrack/qa/trees.py:26
+#: qatrack/qa/admin.py:1596 qatrack/qa/admin.py:1927 qatrack/qa/admin.py:1991
+#: qatrack/qa/admin.py:2313 qatrack/qa/admin.py:2657 qatrack/qa/admin.py:3151
+#: qatrack/qa/admin.py:3203 qatrack/qa/admin.py:3333 qatrack/qa/trees.py:26
 #: qatrack/qa/trees.py:27 qatrack/qa/views/base.py:331
 #: qatrack/qa/views/base.py:492 qatrack/qa/views/review.py:602
 #: qatrack/qa/views/review.py:689 qatrack/reports/filters.py:109
@@ -3735,89 +3735,89 @@ msgstr "Ver QC Organizado por unidad y frecuencia"
 msgid "Ad Hoc"
 msgstr "A propósito"
 
-#: qatrack/qa/admin.py:1639
+#: qatrack/qa/admin.py:1642
 #: qatrack/qa/templates/admin/qa/testlistcycle/testlistcycle_assets.html:152
 msgid "Nothing to preview yet. Write a description to see how it will look."
 msgstr ""
 
-#: qatrack/qa/admin.py:1764
+#: qatrack/qa/admin.py:1767
 #, python-format
 msgid "Copied from %(name)s when duplicating"
 msgstr ""
 
-#: qatrack/qa/admin.py:1804
+#: qatrack/qa/admin.py:1807
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid "You don't have permission to view tests. No test was created."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:1808
+#: qatrack/qa/admin.py:1811
 #, fuzzy
 #| msgid "Resource not found"
 msgid "Test not found"
 msgstr "Recurso no encontrado"
 
-#: qatrack/qa/admin.py:1811
+#: qatrack/qa/admin.py:1814
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid "You don't have permission to view this test. No test was created."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:1832
+#: qatrack/qa/admin.py:1835
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid "You don't have permission to add tests. No test was created."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:1840
+#: qatrack/qa/admin.py:1843
 #, python-format
 msgid "%(name)s (Copy)"
 msgstr ""
 
-#: qatrack/qa/admin.py:1854
+#: qatrack/qa/admin.py:1857
 msgid "Enter a name for the new test. No test was created."
 msgstr ""
 
-#: qatrack/qa/admin.py:1870
+#: qatrack/qa/admin.py:1873
 #, python-format
 msgid ""
 "A test named “%(name)s” already exists. Choose a different name. No test was "
 "created."
 msgstr ""
 
-#: qatrack/qa/admin.py:1999 qatrack/qa/admin.py:2311
+#: qatrack/qa/admin.py:2002 qatrack/qa/admin.py:2314
 #, python-format
 msgid "%(unit)s (%(frequency)s)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2014
+#: qatrack/qa/admin.py:2017
 #, python-format
 msgid "%(unit)s (via %(name)s)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2110
+#: qatrack/qa/admin.py:2113
 #, fuzzy
 #| msgid "You don't have permission to create fault types."
 msgid "You don't have permission to view references and tolerances."
 msgstr "No tiene permiso para crear tipos de falla."
 
-#: qatrack/qa/admin.py:2115
+#: qatrack/qa/admin.py:2118
 #, fuzzy
 #| msgid "Fault Types"
 msgid "Unit not found"
 msgstr "Tipos de fallas"
 
-#: qatrack/qa/admin.py:2188
+#: qatrack/qa/admin.py:2191
 #, fuzzy
 #| msgid "New Tolerance"
 msgid "No tolerance"
 msgstr "Nueva tolerancia"
 
-#: qatrack/qa/admin.py:2195
+#: qatrack/qa/admin.py:2198
 msgid "Why are you changing this? Saved with the history."
 msgstr ""
 
-#: qatrack/qa/admin.py:2216
+#: qatrack/qa/admin.py:2219
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid ""
@@ -3825,51 +3825,51 @@ msgid ""
 "changed."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:2250
+#: qatrack/qa/admin.py:2253
 #, fuzzy, python-format
 #| msgid "Click to view all %(category_name)s QC for Unit %(unit_name)s"
 msgid "Saved for %(test)s on %(unit)s."
 msgstr "Haga clic para ver todo %(utcname)s QC para la unidad %(unitname)s"
 
-#: qatrack/qa/admin.py:2282
+#: qatrack/qa/admin.py:2285
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid ""
 "You don't have permission to assign test lists to units. Nothing was saved."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:2288
+#: qatrack/qa/admin.py:2291
 #: qatrack/qa/templates/admin/qa/testlistcycle/partials/_cycle_row.html:39
 #, fuzzy
 #| msgid "Test List Name"
 msgid "Test list not found"
 msgstr "Nombre de la lista de pruebas"
 
-#: qatrack/qa/admin.py:2319
+#: qatrack/qa/admin.py:2322
 #, fuzzy, python-format
 #| msgid "Assigned To"
 msgid "Assigned to %(label)s."
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:2496
+#: qatrack/qa/admin.py:2499
 #, fuzzy, python-format
 #| msgid "Add %(name)s"
 msgid "Add %s"
 msgstr "Agregar %(name)s"
 
-#: qatrack/qa/admin.py:2509
+#: qatrack/qa/admin.py:2512
 #, python-brace-format
 msgid "Created “{new}” as a copy of “{source}”."
 msgstr ""
 
-#: qatrack/qa/admin.py:2511
+#: qatrack/qa/admin.py:2514
 #, fuzzy, python-brace-format
 #| msgid "Create “%(code)s”"
 msgid "Created “{new}”."
 msgstr "Crear “%(code)s”"
 
-#: qatrack/qa/admin.py:2649 qatrack/qa/admin.py:3144 qatrack/qa/admin.py:3196
-#: qatrack/qa/admin.py:3368 qatrack/qa/models.py:447 qatrack/qa/models.py:1944
+#: qatrack/qa/admin.py:2652 qatrack/qa/admin.py:3147 qatrack/qa/admin.py:3199
+#: qatrack/qa/admin.py:3371 qatrack/qa/models.py:447 qatrack/qa/models.py:1944
 #: qatrack/qa/templates/admin/qa/testlist/partials/_assign_machine_modal.html:35
 #: qatrack/qa/templates/qa/review_table_headers.html:4
 #: qatrack/qa/views/base.py:234 qatrack/qa/views/base.py:387
@@ -3894,220 +3894,220 @@ msgstr "Crear “%(code)s”"
 msgid "Frequency"
 msgstr "Frecuencia"
 
-#: qatrack/qa/admin.py:2671
+#: qatrack/qa/admin.py:2674
 #, fuzzy, python-format
 #| msgid "Assigned To"
 msgid "Assigned to: %(units)s"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:2673
+#: qatrack/qa/admin.py:2676
 #, fuzzy
 #| msgid "Assigned To"
 msgid "Not assigned to any unit"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:2697 qatrack/templates/admin/qa/change_form.html:21
-#: qatrack/templates/admin/qa/change_form.html:33
+#: qatrack/qa/admin.py:2700 qatrack/templates/admin/qa/change_form.html:22
+#: qatrack/templates/admin/qa/change_form.html:34
 #, fuzzy, python-format
 #| msgid "Add %(name)s"
 msgid "Edit %(name)s"
 msgstr "Agregar %(name)s"
 
-#: qatrack/qa/admin.py:2707
+#: qatrack/qa/admin.py:2710
 #, fuzzy
 #| msgid "Part number"
 msgid "Numbers"
 msgstr "Número de parte"
 
-#: qatrack/qa/admin.py:2708
+#: qatrack/qa/admin.py:2711
 msgid "Answers & text"
 msgstr ""
 
-#: qatrack/qa/admin.py:2709
+#: qatrack/qa/admin.py:2712
 #, fuzzy
 #| msgid "Date"
 msgid "Dates"
 msgstr "Fecha"
 
-#: qatrack/qa/admin.py:2710
+#: qatrack/qa/admin.py:2713
 msgid "Files"
 msgstr "Archivos"
 
-#: qatrack/qa/admin.py:2715
+#: qatrack/qa/admin.py:2718
 msgid "A number typed in by the person performing QC."
 msgstr ""
 
-#: qatrack/qa/admin.py:2717
+#: qatrack/qa/admin.py:2720
 msgid ""
 "A number on a scale that wraps around, such as a gantry or collimator angle "
 "where 359 is next to 0."
 msgstr ""
 
-#: qatrack/qa/admin.py:2719
+#: qatrack/qa/admin.py:2722
 msgid ""
 "A fixed number shown on the form for use in calculations. Nobody types it in."
 msgstr ""
 
-#: qatrack/qa/admin.py:2720
+#: qatrack/qa/admin.py:2723
 msgid "A number calculated from other tests by a Python snippet."
 msgstr ""
 
-#: qatrack/qa/admin.py:2721
+#: qatrack/qa/admin.py:2724
 msgid "A Yes / No answer."
 msgstr ""
 
-#: qatrack/qa/admin.py:2722
+#: qatrack/qa/admin.py:2725
 msgid "One answer picked from a list of choices."
 msgstr ""
 
-#: qatrack/qa/admin.py:2723
+#: qatrack/qa/admin.py:2726
 msgid "Free text typed in by the person performing QC."
 msgstr ""
 
-#: qatrack/qa/admin.py:2724
+#: qatrack/qa/admin.py:2727
 msgid "Text or JSON calculated from other tests by a Python snippet."
 msgstr ""
 
-#: qatrack/qa/admin.py:2725
+#: qatrack/qa/admin.py:2728
 msgid "A date picked by the person performing QC."
 msgstr ""
 
-#: qatrack/qa/admin.py:2726
+#: qatrack/qa/admin.py:2729
 msgid "A date and time picked by the person performing QC."
 msgstr ""
 
-#: qatrack/qa/admin.py:2727
+#: qatrack/qa/admin.py:2730
 msgid ""
 "A file uploaded by the person performing QC, which a Python snippet can "
 "process."
 msgstr ""
 
-#: qatrack/qa/admin.py:2732 qatrack/qa/models.py:647
+#: qatrack/qa/admin.py:2735 qatrack/qa/models.py:647
 #, fuzzy
 #| msgid "Default Groups"
 msgid "Default"
 msgstr "Grupos predeterminados"
 
-#: qatrack/qa/admin.py:2733
+#: qatrack/qa/admin.py:2736
 #, python-format
 msgid "Fixed, 0 decimals (%.0f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2734
+#: qatrack/qa/admin.py:2737
 #, python-format
 msgid "Fixed, 1 decimal (%.1f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2735
+#: qatrack/qa/admin.py:2738
 #, python-format
 msgid "Fixed, 2 decimals (%.2f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2736
+#: qatrack/qa/admin.py:2739
 #, python-format
 msgid "Fixed, 3 decimals (%.3f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2737
+#: qatrack/qa/admin.py:2740
 #, python-format
 msgid "Fixed, 4 decimals (%.4f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2738
+#: qatrack/qa/admin.py:2741
 #, python-format
 msgid "Fixed, 5 decimals (%.5f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2739
+#: qatrack/qa/admin.py:2742
 #, python-format
 msgid "Fixed, 6 decimals (%.6f)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2740
+#: qatrack/qa/admin.py:2743
 #, python-format
 msgid "Scientific, 1 significant figure (%.0E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2741
+#: qatrack/qa/admin.py:2744
 #, python-format
 msgid "Scientific, 2 significant figures (%.1E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2742
+#: qatrack/qa/admin.py:2745
 #, python-format
 msgid "Scientific, 3 significant figures (%.2E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2743
+#: qatrack/qa/admin.py:2746
 #, python-format
 msgid "Scientific, 4 significant figures (%.3E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2744
+#: qatrack/qa/admin.py:2747
 #, python-format
 msgid "Scientific, 5 significant figures (%.4E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2745
+#: qatrack/qa/admin.py:2748
 #, python-format
 msgid "Scientific, 6 significant figures (%.5E)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2746
+#: qatrack/qa/admin.py:2749
 #, python-format
 msgid "General, up to 1 significant figure (%.0G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2747
+#: qatrack/qa/admin.py:2750
 #, python-format
 msgid "General, up to 2 significant figures (%.1G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2748
+#: qatrack/qa/admin.py:2751
 #, python-format
 msgid "General, up to 3 significant figures (%.2G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2749
+#: qatrack/qa/admin.py:2752
 #, python-format
 msgid "General, up to 4 significant figures (%.3G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2750
+#: qatrack/qa/admin.py:2753
 #, python-format
 msgid "General, up to 5 significant figures (%.4G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2751
+#: qatrack/qa/admin.py:2754
 #, python-format
 msgid "General, up to 6 significant figures (%.5G)"
 msgstr ""
 
-#: qatrack/qa/admin.py:2768
+#: qatrack/qa/admin.py:2771
 #: qatrack/templates/admin/qa/test/change_form.html:153
 #, fuzzy
 #| msgid "Constant"
 msgid "Constant value"
 msgstr "Constante"
 
-#: qatrack/qa/admin.py:2769
+#: qatrack/qa/admin.py:2772
 #: qatrack/templates/admin/qa/test/change_form.html:157
 msgid "Wrap low"
 msgstr ""
 
-#: qatrack/qa/admin.py:2770
+#: qatrack/qa/admin.py:2773
 #: qatrack/templates/admin/qa/test/change_form.html:162
 msgid "Wrap high"
 msgstr ""
 
-#: qatrack/qa/admin.py:2771
+#: qatrack/qa/admin.py:2774
 #: qatrack/templates/admin/qa/test/change_form.html:167
 #, fuzzy
 #| msgid "Perform test list"
 msgid "Flag the test list"
 msgstr "Realizar la lista de pruebas"
 
-#: qatrack/qa/admin.py:2864
+#: qatrack/qa/admin.py:2867
 #, python-format
 msgid ""
 "You can't change the test type from %(old_test_type)s to %(new_test_type)s "
@@ -4118,11 +4118,11 @@ msgstr ""
 "para una prueba que ya se ha realizado.Vuelva a '%(old_test_type)s' antes de "
 "guardar o crear una nueva prueba con 'Guardar como nuevo'."
 
-#: qatrack/qa/admin.py:2888
+#: qatrack/qa/admin.py:2891
 msgid "Invalid numerical format"
 msgstr "Formato numérico no válido"
 
-#: qatrack/qa/admin.py:2904
+#: qatrack/qa/admin.py:2907
 #, fuzzy
 #| msgid "Click to edit the reference and tolerance l(opens in new window)"
 msgid "Click to edit the reference and tolerance (opens in new window)"
@@ -4130,7 +4130,7 @@ msgstr ""
 "Haga clic para editar la referencia y la tolerancia L (se abre en la nueva "
 "ventana)"
 
-#: qatrack/qa/admin.py:2909
+#: qatrack/qa/admin.py:2912
 msgid ""
 "Hidden tests can not have references and tolerances set. Please remove the "
 "references and tolerances for this test on the following units before making "
@@ -4140,7 +4140,7 @@ msgstr ""
 "establecidas.Elimine las referencias y tolerancias para esta prueba en las "
 "siguientes unidades antes de ocultarla:"
 
-#: qatrack/qa/admin.py:2929
+#: qatrack/qa/admin.py:2932
 #, python-format
 msgid ""
 "This test can't be Boolean while it has a reference other than Yes / No on "
@@ -4148,30 +4148,30 @@ msgid ""
 "type. Nothing was saved."
 msgstr ""
 
-#: qatrack/qa/admin.py:2941 qatrack/qa/models.py:1615
+#: qatrack/qa/admin.py:2944 qatrack/qa/models.py:1615
 #, fuzzy
 #| msgid "Test List Members"
 msgid "Test List Membership"
 msgstr "Miembros de la lista de pruebas"
 
-#: qatrack/qa/admin.py:2948
+#: qatrack/qa/admin.py:2951
 #, fuzzy
 #| msgid "Test List Members"
 msgid "No TestList Membership"
 msgstr "Miembros de la lista de pruebas"
 
-#: qatrack/qa/admin.py:2949
+#: qatrack/qa/admin.py:2952
 #, fuzzy
 #| msgid "Test List Members"
 msgid "At Least One TestList Membership"
 msgstr "Miembros de la lista de pruebas"
 
-#: qatrack/qa/admin.py:3087
+#: qatrack/qa/admin.py:3090
 #, python-format
 msgid "Cleared %(fields)s: these settings don't apply to %(test_type)s tests."
 msgstr ""
 
-#: qatrack/qa/admin.py:3094
+#: qatrack/qa/admin.py:3097
 msgid ""
 "Warning: Instead of using pyplot or pylab, it is recommended that you use "
 "the object oriented interface to matplotlib."
@@ -4179,24 +4179,24 @@ msgstr ""
 "Advertencia: en lugar de usar Pyplot o Pylab, se recomienda que use la "
 "interfaz orientada a objetos a Matplotlib."
 
-#: qatrack/qa/admin.py:3101
+#: qatrack/qa/admin.py:3104
 msgid ""
 "Warning: test procedure links should usually begin with http:// or https://"
 msgstr ""
 "Advertencia: los enlaces de procedimiento de prueba generalmente deben "
 "comenzar con http:// o https://"
 
-#: qatrack/qa/admin.py:3112
+#: qatrack/qa/admin.py:3115
 #, python-format
 msgid "Created by %(username)s"
 msgstr "Creado por %(username)s"
 
-#: qatrack/qa/admin.py:3122
+#: qatrack/qa/admin.py:3125
 #, python-format
 msgid "Modified by %(username)s"
 msgstr "Modified by %(username)s"
 
-#: qatrack/qa/admin.py:3152 qatrack/qa/admin.py:3213 qatrack/qa/admin.py:3378
+#: qatrack/qa/admin.py:3155 qatrack/qa/admin.py:3216 qatrack/qa/admin.py:3381
 #: qatrack/qa/templates/admin/qa/testlist/partials/_assign_machine_modal.html:42
 #: qatrack/qa/templates/qa/overview_by_due_date.html:123
 #: qatrack/qa/templates/qa/overview_by_due_date.html:130
@@ -4223,14 +4223,14 @@ msgstr "Modified by %(username)s"
 msgid "Assigned To"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:3154
+#: qatrack/qa/admin.py:3157
 #: qatrack/templates/admin/qa/testlistcycle/change_form.html:85
 #, fuzzy
 #| msgid "Assigned To"
 msgid "Not assigned"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:3229 qatrack/qa/admin.py:3233 qatrack/qa/models.py:1511
+#: qatrack/qa/admin.py:3232 qatrack/qa/admin.py:3236 qatrack/qa/models.py:1511
 #: qatrack/qa/models.py:1973
 #: qatrack/qa/templates/admin/qa/testlist/partials/_assign_machine_modal.html:56
 #: qatrack/reports/filters.py:199 qatrack/reports/filters.py:340
@@ -4241,15 +4241,15 @@ msgstr "Asignado a"
 msgid "Active"
 msgstr "Active"
 
-#: qatrack/qa/admin.py:3233
+#: qatrack/qa/admin.py:3236
 msgid "Not active"
 msgstr "Not active"
 
-#: qatrack/qa/admin.py:3254
+#: qatrack/qa/admin.py:3257
 msgid "Ad Hoc (Unscheduled)"
 msgstr "Ad hoc (no programado)"
 
-#: qatrack/qa/admin.py:3267
+#: qatrack/qa/admin.py:3270
 #, python-format
 msgid ""
 "To prevent data loss, you can not change the Unit, TestList or TestListCycle "
@@ -4260,162 +4260,177 @@ msgstr ""
 "TestListCycle de un UnittestCollection después de haber sido creado.El valor "
 "original era: %(object_id)s"
 
-#: qatrack/qa/admin.py:3317
+#: qatrack/qa/admin.py:3320
 msgid ""
 "This test list is already assigned to this unit at this frequency. Choose a "
 "different unit or frequency."
 msgstr ""
 
-#: qatrack/qa/admin.py:3470
+#: qatrack/qa/admin.py:3473
 #, fuzzy
 #| msgid "Choose Unit for Review"
 msgid "Choose another unit for Save as New"
 msgstr "Elija la unidad para su revisión"
 
-#: qatrack/qa/admin.py:3493
+#: qatrack/qa/admin.py:3496
 msgid ""
 "This test list or cycle is already assigned to this unit at this frequency. "
 "Choose a different unit, frequency or test list."
 msgstr ""
 
-#: qatrack/qa/admin.py:3533
+#: qatrack/qa/admin.py:3536
 msgid "What"
 msgstr ""
 
-#: qatrack/qa/admin.py:3534 qatrack/qa/admin.py:3538
+#: qatrack/qa/admin.py:3537 qatrack/qa/admin.py:3541
 msgid "Where & When"
 msgstr ""
 
-#: qatrack/qa/admin.py:3535 qatrack/qa/admin.py:3538
+#: qatrack/qa/admin.py:3538 qatrack/qa/admin.py:3541
 msgid "Who"
 msgstr ""
 
-#: qatrack/qa/admin.py:3608
+#: qatrack/qa/admin.py:3611
 #, fuzzy
 #| msgid "You don't have permission to create fault types."
 msgid "You don't have permission to assign test lists to units."
 msgstr "No tiene permiso para crear tipos de falla."
 
-#: qatrack/qa/admin.py:3611
+#: qatrack/qa/admin.py:3614
 #, fuzzy
 #| msgid "Copy from TestList or TestListCycle"
 msgid "Choose Test List or Test List Cycle first."
 msgstr "Copiar de TestList o TestListCycle"
 
-#: qatrack/qa/admin.py:3628
+#: qatrack/qa/admin.py:3631
 #, fuzzy
 #| msgid "You don't have permission to create fault types."
 msgid "You don't have permission to view test list assignments."
 msgstr "No tiene permiso para crear tipos de falla."
 
-#: qatrack/qa/admin.py:3637
+#: qatrack/qa/admin.py:3640
 #, fuzzy
 #| msgid "Change Type"
 msgid "Content Type"
 msgstr "Tipo de cambio"
 
-#: qatrack/qa/admin.py:3643
+#: qatrack/qa/admin.py:3646
 msgid "Unknown"
 msgstr "Unknown"
 
-#: qatrack/qa/admin.py:3785
+#: qatrack/qa/admin.py:3793
 msgid "Days"
 msgstr ""
 
-#: qatrack/qa/admin.py:3793
+#: qatrack/qa/admin.py:3801
 #, fuzzy
 #| msgid "Your Test Lists By Unit"
 msgid "No test lists yet"
 msgstr "Sus listas de pruebas por unidad"
 
-#: qatrack/qa/admin.py:3797
+#: qatrack/qa/admin.py:3805
 #, python-format
 msgid "%(names)s and %(count)d more"
 msgstr ""
 
-#: qatrack/qa/admin.py:3800
+#: qatrack/qa/admin.py:3808
 #, fuzzy
 #| msgid "Assigned To"
 msgid "Assignments"
 msgstr "Asignado a"
 
-#: qatrack/qa/admin.py:3866 qatrack/qa/admin.py:3897
+#: qatrack/qa/admin.py:3874 qatrack/qa/admin.py:3905
 #, fuzzy
 #| msgid "You don't have permission to create fault types."
 msgid "You don't have permission to change test list cycles."
 msgstr "No tiene permiso para crear tipos de falla."
 
-#: qatrack/qa/admin.py:3960
+#: qatrack/qa/admin.py:3971
 #: qatrack/reports/templates/reports/qc/next_due.html:21
 #: qatrack/reports/templates/reports/service_log/next_due.html:22
 msgid "Due Window"
 msgstr "Ventana debida"
 
-#: qatrack/qa/admin.py:3961 qatrack/reports/models.py:164
+#: qatrack/qa/admin.py:3972 qatrack/reports/models.py:164
 #, fuzzy
 #| msgid "Scheduled"
 msgid "Schedule"
 msgstr "Scheduled"
 
-#: qatrack/qa/admin.py:3988 qatrack/qa/admin.py:4025
+#: qatrack/qa/admin.py:3988
+msgid "Each rule must repeat every 1 or more days, weeks, months or years."
+msgstr ""
+
+#: qatrack/qa/admin.py:4028
+msgid ""
+"Due dates can only be listed for daily, weekly, monthly and yearly rules."
+msgstr ""
+
+#: qatrack/qa/admin.py:4051 qatrack/qa/admin.py:4065
 msgid "This schedule can't be read yet. Check its rules and dates."
 msgstr ""
 
-#: qatrack/qa/admin.py:3990
+#: qatrack/qa/admin.py:4053
 msgid "The QC window start and end are whole numbers of days, 0 or more."
 msgstr ""
 
-#: qatrack/qa/admin.py:3997
+#: qatrack/qa/admin.py:4060
 msgid ""
 "This schedule only excludes dates. Add a rule or a date for QC to be due."
 msgstr ""
 
-#: qatrack/qa/admin.py:3999
+#: qatrack/qa/admin.py:4062
 msgid "Add a rule or a date to the schedule to see when QC will be due."
 msgstr ""
 
-#: qatrack/qa/admin.py:4030
+#: qatrack/qa/admin.py:4078
+msgid ""
+"No date can match this schedule's rules (the 30th of February, say). Check "
+"its rules."
+msgstr ""
+
+#: qatrack/qa/admin.py:4120
 msgid ""
 "This schedule has no due dates after today. Check its dates and any end date "
 "or count."
 msgstr ""
 
-#: qatrack/qa/admin.py:4184
+#: qatrack/qa/admin.py:4274
 #: qatrack/templates/admin/qa/test/change_form.html:192
 msgid "Behaviour"
 msgstr ""
 
-#: qatrack/qa/admin.py:4187 qatrack/qa/models.py:580
+#: qatrack/qa/admin.py:4277 qatrack/qa/models.py:580
 msgid "Colour"
 msgstr ""
 
-#: qatrack/qa/admin.py:4219
+#: qatrack/qa/admin.py:4309
 #, fuzzy
 #| msgid "Preview"
 msgid "Label Preview"
 msgstr "Avance"
 
-#: qatrack/qa/admin.py:4224
+#: qatrack/qa/admin.py:4314
 #: qatrack/qa/templates/admin/qa/testinstancestatus/status_assets.html:38
 #, fuzzy
 #| msgid "Status"
 msgid "Status name"
 msgstr "Estado"
 
-#: qatrack/qa/admin.py:4255
+#: qatrack/qa/admin.py:4345
 #: qatrack/service_log/templates/service_log/log_rtsqa.html:32
 #: qatrack/service_log/templates/service_log/log_rtsqa.html:42
 #: qatrack/service_log/templates/service_log/table_context/table_context_rtsqa_actions.html:38
 msgid "Performed"
 msgstr "Performed"
 
-#: qatrack/qa/admin.py:4257
+#: qatrack/qa/admin.py:4347
 #, fuzzy
 #| msgid "Scheduled"
 msgid "Scheduling & Record"
 msgstr "Scheduled"
 
-#: qatrack/qa/admin.py:4313 qatrack/qa/models.py:2528
+#: qatrack/qa/admin.py:4403 qatrack/qa/models.py:2528
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:84
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:98
 #: qatrack/qa/templates/qa/testlistinstance_form.html:915
@@ -4430,116 +4445,116 @@ msgstr "Scheduled"
 msgid "In Progress"
 msgstr "En curso"
 
-#: qatrack/qa/admin.py:4323
+#: qatrack/qa/admin.py:4413
 #, fuzzy
 #| msgid "No Comments"
 msgid "No comments"
 msgstr "Sin comentarios"
 
-#: qatrack/qa/admin.py:4355
+#: qatrack/qa/admin.py:4445
 msgid "Result"
 msgstr ""
 
-#: qatrack/qa/admin.py:4356
+#: qatrack/qa/admin.py:4446
 #, fuzzy
 #| msgid "Change Type"
 msgid "Context"
 msgstr "Tipo de cambio"
 
-#: qatrack/qa/admin.py:4357
+#: qatrack/qa/admin.py:4447
 msgid "Stored Analysis Results"
 msgstr ""
 
-#: qatrack/qa/admin.py:4424 qatrack/qa/models.py:611 qatrack/qa/models.py:2150
+#: qatrack/qa/admin.py:4514 qatrack/qa/models.py:611 qatrack/qa/models.py:2150
 #: qatrack/qa/views/base.py:392
 msgid "Pass Fail"
 msgstr "PASS FALLO"
 
-#: qatrack/qa/admin.py:4428 qatrack/qa/models.py:1562 qatrack/qa/models.py:2178
+#: qatrack/qa/admin.py:4518 qatrack/qa/models.py:1562 qatrack/qa/models.py:2178
 #, fuzzy
 #| msgid "Fault Types"
 msgid "Unit Test Info"
 msgstr "Tipos de fallas"
 
-#: qatrack/qa/admin.py:4443
+#: qatrack/qa/admin.py:4533
 #, fuzzy, python-format
 #| msgid "Fault ID %(fault_id)s"
 msgid "ID %(id)s"
 msgstr "ID de falla %(fault_id)s"
 
-#: qatrack/qa/admin.py:4447 qatrack/qa/models.py:2843
+#: qatrack/qa/admin.py:4537 qatrack/qa/models.py:2843
 #: qatrack/qa/views/base.py:388
 #: qatrack/service_log/templates/service_log/log_rtsqa.html:24
 msgid "Test List Name"
 msgstr "Nombre de la lista de pruebas"
 
-#: qatrack/qa/admin.py:4454
+#: qatrack/qa/admin.py:4544
 #, fuzzy
 #| msgid "Test List Name"
 msgid "Test Name"
 msgstr "Nombre de la lista de pruebas"
 
-#: qatrack/qa/admin.py:4461
+#: qatrack/qa/admin.py:4551
 #, fuzzy
 #| msgid "First Name"
 msgid "Unit Name"
 msgstr "Nombre de pila"
 
-#: qatrack/qa/admin.py:4482
+#: qatrack/qa/admin.py:4572
 msgid "Duplicate Tolerance. A Tolerance with these values already exists"
 msgstr "Tolerancia duplicada.Ya existe una tolerancia con estos valores"
 
-#: qatrack/qa/admin.py:4540
+#: qatrack/qa/admin.py:4630
 #, fuzzy
 #| msgid "You do not have permission to do that. Nothing was changed."
 msgid "You don't have permission to create tolerances. Nothing was saved."
 msgstr "No tiene permiso para hacer eso. No se modificó nada."
 
-#: qatrack/qa/admin.py:4546
+#: qatrack/qa/admin.py:4636
 #, fuzzy
 #| msgid "Fault Types"
 msgid "Unit test info not found"
 msgstr "Tipos de fallas"
 
-#: qatrack/qa/admin.py:4550
+#: qatrack/qa/admin.py:4640
 msgid "New tolerances can't be created for this test type. Nothing was saved."
 msgstr ""
 
-#: qatrack/qa/admin.py:4565
+#: qatrack/qa/admin.py:4655
 #, fuzzy, python-format
 #| msgid "Current tolerance"
 msgid "Created %(tolerance)s."
 msgstr "Tolerancia actual"
 
-#: qatrack/qa/admin.py:4635
+#: qatrack/qa/admin.py:4725
 msgid "Limits"
 msgstr ""
 
-#: qatrack/qa/admin.py:4638
+#: qatrack/qa/admin.py:4728
 #, fuzzy
 #| msgid "Multiple Choice"
 msgid "Multiple Choice Values"
 msgstr "Opción múltiple"
 
-#: qatrack/qa/admin.py:4680 qatrack/qa/models.py:865
+#: qatrack/qa/admin.py:4770 qatrack/qa/models.py:865
 #: qatrack/qa/templates/admin/qa/tolerance/tolerance_assets.html:81
 #, python-format
 msgid "%(high)s must be at least %(low)s."
 msgstr ""
 
-#: qatrack/qa/admin.py:4764
+#: qatrack/qa/admin.py:4854
 #, fuzzy
 #| msgid "By Due Status"
 msgid "sets the status to"
 msgstr "Por el estado debido"
 
-#: qatrack/qa/admin.py:4784
+#: qatrack/qa/admin.py:4874
 #, fuzzy
 #| msgid "Status"
 msgid "Status Label"
 msgstr "Estado"
 
-#: qatrack/qa/admin.py:4842
+#: qatrack/qa/admin.py:4932
 msgid ""
 "There must be one default auto review rule set. Edit another rule set to be "
 "default first."
@@ -4547,29 +4562,29 @@ msgstr ""
 "Debe haber un conjunto de reglas de revisión automática "
 "predeterminada.Editar otra regla establecida para ser predeterminada primero."
 
-#: qatrack/qa/admin.py:4856 qatrack/qa/admin.py:4874 qatrack/qa/models.py:642
+#: qatrack/qa/admin.py:4946 qatrack/qa/admin.py:4964 qatrack/qa/models.py:642
 #: qatrack/qa/templates/admin/qa/autoreviewruleset/_rules_checkboxes.html:6
 msgid "Rules"
 msgstr ""
 
-#: qatrack/qa/admin.py:4926
+#: qatrack/qa/admin.py:5016
 #, fuzzy
 #| msgid "Save Part"
 msgid "Saved Data"
 msgstr "Parcialidad"
 
-#: qatrack/qa/admin.py:4930
+#: qatrack/qa/admin.py:5020
 #, fuzzy
 #| msgid "Not Set"
 msgid "Nothing saved yet"
 msgstr "No establecido"
 
-#: qatrack/qa/admin.py:4934 qatrack/qa/admin.py:4941
+#: qatrack/qa/admin.py:5024 qatrack/qa/admin.py:5031
 #: qatrack/templates/admin/qa/autosave/change_form.html:45
 msgid "Recover"
 msgstr "Recuperar"
 
-#: qatrack/qa/admin.py:4940
+#: qatrack/qa/admin.py:5030
 msgid "Click to continue this auto saved session"
 msgstr "Haga clic para continuar esta sesión guardada automáticamente"
 
@@ -6314,7 +6329,7 @@ msgstr ""
 #: qatrack/qa/templates/admin/qa/testlist/change_list.html:14
 #: qatrack/templates/admin/base_site.html:119
 #: qatrack/templates/admin/qa/category/change_list.html:11
-#: qatrack/templates/admin/qa/change_form.html:21
+#: qatrack/templates/admin/qa/change_form.html:22
 #: qatrack/templates/admin/qa/change_list.html:21
 #: qatrack/templates/admin/qa/test/change_form.html:11
 #: qatrack/templates/admin/qa/testinstance/change_form.html:11
@@ -6627,8 +6642,8 @@ msgstr ""
 #: qatrack/templates/admin/change_form.html:64
 #: qatrack/templates/admin/change_list.html:64
 #: qatrack/templates/admin/qa/category/change_list.html:34
-#: qatrack/templates/admin/qa/change_form.html:21
-#: qatrack/templates/admin/qa/change_form.html:33
+#: qatrack/templates/admin/qa/change_form.html:22
+#: qatrack/templates/admin/qa/change_form.html:34
 #: qatrack/templates/admin/qa/change_list.html:36
 #, python-format
 msgid "Add %(name)s"
@@ -10275,6 +10290,7 @@ msgstr "Generated"
 
 #: qatrack/reports/templates/reports/_details.html:15
 #: qatrack/templates/admin/parts/storage/edit_inline/tabular_paginated.html:127
+#: qatrack/templates/admin/qa/change_form.html:47
 #: qatrack/templates/admin/qa/testlistmembership/edit_inline/tabular.html:30
 msgid "View on site"
 msgstr "Ver en el sitio"
@@ -12236,30 +12252,36 @@ msgstr ""
 msgid "Tree View"
 msgstr "Vistas a los árboles"
 
-#: qatrack/templates/admin/qa/change_form.html:21
-#: qatrack/templates/admin/qa/change_form.html:33
+#: qatrack/templates/admin/qa/change_form.html:22
+#: qatrack/templates/admin/qa/change_form.html:34
 #, fuzzy, python-format
 #| msgid "Add %(name)s"
 msgid "View %(name)s"
 msgstr "Agregar %(name)s"
 
-#: qatrack/templates/admin/qa/change_form.html:55
+#: qatrack/templates/admin/qa/change_form.html:64
 msgid "Back"
 msgstr ""
 
-#: qatrack/templates/admin/qa/change_form.html:60
+#: qatrack/templates/admin/qa/change_form.html:69
 #, python-format
 msgid "Save these values as a new %(name)s and leave this one unchanged"
 msgstr ""
 
-#: qatrack/templates/admin/qa/change_form.html:61
+#: qatrack/templates/admin/qa/change_form.html:70
 #: qatrack/templates/admin/qa/test/change_form.html:51
 #, fuzzy
 #| msgid "Save As New Query"
 msgid "Save as New"
 msgstr "Guardar como una nueva consulta"
 
-#: qatrack/templates/admin/qa/change_form.html:66
+#: qatrack/templates/admin/qa/change_form.html:74
+#, fuzzy
+#| msgid "Add Part and enter another"
+msgid "Save and add another"
+msgstr "Agregar parte e ingresar a otro"
+
+#: qatrack/templates/admin/qa/change_form.html:77
 #: qatrack/templates/admin/qa/test/change_form.html:56
 #: qatrack/templates/admin/qa/testlist/change_form.html:62
 msgid "Save and Continue Editing"
@@ -12809,11 +12831,11 @@ msgstr "# de instancias de la lista de pruebas"
 msgid "View Test List Instance"
 msgstr "# de instancias de la lista de pruebas"
 
-#: qatrack/templates/admin/qa/testlistinstance/change_form.html:20
+#: qatrack/templates/admin/qa/testlistinstance/change_form.html:23
 msgid "Open this QC session's details page on the main site"
 msgstr ""
 
-#: qatrack/templates/admin/qa/testlistinstance/change_form.html:21
+#: qatrack/templates/admin/qa/testlistinstance/change_form.html:24
 #, fuzzy
 #| msgid "View on site"
 msgid "View on Site"

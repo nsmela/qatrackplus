@@ -251,6 +251,39 @@ class TestChangePage(UTCAdminTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('already assigned to this unit at this frequency', resp.content.decode())
 
+    def test_failed_save_as_new_offers_only_save_as_new(self):
+        # Django hides Save and Save and Continue here: they would change the original
+        data = self.saved_data(_saveasnew='Save as New')
+        del data['_save']
+        html = self.client.post(self.url_change, data).content.decode()
+        self.assertIn('id="qc-saveas-btn"', html)
+        self.assertNotIn('id="qc-save-btn"', html)
+        self.assertNotIn('id="qc-continue-btn"', html)
+
+    def test_buttons_follow_djangos_rules(self):
+        html = self.client.get(self.url_change).content.decode()
+        self.assertIn('id="qc-save-btn"', html)
+        self.assertIn('id="qc-continue-btn"', html)
+        # save_as pages offer Save as New instead of Save and add another, as Django does
+        self.assertNotIn('id="qc-addanother-btn"', html)
+        html = self.client.get(reverse('admin:qa_unittestcollection_add')).content.decode()
+        self.assertIn('id="qc-addanother-btn"', html)
+        self.assertNotIn('id="qc-saveas-btn"', html)
+
+    def test_view_on_site_opens_the_perform_page(self):
+        html = self.client.get(self.url_change).content.decode()
+        self.assertIn('id="qc-view-on-site-btn"', html)
+        # Django's own View on site link: its redirect to the assignment's perform page
+        # (on the domain set in Sites, as before this page was redesigned)
+        ct = ContentType.objects.get_for_model(models.UnitTestCollection)
+        url = reverse('admin:view_on_site', args=(ct.pk, self.utc.pk))
+        self.assertIn('href="%s"' % url, html)
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(resp['Location'].endswith(self.utc.get_absolute_url()), resp['Location'])
+        html = self.client.get(self.url_change + '?_popup=1').content.decode()
+        self.assertNotIn('id="qc-view-on-site-btn"', html)
+
     def test_change_frequency_to_an_existing_assignment_is_the_unique_error(self):
         qa_utils.create_unit_test_collection(unit=self.u_1, frequency=self.f_2, test_collection=self.tl_1)
         resp = self.client.post(self.url_change, self.saved_data(frequency=self.f_2.pk))

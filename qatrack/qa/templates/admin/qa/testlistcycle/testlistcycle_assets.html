@@ -333,7 +333,8 @@ docs/developer/design_system.ai.md, using its passing (A11Y) shades for text.
     var total = byId("id_" + prefix + "-TOTAL_FORMS");
     if (!total) { return; }
     // Take the next formset index now, so a quick second add gets its own. If the
-    // request fails the index is just an empty row, which the formset skips.
+    // request fails the index is just an empty form: the formset saves nothing for it
+    // and _cycle_rows leaves it out if the page comes back after a failed save.
     var index = parseInt(total.value, 10) || 0;
     total.value = index + 1;
     pendingAdds[testListId] = true;

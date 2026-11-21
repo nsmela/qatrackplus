@@ -141,8 +141,9 @@ below for its dark theme.
 
   var SEARCH_PLACEHOLDER = "{{ _('Search…')|escapejs }}";
 
-  // List pages: a click anywhere on a row opens the item (its first link), as on the
-  // Test Lists page. Links, inputs and text selection keep working as usual.
+  // List pages: a click anywhere on a row does what clicking its first link does, as on
+  // the Test Lists page: opens the item, or in a lookup popup picks it (Django's popup
+  // handler is on the link itself). Links, inputs and text selection work as usual.
   function initRowClick() {
     var table = document.getElementById("result_list");
     if (!table || table.dataset.qcRowClick) { return; }
@@ -160,7 +161,7 @@ below for its dark theme.
       tr.addEventListener("click", function (e) {
         if (e.target.closest("a, input, label, button, select, textarea") ||
             (window.getSelection && window.getSelection().toString())) { return; }
-        window.location = link.href;
+        link.click();
       });
     });
   }

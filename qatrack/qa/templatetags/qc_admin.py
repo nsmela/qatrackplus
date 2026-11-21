@@ -14,9 +14,21 @@ template, through optional attributes (all of them optional):
 """
 
 from django import forms, template
+from django.contrib.admin.templatetags.admin_modify import submit_row
 from django.utils.translation import gettext as _
 
 register = template.Library()
+
+
+@register.simple_tag(takes_context=True)
+def qc_submit_buttons(context):
+    """Which save buttons a QC change form shows, by Django's own rules (its submit_row):
+    {% qc_submit_buttons as qc_buttons %} then qc_buttons.show_save,
+    show_save_and_continue, show_save_and_add_another and show_save_as_new. These
+    follow permissions, popups and save_as, and hide Save and Save and Continue after a
+    failed "Save as New", when saving would change the original instead of making a copy.
+    """
+    return submit_row(context)
 
 DEFAULT_FIRST_ICON = "fa-info-circle"
 DEFAULT_ICON = "fa-sliders"

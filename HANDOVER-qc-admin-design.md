@@ -465,6 +465,37 @@ each with a test; the two browser-side ones were also checked in a browser.
   filters (`add_preserved_filters`). The Test and Test List pages (from
   `feat/test-builder`, not changed here) still link Cancel to the bare list.
 
+**Component review (same day):** a review of every component found five bugs
+this branch had added. All are fixed, with tests:
+
+- Shared change form: after a failed Save as New, Django hides Save and Save
+  and Continue, because they would change the original. The shared header drew
+  them anyway. It now asks Django's own `submit_row` which buttons to show
+  (the `qc_submit_buttons` tag in `qc_admin.py`). That also brings back
+  "Save and add another" (Django leaves it off `save_as` pages such as the
+  assignment page).
+- The shared header has a View on site link again (Django's, through its
+  `admin:view_on_site` redirect), in a `qc_view_on_site` block. The Test List
+  Instance page empties that block: it keeps its own link, shown only to users
+  who can view completed QC. Only the assignment page has a site page to link to.
+- Frequency "Next due dates": a rule repeating every 0 days hung the worker for
+  ever, and a rule no date matches (30 February) or exclusions that remove every
+  date took 10 to 30 seconds. `FrequencyPreviewForm.clean_recurrences` refuses
+  intervals below 1, and hourly or finer rules (the widget offers neither).
+  `frequency_rule_can_occur` tries each rule over the last 100 years before
+  9999, and rules no date matches are left out. The search stops 50 years
+  ahead. Each case now answers in well under a second. `FrequencyForm.clean`
+  refuses an interval below 1 before `calc_nominal_interval` runs. That hang on
+  save was already on master.
+- In a lookup popup, clicking a row opened the item instead of picking it. The
+  row click now clicks the row's own link, so Django's popup handler runs.
+- Cycle page: an add that failed left an empty form counted in TOTAL_FORMS. If
+  the save then failed, that form came back as a "Test list not found" day.
+  `_cycle_rows` now leaves out new forms with no test list.
+- Still open, in `feat/test-builder` files this branch doesn't change: the Test
+  page's header has the same Save-after-failed-Save-as-New bug and no "Save and
+  add another".
+
 ## Next steps
 
 1. **Read every diff.** `AGENTS.md` requires a human to read and understand each

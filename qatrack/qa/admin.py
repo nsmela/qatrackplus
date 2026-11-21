@@ -1,7 +1,10 @@
+import copy
+import datetime
 import json
 import math
 import re
 
+from dateutil import rrule as dateutil_rrule
 from django import VERSION, forms
 from django.apps import apps
 from django.conf import settings
@@ -3712,13 +3715,18 @@ def _cycle_rows(formset):
     Each row is ``{"form", "info", "saved", "removed", "day"}``. After a failed save
     the rows come back the way the user left them: in the posted order, with the
     posted test lists, and saved rows they removed still removed (hidden, their
-    DELETE box ticked). New rows they removed aren't brought back.
+    DELETE box ticked). New rows they removed aren't brought back, and nor are new
+    rows with no test list: the page takes a row's formset index before asking for
+    the row, so an add that failed leaves an empty form behind.
     """
     rows = []
     for index, form in enumerate(formset.forms):
         if _unsaved_and_deleted(form):
             continue
-        test_list_pk = _int_param(form["test_list"].value()) if "test_list" in form.fields else None
+        posted_test_list = form["test_list"].value() if "test_list" in form.fields else None
+        if not form.instance.pk and posted_test_list in (None, ""):
+            continue
+        test_list_pk = _int_param(posted_test_list)
         if test_list_pk is None:
             test_list_pk = form.instance.test_list_id
         order = _int_param(form["order"].value()) if "order" in form.fields else form.instance.order
@@ -3942,7 +3950,10 @@ class FrequencyForm(forms.ModelForm):
         super().clean()
 
         recurrences = self.cleaned_data.get('recurrences')
-        if recurrences and not scheduling.calc_nominal_interval(recurrences):
+        if recurrences and frequency_interval_problem(recurrences):
+            # checked first: working out the occurrences of such a rule never finishes
+            self.add_error('recurrences', frequency_interval_problem(recurrences))
+        elif recurrences and not scheduling.calc_nominal_interval(recurrences):
             self.add_error(
                 'recurrences', 'This frequency has zero occurences. Please adjust the schedule and try again'
             )
@@ -3961,6 +3972,37 @@ FREQUENCY_WINDOW_FIELDSET = _l("Due Window")
 FREQUENCY_SCHEDULE_FIELDSET = _l("Schedule")
 
 
+# The rule frequencies the schedule widget offers (django-recurrence shows the first four).
+FREQUENCY_WIDGET_FREQS = (dateutil_rrule.YEARLY, dateutil_rrule.MONTHLY, dateutil_rrule.WEEKLY, dateutil_rrule.DAILY)
+# How far ahead the "Next due dates" list looks for dates.
+FREQUENCY_PREVIEW_YEARS = 50
+# How many years frequency_rule_can_occur searches for a rule's first date.
+FREQUENCY_PROBE_YEARS = 100
+
+
+def frequency_interval_problem(recurrences):
+    """A message when a rule of this schedule repeats every 0 (or fewer) days, weeks,
+    months or years, else "". dateutil never finishes working out such a rule."""
+    rules = list(recurrences.rrules) + list(recurrences.exrules)
+    if any(rule.interval is None or rule.interval < 1 for rule in rules):
+        return _("Each rule must repeat every 1 or more days, weeks, months or years.")
+    return ""
+
+
+def frequency_rule_can_occur(rule):
+    """False for a rule that no date can ever match, such as the 30th of February.
+
+    dateutil looks for such a rule's next date all the way to the year 9999, which takes
+    many seconds for a daily rule, so the rule (without its end date or count) is tried
+    over the last FREQUENCY_PROBE_YEARS years before 9999 instead: a matching date, if
+    there is one, turns up within a few decades."""
+    probe = copy.copy(rule)
+    probe.until = None
+    probe.count = None
+    start = datetime.datetime(datetime.MAXYEAR - FREQUENCY_PROBE_YEARS, 1, 1)
+    return probe.to_dateutil_rrule(dtstart=start).after(start, inc=True) is not None
+
+
 class FrequencyPreviewForm(forms.Form):
     """The schedule as it stands in the Frequency form, for the "Next due dates" list.
 
@@ -3970,6 +4012,22 @@ class FrequencyPreviewForm(forms.Form):
     recurrences = models.Frequency._meta.get_field("recurrences").formfield(required=False)
     window_start = forms.IntegerField(min_value=0, required=False)
     window_end = forms.IntegerField(min_value=0, required=False)
+
+    def clean_recurrences(self):
+        """Refuse rules the preview can't work through quickly: an interval below 1, and
+        hourly or finer rules, which the schedule widget doesn't offer."""
+        recurrences = self.cleaned_data.get("recurrences")
+        if recurrences is None:
+            return recurrences
+        problem = frequency_interval_problem(recurrences)
+        if problem:
+            raise forms.ValidationError(problem, code="qc_rule")
+        rules = list(recurrences.rrules) + list(recurrences.exrules)
+        if any(rule.freq not in FREQUENCY_WIDGET_FREQS for rule in rules):
+            raise forms.ValidationError(
+                _("Due dates can only be listed for daily, weekly, monthly and yearly rules."), code="qc_rule",
+            )
+        return recurrences
 
 
 def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
@@ -3985,7 +4043,12 @@ def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
     if not form.is_valid():
         result["is_error"] = True
         if "recurrences" in form.errors:
-            result["message"] = _("This schedule can't be read yet. Check its rules and dates.")
+            # clean_recurrences's own message when it refused the rules
+            rule_errors = [e for e in form.errors.as_data()["recurrences"] if e.code == "qc_rule"]
+            if rule_errors:
+                result["message"] = rule_errors[0].messages[0]
+            else:
+                result["message"] = _("This schedule can't be read yet. Check its rules and dates.")
         else:
             result["message"] = _("The QC window start and end are whole numbers of days, 0 or more.")
         return result
@@ -3999,6 +4062,34 @@ def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
             result["message"] = _("Add a rule or a date to the schedule to see when QC will be due.")
         return result
 
+    unreadable = _("This schedule can't be read yet. Check its rules and dates.")
+    # A copy to work on: rules no date can match are left out of it (they add no dates
+    # and exclude none, but dateutil would search to the year 9999 for them).
+    recurrences = copy.deepcopy(recurrences)
+    try:
+        recurrences.rrules = [rule for rule in recurrences.rrules if frequency_rule_can_occur(rule)]
+        recurrences.exrules = [rule for rule in recurrences.exrules if frequency_rule_can_occur(rule)]
+    except (ValueError, TypeError, OverflowError):
+        result["is_error"] = True
+        result["message"] = unreadable
+        return result
+    if not (recurrences.rrules or recurrences.rdates):
+        result["is_error"] = True
+        result["message"] = _("No date can match this schedule's rules (the 30th of February, say). Check its rules.")
+        return result
+
+    now = timezone.localtime(now or timezone.now())
+    # Look FREQUENCY_PREVIEW_YEARS ahead at most: a schedule whose exclusions remove
+    # every date would otherwise be searched to the year 9999. django-recurrence adds
+    # its end date (dtend) as a date of its own, so the list stops before it.
+    horizon = now + datetime.timedelta(days=365 * FREQUENCY_PREVIEW_YEARS)
+    if recurrences.dtend is not None:
+        dtend = recurrences.dtend
+        if timezone.is_naive(dtend):
+            dtend = timezone.make_aware(dtend)
+        horizon = min(horizon, dtend)
+    recurrences.dtend = horizon
+
     frequency = models.Frequency(
         recurrences=recurrences,
         window_start=form.cleaned_data["window_start"],
@@ -4008,11 +4099,10 @@ def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
         frequency.relocalize_recurrence()
     result["classic"] = frequency.classical
 
-    now = timezone.localtime(now or timezone.now())
     try:
         # A first completion today: calc_due_date with no due date yet, as for a new assignment.
         due = scheduling.calc_due_date(now, None, frequency)
-        while due is not None and len(result["dates"]) < count:
+        while due is not None and due < horizon and len(result["dates"]) < count:
             window_start, window_end = scheduling.qc_window(due, frequency)
             result["dates"].append({"due": due, "window_start": window_start, "window_end": window_end})
             next_due = scheduling.calc_due_date(due, due, frequency)
@@ -4022,7 +4112,7 @@ def frequency_next_due_dates(data, now=None, count=FREQUENCY_NEXT_DUE_COUNT):
     except (ValueError, TypeError, OverflowError):
         result["dates"] = []
         result["is_error"] = True
-        result["message"] = _("This schedule can't be read yet. Check its rules and dates.")
+        result["message"] = unreadable
         return result
 
     if not result["dates"]:

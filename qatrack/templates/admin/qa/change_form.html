@@ -12,6 +12,7 @@ Per-model templates extend this one and override its blocks:
   qc_title       the title text ("Add Frequency" / "Edit Frequency")
   qc_header_meta the quieter text after the title (default: the object's name)
   qc_header_actions_extra  extra buttons before History/Delete/Cancel
+  qc_view_on_site  the View on site link (pages with their own can empty it)
   field_sets, after_field_sets, inline_field_sets, after_related_objects (Django's)
 ModelAdmin attributes that tune the cards: see qatrack/qa/templatetags/qc_admin.py.
 Styles and JS: admin/qa/shared/_qc_assets.html.
@@ -38,7 +39,15 @@ View-only users keep the same cards, with every field read-only.
     {% endif %}
   </div>
   <div class="tl-header-actions">
+    {% qc_submit_buttons as qc_buttons %}
     {% block qc_header_actions_extra %}{% endblock %}
+    {% block qc_view_on_site %}
+      {% if change and has_absolute_url and not is_popup %}
+        <a href="{{ absolute_url }}" class="tl-top-btn tl-top-btn-secondary" id="qc-view-on-site-btn">
+          <i class="fa fa-external-link" aria-hidden="true"></i> {% trans "View on site" %}
+        </a>
+      {% endif %}
+    {% endblock %}
     {% if change and original.pk and not is_popup %}
       <a href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}" class="tl-top-btn tl-top-btn-secondary" id="qc-history-btn">
         <i class="fa fa-history" aria-hidden="true"></i> {% trans "History" %}
@@ -54,17 +63,20 @@ View-only users keep the same cards, with every field read-only.
       {% url opts|admin_urlname:'changelist' as changelist_url %}
       <a href="{% add_preserved_filters changelist_url %}" class="tl-top-btn tl-top-btn-secondary" id="qc-cancel-btn">{% if add or has_change_permission %}{% trans "Cancel" %}{% else %}{% trans "Back" %}{% endif %}</a>
     {% endif %}
-    {% if change and has_change_permission and save_as and has_add_permission and not is_popup %}
+    {% if qc_buttons.show_save_as_new and has_change_permission %}
       {# Django's "Save as new": a copy with these values; the original is left as it was saved. #}
       <button type="submit" name="_saveasnew" class="tl-top-btn tl-top-btn-secondary" id="qc-saveas-btn"
               title="{% blocktrans with name=opts.verbose_name %}Save these values as a new {{ name }} and leave this one unchanged{% endblocktrans %}">
         <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save as New" %}
       </button>
     {% endif %}
-    {% if add and has_add_permission or change and has_change_permission %}
-      {% if not is_popup %}
-        <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary" id="qc-continue-btn">{% trans "Save and Continue Editing" %}</button>
-      {% endif %}
+    {% if qc_buttons.show_save_and_add_another %}
+      <button type="submit" name="_addanother" class="tl-top-btn tl-top-btn-secondary" id="qc-addanother-btn">{% trans "Save and add another" %}</button>
+    {% endif %}
+    {% if qc_buttons.show_save_and_continue %}
+      <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary" id="qc-continue-btn">{% trans "Save and Continue Editing" %}</button>
+    {% endif %}
+    {% if qc_buttons.show_save %}
       <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save" id="qc-save-btn">
         <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save" %}
       </button>

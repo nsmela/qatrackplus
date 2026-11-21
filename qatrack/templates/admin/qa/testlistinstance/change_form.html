@@ -14,6 +14,9 @@ site. Instances are only created by performing QC, so there's no add page.
 
 {% block qc_header_meta %}{{ original.test_list.name }} &middot; {{ original.unit_test_collection.unit.name }}{% if original.work_completed %} &middot; {{ original.work_completed }}{% endif %}{% endblock %}
 
+{# its own View on Site below, for users who can view completed QC #}
+{% block qc_view_on_site %}{% endblock %}
+
 {% block qc_header_actions_extra %}
   {% if original.pk and perms.qa.can_view_completed and not is_popup %}
     <a href="{% url 'view_test_list_instance' pk=original.pk %}" class="tl-top-btn tl-top-btn-secondary" id="qci-view-on-site-btn"
