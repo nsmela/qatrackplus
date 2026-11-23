@@ -67,6 +67,25 @@ class TestTestChangeFormCards(TestCase):
         assert soup.select_one('h1.tl-header-title').get_text(strip=True) == 'Add Test'
         assert not soup.select_one('#tst-used-card')
         assert not soup.select_one('#tst-saveas-btn')
+        names = [b.get('name') for b in soup.select('.tl-header-actions button[type=submit]')]
+        assert names == ['_addanother', '_continue', '_save']
+
+    def test_failed_save_as_new_offers_only_save_as_new(self):
+        """Django hides Save and Save and Continue after a failed Save as New: they
+        would change the original test instead of making the copy."""
+        data = {'name': 'Output copy', 'slug': self.test.slug, '_saveasnew': 'Save as New'}
+        for prefix in ('attachment_set', 'attachments'):
+            data.update({
+                '%s-TOTAL_FORMS' % prefix: 0, '%s-INITIAL_FORMS' % prefix: 0,
+                '%s-MIN_NUM_FORMS' % prefix: 0, '%s-MAX_NUM_FORMS' % prefix: 1000,
+            })
+        before = models.Test.objects.count()
+        soup = _soup(self.client.post(self.url, data))
+        names = [b.get('name') for b in soup.select('.tl-header-actions button[type=submit]')]
+        assert names == ['_saveasnew']
+        assert models.Test.objects.count() == before
+        self.test.refresh_from_db()
+        assert self.test.name == 'Output'
 
     def test_type_select_is_grouped_and_complete(self):
         soup = _soup(self.client.get(self.url))

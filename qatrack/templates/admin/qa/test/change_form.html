@@ -1,5 +1,5 @@
 {% extends "admin/change_form.html" %}
-{% load i18n admin_urls qa_tags %}
+{% load i18n admin_urls qa_tags qc_admin %}
 
 {#
   Test change form: cards in the Test List page's style (Details, Type & Behaviour,
@@ -32,6 +32,8 @@
     {% endif %}
   </div>
   <div class="tl-header-actions">
+    {# Django's own rules for which save buttons show (see qc_submit_buttons in qc_admin.py) #}
+    {% qc_submit_buttons as qc_buttons %}
     {% if change and original.pk %}
       <a href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}" class="tl-top-btn tl-top-btn-secondary" id="tst-history-btn">
         <i class="fa fa-history" aria-hidden="true"></i> {% trans "History" %}
@@ -43,18 +45,21 @@
       {% endif %}
     {% endif %}
     <a href="{% url opts|admin_urlname:'changelist' %}" class="tl-top-btn tl-top-btn-secondary" id="tst-cancel-btn">{% trans "Cancel" %}</a>
-    {% if change and has_change_permission %}
-      {% if save_as and has_add_permission %}
-        {# Django's "Save as new": a copy with these values; the original is left as it was saved. #}
-        <button type="submit" name="_saveasnew" class="tl-top-btn tl-top-btn-secondary" id="tst-saveas-btn"
-                title="{% trans "Save these values as a new test and leave this one unchanged" %}">
-          <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save as New" %}
-        </button>
-      {% endif %}
+    {% if qc_buttons.show_save_as_new and has_change_permission %}
+      {# Django's "Save as new": a copy with these values; the original is left as it was saved. #}
+      <button type="submit" name="_saveasnew" class="tl-top-btn tl-top-btn-secondary" id="tst-saveas-btn"
+              title="{% trans "Save these values as a new test and leave this one unchanged" %}">
+        <i class="fa fa-files-o" aria-hidden="true"></i> {% trans "Save as New" %}
+      </button>
     {% endif %}
-    {% if add and has_add_permission or change and has_change_permission %}
-      <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary">{% trans "Save and Continue Editing" %}</button>
-      <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save">
+    {% if qc_buttons.show_save_and_add_another %}
+      <button type="submit" name="_addanother" class="tl-top-btn tl-top-btn-secondary" id="tst-addanother-btn">{% trans "Save and add another" %}</button>
+    {% endif %}
+    {% if qc_buttons.show_save_and_continue %}
+      <button type="submit" name="_continue" class="tl-top-btn tl-top-btn-secondary" id="tst-continue-btn">{% trans "Save and Continue Editing" %}</button>
+    {% endif %}
+    {% if qc_buttons.show_save %}
+      <button type="submit" name="_save" class="tl-top-btn tl-top-btn-save" id="tst-save-btn">
         <i class="fa fa-floppy-o" aria-hidden="true"></i> {% trans "Save" %}
       </button>
     {% endif %}

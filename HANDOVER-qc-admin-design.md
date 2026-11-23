@@ -492,9 +492,10 @@ this branch had added. All are fixed, with tests:
 - Cycle page: an add that failed left an empty form counted in TOTAL_FORMS. If
   the save then failed, that form came back as a "Test list not found" day.
   `_cycle_rows` now leaves out new forms with no test list.
-- Still open, in `feat/test-builder` files this branch doesn't change: the Test
-  page's header has the same Save-after-failed-Save-as-New bug and no "Save and
-  add another".
+- The Test page (from `feat/test-builder`) had the same Save-after-failed-Save-
+  as-New bug. Its header now uses `qc_submit_buttons` too, which also gives its
+  add page "Save and add another". The Test List page was fine: after a failed
+  Save As it keeps posting `_saveasnew`.
 
 ## Next steps
 

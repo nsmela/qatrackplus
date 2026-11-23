@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 20:54-0700\n"
+"POT-Creation-Date: 2026-11-23 07:55-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -192,7 +192,7 @@ msgstr "Use los iconos/enlaces a continuación para alternar el permiso"
 #: qatrack/service_log/templates/service_log/overview_by_due_date.html:135
 #: qatrack/service_log/templates/service_log/overview_by_due_date.html:143
 #: qatrack/service_log/views.py:1778
-#: qatrack/templates/admin/qa/test/change_form.html:79
+#: qatrack/templates/admin/qa/test/change_form.html:84
 #: qatrack/templates/admin/qa/testlist/change_form.html:197
 #: qatrack/units/models.py:205
 msgid "Name"
@@ -266,7 +266,7 @@ msgstr "Iniciar sesión falló con error {status_code}: {phrase}"
 
 #: qatrack/api/qa/filters.py:178 qatrack/api/qa/serializers.py:89
 #: qatrack/qa/admin.py:2770 qatrack/qa/admin.py:2825
-#: qatrack/templates/admin/qa/test/change_form.html:148
+#: qatrack/templates/admin/qa/test/change_form.html:153
 msgid "Choices"
 msgstr ""
 
@@ -876,7 +876,7 @@ msgstr ""
 #: qatrack/service_log/templates/service_log/service_event_update.html:655
 #: qatrack/templates/_form_horizontal.html:55
 #: qatrack/templates/admin/qa/change_form.html:58
-#: qatrack/templates/admin/qa/test/change_form.html:41
+#: qatrack/templates/admin/qa/test/change_form.html:43
 #: qatrack/templates/admin/qa/testlist/change_form.html:48
 #: qatrack/templates/admin/qa/testlistinstance/delete_confirmation.html:19
 #: qatrack/templates/explorer/query_list.html:65
@@ -915,7 +915,7 @@ msgstr "Revisar"
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:33
 #: qatrack/qa/templatetags/qc_admin.py:41
 #: qatrack/service_log/templates/service_log/table_context/table_context_se_actions.html:17
-#: qatrack/templates/admin/qa/test/change_form.html:74
+#: qatrack/templates/admin/qa/test/change_form.html:79
 #: qatrack/templates/admin/qa/testlist/change_form.html:192
 #: qatrack/templates/admin/qa/unittestinfo/change_form.html:31
 #: qatrack/templates/admin/qa/unittestinfo/copy_refs_and_tols_preview.html:11
@@ -944,7 +944,7 @@ msgstr "Are you sure you want to permanently this fault?"
 #: qatrack/qa/templates/qa/testlistinstance_list.html:98
 #: qatrack/service_log/templates/service_log/service_event_update.html:840
 #: qatrack/templates/admin/qa/change_form.html:64
-#: qatrack/templates/admin/qa/test/change_form.html:45
+#: qatrack/templates/admin/qa/test/change_form.html:47
 #: qatrack/templates/admin/qa/testlist/change_form.html:53
 #: qatrack/templates/admin/qa/testlistinstance/delete_confirmation.html:40
 #: qatrack/templates/admin/qa/testpack/export.html:42
@@ -1024,7 +1024,7 @@ msgstr "Detalles de falla"
 #: qatrack/qa/templates/admin/qa/testlist/testlist_assets.html:1882
 #: qatrack/reports/templates/reports/reports.html:240
 #: qatrack/templates/admin/qa/frequency/change_form.html:22
-#: qatrack/templates/admin/qa/test/change_form.html:111
+#: qatrack/templates/admin/qa/test/change_form.html:116
 #: qatrack/templates/admin/qa/testlist/change_form.html:146
 #: qatrack/templates/admin/qa/testlist/change_form.html:211
 #: qatrack/templates/admin/qa/unittestinfo/copy_refs_and_tols.html:66
@@ -1179,7 +1179,7 @@ msgstr "Código"
 #: qatrack/qa/templates/qa/testlistinstance_review.html:237
 #: qatrack/qa/views/admin.py:114
 #: qatrack/reports/templates/reports/qc/testlistinstance_details.html:83
-#: qatrack/templates/admin/qa/test/change_form.html:108
+#: qatrack/templates/admin/qa/test/change_form.html:113
 #: qatrack/templates/admin/qa/testlist/change_form.html:208
 #: qatrack/templates/admin/qa/testpack/export.html:74
 #: qatrack/templates/admin/qa/testpack/export.html:103
@@ -1338,7 +1338,7 @@ msgstr "Editando"
 #: qatrack/service_log/templates/service_log/service_event_detail.html:524
 #: qatrack/service_log/templates/service_log/table_context/table_context_se_actions.html:10
 #: qatrack/service_log/templates/service_log/table_context/table_context_set_actions.html:17
-#: qatrack/templates/admin/qa/test/change_form.html:305
+#: qatrack/templates/admin/qa/test/change_form.html:310
 #: qatrack/templates/admin/qa/testlist/change_form.html:20
 msgid "Edit"
 msgstr "Editar"
@@ -1351,7 +1351,7 @@ msgstr "Editar"
 #: qatrack/service_log/templates/service_log/service_event_update.html:142
 #: qatrack/service_log/templates/service_log/service_event_update.html:652
 #: qatrack/templates/admin/qa/change_form.html:81
-#: qatrack/templates/admin/qa/test/change_form.html:58
+#: qatrack/templates/admin/qa/test/change_form.html:63
 #: qatrack/templates/admin/qa/testlist/change_form.html:65
 #: qatrack/templates/site_base.html:132
 msgid "Save"
@@ -1660,7 +1660,7 @@ msgstr "Descripción del problema"
 #: qatrack/qa/templates/admin/qa/unittestcollection/partials/_picker.html:16
 #: qatrack/qa/templates/admin/qa/unittestcollection/partials/_preview.html:59
 #: qatrack/qa/templates/qa/charts.html:149
-#: qatrack/templates/admin/qa/test/change_form.html:137
+#: qatrack/templates/admin/qa/test/change_form.html:142
 #: qatrack/templates/admin/qa/testlist/change_form.html:325
 #: qatrack/templates/admin/qa/testpack/export.html:139
 #: qatrack/templates/admin/qa/testpack/import.html:136
@@ -2127,7 +2127,7 @@ msgstr "Lista de prueba"
 #: qatrack/reports/templates/reports/qc/backup_forms.html:73
 #: qatrack/reports/templates/reports/qc/testlistinstance_details.html:133
 #: qatrack/reports/tests/test_qc.py:241 qatrack/reports/tests/test_qc.py:340
-#: qatrack/templates/admin/qa/test/change_form.html:305
+#: qatrack/templates/admin/qa/test/change_form.html:310
 #: qatrack/templates/admin/qa/unittestinfo/history.html:10
 msgid "Tolerance"
 msgstr "Tolerancia"
@@ -3309,7 +3309,7 @@ msgstr "Ubicación"
 #: qatrack/qa/templates/qa/testlistinstance_form.html:548
 #: qatrack/reports/qc/assigned_qc.py:267
 #: qatrack/reports/templates/reports/qc/assigned_qc_details.html:55
-#: qatrack/templates/admin/qa/test/change_form.html:97
+#: qatrack/templates/admin/qa/test/change_form.html:102
 #: qatrack/templates/admin/qa/testlist/change_form.html:324
 #: qatrack/templates/admin/qa/testpack/export.html:138
 #: qatrack/templates/admin/qa/testpack/import.html:135
@@ -3403,7 +3403,7 @@ msgstr ""
 #: qatrack/reports/templates/reports/qc/backup_forms.html:72
 #: qatrack/reports/templates/reports/qc/testlistinstance_details.html:132
 #: qatrack/reports/tests/test_qc.py:240 qatrack/reports/tests/test_qc.py:339
-#: qatrack/templates/admin/qa/test/change_form.html:305
+#: qatrack/templates/admin/qa/test/change_form.html:310
 #: qatrack/templates/admin/qa/unittestinfo/history.html:9
 msgid "Reference"
 msgstr "Referencia"
@@ -3489,7 +3489,7 @@ msgstr ""
 #: qatrack/qa/admin.py:622 qatrack/qa/admin.py:624
 #: qatrack/qa/templates/qa/testlistinstance_detail.html:69
 #: qatrack/qa/templates/qa/testlistinstance_review.html:80
-#: qatrack/templates/admin/qa/test/change_form.html:302
+#: qatrack/templates/admin/qa/test/change_form.html:307
 #: qatrack/templates/admin/qa/testlist/change_form.html:84
 #: qatrack/templates/admin/qa/unittestinfo/copy_refs_and_tols_preview.html:52
 #: qatrack/templates/admin/qa/unittestinfo/copy_refs_and_tols_preview.html:53
@@ -3521,7 +3521,7 @@ msgstr "Establecer referencias y tolerancias"
 #: qatrack/qa/templates/qa/testlistinstance_review.html:554
 #: qatrack/qa/templates/qa/unittestcollection_actions.html:14
 #: qatrack/templates/admin/qa/change_form.html:53
-#: qatrack/templates/admin/qa/test/change_form.html:37
+#: qatrack/templates/admin/qa/test/change_form.html:39
 #: qatrack/templates/admin/qa/testlist/change_form.html:44
 #: qatrack/templates/explorer/base.html:64
 #: qatrack/templates/explorer/query.html:14
@@ -4084,24 +4084,24 @@ msgid "General, up to 6 significant figures (%.5G)"
 msgstr ""
 
 #: qatrack/qa/admin.py:2771
-#: qatrack/templates/admin/qa/test/change_form.html:153
+#: qatrack/templates/admin/qa/test/change_form.html:158
 #, fuzzy
 #| msgid "Constant"
 msgid "Constant value"
 msgstr "Constante"
 
 #: qatrack/qa/admin.py:2772
-#: qatrack/templates/admin/qa/test/change_form.html:157
+#: qatrack/templates/admin/qa/test/change_form.html:162
 msgid "Wrap low"
 msgstr ""
 
 #: qatrack/qa/admin.py:2773
-#: qatrack/templates/admin/qa/test/change_form.html:162
+#: qatrack/templates/admin/qa/test/change_form.html:167
 msgid "Wrap high"
 msgstr ""
 
 #: qatrack/qa/admin.py:2774
-#: qatrack/templates/admin/qa/test/change_form.html:167
+#: qatrack/templates/admin/qa/test/change_form.html:172
 #, fuzzy
 #| msgid "Perform test list"
 msgid "Flag the test list"
@@ -4396,7 +4396,7 @@ msgid ""
 msgstr ""
 
 #: qatrack/qa/admin.py:4274
-#: qatrack/templates/admin/qa/test/change_form.html:192
+#: qatrack/templates/admin/qa/test/change_form.html:197
 msgid "Behaviour"
 msgstr ""
 
@@ -5442,7 +5442,7 @@ msgid ""
 msgstr ""
 
 #: qatrack/qa/models.py:1059
-#: qatrack/templates/admin/qa/test/change_form.html:85
+#: qatrack/templates/admin/qa/test/change_form.html:90
 #, fuzzy
 #| msgid "last name"
 msgid "Macro name"
@@ -5512,7 +5512,7 @@ msgid "When test is No/False"
 msgstr ""
 
 #: qatrack/qa/models.py:1114
-#: qatrack/templates/admin/qa/test/change_form.html:218
+#: qatrack/templates/admin/qa/test/change_form.html:223
 msgid "Hidden"
 msgstr ""
 
@@ -5521,7 +5521,7 @@ msgid "Don't display this test when performing QC"
 msgstr ""
 
 #: qatrack/qa/models.py:1119
-#: qatrack/templates/admin/qa/test/change_form.html:204
+#: qatrack/templates/admin/qa/test/change_form.html:209
 #, fuzzy
 #| msgid "Highlight comments"
 msgid "Skip without comment"
@@ -12069,7 +12069,7 @@ msgstr "No establecido"
 #: qatrack/templates/admin/qa/autoreviewruleset/change_form.html:18
 #: qatrack/templates/admin/qa/category/change_form.html:28
 #: qatrack/templates/admin/qa/frequency/change_form.html:67
-#: qatrack/templates/admin/qa/test/change_form.html:284
+#: qatrack/templates/admin/qa/test/change_form.html:289
 #: qatrack/templates/admin/qa/testlistcycle/change_form.html:55
 #: qatrack/templates/admin/qa/tolerance/change_form.html:19
 msgid "Used In"
@@ -12269,20 +12269,21 @@ msgid "Save these values as a new %(name)s and leave this one unchanged"
 msgstr ""
 
 #: qatrack/templates/admin/qa/change_form.html:70
-#: qatrack/templates/admin/qa/test/change_form.html:51
+#: qatrack/templates/admin/qa/test/change_form.html:52
 #, fuzzy
 #| msgid "Save As New Query"
 msgid "Save as New"
 msgstr "Guardar como una nueva consulta"
 
 #: qatrack/templates/admin/qa/change_form.html:74
+#: qatrack/templates/admin/qa/test/change_form.html:56
 #, fuzzy
 #| msgid "Add Part and enter another"
 msgid "Save and add another"
 msgstr "Agregar parte e ingresar a otro"
 
 #: qatrack/templates/admin/qa/change_form.html:77
-#: qatrack/templates/admin/qa/test/change_form.html:56
+#: qatrack/templates/admin/qa/test/change_form.html:59
 #: qatrack/templates/admin/qa/testlist/change_form.html:62
 msgid "Save and Continue Editing"
 msgstr ""
@@ -12390,143 +12391,143 @@ msgid_plural "%(counter)s machines"
 msgstr[0] ""
 msgstr[1] ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:50
+#: qatrack/templates/admin/qa/test/change_form.html:51
 msgid "Save these values as a new test and leave this one unchanged"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:86
+#: qatrack/templates/admin/qa/test/change_form.html:91
 msgid "used in calculations"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:92
+#: qatrack/templates/admin/qa/test/change_form.html:97
 #, fuzzy
 #| msgid "Template Name"
 msgid "Display name"
 msgstr "Nombre de plantilla"
 
-#: qatrack/templates/admin/qa/test/change_form.html:102
+#: qatrack/templates/admin/qa/test/change_form.html:107
 #, fuzzy
 #| msgid "Detailed procedure link"
 msgid "Procedure link"
 msgstr "Enlace de procedimiento detallado"
 
-#: qatrack/templates/admin/qa/test/change_form.html:109
+#: qatrack/templates/admin/qa/test/change_form.html:114
 #: qatrack/templates/admin/qa/testlist/change_form.html:209
 msgid "HTML markup allowed"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:132
+#: qatrack/templates/admin/qa/test/change_form.html:137
 msgid "Type & Behaviour"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:172
-#: qatrack/templates/admin/qa/test/change_form.html:175
+#: qatrack/templates/admin/qa/test/change_form.html:177
+#: qatrack/templates/admin/qa/test/change_form.html:180
 #, fuzzy
 #| msgid "Report Information"
 msgid "Number format"
 msgstr "Informar información"
 
-#: qatrack/templates/admin/qa/test/change_form.html:177
+#: qatrack/templates/admin/qa/test/change_form.html:182
 msgid "Custom…"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:187
+#: qatrack/templates/admin/qa/test/change_form.html:192
 msgid "About number formats"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:197
+#: qatrack/templates/admin/qa/test/change_form.html:202
 #, fuzzy
 #| msgid "Show Schema"
 msgid "Show in charts"
 msgstr "Show"
 
-#: qatrack/templates/admin/qa/test/change_form.html:198
+#: qatrack/templates/admin/qa/test/change_form.html:203
 msgid "Results can be plotted on the Charts page."
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:211
+#: qatrack/templates/admin/qa/test/change_form.html:216
 #, fuzzy
 #| msgid "Remove Comment"
 msgid "Require a comment"
 msgstr "Eliminar el comentario"
 
-#: qatrack/templates/admin/qa/test/change_form.html:225
+#: qatrack/templates/admin/qa/test/change_form.html:230
 msgid "Show uploaded images"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:232
+#: qatrack/templates/admin/qa/test/change_form.html:237
 #, fuzzy
 #| msgid "Auto Reviewed"
 msgid "Auto review rules"
 msgstr "Revisado automático"
 
-#: qatrack/templates/admin/qa/test/change_form.html:245
+#: qatrack/templates/admin/qa/test/change_form.html:250
 #, fuzzy
 #| msgid "Calculating Down Times"
 msgid "Calculation procedure"
 msgstr "Calculando los tiempos"
 
-#: qatrack/templates/admin/qa/test/change_form.html:247
+#: qatrack/templates/admin/qa/test/change_form.html:252
 #, fuzzy
 #| msgid "Frequencies"
 msgid "Required"
 msgstr "Frecuencias"
 
-#: qatrack/templates/admin/qa/test/change_form.html:247
+#: qatrack/templates/admin/qa/test/change_form.html:252
 msgid "Optional"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:252
+#: qatrack/templates/admin/qa/test/change_form.html:257
 msgid ""
 "This snippet calculates the test's value from other tests. It must set the "
 "macro name (or result) to a value."
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:253
+#: qatrack/templates/admin/qa/test/change_form.html:258
 msgid ""
 "This snippet processes the uploaded file. Leave it blank to store the file "
 "as it is."
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:254
+#: qatrack/templates/admin/qa/test/change_form.html:259
 msgid ""
 "Optional: a snippet that sets this test's starting value, which the person "
 "performing QC can change."
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:260
+#: qatrack/templates/admin/qa/test/change_form.html:265
 msgid "Examples"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:288
+#: qatrack/templates/admin/qa/test/change_form.html:293
 #, fuzzy
 #| msgid "Test list"
 msgid "Test lists"
 msgstr "Lista de pruebas"
 
-#: qatrack/templates/admin/qa/test/change_form.html:296
+#: qatrack/templates/admin/qa/test/change_form.html:301
 #, fuzzy
 #| msgid "Copy from TestList or TestListCycle"
 msgid "This test isn't in any test list yet."
 msgstr "Copiar de TestList o TestListCycle"
 
-#: qatrack/templates/admin/qa/test/change_form.html:300
+#: qatrack/templates/admin/qa/test/change_form.html:305
 msgid "Machines"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:305
+#: qatrack/templates/admin/qa/test/change_form.html:310
 #: qatrack/templates/admin/qa/testlistcycle/change_form.html:65
 msgid "Machine"
 msgstr ""
 
-#: qatrack/templates/admin/qa/test/change_form.html:316
-#: qatrack/templates/admin/qa/test/change_form.html:317
+#: qatrack/templates/admin/qa/test/change_form.html:321
+#: qatrack/templates/admin/qa/test/change_form.html:322
 #, fuzzy, python-format
 #| msgid "Set references and tolerances"
 msgid "Edit reference and tolerance for %(unit)s"
 msgstr "Establecer referencias y tolerancias"
 
-#: qatrack/templates/admin/qa/test/change_form.html:326
+#: qatrack/templates/admin/qa/test/change_form.html:331
 msgid ""
 "No machine has this test yet. It appears here once a test list that has it "
 "is assigned to a machine."
