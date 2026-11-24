@@ -135,6 +135,7 @@ QATrack+ uses a layered approach to Django settings, with each file serving a sp
 
 3. ``test_settings.py`` - Default test environment settings
    - Contains test-specific defaults like password hashers and notification settings
+   - Turns on the SQL query tool (``USE_SQL_REPORTS``), as the deployment templates do, so its pages are tested
 
 4. ``settings.py`` - Base Django application settings
    - Contains core Django configuration, installed apps, middleware, etc.

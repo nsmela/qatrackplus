@@ -120,6 +120,14 @@ CACHES = {
     }
 }
 
+# The SQL query tool (SQL Explorer) is on in every deployment template, so test
+# with it on too. settings.py reads this after importing this file: it adds
+# 'explorer' to INSTALLED_APPS, routes /sql-reports/, and points
+# EXPLORER_CONNECTIONS at 'default' for the run. With it off, Explorer can't be
+# imported at all and nothing tests the SQL reports pages (#819 slipped through
+# that gap). A local_test_settings.py can still turn it off.
+USE_SQL_REPORTS = True
+
 # A missing local_test_settings.py is fine - the defaults above are safe. A
 # *broken* one is not, and must not be mistaken for a missing one: a bare
 # `except ImportError: pass` swallows a failing import inside the file too,
