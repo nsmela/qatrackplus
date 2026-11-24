@@ -738,7 +738,15 @@ USE_SQL_REPORTS = False
 
 EXPLORER_CONNECTIONS = {'Default': 'readonly'}
 EXPLORER_DEFAULT_CONNECTION = 'readonly'
-EXPLORER_SCHEMA_INCLUDE_TABLE_PREFIXES = ['auth_', 'qa', 'service_log', 'units', 'parts']
+# Tables listed in the SQL Explorer schema sidebar. auth_user is left out on
+# purpose: the readonly user can't read its password column (see
+# deploy/mysql/generate_ro_privileges.sql), and on MySQL the schema builder's
+# `SELECT * FROM auth_user` then fails with an error SQL Explorer doesn't catch,
+# so every saved query returns HTTP 500 (#819). Queries can still use auth_user;
+# it just isn't listed in the sidebar.
+EXPLORER_SCHEMA_INCLUDE_TABLE_PREFIXES = [
+    'auth_group', 'auth_permission', 'auth_user_', 'qa', 'service_log', 'units', 'parts',
+]
 EXPLORER_SCHEMA_EXCLUDE_TABLE_PREFIXES = ['authtoken', 'sessions_']
 EXPLORER_TASKS_ENABLED = False
 EXPLORER_ASYNC_SCHEMA = False
